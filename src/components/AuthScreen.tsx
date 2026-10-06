@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Flame, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2 } from 'lucide-react';
+import { BrandLogo } from './BrandLogo';
 import { supabase } from '../lib/supabase';
 import { UserRole } from '../types';
 
@@ -54,16 +55,11 @@ export const AuthScreen: React.FC = () => {
     'w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-brand-600 via-brand-700 to-accent-700 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-6 text-white">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 via-amber-500 to-sky-600 flex items-center justify-center shadow-lg mb-3">
-            <Flame className="w-7 h-7 text-white" />
-          </div>
-          <h1 className="font-extrabold text-2xl tracking-tight">
-            ENYAP <span className="text-brand-400">ISI</span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">Saha & Ofis Takip Portalı</p>
+        <div className="flex flex-col items-center gap-2 mb-6 bg-white rounded-2xl shadow-xl px-6 py-5">
+          <BrandLogo className="h-10" />
+          <p className="text-xs font-semibold text-slate-500">Teklif & Sipariş Takip Sistemi</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 space-y-4">
@@ -143,7 +139,7 @@ export const AuthScreen: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-amber-500 hover:from-brand-600 hover:to-amber-600 text-white font-bold text-sm shadow-md disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-accent-500 hover:from-brand-600 hover:to-accent-600 text-white font-bold text-sm shadow-md disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {mode === 'signin' ? 'Giriş Yap' : 'Hesap Oluştur'}
