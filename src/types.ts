@@ -117,6 +117,7 @@ export interface QuickNote {
   color: 'amber' | 'sky' | 'emerald' | 'rose' | 'purple';
   pinned: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ActivityLog {

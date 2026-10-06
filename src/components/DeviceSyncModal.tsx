@@ -335,14 +335,14 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
             <span>Enyap Isı Portalı v1.0.0</span>
             <button
               onClick={() => {
-                if (confirm('Örnek veriler varsayılana sıfırlansın mı?')) {
+                if (confirm('DİKKAT: Buluttaki TÜM veriler silinip örnek Enyap Isı verileriyle değiştirilecek. Bu işlem tüm cihazları etkiler. Devam edilsin mi?')) {
                   onResetDemo();
                   onClose();
                 }
               }}
               className="text-slate-500 hover:text-slate-800 underline"
             >
-              Örnek Enyap Isı Verilerini Sıfırla
+              Örnek Verileri Yükle (Tümünü Sıfırla)
             </button>
           </div>
 

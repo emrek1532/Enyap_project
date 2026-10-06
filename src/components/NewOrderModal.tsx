@@ -47,7 +47,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
     const count = Math.floor(Math.random() * 900) + 100;
     const newOrder: Order = {
       id: 'ord-' + Date.now(),
-      orderNumber: `SP-2026-0${count}`,
+      orderNumber: `SP-${new Date().getFullYear()}-0${count}`,
       quoteId: initialQuote?.id,
       quoteNumber: initialQuote?.quoteNumber,
       customerName: customerName.trim(),

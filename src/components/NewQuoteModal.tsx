@@ -144,7 +144,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
     const newQuote: Quote = {
       id: quoteId,
-      quoteNumber: `EY-2026-0${count}`,
+      quoteNumber: `EY-${new Date().getFullYear()}-0${count}`,
       customerName: customerName.trim(),
       customerContact: customerContact.trim() || undefined,
       customerPhone: customerPhone.trim(),

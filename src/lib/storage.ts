@@ -1,5 +1,6 @@
 import { AppData, Quote, Order, CalendarEvent, QuickNote, ActivityLog } from '../types';
 import { encryptText, decryptText } from './crypto';
+import type { PendingOp } from './db';
 
 const LOCAL_STORAGE_KEY = 'enyap_isi_portal_db_v1';
 const E2EE_PASSPHRASE_KEY = 'enyap_e2ee_passphrase_v1';
@@ -44,44 +45,30 @@ export function saveLocalData(data: AppData): void {
   }
 }
 
-/**
- * Syncs client data with server backend
- */
-export async function syncWithServer(localData: AppData): Promise<AppData> {
+const OUTBOX_KEY = 'enyap_isi_outbox_v1';
+
+/** Çevrimdışıyken sunucuya yazılamayan değişiklikler kuyruğu */
+export function loadOutbox(): PendingOp[] {
   try {
-    const response = await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(localData)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Server returned ${response.status}`);
-    }
-
-    const result = await response.json();
-    if (result.success && result.data) {
-      saveLocalData(result.data);
-      return result.data;
-    }
-    return localData;
+    const raw = localStorage.getItem(OUTBOX_KEY);
+    if (raw) return JSON.parse(raw);
   } catch (err) {
-    console.warn('Network sync failed, retaining local copy (offline mode):', err);
-    throw err;
+    console.error('Failed to load outbox:', err);
+  }
+  return [];
+}
+
+export function saveOutbox(ops: PendingOp[]): void {
+  try {
+    localStorage.setItem(OUTBOX_KEY, JSON.stringify(ops));
+  } catch (err) {
+    console.error('Failed to save outbox:', err);
   }
 }
 
-/**
- * Initial fetch from server
- */
-export async function fetchInitialData(): Promise<AppData> {
-  const response = await fetch('/api/data');
-  if (!response.ok) {
-    throw new Error('Sunucu verisi alınamadı');
-  }
-  const data = await response.json();
-  saveLocalData(data);
-  return data;
+export function clearLocalCache(): void {
+  localStorage.removeItem(LOCAL_STORAGE_KEY);
+  localStorage.removeItem(OUTBOX_KEY);
 }
 
 /**

@@ -11,7 +11,8 @@ import {
   Plus, 
   Smartphone, 
   Monitor,
-  Share2
+  Share2,
+  LogOut
 } from 'lucide-react';
 import { UserRole, SyncStatus } from '../types';
 
@@ -22,6 +23,8 @@ interface HeaderProps {
   onTriggerSync: () => void;
   onOpenNewQuote: () => void;
   onOpenSyncModal: () => void;
+  onSignOut: () => void;
+  userEmail: string;
   urgentCount: number;
   todayShipmentCount: number;
 }
@@ -33,11 +36,13 @@ export const Header: React.FC<HeaderProps> = ({
   onTriggerSync,
   onOpenNewQuote,
   onOpenSyncModal,
+  onSignOut,
+  userEmail,
   urgentCount,
   todayShipmentCount,
 }) => {
   return (
-    <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-30 border-b border-slate-800">
+    <header className="bg-slate-900 text-white shadow-lg border-b border-slate-800 pt-safe">
       {/* Top Notification Bar if there are urgent items */}
       {(urgentCount > 0 || todayShipmentCount > 0) && (
         <div className="bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-1.5 text-xs sm:text-sm font-medium flex items-center justify-between text-white shadow-inner">
@@ -57,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
       )}
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3.5">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-2 sm:gap-4">
           
           {/* Logo & Company Title */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
@@ -73,17 +78,17 @@ export const Header: React.FC<HeaderProps> = ({
                   PORTAL
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-400 font-medium hidden sm:block">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-medium hidden xl:block">
                 Saha & Ofis İş Birliği | Teklif, Sipariş & Takvim Takibi
               </p>
             </div>
           </div>
 
           {/* Active Profile / Location Switcher */}
-          <div className="flex items-center gap-1 sm:gap-2 bg-slate-800/80 p-1 rounded-xl border border-slate-700/80">
+          <div className="order-last md:order-none w-full md:w-auto grid grid-cols-2 md:flex items-center gap-1 sm:gap-2 whitespace-nowrap bg-slate-800/80 p-1 rounded-xl border border-slate-700/80">
             <button
               onClick={() => onRoleChange('isparta')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 currentRole === 'isparta'
                   ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
@@ -91,14 +96,14 @@ export const Header: React.FC<HeaderProps> = ({
               title="Şakir Emre - Isparta Saha Satış Mühendisi Modu (Mobil Optimize)"
             >
               <Smartphone className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Isparta Saha: </span>
+              <span className="hidden 2xl:inline">Isparta Saha: </span>
               <span>Şakir Emre</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             </button>
 
             <button
               onClick={() => onRoleChange('istanbul')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 currentRole === 'istanbul'
                   ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
@@ -106,21 +111,21 @@ export const Header: React.FC<HeaderProps> = ({
               title="İstanbul Merkez Ofis - Satış & Operasyon Modu"
             >
               <Building2 className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">İstanbul: </span>
+              <span className="hidden 2xl:inline">İstanbul: </span>
               <span>Merkez Ofis</span>
             </button>
           </div>
 
           {/* Actions: Sync, E2EE, New Quote */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap">
             {/* E2EE Lock Status */}
             <button
               onClick={onOpenSyncModal}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-800 text-emerald-400 text-xs hover:bg-emerald-900/50 transition-colors"
+              className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-800 text-emerald-400 text-xs hover:bg-emerald-900/50 transition-colors"
               title="AES-256 Uçtan Uca Şifreleme Aktif"
             >
               <Lock className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline text-[11px] font-medium">Uçtan Uca Şifreli</span>
+              <span className="hidden xl:inline text-[11px] font-medium">Uçtan Uca Şifreli</span>
             </button>
 
             {/* Cloud Sync Button */}
@@ -131,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Bulut ile Senkronize Et"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline">
+              <span className="hidden xl:inline">
                 {syncStatus.isSyncing ? 'Eşitleniyor...' : 'Senkronize Et'}
               </span>
               <span className={`w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-500' : 'bg-rose-500'}`} />
@@ -144,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Cihazlar Arası Veri Aktarımı / Yedekleme"
             >
               <Share2 className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Aktar / Paylaş</span>
+              <span className="hidden xl:inline">Aktar / Paylaş</span>
             </button>
 
             {/* Quick Add Quote button */}
@@ -153,7 +158,16 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-1.5 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Teklif Gir</span>
+              <span className="hidden sm:inline">+ Teklif Gir</span>
+            </button>
+
+            {/* Sign out */}
+            <button
+              onClick={onSignOut}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+              title={`Çıkış Yap (${userEmail})`}
+            >
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
 

@@ -61,7 +61,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     {
       id: 'sync' as ActiveTab,
       label: 'Şifreleme & Cihaz Aktarımı',
-      shortLabel: 'Aktarım & E2EE',
+      shortLabel: 'Aktarım',
       icon: ShieldCheck,
       badge: null,
       badgeColor: 'bg-slate-500',
@@ -71,7 +71,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <>
       {/* Desktop / Tablet Navigation Bar */}
-      <nav className="bg-white border-b border-slate-200 shadow-xs sticky top-[57px] sm:top-[69px] z-20 hidden md:block">
+      <nav className="bg-white border-b border-slate-200 shadow-xs hidden md:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex space-x-1 lg:space-x-4">
             {tabs.map((tab) => {
