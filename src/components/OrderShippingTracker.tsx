@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   Truck, 
   PackageCheck, 
@@ -18,6 +18,10 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Order, OrderStatus, UserRole } from '../types';
+
+const PAGE = 30;
+/** Henüz yola çıkmamış siparişler: sadece bunlar için gecikme / bugün sevk uyarısı verilir */
+const NOT_SHIPPED: OrderStatus[] = ['hazirlaniyor', 'depoda_hazir', 'gecikmeli'];
 
 interface OrderShippingTrackerProps {
   orders: Order[];
@@ -40,29 +44,36 @@ export const OrderShippingTracker: React.FC<OrderShippingTrackerProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [limit, setLimit] = useState(PAGE);
 
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
 
-  const filteredOrders = orders.filter((o) => {
-    const matchesSearch =
-      o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (o.trackingNumber && o.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (o.carrierCompany && o.carrierCompany.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (o.city && o.city.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredOrders = useMemo(() => {
+    const q = searchTerm.toLocaleLowerCase('tr');
+    return orders
+      .filter((o) => {
+        const matchesSearch =
+          !q ||
+          o.customerName.toLocaleLowerCase('tr').includes(q) ||
+          o.orderNumber.toLocaleLowerCase('tr').includes(q) ||
+          (o.trackingNumber || '').toLocaleLowerCase('tr').includes(q) ||
+          (o.carrierCompany || '').toLocaleLowerCase('tr').includes(q) ||
+          (o.city || '').toLocaleLowerCase('tr').includes(q);
 
-    let matchesStatus = true;
-    if (statusFilter === 'today') {
-      matchesStatus = o.targetShippingDate === todayStr && o.status !== 'teslim_edildi';
-    } else if (statusFilter === 'overdue') {
-      matchesStatus = o.targetShippingDate < todayStr && o.status !== 'teslim_edildi';
-    } else if (statusFilter !== 'all') {
-      matchesStatus = o.status === statusFilter;
-    }
+        let matchesStatus = true;
+        if (statusFilter === 'today') {
+          matchesStatus = o.targetShippingDate === todayStr && NOT_SHIPPED.includes(o.status);
+        } else if (statusFilter === 'overdue') {
+          matchesStatus = o.targetShippingDate < todayStr && NOT_SHIPPED.includes(o.status);
+        } else if (statusFilter !== 'all') {
+          matchesStatus = o.status === statusFilter;
+        }
 
-    return matchesSearch && matchesStatus;
-  });
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => (b.orderDate || b.createdAt || '').localeCompare(a.orderDate || a.createdAt || ''));
+  }, [orders, searchTerm, statusFilter, todayStr]);
 
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
@@ -102,7 +113,7 @@ export const OrderShippingTracker: React.FC<OrderShippingTrackerProps> = ({
         {/* Filter buttons */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
-            onClick={() => setStatusFilter('all')}
+            onClick={() => { setStatusFilter('all'); setLimit(PAGE); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               statusFilter === 'all'
                 ? 'bg-slate-900 text-white'
@@ -113,7 +124,7 @@ export const OrderShippingTracker: React.FC<OrderShippingTrackerProps> = ({
           </button>
 
           <button
-            onClick={() => setStatusFilter('today')}
+            onClick={() => { setStatusFilter('today'); setLimit(PAGE); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               statusFilter === 'today'
                 ? 'bg-blue-600 text-white'
@@ -124,7 +135,7 @@ export const OrderShippingTracker: React.FC<OrderShippingTrackerProps> = ({
           </button>
 
           <button
-            onClick={() => setStatusFilter('overdue')}
+            onClick={() => { setStatusFilter('overdue'); setLimit(PAGE); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               statusFilter === 'overdue'
                 ? 'bg-rose-600 text-white'
@@ -135,7 +146,7 @@ export const OrderShippingTracker: React.FC<OrderShippingTrackerProps> = ({
           </button>
 
           <button
-            onClick={() => setStatusFilter('sevk_edildi')}
+            onClick={() => { setStatusFilter('sevk_edildi'); setLimit(PAGE); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               statusFilter === 'sevk_edildi'
                 ? 'bg-purple-600 text-white'
@@ -163,10 +174,10 @@ export const OrderShippingTracker: React.FC<OrderShippingTrackerProps> = ({
             Kriterlere uygun sipariş veya sevkiyat kaydı bulunamadı.
           </div>
         ) : (
-          filteredOrders.map((order) => {
+          filteredOrders.slice(0, limit).map((order) => {
             const statusBadge = getStatusBadge(order.status);
             const isToday = order.targetShippingDate === todayStr;
-            const isPast = order.targetShippingDate < todayStr && order.status !== 'teslim_edildi';
+            const isPast = order.targetShippingDate < todayStr && NOT_SHIPPED.includes(order.status);
 
             return (
               <div
@@ -319,6 +330,18 @@ export const OrderShippingTracker: React.FC<OrderShippingTrackerProps> = ({
           })
         )}
       </div>
+
+      {filteredOrders.length > limit && (
+        <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+          <span>{limit} / {filteredOrders.length} sipariş gösteriliyor</span>
+          <button
+            onClick={() => setLimit((n) => n + PAGE)}
+            className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold"
+          >
+            {PAGE} sipariş daha göster
+          </button>
+        </div>
+      )}
 
       {/* Order Status Update Modal */}
       {selectedOrder && (

@@ -35,6 +35,7 @@ import {
   PendingOp
 } from './lib/db';
 import { findCustomer } from './lib/customers';
+import { shouldArchive } from './lib/quoteRules';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import { Navigation, ActiveTab } from './components/Navigation';
@@ -121,6 +122,8 @@ function Portal({ session }: { session: Session }) {
 
   const syncingRef = useRef(false);
   const rerunRef = useRef(false);
+  // Arşive alınması bu oturumda zaten denenmiş teklifler (yazma reddedilirse döngüye girmesin)
+  const archiveTriedRef = useRef(new Set<string>());
 
   // Flush offline queue to Supabase, then pull the latest shared state
   const performSync = useCallback(async (): Promise<void> => {
@@ -152,6 +155,17 @@ function Portal({ session }: { session: Session }) {
       }
 
       const fresh = await fetchAllData();
+
+      // 7 günü aşan bekleyen teklifleri arşive al (her cihazda aynı kural; işlem tekrarlansa da sonuç aynı)
+      const toArchive = fresh.quotes.filter(q => shouldArchive(q) && !archiveTriedRef.current.has(q.id));
+      toArchive.forEach(q => archiveTriedRef.current.add(q.id));
+      if (toArchive.length > 0) {
+        const stamp = new Date().toISOString();
+        saveOutbox([
+          ...loadOutbox(),
+          ...toArchive.map(q => ({ kind: 'upsert', entity: 'quotes', record: { ...q, status: 'arsiv', updatedAt: stamp } }) as PendingOp),
+        ]);
+      }
       if (loadOutbox().length === 0) {
         setData(fresh);
         saveLocalData(fresh);
@@ -511,7 +525,8 @@ function Portal({ session }: { session: Session }) {
   // Counts for alerts & badges
   const urgentCount = data.quotes.filter(q => q.urgency === 'acil' && q.status === 'yeni_talep').length;
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayShipmentCount = data.orders.filter(o => o.targetShippingDate === todayStr && o.status !== 'teslim_edildi').length;
+  const notShipped = (o: Order) => o.status === 'hazirlaniyor' || o.status === 'depoda_hazir' || o.status === 'gecikmeli';
+  const todayShipmentCount = data.orders.filter(o => o.targetShippingDate === todayStr && notShipped(o)).length;
   const pendingQuotesCount = data.quotes.filter(q => q.status === 'yeni_talep').length;
   const todayEventsCount = data.events.filter(e => e.date === todayStr && !e.completed).length;
 
@@ -536,7 +551,7 @@ function Portal({ session }: { session: Session }) {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         quotesCount={pendingQuotesCount}
-        ordersCount={data.orders.filter(o => o.status !== 'teslim_edildi').length}
+        ordersCount={data.orders.filter(notShipped).length}
         eventsCount={todayEventsCount}
       />
       </div>

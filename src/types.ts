@@ -7,7 +7,8 @@ export type QuoteStatus =
   | 'onaylandi'       // Müşteri onayladı! (Siparişe aktarılabilir)
   | 'revizyon'        // Revizyon / İskonto pazarlığı
   | 'iptal'           // İptal / Başka firmadan alındı
-  | 'siparis';        // Siparişe dönüştürüldü (teklif listesinden düşer)
+  | 'siparis'         // Siparişe dönüştürüldü (teklif listesinden düşer)
+  | 'arsiv';          // 7 günden uzun süre beklemede kalan teklif
 
 export type UrgencyLevel = 'acil' | 'yuksek' | 'normal' | 'dusuk';
 
