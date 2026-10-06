@@ -584,7 +584,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     onConvertToOrder(selectedQuote);
                     setSelectedQuote(null);
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-amber-500 hover:from-brand-600 hover:to-amber-600 text-white text-sm font-black shadow-md shadow-brand-500/20 transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-accent-500 hover:from-brand-600 hover:to-accent-600 text-white text-sm font-black shadow-md shadow-brand-500/20 transition-all"
                 >
                   <Truck className="w-4 h-4" />
                   <span>🚚 Bu Teklifi Siparişe & Sevkiyata Dönüştür</span>

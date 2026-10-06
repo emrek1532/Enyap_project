@@ -1,6 +1,7 @@
 import React from 'react';
-import { Flame, Printer, X, Download, ShieldCheck } from 'lucide-react';
+import { Printer, X, Download, ShieldCheck } from 'lucide-react';
 import { Quote } from '../types';
+import { BrandLogo } from './BrandLogo';
 
 interface PrintableQuoteModalProps {
   quote: Quote | null;
@@ -32,9 +33,8 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
       <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh]">
         
         {/* Top Modal Controls (Hidden in Print) */}
-        <div className="no-print p-3 sm:p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div className="no-print p-3 sm:p-4 bg-brand-600 text-white flex items-center justify-between border-b border-brand-700 shrink-0">
           <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-brand-400" />
             <span className="font-bold text-sm sm:text-base">
               Resmi Antetli Teklif Mektubu Önizleme
             </span>
@@ -42,14 +42,14 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs sm:text-sm shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white hover:bg-brand-50 text-brand-700 font-bold text-xs sm:text-sm shadow-sm transition-colors"
             >
               <Printer className="w-4 h-4" />
               <span>Yazdır / PDF Kaydet</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 font-bold"
+              className="p-1.5 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700 font-bold"
             >
               <X className="w-5 h-5" />
             </button>
@@ -60,26 +60,16 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
         <div className="p-6 sm:p-10 overflow-y-auto flex-1 bg-white text-slate-900 font-sans print:p-0 print:m-0">
           
           {/* Header with Company Logo & Contact */}
-          <div className="border-b-2 border-slate-900 pb-5 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-md">
-                <Flame className="w-7 h-7" />
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-                  ENYAP ISI SİSTEMLERİ A.Ş.
-                </h1>
-                <p className="text-xs text-slate-600 font-semibold uppercase tracking-wider">
-                  Kazan, Kombi, Radyatör & Tesisat Teknolojileri
-                </p>
-              </div>
+          <div className="border-b-2 border-brand-500 pb-5 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col gap-2">
+              <BrandLogo className="h-10 sm:h-12" />
+              <p className="text-xs text-slate-600 font-semibold">
+                Enyap Isı Sistemleri Pazarlama San. ve Tic. Ltd. Şti.
+              </p>
             </div>
 
             <div className="text-left sm:text-right text-xs text-slate-600 space-y-0.5">
-              <p className="font-bold text-slate-800">Merkez: İkitelli OSB Demirciler San. Sit. İstanbul</p>
-              <p>Bölge: Isparta / Akdeniz Satış Temsilciliği</p>
-              <p>Tel: +90 (212) 549 00 00 • info@enyapisi.com</p>
-              <p className="text-slate-400">Vergi Dairesi: İkitelli V.D. / 338 041 2910</p>
+              <p className="font-bold text-brand-600">www.enyapisi.com</p>
             </div>
           </div>
 
@@ -124,7 +114,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
           {/* Items Table */}
           <div className="mb-6 border border-slate-200 rounded-xl overflow-hidden">
             <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-900 text-white font-bold">
+              <thead className="bg-brand-600 text-white font-bold">
                 <tr>
                   <th className="p-3 w-10 text-center">#</th>
                   <th className="p-3">Malzeme Tanımı & Özellikleri</th>

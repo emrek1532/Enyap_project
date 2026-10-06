@@ -142,18 +142,18 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Header */}
-        <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="p-4 sm:p-5 bg-brand-600 text-white flex items-center justify-between border-b border-brand-700">
           <div>
             <h3 className="font-black text-base sm:text-lg">
               + Yeni Teklif Talebi Girişi
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-brand-100">
               Müşteriyi seçin, malzemeleri girin ve kaydedin.
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 font-bold"
+            className="p-1 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700 font-bold"
           >
             ✕
           </button>

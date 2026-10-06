@@ -1,20 +1,30 @@
 @import "tailwindcss";
 
 /*
- * Marka renkleri: tüm uygulama "brand-*" sınıflarını kullanır.
- * Logo / kurumsal renk değişince sadece bu değerleri güncellemek yeterli.
+ * Enyap kurumsal renkleri (logodan): mavi #006EC6 = brand-500, yeşil #00B293 = accent-500.
+ * Tüm uygulama "brand-*" ve "accent-*" sınıflarını kullanır; renk değişince sadece burası güncellenir.
  */
 @theme {
-  --color-brand-50: #fff7ed;
-  --color-brand-100: #ffedd5;
-  --color-brand-200: #fed7aa;
-  --color-brand-300: #fdba74;
-  --color-brand-400: #fb923c;
-  --color-brand-500: #f97316;
-  --color-brand-600: #ea580c;
-  --color-brand-700: #c2410c;
-  --color-brand-800: #9a3412;
-  --color-brand-900: #7c2d12;
+  --color-brand-50: #f0f6fc;
+  --color-brand-100: #dbebf7;
+  --color-brand-200: #b2d4ee;
+  --color-brand-300: #80b6e2;
+  --color-brand-400: #4092d4;
+  --color-brand-500: #006ec6;
+  --color-brand-600: #0160ae;
+  --color-brand-700: #025295;
+  --color-brand-800: #03457d;
+  --color-brand-900: #043765;
+  --color-accent-50: #f0faf9;
+  --color-accent-100: #dbf4f0;
+  --color-accent-200: #b2e8df;
+  --color-accent-300: #80d8c9;
+  --color-accent-400: #40c5ae;
+  --color-accent-500: #00b293;
+  --color-accent-600: #019a82;
+  --color-accent-700: #028272;
+  --color-accent-800: #036a61;
+  --color-accent-900: #045250;
 }
 
 @layer base {
@@ -64,4 +74,14 @@
 /* Safety net: never let a stray element widen the page on phones */
 html, body {
   overflow-x: hidden;
+}
+
+/* Odak çerçevesi: tarayıcının varsayılan (mobilde turuncu) rengi yerine kurumsal mavi */
+:where(input, select, textarea, button, a):focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 1px;
+}
+:where(input, select, textarea):focus {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 0;
 }
