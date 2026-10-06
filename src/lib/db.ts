@@ -62,6 +62,7 @@ const quoteToRow = (q: Quote): Row => ({
   amount_try: q.amountTry ?? 0,
   total_usd: q.totalUsd ?? 0,
   imported: !!q.imported,
+  payment_term: orNull(q.paymentTerm),
   created_at: q.createdAt,
   updated_at: q.updatedAt,
 });
@@ -95,6 +96,7 @@ const rowToQuote = (r: Row): Quote => ({
   amountTry: Number(r.amount_try ?? 0),
   totalUsd: Number(r.total_usd ?? 0),
   imported: !!r.imported,
+  paymentTerm: r.payment_term ?? undefined,
 });
 
 const orderToRow = (o: Order): Row => ({
