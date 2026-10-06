@@ -43,6 +43,8 @@ interface QuoteManagerProps {
   onDeleteQuote: (id: string) => void;
   onAddCalendarEventFromQuote: (quote: Quote) => void;
   onPrintQuote: (quote: Quote) => void;
+  statusFilter: string;
+  onStatusFilterChange: (filter: string) => void;
 }
 
 export const QuoteManager: React.FC<QuoteManagerProps> = ({
@@ -53,10 +55,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onDeleteQuote,
   onAddCalendarEventFromQuote,
   onPrintQuote,
+  statusFilter,
+  onStatusFilterChange: setStatusFilter,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  // 'aktif' = siparişe dönüşmemiş ve iptal edilmemiş teklifler
-  const [statusFilter, setStatusFilter] = useState<string>('aktif');
   const [listLimit, setListLimit] = useState(LIST_PAGE);
   const [urgencyFilter, setUrgencyFilter] = useState<string>('all');
   const [cityFilter, setCityFilter] = useState('all');
@@ -101,7 +103,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const followUpCount = useMemo(() => quotes.filter(needsFollowUp).length, [quotes]);
   const hasExtraFilters = cityFilter !== 'all' || urgencyFilter !== 'all' || !!dateFrom || !!dateTo || !!searchTerm;
   const resetFilters = () => {
-    setSearchTerm(''); setStatusFilter('aktif'); setUrgencyFilter('all');
+    setSearchTerm(''); setStatusFilter('all'); setUrgencyFilter('all');
     setCityFilter('all'); setDateFrom(''); setDateTo(''); setListLimit(LIST_PAGE);
   };
 
@@ -171,12 +173,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             onChange={(e) => { setStatusFilter(e.target.value); setListLimit(LIST_PAGE); }}
             className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           >
+            <option value="all">Tüm Teklifler</option>
             <option value="aktif">Beklemede</option>
             <option value="takip">Tekrar Görüşülecek ({followUpCount})</option>
             <option value="onaylandi">Onaylandı</option>
             <option value="iptal">İptal</option>
-            <option value="arsiv">Arşiv</option>
-            <option value="all">Tüm Teklifler</option>
           </select>
 
           <select
@@ -218,7 +219,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             />
           </div>
 
-          {(hasExtraFilters || statusFilter !== 'aktif') && (
+          {(hasExtraFilters || statusFilter !== 'all') && (
             <button onClick={resetFilters} className="px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100">
               Filtreleri temizle
             </button>

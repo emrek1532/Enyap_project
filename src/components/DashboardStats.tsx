@@ -22,6 +22,7 @@ interface DashboardStatsProps {
   currentRole: UserRole;
   onOpenNewQuote: () => void;
   onNavigateTab: (tab: any) => void;
+  onShowQuotes: (filter: string) => void;
 }
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({
@@ -31,6 +32,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   currentRole,
   onOpenNewQuote,
   onNavigateTab,
+  onShowQuotes,
 }) => {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
@@ -80,7 +82,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                     <span>
                       <strong>{overdueQuotes.length} teklif</strong> 12 saatten uzun süredir İstanbul ofis tarafından hazırlanmayı bekliyor:
                       {' '}
-                      <span className="underline cursor-pointer" onClick={() => onNavigateTab('quotes')}>
+                      <span className="underline cursor-pointer" onClick={() => onShowQuotes('aktif')}>
                         {overdueQuotes.map((q) => q.customerName).slice(0, 2).join(', ')}
                         {overdueQuotes.length > 2 ? '...' : ''}
                       </span>
@@ -92,7 +94,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                     <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <span>
                       <strong>{followUpQuotes.length} teklif</strong> 3 günden uzun süredir yanıt bekliyor, müşteri ile tekrar görüşün:{' '}
-                      <span className="underline cursor-pointer" onClick={() => onNavigateTab('quotes')}>
+                      <span className="underline cursor-pointer" onClick={() => onShowQuotes('takip')}>
                         {followUpQuotes.map((q) => q.customerName).slice(0, 3).join(', ')}
                         {followUpQuotes.length > 3 ? '...' : ''}
                       </span>
@@ -110,7 +112,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         
         {/* Card 1: Bekleyen Teklifler */}
         <div 
-          onClick={() => onNavigateTab('quotes')}
+          onClick={() => onShowQuotes('aktif')}
           className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-brand-300 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-2">
@@ -136,7 +138,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
 
         {/* Card 2: Süreçteki & Gönderilen Teklifler */}
         <div 
-          onClick={() => onNavigateTab('quotes')}
+          onClick={() => onShowQuotes('onaylandi')}
           className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-sky-300 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-2">
@@ -162,7 +164,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
 
         {/* Card 3: Müşteri ile tekrar görüşülecek teklifler */}
         <div
-          onClick={() => onNavigateTab('quotes')}
+          onClick={() => onShowQuotes('takip')}
           className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-2">
