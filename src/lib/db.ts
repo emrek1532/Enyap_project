@@ -76,7 +76,7 @@ const rowToQuote = (r: Row): Quote => ({
   projectLocation: r.project_location ?? undefined,
   requestChannel: r.request_channel,
   urgency: r.urgency,
-  status: r.status,
+  status: r.status === 'arsiv' ? 'gonderildi' : r.status,
   rawWhatsAppText: r.raw_whatsapp_text ?? '',
   items: r.items ?? [],
   totalAmount: Number(r.total_amount ?? 0),
