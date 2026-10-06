@@ -8,3 +8,5 @@ coverage/
 !.env.example
 enyap-isi-cloudflare.zip
 *.bundle
+.wrangler
+.dev.vars*

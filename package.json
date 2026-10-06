@@ -10,7 +10,7 @@
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-3000}",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name enyap-isi --branch main"
+    "deploy:cloudflare": "npx wrangler deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.75.0",

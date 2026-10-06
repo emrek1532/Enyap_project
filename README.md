@@ -42,12 +42,12 @@ yüklenebilir:
 - **Çıktı klasörü:** `dist`
 - (İsteğe bağlı) Ortam değişkenleri: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
 
-**Cloudflare Pages ile hızlı yayın:**
+**Cloudflare (Workers) ile yayın:**
 
-- Panelden: Cloudflare Dashboard → *Workers & Pages* → *Create* → *Pages* → *Upload assets* →
-  proje adı `enyap-isi` → `dist/` klasörünün içeriğini (veya zip'ini) sürükleyip bırakın.
+- Depo Cloudflare'e bağlıysa (*Workers & Pages → enyap-project → Settings → Builds*), her push'ta
+  site otomatik derlenip yayınlanır. Ayarlar `wrangler.jsonc` dosyasındadır: önce `npm run build`
+  çalışır, sonra `dist/` klasörü yayınlanır.
 - Komut satırından: `npm run deploy:cloudflare` (ilk seferde `npx wrangler login` ister).
-- Site adresi: `https://enyap-isi.pages.dev`
 
 Yayınladıktan sonra Supabase Dashboard → **Authentication → URL Configuration** bölümünde
 **Site URL** alanına sitenin adresini yazın (e-posta doğrulama bağlantıları bu adrese yönlenir).
