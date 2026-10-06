@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { AppData, Customer, Quote, Order, CalendarEvent, QuickNote, ActivityLog } from '../types';
+import { AppData, Customer, Quote, Order, CalendarEvent, QuickNote, ActivityLog, Collection, Expense } from '../types';
 
 /**
  * Supabase veri katmanı: uygulamadaki camelCase modeller ile
@@ -221,6 +221,58 @@ const rowToActivity = (r: Row): ActivityLog => ({
   badgeColor: r.badge_color ?? undefined,
 });
 
+const collectionToRow = (c: Collection): Row => ({
+  id: c.id,
+  date: c.date,
+  customer_name: c.customerName ?? '',
+  amount: c.amount ?? 0,
+  currency: c.currency ?? 'TRY',
+  method: c.method ?? '',
+  description: orNull(c.description),
+  created_by: c.createdBy,
+  created_at: c.createdAt,
+  updated_at: c.updatedAt,
+});
+
+const rowToCollection = (r: Row): Collection => ({
+  id: r.id,
+  date: r.date,
+  customerName: r.customer_name ?? '',
+  amount: Number(r.amount ?? 0),
+  currency: r.currency,
+  method: r.method ?? '',
+  description: r.description ?? undefined,
+  createdBy: r.created_by,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+});
+
+const expenseToRow = (e: Expense): Row => ({
+  id: e.id,
+  date: e.date,
+  category: e.category ?? '',
+  amount: e.amount ?? 0,
+  currency: e.currency ?? 'TRY',
+  method: e.method ?? '',
+  description: orNull(e.description),
+  created_by: e.createdBy,
+  created_at: e.createdAt,
+  updated_at: e.updatedAt,
+});
+
+const rowToExpense = (r: Row): Expense => ({
+  id: r.id,
+  date: r.date,
+  category: r.category ?? '',
+  amount: Number(r.amount ?? 0),
+  currency: r.currency,
+  method: r.method ?? '',
+  description: r.description ?? undefined,
+  createdBy: r.created_by,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+});
+
 // ---------- Generic helpers ----------
 class DbError extends Error {
   code?: string;
@@ -267,13 +319,15 @@ async function fetchAllRows(table: string, orderBy: string, ascending: boolean):
 }
 
 export async function fetchAllData(): Promise<AppData> {
-  const [customers, quotes, orders, events, notes, activities] = await Promise.all([
+  const [customers, quotes, orders, events, notes, activities, collections, expenses] = await Promise.all([
     fetchAllRows('customers', 'name', true),
     fetchAllRows('quotes', 'created_at', false),
     fetchAllRows('orders', 'created_at', false),
     fetchAllRows('events', 'date', true),
     fetchAllRows('notes', 'created_at', false),
     supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(50),
+    fetchAllRows('collections', 'date', false),
+    fetchAllRows('expenses', 'date', false),
   ]);
 
   return {
@@ -283,11 +337,13 @@ export async function fetchAllData(): Promise<AppData> {
     events: (check(events) || []).map(rowToEvent),
     notes: (check(notes) || []).map(rowToNote),
     activities: (check(activities) || []).map(rowToActivity),
+    collections: (check(collections) || []).map(rowToCollection),
+    expenses: (check(expenses) || []).map(rowToExpense),
     lastUpdated: new Date().toISOString(),
   };
 }
 
-export type Entity = 'customers' | 'quotes' | 'orders' | 'events' | 'notes' | 'activities';
+export type Entity = 'customers' | 'quotes' | 'orders' | 'events' | 'notes' | 'activities' | 'collections' | 'expenses';
 
 /** Sunucuya yazılacak tek bir değişiklik (çevrimdışıyken kuyrukta bekler). */
 export type PendingOp =
@@ -297,6 +353,8 @@ export type PendingOp =
   | { kind: 'upsert'; entity: 'events'; record: CalendarEvent }
   | { kind: 'upsert'; entity: 'notes'; record: QuickNote }
   | { kind: 'upsert'; entity: 'activities'; record: ActivityLog }
+  | { kind: 'upsert'; entity: 'collections'; record: Collection }
+  | { kind: 'upsert'; entity: 'expenses'; record: Expense }
   | { kind: 'delete'; entity: Entity; id: string };
 
 export const toRow: Record<Entity, (x: any) => Row> = {
@@ -306,6 +364,8 @@ export const toRow: Record<Entity, (x: any) => Row> = {
   events: eventToRow,
   notes: noteToRow,
   activities: activityToRow,
+  collections: collectionToRow,
+  expenses: expenseToRow,
 };
 
 export async function applyOp(op: PendingOp): Promise<void> {
@@ -338,7 +398,7 @@ export function isPermanentError(err: any): boolean {
 /** Diğer cihazlardan gelen değişiklikleri canlı dinler. */
 export function subscribeToChanges(onChange: () => void): () => void {
   const channel = supabase.channel('enyap-db-changes');
-  for (const table of ['customers', 'quotes', 'orders', 'events', 'notes', 'activities']) {
+  for (const table of ['customers', 'quotes', 'orders', 'events', 'notes', 'activities', 'collections', 'expenses']) {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange);
   }
   channel.subscribe();
