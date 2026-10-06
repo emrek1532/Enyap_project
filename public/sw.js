@@ -1,7 +1,7 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v3';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'enyap-shell-v4';
+const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
