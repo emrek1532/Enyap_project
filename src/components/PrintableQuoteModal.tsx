@@ -133,7 +133,6 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
 
   const lines = useMemo<Line[]>(() => {
     if (!quote) return [];
-    const cur = curOf(quote.currency);
     return (quote.items || []).map((it, i) => {
       const price = Number(it.unitPrice) || 0;
       const disc = Number(it.discount) || 0;
@@ -147,7 +146,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
         disc,
         netUnit,
         net: netUnit * (Number(it.quantity) || 0),
-        cur,
+        cur: curOf(it.currency || quote.currency),
       };
     });
   }, [quote]);
