@@ -35,7 +35,7 @@ import {
   PendingOp
 } from './lib/db';
 import { findCustomer } from './lib/customers';
-import { shouldArchive, PENDING_STATUSES } from './lib/quoteRules';
+import { PENDING_STATUSES } from './lib/quoteRules';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import { Navigation, ActiveTab } from './components/Navigation';
@@ -77,6 +77,8 @@ function Portal({ session }: { session: Session }) {
   // Kullanıcının ekibi kayıt sırasında seçilir; kayıtlarda kimin eklediğini göstermek için kullanılır
   const currentRole: UserRole = session.user.user_metadata?.role === 'istanbul' ? 'istanbul' : 'isparta';
   const [activeTab, setActiveTab] = useState<ActiveTab>('quotes');
+  // Teklif listesinin durum filtresi; üstteki kutucuklar da bunu ayarlar
+  const [quoteFilter, setQuoteFilter] = useState('all');
 
   // App Data State (Offline-first initialized)
   const [data, setData] = useState<AppData>(() => {
@@ -118,8 +120,6 @@ function Portal({ session }: { session: Session }) {
 
   const syncingRef = useRef(false);
   const rerunRef = useRef(false);
-  // Arşive alınması bu oturumda zaten denenmiş teklifler (yazma reddedilirse döngüye girmesin)
-  const archiveTriedRef = useRef(new Set<string>());
 
   // Flush offline queue to Supabase, then pull the latest shared state
   const performSync = useCallback(async (): Promise<void> => {
@@ -152,16 +152,6 @@ function Portal({ session }: { session: Session }) {
 
       const fresh = await fetchAllData();
 
-      // 7 günü aşan bekleyen teklifleri arşive al (her cihazda aynı kural; işlem tekrarlansa da sonuç aynı)
-      const toArchive = fresh.quotes.filter(q => shouldArchive(q) && !archiveTriedRef.current.has(q.id));
-      toArchive.forEach(q => archiveTriedRef.current.add(q.id));
-      if (toArchive.length > 0) {
-        const stamp = new Date().toISOString();
-        saveOutbox([
-          ...loadOutbox(),
-          ...toArchive.map(q => ({ kind: 'upsert', entity: 'quotes', record: { ...q, status: 'arsiv', updatedAt: stamp } }) as PendingOp),
-        ]);
-      }
       if (loadOutbox().length === 0) {
         setData(fresh);
         saveLocalData(fresh);
@@ -447,6 +437,11 @@ function Portal({ session }: { session: Session }) {
           currentRole={currentRole}
           onOpenNewQuote={() => setIsNewQuoteOpen(true)}
           onNavigateTab={setActiveTab}
+          onShowQuotes={(filter) => {
+            setQuoteFilter(filter);
+            setActiveTab('quotes');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
         />
 
         {/* Tab 1: Teklifler (Kanban & List) */}
@@ -459,6 +454,8 @@ function Portal({ session }: { session: Session }) {
             onDeleteQuote={handleDeleteQuote}
             onAddCalendarEventFromQuote={handleAddCalendarEventFromQuote}
             onPrintQuote={setPrintableQuote}
+            statusFilter={quoteFilter}
+            onStatusFilterChange={setQuoteFilter}
           />
         )}
 
