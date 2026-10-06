@@ -43,3 +43,8 @@
 @utility pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+
+/* Safety net: never let a stray element widen the page on phones */
+html, body {
+  overflow-x: hidden;
+}
