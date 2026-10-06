@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
 import { Customer, Quote, QuoteStatus } from '../types';
+import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
 
 interface CustomersPanelProps {
   customers: Customer[];
@@ -11,6 +12,7 @@ interface CustomersPanelProps {
 }
 
 const emptyForm = { name: '', city: 'Isparta' };
+const PAGE = 50;
 
 const trCompare = (a: string, b: string) => a.localeCompare(b, 'tr');
 // Arama için Türkçe karakterleri sadeleştir: "isparta", "ISPARTA" ve "Isparta" aynı sonucu versin
@@ -47,6 +49,9 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
+  const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'quotes' | 'approved' | 'total' | 'last'>('name');
+  const [limit, setLimit] = useState(PAGE);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -73,17 +78,49 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     return [...map.entries()].sort((a, b) => b[1] - a[1] || trCompare(a[0], b[0]));
   }, [customers]);
 
+  // Müşteri başına teklif özeti
+  const statsOf = (c: Customer) => {
+    const list = quotesOf(c);
+    const approved = list.filter(isApproved);
+    return {
+      total: list.length,
+      approved: approved.length,
+      pending: list.filter(q => PENDING_STATUSES.includes(q.status)).length,
+      followUp: list.some(needsFollowUp),
+      approvedTotal: approved.reduce((sum, q) => sum + (q.totalAmount || 0), 0),
+      lastDate: list[0]?.createdAt || '',
+    };
+  };
+
   const filtered = useMemo(() => {
     const q = fold(search.trim());
     return customers
       .filter(c => cityFilter === 'all' || (c.city || '—') === cityFilter)
-      .filter(c =>
-        !q ||
-        fold(c.name).includes(q) ||
-        fold(c.city || '').includes(q)
+      .filter(c => !q || fold(c.name).includes(q) || fold(c.city || '').includes(q))
+      .map(c => ({ c, st: statsOf(c) }))
+      .filter(({ st }) =>
+        quoteFilter === 'all' ||
+        (quoteFilter === 'approved' && st.approved > 0) ||
+        (quoteFilter === 'pending' && st.pending > 0) ||
+        (quoteFilter === 'followup' && st.followUp) ||
+        (quoteFilter === 'none' && st.total === 0)
       )
-      .sort((a, b) => trCompare(a.name, b.name));
-  }, [customers, search, cityFilter]);
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'quotes': return b.st.total - a.st.total || trCompare(a.c.name, b.c.name);
+          case 'approved': return b.st.approved - a.st.approved || trCompare(a.c.name, b.c.name);
+          case 'total': return b.st.approvedTotal - a.st.approvedTotal || trCompare(a.c.name, b.c.name);
+          case 'last': return b.st.lastDate.localeCompare(a.st.lastDate) || trCompare(a.c.name, b.c.name);
+          default: return trCompare(a.c.name, b.c.name);
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, sortBy]);
+
+  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || sortBy !== 'name';
+  const resetFilters = () => {
+    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setSortBy('name'); setLimit(PAGE);
+  };
 
   const openNew = () => {
     setEditing(null);
@@ -126,27 +163,52 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-col lg:flex-row gap-2">
+          <div className="relative flex-1 min-w-0">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="search"
               placeholder="Firma adı veya şehir ara..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setLimit(PAGE); }}
               className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:flex gap-2">
             <select
               value={cityFilter}
-              onChange={e => setCityFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
+              onChange={e => { setCityFilter(e.target.value); setLimit(PAGE); }}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
+              aria-label="Şehir"
             >
-              <option value="all">Tüm Şehirler ({customers.length})</option>
+              <option value="all">Tüm Şehirler</option>
               {cityCounts.map(([city, count]) => (
                 <option key={city} value={city}>{city} ({count})</option>
               ))}
+            </select>
+            <select
+              value={quoteFilter}
+              onChange={e => { setQuoteFilter(e.target.value as typeof quoteFilter); setLimit(PAGE); }}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
+              aria-label="Teklif durumu"
+            >
+              <option value="all">Tüm Müşteriler</option>
+              <option value="approved">Onaylı teklifi olanlar</option>
+              <option value="pending">Bekleyen teklifi olanlar</option>
+              <option value="followup">Tekrar görüşülecekler</option>
+              <option value="none">Hiç teklif verilmeyenler</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as typeof sortBy)}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
+              aria-label="Sıralama"
+            >
+              <option value="name">Sırala: A → Z</option>
+              <option value="quotes">Sırala: En çok teklif</option>
+              <option value="approved">Sırala: En çok onaylı</option>
+              <option value="total">Sırala: Onaylı tutar</option>
+              <option value="last">Sırala: Son teklif tarihi</option>
             </select>
             <button
               onClick={openNew}
@@ -157,77 +219,109 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             </button>
           </div>
         </div>
-        <p className="text-xs text-slate-500">
-          <Building2 className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />
-          {filtered.length === customers.length
-            ? `${customers.length} kayıtlı müşteri`
-            : `${filtered.length} / ${customers.length} müşteri gösteriliyor`}
-        </p>
+        <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+          <span>
+            <Building2 className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />
+            {filtered.length === customers.length
+              ? `${customers.length} kayıtlı müşteri`
+              : `${filtered.length} / ${customers.length} müşteri`}
+          </span>
+          {hasFilters && (
+            <button onClick={resetFilters} className="font-semibold text-slate-500 hover:text-slate-800">
+              Filtreleri temizle
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List */}
       {filtered.length === 0 ? (
         <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500">
-          {customers.length === 0 ? 'Henüz müşteri kaydı yok.' : 'Aramanıza uygun müşteri bulunamadı.'}
+          {customers.length === 0 ? 'Henüz müşteri kaydı yok.' : 'Filtrelere uygun müşteri bulunamadı.'}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map(c => (
-            <div key={c.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-col gap-2 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <button
-                  onClick={() => { setViewing(c); setOnlyApproved(true); }}
-                  className="font-bold text-sm text-slate-900 leading-snug break-words min-w-0 text-left hover:text-brand-600 hover:underline"
-                >
-                  {c.name}
-                </button>
-                <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-100">
-                  <MapPin className="w-3 h-3" />
-                  {c.city || '—'}
-                </span>
-              </div>
-              {(() => {
-                const list = quotesOf(c);
-                const approved = list.filter(isApproved).length;
-                return (
-                  <button
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-3">Firma</th>
+                  <th className="py-3 px-3">Şehir</th>
+                  <th className="py-3 px-3 text-right">Teklif</th>
+                  <th className="py-3 px-3 text-right">Onaylı</th>
+                  <th className="py-3 px-3 text-right">Beklemede</th>
+                  <th className="py-3 px-3 text-right whitespace-nowrap">Onaylı Toplam</th>
+                  <th className="py-3 px-3 whitespace-nowrap">Son Teklif</th>
+                  <th className="py-3 px-3 text-right">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.slice(0, limit).map(({ c, st }) => (
+                  <tr
+                    key={c.id}
                     onClick={() => { setViewing(c); setOnlyApproved(true); }}
-                    className="text-left text-xs text-slate-500 hover:text-brand-600"
+                    className="hover:bg-brand-50/40 cursor-pointer"
                   >
-                    {list.length === 0 ? 'Henüz teklif yok' : (
-                      <>
-                        <b className="text-slate-700">{list.length}</b> teklif · <b className="text-emerald-700">{approved}</b> onaylı
-                      </>
-                    )}
-                  </button>
-                );
-              })()}
-              <div className="flex gap-1.5 pt-1 mt-auto">
-                <button
-                  onClick={() => onCreateQuoteForCustomer(c)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold border border-brand-200"
-                >
-                  <FilePlus2 className="w-3.5 h-3.5" /> Teklif Aç
-                </button>
-                <button
-                  onClick={() => openEdit(c)}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200"
-                  title="Düzenle"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => {
-                    if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id);
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200"
-                  title="Sil"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
+                    <td className="py-2.5 px-3">
+                      <div className="font-bold text-slate-900 min-w-[10rem]">{c.name}</div>
+                      {st.followUp && (
+                        <span className="mt-0.5 inline-block text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          ⏰ Tekrar görüş
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{c.city || '—'}</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-slate-800">{st.total || '-'}</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-emerald-700">{st.approved || '-'}</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-purple-700">{st.pending || '-'}</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums font-bold text-slate-900 whitespace-nowrap">
+                      {st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">
+                      {st.lastDate ? new Date(st.lastDate).toLocaleDateString('tr-TR') : '-'}
+                    </td>
+                    <td className="py-2.5 px-3" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => onCreateQuoteForCustomer(c)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md bg-brand-50 hover:bg-brand-100 text-brand-700 text-[11px] font-bold border border-brand-200 whitespace-nowrap"
+                        >
+                          <FilePlus2 className="w-3.5 h-3.5" /> Teklif Aç
+                        </button>
+                        <button
+                          onClick={() => openEdit(c)}
+                          className="p-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200"
+                          title="Düzenle"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id);
+                          }}
+                          className="p-1.5 rounded-md bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200"
+                          title="Sil"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filtered.length > limit && (
+            <div className="p-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+              <span>{limit} / {filtered.length} müşteri gösteriliyor</span>
+              <button
+                onClick={() => setLimit(n => n + PAGE)}
+                className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold"
+              >
+                {PAGE} müşteri daha göster
+              </button>
             </div>
-          ))}
+          )}
         </div>
       )}
 
