@@ -1,0 +1,6 @@
+{
+  "name": "Enyap Isı - Saha ve Ofis Takip Portalı",
+  "description": "Isparta saha satış ve İstanbul merkez ofis için teklif, sipariş, sevkiyat takibi ve uçtan uca şifreli ortak takvim sistemi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

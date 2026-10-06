@@ -1,0 +1,146 @@
+export type UserRole = 'isparta' | 'istanbul';
+
+export type QuoteStatus = 
+  | 'yeni_talep'      // Isparta'dan iletildi, ofis teklif hazırlığı bekliyor
+  | 'hazirlaniyor'    // Ofis üzerinde çalışıyor (fiyatlandırma/maliyet)
+  | 'gonderildi'      // Müşteriye WhatsApp/Mail ile iletildi, karar bekleniyor
+  | 'onaylandi'       // Müşteri onayladı! (Siparişe aktarılabilir)
+  | 'revizyon'        // Revizyon / İskonto pazarlığı
+  | 'iptal';          // İptal / Başka firmadan alındı
+
+export type UrgencyLevel = 'acil' | 'yuksek' | 'normal' | 'dusuk';
+
+export type RequestChannel = 'whatsapp' | 'telefon' | 'ziyaret' | 'email';
+
+export interface QuoteItem {
+  id: string;
+  productName: string;
+  quantity: number;
+  unit: 'Adet' | 'Metre' | 'Takım' | 'Paket' | 'Kg' | 'Set';
+  unitPrice: number;
+  discount: number; // percentage, e.g. 10
+  vatRate: number;  // 20
+  totalPrice: number;
+  notes?: string;
+}
+
+export interface Quote {
+  id: string;
+  quoteNumber: string;
+  customerName: string;
+  customerContact?: string;
+  customerPhone: string;
+  city: string;
+  projectLocation?: string;
+  requestChannel: RequestChannel;
+  urgency: UrgencyLevel;
+  status: QuoteStatus;
+  rawWhatsAppText?: string;
+  items: QuoteItem[];
+  totalAmount: number;
+  currency: 'TRY' | 'USD' | 'EUR';
+  validUntil: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: UserRole;
+  assignedTo: UserRole;
+  notes?: string;
+  isEncrypted?: boolean;
+  tags?: string[];
+}
+
+export type OrderStatus = 
+  | 'hazirlaniyor'     // Sipariş onaylandı, malzeme toplanıyor
+  | 'depoda_hazir'    // İstanbul depoda paketlendi/hazır
+  | 'sevk_edildi'     // Ambar/Kargoya verildi, yolda
+  | 'teslim_edildi'   // Isparta'da müşteriye/şantiyeye ulaştı
+  | 'gecikmeli';      // Gecikme uyarısı
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  quoteId?: string;
+  quoteNumber?: string;
+  customerName: string;
+  customerContact?: string;
+  customerPhone: string;
+  deliveryAddress: string;
+  city: string;
+  itemsSummary: string;
+  totalAmount: number;
+  currency: 'TRY' | 'USD' | 'EUR';
+  orderDate: string;
+  targetShippingDate: string; // Ne zaman sevk olacağı (kritik takip alanı!)
+  actualShippingDate?: string;
+  carrierCompany: string; // Nakliye firması / Ambar / Yurtiçi Kargo vb.
+  trackingNumber?: string; // İrsaliye no veya ambar takip no
+  driverContact?: string;
+  status: OrderStatus;
+  statusNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: UserRole;
+}
+
+export type EventCategory = 
+  | 'saha_ziyaret'   // Isparta şantiye / müşteri ziyareti
+  | 'musteri_takip'  // Teklif takip telefon görüşmesi
+  | 'sevkiyat'       // İstanbul'dan sevk edilecek malzeme
+  | 'odeme'          // Çek / Vade / Avans takibi
+  | 'kritik'         // Acil iş
+  | 'genel';         // Genel şirket notu
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  time?: string; // HH:mm
+  category: EventCategory;
+  relatedEntity?: {
+    type: 'quote' | 'order';
+    id: string;
+    name: string;
+  };
+  location?: string;
+  assignedUser: 'all' | 'isparta' | 'istanbul';
+  completed: boolean;
+  notes?: string;
+  reminder?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuickNote {
+  id: string;
+  content: string;
+  author: UserRole;
+  color: 'amber' | 'sky' | 'emerald' | 'rose' | 'purple';
+  pinned: boolean;
+  createdAt: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  action: string;
+  description: string;
+  author: UserRole | string;
+  timestamp: string;
+  badgeColor?: string;
+}
+
+export interface AppData {
+  quotes: Quote[];
+  orders: Order[];
+  events: CalendarEvent[];
+  notes: QuickNote[];
+  activities: ActivityLog[];
+  lastUpdated: string;
+}
+
+export interface SyncStatus {
+  isOnline: boolean;
+  isSyncing: boolean;
+  lastSyncedAt: Date | null;
+  pendingSync: boolean;
+  error?: string | null;
+}
