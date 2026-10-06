@@ -151,8 +151,38 @@ export interface Customer {
   updatedAt: string;
 }
 
+/** Yapılan tahsilat (müşteriden alınan ödeme) */
+export interface Collection {
+  id: string;
+  date: string;          // YYYY-MM-DD
+  customerName: string;
+  amount: number;
+  currency: 'TRY' | 'USD' | 'EUR';
+  method: string;        // Nakit, Havale/EFT, Kredi Kartı, Çek, Senet
+  description?: string;
+  createdBy: UserRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Yapılan harcama (gider) */
+export interface Expense {
+  id: string;
+  date: string;          // YYYY-MM-DD
+  category: string;      // Yakıt, Yemek, Konaklama, ...
+  amount: number;
+  currency: 'TRY' | 'USD' | 'EUR';
+  method: string;        // Nakit, Kredi Kartı, Havale/EFT
+  description?: string;
+  createdBy: UserRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppData {
   customers?: Customer[];
+  collections?: Collection[];
+  expenses?: Expense[];
   quotes: Quote[];
   orders: Order[];
   events: CalendarEvent[];

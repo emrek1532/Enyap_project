@@ -1,14 +1,15 @@
 import React from 'react';
 import { 
   FileText, 
-  Truck, 
   CalendarDays, 
   StickyNote, 
   Users,
-  TrendingUp
+  Wallet,
+  Receipt,
+  BarChart3,
 } from 'lucide-react';
 
-export type ActiveTab = 'quotes' | 'customers' | 'calendar' | 'notes';
+export type ActiveTab = 'quotes' | 'customers' | 'calendar' | 'notes' | 'collections' | 'expenses' | 'reports';
 
 interface NavigationProps {
   activeTab: ActiveTab;
@@ -56,6 +57,30 @@ export const Navigation: React.FC<NavigationProps> = ({
       badge: null,
       badgeColor: 'bg-amber-500',
     },
+    {
+      id: 'collections' as ActiveTab,
+      label: 'Yapılan Tahsilatlar',
+      shortLabel: 'Tahsilat',
+      icon: Wallet,
+      badge: null,
+      badgeColor: 'bg-accent-500',
+    },
+    {
+      id: 'expenses' as ActiveTab,
+      label: 'Yapılan Harcamalar',
+      shortLabel: 'Harcama',
+      icon: Receipt,
+      badge: null,
+      badgeColor: 'bg-orange-500',
+    },
+    {
+      id: 'reports' as ActiveTab,
+      label: 'Rapor',
+      shortLabel: 'Rapor',
+      icon: BarChart3,
+      badge: null,
+      badgeColor: 'bg-brand-500',
+    },
   ];
 
   return (
@@ -94,7 +119,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Mobile Fixed Bottom Navigation Bar (optimized for phone usage in Isparta field) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 px-2 py-1 shadow-lg pb-safe">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-7 gap-0.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -102,7 +127,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all relative ${
+                className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl transition-all relative ${
                   isActive ? 'text-brand-600 font-bold bg-brand-50/70' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -114,7 +139,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] mt-0.5 leading-tight truncate w-full text-center">
+                <span className="text-[9px] mt-0.5 leading-tight truncate w-full text-center">
                   {tab.shortLabel}
                 </span>
               </button>

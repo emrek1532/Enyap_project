@@ -17,7 +17,9 @@ import {
   UserRole,
   SyncStatus,
   QuoteStatus,
-  OrderStatus
+  OrderStatus,
+  Collection,
+  Expense
 } from './types';
 import {
   loadLocalData,
@@ -44,6 +46,8 @@ import { QuoteManager } from './components/QuoteManager';
 import { SharedCalendar } from './components/SharedCalendar';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
+import { LedgerPanel } from './components/LedgerPanel';
+import { ReportsPanel } from './components/ReportsPanel';
 import { NewQuoteModal } from './components/NewQuoteModal';
 import { CustomersPanel } from './components/CustomersPanel';
 
@@ -387,6 +391,35 @@ function Portal({ session }: { session: Session }) {
     persist([{ kind: 'delete', entity: 'notes', id }]);
   };
 
+  // Tahsilat / harcama kayıtları
+  const handleSaveCollection = (record: Collection) => {
+    mutate(d => {
+      const list = d.collections || [];
+      const exists = list.some(c => c.id === record.id);
+      return { ...d, collections: exists ? list.map(c => (c.id === record.id ? record : c)) : [record, ...list] };
+    });
+    persist([{ kind: 'upsert', entity: 'collections', record }]);
+  };
+
+  const handleDeleteCollection = (id: string) => {
+    mutate(d => ({ ...d, collections: (d.collections || []).filter(c => c.id !== id) }));
+    persist([{ kind: 'delete', entity: 'collections', id }]);
+  };
+
+  const handleSaveExpense = (record: Expense) => {
+    mutate(d => {
+      const list = d.expenses || [];
+      const exists = list.some(e => e.id === record.id);
+      return { ...d, expenses: exists ? list.map(e => (e.id === record.id ? record : e)) : [record, ...list] };
+    });
+    persist([{ kind: 'upsert', entity: 'expenses', record }]);
+  };
+
+  const handleDeleteExpense = (id: string) => {
+    mutate(d => ({ ...d, expenses: (d.expenses || []).filter(e => e.id !== id) }));
+    persist([{ kind: 'delete', entity: 'expenses', id }]);
+  };
+
   const handleSignOut = async () => {
     if (loadOutbox().length > 0 &&
       !confirm('Henüz buluta gönderilmemiş değişiklikler var. Çıkış yaparsanız bu değişiklikler kaybolur. Devam edilsin mi?')) {
@@ -491,6 +524,38 @@ function Portal({ session }: { session: Session }) {
             currentRole={currentRole}
             onSaveNote={handleSaveNote}
             onDeleteNote={handleDeleteNote}
+          />
+        )}
+
+        {/* Yapılan Tahsilatlar */}
+        {activeTab === 'collections' && (
+          <LedgerPanel
+            kind="collections"
+            records={data.collections || []}
+            customers={data.customers || []}
+            currentRole={currentRole}
+            onSave={(r) => handleSaveCollection(r as Collection)}
+            onDelete={handleDeleteCollection}
+          />
+        )}
+
+        {/* Yapılan Harcamalar */}
+        {activeTab === 'expenses' && (
+          <LedgerPanel
+            kind="expenses"
+            records={data.expenses || []}
+            currentRole={currentRole}
+            onSave={(r) => handleSaveExpense(r as Expense)}
+            onDelete={handleDeleteExpense}
+          />
+        )}
+
+        {/* Rapor */}
+        {activeTab === 'reports' && (
+          <ReportsPanel
+            quotes={data.quotes}
+            collections={data.collections || []}
+            expenses={data.expenses || []}
           />
         )}
 
