@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+enyap-isi-cloudflare.zip
+*.bundle
+.wrangler
+.dev.vars*

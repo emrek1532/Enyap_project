@@ -3,26 +3,42 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  AppData, 
-  Quote, 
-  Order, 
-  CalendarEvent, 
-  QuickNote, 
-  UserRole, 
-  SyncStatus, 
-  QuoteStatus, 
-  OrderStatus 
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { Loader2 } from 'lucide-react';
+import {
+  AppData,
+  Customer,
+  Quote,
+  Order,
+  CalendarEvent,
+  QuickNote,
+  ActivityLog,
+  UserRole,
+  SyncStatus,
+  QuoteStatus,
+  OrderStatus
 } from './types';
-import { 
-  loadLocalData, 
-  saveLocalData, 
-  fetchInitialData, 
-  syncWithServer, 
-  getStoredUserRole, 
-  setStoredUserRole 
+import {
+  loadLocalData,
+  saveLocalData,
+  loadOutbox,
+  saveOutbox,
+  clearLocalCache,
+  setStoredUserRole
 } from './lib/storage';
+import { supabase } from './lib/supabase';
+import {
+  fetchAllData,
+  applyOp,
+  isPermanentError,
+  replaceAllData,
+  subscribeToChanges,
+  PendingOp
+} from './lib/db';
+import { getDemoData } from './lib/demoData';
+import { findCustomer } from './lib/customers';
+import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import { Navigation, ActiveTab } from './components/Navigation';
 import { DashboardStats } from './components/DashboardStats';
@@ -34,9 +50,42 @@ import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { NewQuoteModal } from './components/NewQuoteModal';
 import { NewOrderModal } from './components/NewOrderModal';
+import { CustomersPanel } from './components/CustomersPanel';
+
+const USER_ROLE_KEY = 'enyap_active_user_role_v1';
 
 export default function App() {
-  const [currentRole, setCurrentRole] = useState<UserRole>(getStoredUserRole());
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-orange-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) return <AuthScreen />;
+
+  return <Portal key={session.user.id} session={session} />;
+}
+
+function Portal({ session }: { session: Session }) {
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    const stored = localStorage.getItem(USER_ROLE_KEY);
+    if (stored === 'isparta' || stored === 'istanbul') return stored;
+    return session.user.user_metadata?.role === 'istanbul' ? 'istanbul' : 'isparta';
+  });
   const [activeTab, setActiveTab] = useState<ActiveTab>('quotes');
 
   // App Data State (Offline-first initialized)
@@ -44,6 +93,7 @@ export default function App() {
     const local = loadLocalData();
     if (local) return local;
     return {
+      customers: [],
       quotes: [],
       orders: [],
       events: [],
@@ -58,7 +108,7 @@ export default function App() {
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     isSyncing: false,
     lastSyncedAt: null,
-    pendingSync: false,
+    pendingSync: loadOutbox().length > 0,
     error: null,
   });
 
@@ -66,6 +116,7 @@ export default function App() {
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [convertingQuote, setConvertingQuote] = useState<Quote | null>(null);
+  const [quoteCustomer, setQuoteCustomer] = useState<Customer | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [printableQuote, setPrintableQuote] = useState<Quote | null>(null);
 
@@ -75,54 +126,108 @@ export default function App() {
     setStoredUserRole(role);
   };
 
-  // Perform full sync
-  const performSync = useCallback(async (currentDataToSync?: AppData) => {
+  // Apply a local (optimistic) change and cache it
+  const mutate = useCallback((fn: (prev: AppData) => AppData) => {
+    setData(prev => {
+      const next = { ...fn(prev), lastUpdated: new Date().toISOString() };
+      saveLocalData(next);
+      return next;
+    });
+  }, []);
+
+  const syncingRef = useRef(false);
+  const rerunRef = useRef(false);
+
+  // Flush offline queue to Supabase, then pull the latest shared state
+  const performSync = useCallback(async (): Promise<void> => {
+    if (syncingRef.current) {
+      rerunRef.current = true;
+      return;
+    }
     if (!navigator.onLine) {
-      setSyncStatus(prev => ({ ...prev, isOnline: false, pendingSync: true }));
+      setSyncStatus(prev => ({ ...prev, isOnline: false, pendingSync: loadOutbox().length > 0 }));
       return;
     }
 
+    syncingRef.current = true;
     setSyncStatus(prev => ({ ...prev, isSyncing: true, error: null }));
+    let lastError: string | null = null;
     try {
-      const dataPayload = currentDataToSync || data;
-      const synced = await syncWithServer(dataPayload);
-      setData(synced);
-      saveLocalData(synced);
+      let queue = loadOutbox();
+      while (queue.length > 0) {
+        try {
+          await applyOp(queue[0]);
+        } catch (err: any) {
+          if (!isPermanentError(err)) throw err;
+          console.error('Dropping operation that the database rejected:', queue[0], err);
+          lastError = err.message;
+        }
+        // New operations may have been appended meanwhile; only drop the head
+        queue = loadOutbox().slice(1);
+        saveOutbox(queue);
+      }
+
+      const fresh = await fetchAllData();
+      if (loadOutbox().length === 0) {
+        setData(fresh);
+        saveLocalData(fresh);
+      } else {
+        rerunRef.current = true;
+      }
       setSyncStatus({
         isOnline: true,
         isSyncing: false,
         lastSyncedAt: new Date(),
-        pendingSync: false,
-        error: null,
+        pendingSync: loadOutbox().length > 0,
+        error: lastError,
       });
     } catch (err: any) {
       console.warn('Sync failed:', err);
       setSyncStatus(prev => ({
         ...prev,
         isSyncing: false,
-        pendingSync: true,
-        error: err.message || 'Senkronizasyon hatası',
+        pendingSync: loadOutbox().length > 0,
+        error: err?.message || 'Senkronizasyon hatası',
       }));
-    }
-  }, [data]);
-
-  // Initial load from server
-  useEffect(() => {
-    async function init() {
-      try {
-        const serverData = await fetchInitialData();
-        setData(serverData);
-        setSyncStatus(prev => ({
-          ...prev,
-          lastSyncedAt: new Date(),
-          isOnline: true,
-        }));
-      } catch (err) {
-        console.warn('Could not reach server initially, working offline:', err);
+    } finally {
+      syncingRef.current = false;
+      if (rerunRef.current) {
+        rerunRef.current = false;
+        setTimeout(() => performSync(), 0);
       }
     }
-    init();
   }, []);
+
+  // Queue changes for Supabase and push them right away
+  const persist = useCallback((ops: PendingOp[]) => {
+    saveOutbox([...loadOutbox(), ...ops]);
+    setSyncStatus(prev => ({ ...prev, pendingSync: true }));
+    performSync();
+  }, [performSync]);
+
+  const logActivity = (action: string, description: string, badgeColor: string): ActivityLog => ({
+    id: 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+    action,
+    description,
+    author: currentRole,
+    timestamp: new Date().toISOString(),
+    badgeColor,
+  });
+
+  // Initial load + live updates from other devices
+  useEffect(() => {
+    performSync();
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = subscribeToChanges(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => performSync(), 400);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [performSync]);
 
   // Online / Offline listeners
   useEffect(() => {
@@ -135,109 +240,108 @@ export default function App() {
       setSyncStatus(prev => ({ ...prev, isOnline: false }));
     };
 
+    const handleVisible = () => {
+      if (document.visibilityState === 'visible') performSync();
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleVisible);
 
-    // Periodic heartbeat sync every 30 seconds
+    // Periodic heartbeat sync (in case a realtime message was missed)
     const interval = setInterval(() => {
-      if (navigator.onLine) {
-        performSync();
-      }
-    }, 30000);
+      if (navigator.onLine) performSync();
+    }, 60000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisible);
       clearInterval(interval);
     };
   }, [performSync]);
 
+  // Teklif/siparişte geçen firma listede yoksa müşteri olarak ekle
+  const newCustomerFor = (name: string, city: string, contact?: string, phone?: string): Customer | null => {
+    if (!name.trim() || findCustomer(data.customers, name)) return null;
+    const now = new Date().toISOString();
+    return {
+      id: 'cus-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      name: name.trim(),
+      city: city || '',
+      contactPerson: contact || '',
+      phone: phone || '',
+      createdAt: now,
+      updatedAt: now,
+    };
+  };
+
+  const addCustomerLocally = (customer: Customer | null) => {
+    if (!customer) return;
+    mutate(d => ({ ...d, customers: [...(d.customers || []), customer] }));
+  };
+
+  // Customers
+  const handleSaveCustomer = (customer: Customer) => {
+    mutate(d => {
+      const list = d.customers || [];
+      const exists = list.some(c => c.id === customer.id);
+      return { ...d, customers: exists ? list.map(c => (c.id === customer.id ? customer : c)) : [...list, customer] };
+    });
+    persist([{ kind: 'upsert', entity: 'customers', record: customer }]);
+  };
+
+  const handleDeleteCustomer = (id: string) => {
+    mutate(d => ({ ...d, customers: (d.customers || []).filter(c => c.id !== id) }));
+    persist([{ kind: 'delete', entity: 'customers', id }]);
+  };
+
   // Save new quote
-  const handleSaveQuote = async (newQuote: Quote) => {
-    const updatedQuotes = [newQuote, ...data.quotes];
-    const newActivity = {
-      id: 'act-' + Date.now(),
-      action: 'Yeni Teklif Talebi Açıldı',
-      description: `${newQuote.customerName} için ${newQuote.quoteNumber} nolu talep oluşturuldu.`,
-      author: currentRole,
-      timestamp: new Date().toISOString(),
-      badgeColor: 'sky',
-    };
-    const updatedData: AppData = {
-      ...data,
-      quotes: updatedQuotes,
-      activities: [newActivity, ...(data.activities || [])],
-      lastUpdated: new Date().toISOString(),
-    };
-
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    // Also push to server API
-    try {
-      await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newQuote),
-      });
-      performSync(updatedData);
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+  const handleSaveQuote = (newQuote: Quote) => {
+    const activity = logActivity(
+      'Yeni Teklif Talebi Açıldı',
+      `${newQuote.customerName} için ${newQuote.quoteNumber} nolu talep oluşturuldu.`,
+      'sky'
+    );
+    const customer = newCustomerFor(newQuote.customerName, newQuote.city, newQuote.customerContact, newQuote.customerPhone);
+    addCustomerLocally(customer);
+    mutate(d => ({
+      ...d,
+      quotes: [newQuote, ...d.quotes.filter(q => q.id !== newQuote.id)],
+      activities: [activity, ...(d.activities || [])],
+    }));
+    persist([
+      ...(customer ? [{ kind: 'upsert', entity: 'customers', record: customer } as PendingOp] : []),
+      { kind: 'upsert', entity: 'quotes', record: newQuote },
+      { kind: 'upsert', entity: 'activities', record: activity },
+    ]);
   };
 
   // Update Quote Status
-  const handleUpdateQuoteStatus = async (id: string, status: QuoteStatus) => {
-    const updatedQuotes = data.quotes.map(q => {
-      if (q.id === id) {
-        return { ...q, status, updatedAt: new Date().toISOString() };
-      }
-      return q;
-    });
-
-    const targetQuote = data.quotes.find(q => q.id === id);
-    const newActivity = {
-      id: 'act-' + Date.now(),
-      action: 'Teklif Durumu Değişti',
-      description: `${targetQuote?.customerName || id} teklifi "${status}" durumuna alındı.`,
-      author: currentRole,
-      timestamp: new Date().toISOString(),
-      badgeColor: 'indigo',
-    };
-
-    const updatedData: AppData = {
-      ...data,
-      quotes: updatedQuotes,
-      activities: [newActivity, ...(data.activities || [])],
-      lastUpdated: new Date().toISOString(),
-    };
-
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch(`/api/quotes/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, updatedBy: currentRole }),
-      });
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+  const handleUpdateQuoteStatus = (id: string, status: QuoteStatus) => {
+    const target = data.quotes.find(q => q.id === id);
+    if (!target) return;
+    const updated: Quote = { ...target, status, updatedAt: new Date().toISOString() };
+    const activity = logActivity(
+      'Teklif Durumu Değişti',
+      `${target.customerName} teklifi "${status}" durumuna alındı.`,
+      'indigo'
+    );
+    mutate(d => ({
+      ...d,
+      quotes: d.quotes.map(q => (q.id === id ? updated : q)),
+      activities: [activity, ...(d.activities || [])],
+    }));
+    persist([
+      { kind: 'upsert', entity: 'quotes', record: updated },
+      { kind: 'upsert', entity: 'activities', record: activity },
+    ]);
   };
 
   // Delete Quote
-  const handleDeleteQuote = async (id: string) => {
-    const updatedQuotes = data.quotes.filter(q => q.id !== id);
-    const updatedData = { ...data, quotes: updatedQuotes, lastUpdated: new Date().toISOString() };
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch(`/api/quotes/${id}`, { method: 'DELETE' });
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+  const handleDeleteQuote = (id: string) => {
+    mutate(d => ({ ...d, quotes: d.quotes.filter(q => q.id !== id) }));
+    persist([{ kind: 'delete', entity: 'quotes', id }]);
   };
 
   // Convert Quote to Order
@@ -269,223 +373,178 @@ export default function App() {
     setActiveTab('calendar');
   };
 
-  // Save Order / Shipment
-  const handleSaveOrder = async (newOrder: Order) => {
-    const updatedOrders = [newOrder, ...data.orders];
-    
+  // Save Order / Shipment (new or edited)
+  const handleSaveOrder = (order: Order) => {
+    const now = new Date().toISOString();
+    const isNew = !data.orders.some(o => o.id === order.id);
+    const saved: Order = { ...order, updatedAt: now };
+    const ops: PendingOp[] = [{ kind: 'upsert', entity: 'orders', record: saved }];
+
+    if (!isNew) {
+      mutate(d => ({ ...d, orders: d.orders.map(o => (o.id === saved.id ? saved : o)) }));
+      persist(ops);
+      return;
+    }
+
     // Auto add calendar event for shipping day
-    let updatedEvents = [...data.events];
-    if (newOrder.targetShippingDate) {
-      const shipEv: CalendarEvent = {
-        id: 'ev-ship-' + newOrder.id,
-        title: `🚚 Sevkiyat: ${newOrder.customerName}`,
-        date: newOrder.targetShippingDate,
+    let shipEv: CalendarEvent | null = null;
+    if (saved.targetShippingDate) {
+      shipEv = {
+        id: 'ev-ship-' + saved.id,
+        title: `🚚 Sevkiyat: ${saved.customerName}`,
+        date: saved.targetShippingDate,
         time: '09:30',
         category: 'sevkiyat',
-        relatedEntity: { type: 'order', id: newOrder.id, name: newOrder.customerName },
-        location: newOrder.deliveryAddress || newOrder.city,
+        relatedEntity: { type: 'order', id: saved.id, name: saved.customerName },
+        location: saved.deliveryAddress || saved.city,
         assignedUser: 'all',
         completed: false,
-        notes: `${newOrder.orderNumber} nolu sipariş sevk günü. Ambar/Kargo: ${newOrder.carrierCompany || 'Belirtilmedi'}`,
+        notes: `${saved.orderNumber} nolu sipariş sevk günü. Ambar/Kargo: ${saved.carrierCompany || 'Belirtilmedi'}`,
         reminder: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       };
-      updatedEvents = [shipEv, ...updatedEvents];
+      ops.push({ kind: 'upsert', entity: 'events', record: shipEv });
     }
 
-    const newActivity = {
-      id: 'act-' + Date.now(),
-      action: 'Yeni Sipariş & Sevkiyat Planlandı',
-      description: `${newOrder.customerName} için ${newOrder.orderNumber} nolu sipariş açıldı. Sevk: ${newOrder.targetShippingDate}`,
-      author: currentRole,
-      timestamp: new Date().toISOString(),
-      badgeColor: 'emerald',
-    };
+    const activity = logActivity(
+      'Yeni Sipariş & Sevkiyat Planlandı',
+      `${saved.customerName} için ${saved.orderNumber} nolu sipariş açıldı. Sevk: ${saved.targetShippingDate}`,
+      'emerald'
+    );
+    ops.push({ kind: 'upsert', entity: 'activities', record: activity });
 
-    const updatedData: AppData = {
-      ...data,
-      orders: updatedOrders,
-      events: updatedEvents,
-      activities: [newActivity, ...(data.activities || [])],
-      lastUpdated: new Date().toISOString(),
-    };
-
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newOrder),
-      });
-      performSync(updatedData);
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
+    const customer = newCustomerFor(saved.customerName, saved.city, saved.customerContact, saved.customerPhone);
+    if (customer) {
+      addCustomerLocally(customer);
+      ops.unshift({ kind: 'upsert', entity: 'customers', record: customer });
     }
+
+    mutate(d => ({
+      ...d,
+      orders: [saved, ...d.orders],
+      events: shipEv ? [shipEv, ...d.events] : d.events,
+      activities: [activity, ...(d.activities || [])],
+    }));
+    persist(ops);
   };
 
   // Update Order Status
-  const handleUpdateOrderStatus = async (
-    id: string, 
-    status: OrderStatus, 
-    carrierCompany?: string, 
+  const handleUpdateOrderStatus = (
+    id: string,
+    status: OrderStatus,
+    carrierCompany?: string,
     trackingNumber?: string
   ) => {
-    const updatedOrders = data.orders.map(o => {
-      if (o.id === id) {
-        return { 
-          ...o, 
-          status, 
-          carrierCompany: carrierCompany || o.carrierCompany,
-          trackingNumber: trackingNumber || o.trackingNumber,
-          updatedAt: new Date().toISOString() 
-        };
-      }
-      return o;
-    });
-
-    const targetOrder = data.orders.find(o => o.id === id);
-    const newActivity = {
-      id: 'act-' + Date.now(),
-      action: 'Sevkiyat Durumu Güncellendi',
-      description: `${targetOrder?.customerName || id} siparişi "${status}" yapıldı.`,
-      author: currentRole,
-      timestamp: new Date().toISOString(),
-      badgeColor: 'amber',
+    const target = data.orders.find(o => o.id === id);
+    if (!target) return;
+    const today = new Date().toISOString().split('T')[0];
+    const updated: Order = {
+      ...target,
+      status,
+      carrierCompany: carrierCompany || target.carrierCompany,
+      trackingNumber: trackingNumber || target.trackingNumber,
+      actualShippingDate:
+        status === 'sevk_edildi' && !target.actualShippingDate ? today : target.actualShippingDate,
+      updatedAt: new Date().toISOString(),
     };
-
-    const updatedData = {
-      ...data,
-      orders: updatedOrders,
-      activities: [newActivity, ...(data.activities || [])],
-      lastUpdated: new Date().toISOString(),
-    };
-
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch(`/api/orders/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, carrierCompany, trackingNumber, updatedBy: currentRole }),
-      });
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+    const activity = logActivity(
+      'Sevkiyat Durumu Güncellendi',
+      `${target.customerName} siparişi "${status}" yapıldı.`,
+      'amber'
+    );
+    mutate(d => ({
+      ...d,
+      orders: d.orders.map(o => (o.id === id ? updated : o)),
+      activities: [activity, ...(d.activities || [])],
+    }));
+    persist([
+      { kind: 'upsert', entity: 'orders', record: updated },
+      { kind: 'upsert', entity: 'activities', record: activity },
+    ]);
   };
 
   // Delete Order
-  const handleDeleteOrder = async (id: string) => {
-    const updatedOrders = data.orders.filter(o => o.id !== id);
-    const updatedData = { ...data, orders: updatedOrders, lastUpdated: new Date().toISOString() };
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch(`/api/orders/${id}`, { method: 'DELETE' });
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+  const handleDeleteOrder = (id: string) => {
+    mutate(d => ({ ...d, orders: d.orders.filter(o => o.id !== id) }));
+    persist([{ kind: 'delete', entity: 'orders', id }]);
   };
 
   // Calendar Event handlers
-  const handleSaveEvent = async (event: CalendarEvent) => {
-    const existingIdx = data.events.findIndex(e => e.id === event.id);
-    let updatedEvents = [...data.events];
-    if (existingIdx >= 0) {
-      updatedEvents[existingIdx] = event;
-    } else {
-      updatedEvents = [event, ...updatedEvents];
-    }
-
-    const updatedData = { ...data, events: updatedEvents, lastUpdated: new Date().toISOString() };
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(event),
-      });
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+  const handleSaveEvent = (event: CalendarEvent) => {
+    const saved: CalendarEvent = { ...event, updatedAt: new Date().toISOString() };
+    mutate(d => {
+      const exists = d.events.some(e => e.id === saved.id);
+      return {
+        ...d,
+        events: exists ? d.events.map(e => (e.id === saved.id ? saved : e)) : [saved, ...d.events],
+      };
+    });
+    persist([{ kind: 'upsert', entity: 'events', record: saved }]);
   };
 
-  const handleDeleteEvent = async (id: string) => {
-    const updatedEvents = data.events.filter(e => e.id !== id);
-    const updatedData = { ...data, events: updatedEvents, lastUpdated: new Date().toISOString() };
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch(`/api/events/${id}`, { method: 'DELETE' });
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+  const handleDeleteEvent = (id: string) => {
+    mutate(d => ({ ...d, events: d.events.filter(e => e.id !== id) }));
+    persist([{ kind: 'delete', entity: 'events', id }]);
   };
 
   // Quick Notes handlers
-  const handleSaveNote = async (note: QuickNote) => {
-    const existingIdx = data.notes.findIndex(n => n.id === note.id);
-    let updatedNotes = [...data.notes];
-    if (existingIdx >= 0) {
-      updatedNotes[existingIdx] = note;
-    } else {
-      updatedNotes = [note, ...updatedNotes];
-    }
-
-    const updatedData = { ...data, notes: updatedNotes, lastUpdated: new Date().toISOString() };
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch('/api/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(note),
-      });
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+  const handleSaveNote = (note: QuickNote) => {
+    const saved: QuickNote = { ...note, updatedAt: new Date().toISOString() };
+    mutate(d => {
+      const exists = d.notes.some(n => n.id === saved.id);
+      return {
+        ...d,
+        notes: exists ? d.notes.map(n => (n.id === saved.id ? saved : n)) : [saved, ...d.notes],
+      };
+    });
+    persist([{ kind: 'upsert', entity: 'notes', record: saved }]);
   };
 
-  const handleDeleteNote = async (id: string) => {
-    const updatedNotes = data.notes.filter(n => n.id !== id);
-    const updatedData = { ...data, notes: updatedNotes, lastUpdated: new Date().toISOString() };
-    setData(updatedData);
-    saveLocalData(updatedData);
-
-    try {
-      await fetch(`/api/notes/${id}`, { method: 'DELETE' });
-    } catch {
-      setSyncStatus(prev => ({ ...prev, pendingSync: true }));
-    }
+  const handleDeleteNote = (id: string) => {
+    mutate(d => ({ ...d, notes: d.notes.filter(n => n.id !== id) }));
+    persist([{ kind: 'delete', entity: 'notes', id }]);
   };
 
-  // Import Backup
+  // Import Backup: merge imported records into the shared database
   const handleImportData = (importedData: AppData) => {
-    setData(importedData);
-    saveLocalData(importedData);
-    performSync(importedData);
+    mutate(() => ({ ...importedData, customers: importedData.customers || data.customers || [] }));
+    persist([
+      ...(importedData.customers || []).map(record => ({ kind: 'upsert', entity: 'customers', record }) as PendingOp),
+      ...(importedData.quotes || []).map(record => ({ kind: 'upsert', entity: 'quotes', record }) as PendingOp),
+      ...(importedData.orders || []).map(record => ({ kind: 'upsert', entity: 'orders', record }) as PendingOp),
+      ...(importedData.events || []).map(record => ({ kind: 'upsert', entity: 'events', record }) as PendingOp),
+      ...(importedData.notes || []).map(record => ({ kind: 'upsert', entity: 'notes', record }) as PendingOp),
+      ...(importedData.activities || []).map(record => ({ kind: 'upsert', entity: 'activities', record }) as PendingOp),
+    ]);
   };
 
-  // Reset Demo
+  // Reset Demo: replace the shared database with sample data
   const handleResetDemo = async () => {
-    try {
-      const res = await fetch('/api/reset-demo', { method: 'POST' });
-      const json = await res.json();
-      if (json.data) {
-        setData(json.data);
-        saveLocalData(json.data);
-      }
-    } catch (err) {
-      console.error(err);
+    if (!navigator.onLine) {
+      alert('Örnek verileri yüklemek için internet bağlantısı gerekli.');
+      return;
     }
+    setSyncStatus(prev => ({ ...prev, isSyncing: true, error: null }));
+    try {
+      saveOutbox([]);
+      const fresh = await replaceAllData(getDemoData());
+      setData(fresh);
+      saveLocalData(fresh);
+      setSyncStatus(prev => ({ ...prev, isSyncing: false, pendingSync: false, lastSyncedAt: new Date() }));
+    } catch (err: any) {
+      console.error(err);
+      setSyncStatus(prev => ({ ...prev, isSyncing: false, error: err?.message || 'Örnek veriler yüklenemedi' }));
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (loadOutbox().length > 0 &&
+      !confirm('Henüz buluta gönderilmemiş değişiklikler var. Çıkış yaparsanız bu değişiklikler kaybolur. Devam edilsin mi?')) {
+      return;
+    }
+    clearLocalCache();
+    await supabase.auth.signOut();
   };
 
   // Counts for alerts & badges
@@ -498,6 +557,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-20 md:pb-8">
       
+      {/* Header + desktop tabs stay pinned together while scrolling */}
+      <div className="sticky top-0 z-30">
       {/* Top Application Header */}
       <Header
         currentRole={currentRole}
@@ -506,6 +567,8 @@ export default function App() {
         onTriggerSync={() => performSync()}
         onOpenNewQuote={() => setIsNewQuoteOpen(true)}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
+        onSignOut={handleSignOut}
+        userEmail={session.user.email || ''}
         urgentCount={urgentCount}
         todayShipmentCount={todayShipmentCount}
       />
@@ -518,6 +581,7 @@ export default function App() {
         ordersCount={data.orders.filter(o => o.status !== 'teslim_edildi').length}
         eventsCount={todayEventsCount}
       />
+      </div>
 
       {/* Main App Content Area */}
       <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1">
@@ -557,6 +621,19 @@ export default function App() {
             onOpenNewOrderModal={() => {
               setConvertingQuote(null);
               setIsNewOrderOpen(true);
+            }}
+          />
+        )}
+
+        {/* Müşteriler */}
+        {activeTab === 'customers' && (
+          <CustomersPanel
+            customers={data.customers || []}
+            onSaveCustomer={handleSaveCustomer}
+            onDeleteCustomer={handleDeleteCustomer}
+            onCreateQuoteForCustomer={(customer) => {
+              setQuoteCustomer(customer);
+              setIsNewQuoteOpen(true);
             }}
           />
         )}
@@ -607,8 +684,13 @@ export default function App() {
       {isNewQuoteOpen && (
         <NewQuoteModal
           currentRole={currentRole}
+          customers={data.customers || []}
+          initialCustomer={quoteCustomer}
           onSaveQuote={handleSaveQuote}
-          onClose={() => setIsNewQuoteOpen(false)}
+          onClose={() => {
+            setIsNewQuoteOpen(false);
+            setQuoteCustomer(null);
+          }}
         />
       )}
 
@@ -617,6 +699,7 @@ export default function App() {
         <NewOrderModal
           currentRole={currentRole}
           initialQuote={convertingQuote}
+          customers={data.customers || []}
           onSaveOrder={(order) => {
             handleSaveOrder(order);
             setIsNewOrderOpen(false);

@@ -117,6 +117,7 @@ export interface QuickNote {
   color: 'amber' | 'sky' | 'emerald' | 'rose' | 'purple';
   pinned: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ActivityLog {
@@ -128,7 +129,20 @@ export interface ActivityLog {
   badgeColor?: string;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  city: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppData {
+  customers?: Customer[];
   quotes: Quote[];
   orders: Order[];
   events: CalendarEvent[];

@@ -5,10 +5,11 @@ import {
   CalendarDays, 
   StickyNote, 
   ShieldCheck,
+  Users,
   TrendingUp
 } from 'lucide-react';
 
-export type ActiveTab = 'quotes' | 'orders' | 'calendar' | 'notes' | 'sync';
+export type ActiveTab = 'quotes' | 'orders' | 'customers' | 'calendar' | 'notes' | 'sync';
 
 interface NavigationProps {
   activeTab: ActiveTab;
@@ -43,6 +44,14 @@ export const Navigation: React.FC<NavigationProps> = ({
       badgeColor: 'bg-emerald-600',
     },
     {
+      id: 'customers' as ActiveTab,
+      label: 'Müşteriler',
+      shortLabel: 'Müşteriler',
+      icon: Users,
+      badge: null,
+      badgeColor: 'bg-slate-500',
+    },
+    {
       id: 'calendar' as ActiveTab,
       label: 'Ortak Takvim & Ajanda',
       shortLabel: 'Takvim',
@@ -61,7 +70,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     {
       id: 'sync' as ActiveTab,
       label: 'Şifreleme & Cihaz Aktarımı',
-      shortLabel: 'Aktarım & E2EE',
+      shortLabel: 'Aktarım',
       icon: ShieldCheck,
       badge: null,
       badgeColor: 'bg-slate-500',
@@ -71,7 +80,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <>
       {/* Desktop / Tablet Navigation Bar */}
-      <nav className="bg-white border-b border-slate-200 shadow-xs sticky top-[57px] sm:top-[69px] z-20 hidden md:block">
+      <nav className="bg-white border-b border-slate-200 shadow-xs hidden md:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex space-x-1 lg:space-x-4">
             {tabs.map((tab) => {
@@ -88,7 +97,8 @@ export const Navigation: React.FC<NavigationProps> = ({
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-orange-500' : 'text-slate-400'}`} />
-                  <span>{tab.label}</span>
+                  <span className="2xl:hidden whitespace-nowrap">{tab.shortLabel}</span>
+                  <span className="hidden 2xl:inline whitespace-nowrap">{tab.label}</span>
                   {tab.badge !== null && (
                     <span className={`px-1.5 py-0.2 rounded-full text-[11px] font-bold text-white ${tab.badgeColor}`}>
                       {tab.badge}
@@ -104,7 +114,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       {/* Mobile Fixed Bottom Navigation Bar (optimized for phone usage in Isparta field) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 px-2 py-1 shadow-lg pb-safe">
         <div className="grid grid-cols-5 gap-1">
-          {tabs.map((tab) => {
+          {tabs.filter((tab) => tab.id !== 'sync').map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (

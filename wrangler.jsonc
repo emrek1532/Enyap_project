@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Cloudflare Workers Builds bu adı kullanır; Cloudflare'deki Worker adıyla aynı olmalı
+  "name": "enyap-project",
+  "compatibility_date": "2026-09-05",
+  // `wrangler deploy` önce siteyi derler, sonra dist/ klasörünü statik site olarak yayınlar
+  "build": {
+    "command": "npm run build"
+  },
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

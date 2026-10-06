@@ -11,13 +11,16 @@ import {
   DollarSign,
   FileText
 } from 'lucide-react';
-import { Quote, QuoteItem, UrgencyLevel, RequestChannel, UserRole } from '../types';
+import { Quote, QuoteItem, UrgencyLevel, RequestChannel, UserRole, Customer } from '../types';
+import { findCustomer } from '../lib/customers';
 import { parseWhatsAppMessage } from '../lib/whatsappParser';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
   onSaveQuote: (quote: Quote) => void;
   onClose: () => void;
+  customers?: Customer[];
+  initialCustomer?: Customer | null;
 }
 
 const COMMON_PRODUCTS = [
@@ -39,15 +42,28 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   currentRole,
   onSaveQuote,
   onClose,
+  customers = [],
+  initialCustomer = null,
 }) => {
-  const [activeTab, setActiveTab] = useState<'whatsapp' | 'manual'>('whatsapp');
+  const [activeTab, setActiveTab] = useState<'whatsapp' | 'manual'>(initialCustomer ? 'manual' : 'whatsapp');
   const [rawWhatsApp, setRawWhatsApp] = useState('');
   
   // Form fields
-  const [customerName, setCustomerName] = useState('');
-  const [customerContact, setCustomerContact] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [city, setCity] = useState('Isparta');
+  const [customerName, setCustomerName] = useState(initialCustomer?.name || '');
+  const [customerContact, setCustomerContact] = useState(initialCustomer?.contactPerson || '');
+  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone || '');
+  const [city, setCity] = useState(initialCustomer?.city || 'Isparta');
+
+  // Kayıtlı bir müşteri seçilince şehir / yetkili / telefon otomatik dolsun
+  const handleCustomerNameChange = (value: string) => {
+    setCustomerName(value);
+    const match = findCustomer(customers, value);
+    if (match) {
+      if (match.city) setCity(match.city);
+      if (match.contactPerson) setCustomerContact(match.contactPerson);
+      if (match.phone) setCustomerPhone(match.phone);
+    }
+  };
   const [projectLocation, setProjectLocation] = useState('');
   const [requestChannel, setRequestChannel] = useState<RequestChannel>('whatsapp');
   const [urgency, setUrgency] = useState<UrgencyLevel>('normal');
@@ -144,7 +160,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
     const newQuote: Quote = {
       id: quoteId,
-      quoteNumber: `EY-2026-0${count}`,
+      quoteNumber: `EY-${new Date().getFullYear()}-0${count}`,
       customerName: customerName.trim(),
       customerContact: customerContact.trim() || undefined,
       customerPhone: customerPhone.trim(),
@@ -272,11 +288,18 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Örn: Gül Mühendislik & Tesisat"
+                    placeholder="Yazmaya başlayın, kayıtlı müşterilerden seçin..."
+                    list="quote-customer-list"
+                    autoComplete="off"
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => handleCustomerNameChange(e.target.value)}
                     className="w-full p-2 border border-slate-200 rounded-lg text-sm"
                   />
+                  <datalist id="quote-customer-list">
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.name}>{c.city}</option>
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>

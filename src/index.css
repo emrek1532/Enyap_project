@@ -35,3 +35,16 @@
     color: black !important;
   }
 }
+
+/* Mobile safe areas (iPhone notch / home indicator in installed PWA) */
+@utility pb-safe {
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+}
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Safety net: never let a stray element widen the page on phones */
+html, body {
+  overflow-x: hidden;
+}
