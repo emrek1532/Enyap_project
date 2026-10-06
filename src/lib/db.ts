@@ -56,6 +56,12 @@ const quoteToRow = (q: Quote): Row => ({
   notes: q.notes ?? null,
   is_encrypted: !!q.isEncrypted,
   tags: q.tags ?? [],
+  prepared_by: orNull(q.preparedBy),
+  amount_usd: q.amountUsd ?? 0,
+  amount_eur: q.amountEur ?? 0,
+  amount_try: q.amountTry ?? 0,
+  total_usd: q.totalUsd ?? 0,
+  imported: !!q.imported,
   created_at: q.createdAt,
   updated_at: q.updatedAt,
 });
@@ -83,6 +89,12 @@ const rowToQuote = (r: Row): Quote => ({
   notes: r.notes ?? undefined,
   isEncrypted: r.is_encrypted,
   tags: r.tags ?? [],
+  preparedBy: r.prepared_by ?? undefined,
+  amountUsd: Number(r.amount_usd ?? 0),
+  amountEur: Number(r.amount_eur ?? 0),
+  amountTry: Number(r.amount_try ?? 0),
+  totalUsd: Number(r.total_usd ?? 0),
+  imported: !!r.imported,
 });
 
 const orderToRow = (o: Order): Row => ({
@@ -231,13 +243,34 @@ async function remove(table: string, id: string) {
 }
 
 // ---------- Public API ----------
+/**
+ * Supabase tek istekte en fazla 1000 satır döndürür; büyük tabloları
+ * sayfa sayfa çekip birleştirir.
+ */
+async function fetchAllRows(table: string, orderBy: string, ascending: boolean): Promise<{ data: Row[]; error: any }> {
+  const PAGE = 1000;
+  const all: Row[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .order(orderBy, { ascending })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) return { data: all, error };
+    all.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return { data: all, error: null };
+}
+
 export async function fetchAllData(): Promise<AppData> {
   const [customers, quotes, orders, events, notes, activities] = await Promise.all([
-    supabase.from('customers').select('*').order('name', { ascending: true }).limit(5000),
-    supabase.from('quotes').select('*').order('created_at', { ascending: false }),
-    supabase.from('orders').select('*').order('created_at', { ascending: false }),
-    supabase.from('events').select('*').order('date', { ascending: true }),
-    supabase.from('notes').select('*').order('created_at', { ascending: false }),
+    fetchAllRows('customers', 'name', true),
+    fetchAllRows('quotes', 'created_at', false),
+    fetchAllRows('orders', 'created_at', false),
+    fetchAllRows('events', 'date', true),
+    fetchAllRows('notes', 'created_at', false),
     supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(50),
   ]);
 
