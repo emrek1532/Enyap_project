@@ -1,6 +1,6 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v2';
+const CACHE = 'enyap-shell-v3';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -18,6 +18,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  // Sürüm kontrolü gibi "önbellek kullanma" denen istekler doğrudan ağa gider
+  if (req.cache === 'no-store') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
