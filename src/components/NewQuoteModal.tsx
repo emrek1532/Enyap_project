@@ -13,6 +13,8 @@ interface NewQuoteModalProps {
   initialCustomer?: Customer | null;
 }
 
+export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
+
 const COMMON_PRODUCTS = [
   '24 kW Tam Yoğuşmalı Kombi (Enyap EcoHeat)',
   '28 kW Tam Yoğuşmalı Kombi (Enyap EcoHeat Pro)',
@@ -55,6 +57,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   };
   const [projectLocation, setProjectLocation] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>('normal');
+  const [paymentTerm, setPaymentTerm] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<QuoteItem[]>([
     {
@@ -153,6 +156,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       createdBy: currentRole,
       assignedTo: 'istanbul',
       notes: notes.trim() || undefined,
+      paymentTerm: paymentTerm || undefined,
       isEncrypted: false,
     };
 
@@ -259,6 +263,22 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       <option value="normal">Normal</option>
                       <option value="dusuk">Düşük</option>
                     </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Ödeme (Vade)
+                  </label>
+                  <select
+                    value={paymentTerm}
+                    onChange={(e) => setPaymentTerm(e.target.value)}
+                    className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white"
+                  >
+                    <option value="">Seçiniz</option>
+                    {PAYMENT_TERMS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

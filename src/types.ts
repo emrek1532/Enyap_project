@@ -56,6 +56,7 @@ export interface Quote {
   amountTry?: number;
   totalUsd?: number;
   imported?: boolean;
+  paymentTerm?: string;  // Ödeme / vade: PEŞİN, KREDİ KARTI, 60 GÜN, 90 GÜN
 }
 
 export type OrderStatus = 
