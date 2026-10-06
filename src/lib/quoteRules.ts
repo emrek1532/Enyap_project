@@ -11,6 +11,14 @@ export const FOLLOW_UP_AFTER_DAYS = 3;
 export const quoteAgeInDays = (q: Quote, now = Date.now()) =>
   Math.floor((now - new Date(q.createdAt).getTime()) / DAY);
 
+/**
+ * Bu tarihten önce girilen bekleyen tekliflerle işimiz kalmadı: yalnızca Beklemede görünürler,
+ * "tekrar görüş" uyarısı sadece bu tarihten sonra girilen teklifler için çıkar.
+ */
+export const FOLLOW_UP_START = new Date('2026-10-06T22:05:00Z').getTime();
+
 export const needsFollowUp = (q: Quote) =>
-  PENDING_STATUSES.includes(q.status) && quoteAgeInDays(q) >= FOLLOW_UP_AFTER_DAYS;
+  PENDING_STATUSES.includes(q.status) &&
+  new Date(q.createdAt).getTime() >= FOLLOW_UP_START &&
+  quoteAgeInDays(q) >= FOLLOW_UP_AFTER_DAYS;
 
