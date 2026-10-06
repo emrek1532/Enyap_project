@@ -1,4 +1,4 @@
-import { AppData } from '../types';
+import { AppData, Quote } from '../types';
 import type { PendingOp } from './db';
 
 const LOCAL_STORAGE_KEY = 'enyap_isi_portal_db_v1';
@@ -9,7 +9,11 @@ export function loadLocalData(): AppData | null {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const data: AppData = JSON.parse(raw);
+      // Arşiv durumu kaldırıldı; eski önbellekte kalanlar Beklemede sayılır
+      data.quotes = (data.quotes || []).map((q: Quote) =>
+        q.status === 'arsiv' ? { ...q, status: 'gonderildi' } : q);
+      return data;
     }
   } catch (err) {
     console.error('Failed to load local data:', err);
@@ -29,7 +33,14 @@ export function saveLocalData(data: AppData): void {
 export function loadOutbox(): PendingOp[] {
   try {
     const raw = localStorage.getItem(OUTBOX_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const ops: PendingOp[] = JSON.parse(raw);
+      // Eski sürümün otomatik arşivleme işlemleri artık gönderilmez
+      const kept = ops.filter(op =>
+        !(op.kind === 'upsert' && op.entity === 'quotes' && (op.record as Quote)?.status === 'arsiv'));
+      if (kept.length !== ops.length) saveOutbox(kept);
+      return kept;
+    }
   } catch (err) {
     console.error('Failed to load outbox:', err);
   }
