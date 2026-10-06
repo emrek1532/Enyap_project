@@ -10,6 +10,7 @@
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-3000}",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "postinstall": "node -e \"if (process.env.WORKERS_CI === '1') require('child_process').execSync('npm run build', { stdio: 'inherit' })\"",
     "deploy:cloudflare": "npx wrangler deploy"
   },
   "dependencies": {
