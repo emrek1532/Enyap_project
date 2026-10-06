@@ -24,6 +24,7 @@ export interface QuoteItem {
   vatRate: number;  // 20
   totalPrice: number;
   notes?: string;
+  currency?: 'TRY' | 'USD' | 'EUR'; // kalemin para birimi (yoksa teklifinki)
 }
 
 export interface Quote {

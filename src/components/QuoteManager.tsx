@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
+import { formatQuoteAmount, hasAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 
 const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
@@ -296,7 +297,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                             : quote.notes || '-'}
                         </td>
                         <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
-                          {quote.totalAmount > 0 ? `${quote.totalAmount.toLocaleString('tr-TR')} TL` : 'Fiyat Bekleniyor'}
+                          {hasAmount(quote) ? formatQuoteAmount(quote) : 'Fiyat Bekleniyor'}
                           {quote.imported && quote.totalAmount > 0 && (
                             <span className="block text-[10px] font-medium text-slate-400">KDV hariç</span>
                           )}
@@ -447,7 +448,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     Talep Edilen Malzemeler ({selectedQuote.items?.length || 0} Kalem)
                   </label>
                   <span className="text-xs font-bold text-slate-900">
-                    Toplam: {selectedQuote.totalAmount?.toLocaleString('tr-TR')} TL
+                    Toplam: {formatQuoteAmount(selectedQuote)}
                   </span>
                 </div>
                 <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
@@ -465,8 +466,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         <tr key={idx} className="hover:bg-white">
                           <td className="p-2 font-medium text-slate-900">{it.productName}</td>
                           <td className="p-2 text-slate-600">{it.quantity} {it.unit}</td>
-                          <td className="p-2 text-right text-slate-600">{it.unitPrice > 0 ? `${it.unitPrice.toLocaleString('tr-TR')} TL` : '-'}</td>
-                          <td className="p-2 text-right font-bold text-slate-900">{it.totalPrice > 0 ? `${it.totalPrice.toLocaleString('tr-TR')} TL` : '-'}</td>
+                          <td className="p-2 text-right text-slate-600">{it.unitPrice > 0 ? `${it.unitPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
+                          <td className="p-2 text-right font-bold text-slate-900">{it.totalPrice > 0 ? `${it.totalPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
                         </tr>
                       ))}
                     </tbody>

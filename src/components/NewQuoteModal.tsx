@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
+import { TURKISH_CITIES } from '../lib/cities';
+import { CURRENCY_LABEL, Currency } from '../lib/money';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -36,6 +38,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   // Form fields
   const [customerName, setCustomerName] = useState(initialCustomer?.name || '');
   const [city, setCity] = useState(initialCustomer?.city || 'Isparta');
+  // Şehir önerileri: 81 il + müşteri kayıtlarındaki şehirler
+  const cityOptions = useMemo(() => {
+    const set = new Set<string>(TURKISH_CITIES);
+    customers.forEach(c => { if (c.city?.trim()) set.add(c.city.trim()); });
+    return [...set].sort((a, b) => a.localeCompare(b, 'tr'));
+  }, [customers]);
 
   // Kayıtlı bir müşteri seçilince şehir / yetkili / telefon otomatik dolsun
   const handleCustomerNameChange = (value: string) => {
@@ -58,6 +66,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       discount: 0,
       vatRate: 20,
       totalPrice: 0,
+      currency: 'TRY',
     }
   ]);
 
@@ -72,7 +81,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       const disc = Number(target.discount) || 0;
       const net = qty * price * (1 - disc / 100);
       const vat = net * 0.20;
-      target.totalPrice = Math.round(net + vat);
+      target.totalPrice = Math.round((net + vat) * 100) / 100;
 
       updated[index] = target;
       return updated;
@@ -91,6 +100,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         discount: 0,
         vatRate: 20,
         totalPrice: 0,
+        // Yeni kalem bir öncekinin para birimiyle başlar
+        currency: prev[prev.length - 1]?.currency || 'TRY',
       }
     ]);
   };
@@ -100,7 +111,14 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const totalQuoteAmount = items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
+  // Para birimine göre KDV dahil toplamlar
+  const totalsByCurrency = items.reduce<Record<Currency, number>>((acc, it) => {
+    acc[it.currency || 'TRY'] += it.totalPrice || 0;
+    return acc;
+  }, { TRY: 0, USD: 0, EUR: 0 });
+  const usedCurrencies = (Object.keys(totalsByCurrency) as Currency[]).filter(c => totalsByCurrency[c] > 0);
+  const quoteCurrency: Currency = usedCurrencies.length === 1 ? usedCurrencies[0] : 'TRY';
+  const totalQuoteAmount = usedCurrencies.length === 1 ? totalsByCurrency[quoteCurrency] : totalsByCurrency.TRY;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,9 +139,14 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       requestChannel: 'telefon',
       urgency: urgency,
       status: 'gonderildi',
-      items: items.filter(it => it.productName.trim().length > 0),
+      items: items
+        .filter(it => it.productName.trim().length > 0)
+        .map(it => (it.quantity > 0 ? it : { ...it, quantity: 1 })),
       totalAmount: totalQuoteAmount,
-      currency: 'TRY',
+      currency: quoteCurrency,
+      amountTry: totalsByCurrency.TRY,
+      amountUsd: totalsByCurrency.USD,
+      amountEur: totalsByCurrency.EUR,
       validUntil: in5Days,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
@@ -189,16 +212,24 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Şehir & İlçe *
+                    Şehir *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Örn: Isparta / Merkez, Burdur / Bucak..."
+                    placeholder="Yazmaya başlayın, listeden seçin..."
+                    list="quote-city-list"
+                    autoComplete="off"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full p-2 border border-slate-200 rounded-lg text-sm"
                   />
+                  <datalist id="quote-city-list">
+                    {cityOptions.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -277,14 +308,18 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-2 text-xs">
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-xs">
                         <div>
                           <label className="block text-[10px] text-slate-500">Miktar</label>
                           <input
                             type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 1)}
+                            min="0"
+                            step="any"
+                            inputMode="decimal"
+                            placeholder="1"
+                            value={item.quantity || ''}
+                            onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
+                            onFocus={(e) => e.target.select()}
                             className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
                           />
                         </div>
@@ -303,7 +338,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                           </select>
                         </div>
                         <div>
-                          <label className="block text-[10px] text-slate-500">Birim Fiyat (TL)</label>
+                          <label className="block text-[10px] text-slate-500">Birim Fiyat</label>
                           <input
                             type="number"
                             min="0"
@@ -312,6 +347,18 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                             onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                             className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-slate-500">Para Birimi</label>
+                          <select
+                            value={item.currency || 'TRY'}
+                            onChange={(e) => handleItemChange(index, 'currency', e.target.value)}
+                            className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
+                          >
+                            <option value="TRY">TL</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                          </select>
                         </div>
                         <div>
                           <label className="block text-[10px] text-slate-500">İskonto %</label>
@@ -351,8 +398,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         {/* Footer */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <div className="text-xs text-slate-500">
-            {totalQuoteAmount > 0 && (
-              <span>Tahmini Toplam: <strong>{totalQuoteAmount.toLocaleString('tr-TR')} TL</strong></span>
+            {usedCurrencies.length > 0 && (
+              <span>Tahmini Toplam (KDV dahil): <strong>
+                {usedCurrencies.map(c => `${totalsByCurrency[c].toLocaleString('tr-TR')} ${CURRENCY_LABEL[c]}`).join(' + ')}
+              </strong></span>
             )}
           </div>
 
