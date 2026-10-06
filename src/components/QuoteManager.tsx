@@ -24,7 +24,7 @@ import {
   Check
 } from 'lucide-react';
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
-import { needsFollowUp, quoteAgeInDays } from '../lib/quoteRules';
+import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 
 const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
@@ -41,7 +41,6 @@ interface QuoteManagerProps {
   onOpenNewQuote: () => void;
   onUpdateQuoteStatus: (id: string, status: QuoteStatus) => void;
   onDeleteQuote: (id: string) => void;
-  onConvertToOrder: (quote: Quote) => void;
   onAddCalendarEventFromQuote: (quote: Quote) => void;
   onPrintQuote: (quote: Quote) => void;
 }
@@ -52,7 +51,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onOpenNewQuote,
   onUpdateQuoteStatus,
   onDeleteQuote,
-  onConvertToOrder,
   onAddCalendarEventFromQuote,
   onPrintQuote,
 }) => {
@@ -82,7 +80,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         const matchesStatus =
           statusFilter === 'all' ||
           (statusFilter === 'aktif'
-            ? !['siparis', 'iptal', 'arsiv'].includes(quote.status)
+            ? PENDING_STATUSES.includes(quote.status)
             : statusFilter === 'takip'
               ? needsFollowUp(quote)
               : quote.status === statusFilter);
@@ -114,7 +112,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       case 'hazirlaniyor':
         return { label: 'Ofiste Hazırlanıyor', color: 'bg-blue-100 text-blue-800 border-blue-200' };
       case 'gonderildi':
-        return { label: 'Beklemede (Gönderildi)', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+        return { label: 'Beklemede', color: 'bg-purple-100 text-purple-800 border-purple-200' };
       case 'onaylandi':
         return { label: 'Onaylandı', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
       case 'siparis':
@@ -124,7 +122,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       case 'revizyon':
         return { label: 'Revizyon Bekliyor', color: 'bg-brand-100 text-brand-800 border-brand-200' };
       case 'iptal':
-        return { label: 'İptal / Kaybedildi', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+        return { label: 'İptal', color: 'bg-slate-100 text-slate-700 border-slate-200' };
     }
   };
 
@@ -173,17 +171,12 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             onChange={(e) => { setStatusFilter(e.target.value); setListLimit(LIST_PAGE); }}
             className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           >
-            <option value="aktif">Aktif Teklifler</option>
+            <option value="aktif">Beklemede</option>
             <option value="takip">Tekrar Görüşülecek ({followUpCount})</option>
-            <option value="all">Tüm Teklifler</option>
-            <option value="yeni_talep">Yeni Talep (Bekleyen)</option>
-            <option value="hazirlaniyor">Hazırlanıyor</option>
-            <option value="gonderildi">Beklemede (Gönderildi)</option>
             <option value="onaylandi">Onaylandı</option>
-            <option value="revizyon">Revizyon</option>
             <option value="iptal">İptal</option>
-            <option value="siparis">Siparişe Dönüşenler</option>
             <option value="arsiv">Arşiv</option>
+            <option value="all">Tüm Teklifler</option>
           </select>
 
           <select
@@ -327,6 +320,24 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         </td>
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {PENDING_STATUSES.includes(quote.status) && (
+                              <>
+                                <button
+                                  onClick={() => onUpdateQuoteStatus(quote.id, 'onaylandi')}
+                                  className="px-2 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 whitespace-nowrap"
+                                  title="Onaylandı olarak işaretle"
+                                >
+                                  ✓ Onayla
+                                </button>
+                                <button
+                                  onClick={() => onUpdateQuoteStatus(quote.id, 'iptal')}
+                                  className="px-2 py-1 rounded-md bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-700 text-[11px] font-bold border border-slate-200 whitespace-nowrap"
+                                  title="İptal olarak işaretle"
+                                >
+                                  ✕ İptal
+                                </button>
+                              </>
+                            )}
                             <button
                               onClick={() => onPrintQuote(quote)}
                               className="p-1.5 rounded-md hover:bg-sky-50 text-sky-600 transition-colors"
@@ -401,10 +412,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               {/* Stepper / Status Controller */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Teklif Süreci Durumu
+                  Teklif Durumu
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {(['yeni_talep', 'hazirlaniyor', 'gonderildi', 'onaylandi'] as QuoteStatus[]).map((st) => {
+                <div className="grid grid-cols-3 gap-2">
+                  {(['gonderildi', 'onaylandi', 'iptal'] as QuoteStatus[]).map((st) => {
                     const isCurrent = selectedQuote.status === st;
                     const badge = getStatusBadge(st);
                     return (
@@ -499,26 +510,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <span>Takvime Ekle</span>
                 </button>
               </div>
-
-              {/* Convert to Order Button (hidden once the quote became an order) */}
-              {selectedQuote.status === 'siparis' ? (
-                <p className="pt-2 text-xs font-semibold text-accent-700 bg-accent-50 border border-accent-200 rounded-lg p-2.5">
-                  Bu teklif siparişe dönüştürüldü. Takibi Sevkiyat sekmesinden yapılır.
-                </p>
-              ) : (
-              <div className="pt-2">
-                <button
-                  onClick={() => {
-                    onConvertToOrder(selectedQuote);
-                    setSelectedQuote(null);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-accent-500 hover:from-brand-600 hover:to-accent-600 text-white text-sm font-black shadow-md shadow-brand-500/20 transition-all"
-                >
-                  <Truck className="w-4 h-4" />
-                  <span>🚚 Bu Teklifi Siparişe & Sevkiyata Dönüştür</span>
-                </button>
-              </div>
-              )}
 
               {/* Danger zone delete */}
               <div className="flex justify-between items-center pt-2 text-xs text-slate-400">

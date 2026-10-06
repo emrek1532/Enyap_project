@@ -13,7 +13,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { Quote, Order, OrderStatus, CalendarEvent, UserRole } from '../types';
-import { needsFollowUp } from '../lib/quoteRules';
+import { needsFollowUp, PENDING_STATUSES } from '../lib/quoteRules';
 
 interface DashboardStatsProps {
   quotes: Quote[];
@@ -23,8 +23,6 @@ interface DashboardStatsProps {
   onOpenNewQuote: () => void;
   onNavigateTab: (tab: any) => void;
 }
-
-const NOT_SHIPPED: OrderStatus[] = ['hazirlaniyor', 'depoda_hazir', 'gecikmeli'];
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({
   quotes,
@@ -45,19 +43,11 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
     return hoursElapsed >= 12; // warn if >= 12 hours waiting
   });
 
-  // Shipments due today or pending
-  const todayShipments = orders.filter((o) => {
-    return o.targetShippingDate === todayStr && NOT_SHIPPED.includes(o.status);
-  });
-
-  const overdueShipments = orders.filter((o) => {
-    return o.targetShippingDate < todayStr && NOT_SHIPPED.includes(o.status);
-  });
-
   // Counts
-  const pendingQuotes = quotes.filter((q) => q.status === 'yeni_talep');
-  const inProgressQuotes = quotes.filter((q) => q.status === 'hazirlaniyor' || q.status === 'gonderildi');
+  const pendingQuotes = quotes.filter((q) => PENDING_STATUSES.includes(q.status));
   const approvedQuotes = quotes.filter((q) => q.status === 'onaylandi');
+  const cancelledQuotes = quotes.filter((q) => q.status === 'iptal');
+  const approvedTotal = approvedQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0);
   const followUpQuotes = quotes.filter(needsFollowUp);
   const todayEvents = events.filter((e) => e.date === todayStr);
 
@@ -70,7 +60,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
     <div className="space-y-3.5 mb-6">
       
       {/* Critical Attention Banner (Prevents forgotten quotes & delayed shipments) */}
-      {(overdueQuotes.length > 0 || overdueShipments.length > 0 || todayShipments.length > 0 || followUpQuotes.length > 0) && (
+      {(overdueQuotes.length > 0 || followUpQuotes.length > 0) && (
         <div className="bg-amber-50 border-l-4 border-amber-500 p-3 sm:p-4 rounded-r-xl shadow-xs">
           <div className="flex items-start gap-3">
             <div className="p-1.5 bg-amber-100 rounded-lg text-amber-700 shrink-0 mt-0.5">
@@ -109,22 +99,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                     </span>
                   </p>
                 )}
-                {overdueShipments.length > 0 && (
-                  <p className="flex items-center gap-1.5 font-medium text-rose-800">
-                    <Truck className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span>
-                      <strong>{overdueShipments.length} sipariş</strong> sevk hedef tarihini aştı! Lütfen nakliye ve ambar durumunu kontrol ediniz.
-                    </span>
-                  </p>
-                )}
-                {todayShipments.length > 0 && (
-                  <p className="flex items-center gap-1.5 font-medium text-blue-900">
-                    <Truck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    <span>
-                      Bugün sevk edilecek <strong>{todayShipments.length} sipariş</strong> planlanmış durumda.
-                    </span>
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -141,7 +115,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Bekleyen Talepler
+              Beklemede
             </span>
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Clock className="w-4 h-4" />
@@ -156,7 +130,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             </span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1 truncate">
-            {pendingQuotes.length === 0 ? 'Tüm talepler yanıtlandı' : 'Fiyatlandırma bekliyor'}
+            {pendingQuotes.length === 0 ? 'Bekleyen teklif yok' : 'Müşteri kararı bekleniyor'}
           </p>
         </div>
 
@@ -167,7 +141,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Müşteri Kararında
+              Onaylandı
             </span>
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Send className="w-4 h-4" />
@@ -175,14 +149,14 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-xl sm:text-2xl font-black text-slate-900">
-              {inProgressQuotes.length}
+              {approvedQuotes.length}
             </span>
-            <span className="text-[11px] font-medium text-sky-600">
-              {approvedQuotes.length} Onaylı
+            <span className="text-[11px] font-medium text-slate-500">
+              {cancelledQuotes.length} İptal
             </span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1 truncate">
-            Teklif iletildi, cevap bekleniyor
+            {approvedTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL toplam
           </p>
         </div>
 

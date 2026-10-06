@@ -35,18 +35,16 @@ import {
   PendingOp
 } from './lib/db';
 import { findCustomer } from './lib/customers';
-import { shouldArchive } from './lib/quoteRules';
+import { shouldArchive, PENDING_STATUSES } from './lib/quoteRules';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import { Navigation, ActiveTab } from './components/Navigation';
 import { DashboardStats } from './components/DashboardStats';
 import { QuoteManager } from './components/QuoteManager';
-import { OrderShippingTracker } from './components/OrderShippingTracker';
 import { SharedCalendar } from './components/SharedCalendar';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { NewQuoteModal } from './components/NewQuoteModal';
-import { NewOrderModal } from './components/NewOrderModal';
 import { CustomersPanel } from './components/CustomersPanel';
 
 export default function App() {
@@ -106,8 +104,6 @@ function Portal({ session }: { session: Session }) {
 
   // Modals state
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
-  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
-  const [convertingQuote, setConvertingQuote] = useState<Quote | null>(null);
   const [quoteCustomer, setQuoteCustomer] = useState<Customer | null>(null);
   const [printableQuote, setPrintableQuote] = useState<Quote | null>(null);
 
@@ -342,12 +338,6 @@ function Portal({ session }: { session: Session }) {
     persist([{ kind: 'delete', entity: 'quotes', id }]);
   };
 
-  // Convert Quote to Order
-  const handleConvertToOrder = (quote: Quote) => {
-    setConvertingQuote(quote);
-    setIsNewOrderOpen(true);
-  };
-
   // Add Calendar Event directly from quote
   const handleAddCalendarEventFromQuote = (quote: Quote) => {
     const in2Days = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -369,112 +359,6 @@ function Portal({ session }: { session: Session }) {
 
     handleSaveEvent(event);
     setActiveTab('calendar');
-  };
-
-  // Save Order / Shipment (new or edited)
-  const handleSaveOrder = (order: Order) => {
-    const now = new Date().toISOString();
-    const isNew = !data.orders.some(o => o.id === order.id);
-    const saved: Order = { ...order, updatedAt: now };
-    const ops: PendingOp[] = [{ kind: 'upsert', entity: 'orders', record: saved }];
-
-    // Siparişe çevrilen teklif "Siparişe Dönüştü" olur ve aktif teklif listesinden düşer
-    const sourceQuote = isNew && saved.quoteId ? data.quotes.find(q => q.id === saved.quoteId) : undefined;
-    const convertedQuote: Quote | null =
-      sourceQuote && sourceQuote.status !== 'siparis'
-        ? { ...sourceQuote, status: 'siparis', updatedAt: now }
-        : null;
-    if (convertedQuote) ops.push({ kind: 'upsert', entity: 'quotes', record: convertedQuote });
-
-    if (!isNew) {
-      mutate(d => ({ ...d, orders: d.orders.map(o => (o.id === saved.id ? saved : o)) }));
-      persist(ops);
-      return;
-    }
-
-    // Auto add calendar event for shipping day
-    let shipEv: CalendarEvent | null = null;
-    if (saved.targetShippingDate) {
-      shipEv = {
-        id: 'ev-ship-' + saved.id,
-        title: `🚚 Sevkiyat: ${saved.customerName}`,
-        date: saved.targetShippingDate,
-        time: '09:30',
-        category: 'sevkiyat',
-        relatedEntity: { type: 'order', id: saved.id, name: saved.customerName },
-        location: saved.deliveryAddress || saved.city,
-        assignedUser: 'all',
-        completed: false,
-        notes: `${saved.orderNumber} nolu sipariş sevk günü. Ambar/Kargo: ${saved.carrierCompany || 'Belirtilmedi'}`,
-        reminder: true,
-        createdAt: now,
-        updatedAt: now,
-      };
-      ops.push({ kind: 'upsert', entity: 'events', record: shipEv });
-    }
-
-    const activity = logActivity(
-      'Yeni Sipariş & Sevkiyat Planlandı',
-      `${saved.customerName} için ${saved.orderNumber} nolu sipariş açıldı. Sevk: ${saved.targetShippingDate}`,
-      'emerald'
-    );
-    ops.push({ kind: 'upsert', entity: 'activities', record: activity });
-
-    const customer = newCustomerFor(saved.customerName, saved.city, saved.customerContact, saved.customerPhone);
-    if (customer) {
-      addCustomerLocally(customer);
-      ops.unshift({ kind: 'upsert', entity: 'customers', record: customer });
-    }
-
-    mutate(d => ({
-      ...d,
-      quotes: convertedQuote ? d.quotes.map(q => (q.id === convertedQuote.id ? convertedQuote : q)) : d.quotes,
-      orders: [saved, ...d.orders],
-      events: shipEv ? [shipEv, ...d.events] : d.events,
-      activities: [activity, ...(d.activities || [])],
-    }));
-    persist(ops);
-  };
-
-  // Update Order Status
-  const handleUpdateOrderStatus = (
-    id: string,
-    status: OrderStatus,
-    carrierCompany?: string,
-    trackingNumber?: string
-  ) => {
-    const target = data.orders.find(o => o.id === id);
-    if (!target) return;
-    const today = new Date().toISOString().split('T')[0];
-    const updated: Order = {
-      ...target,
-      status,
-      carrierCompany: carrierCompany || target.carrierCompany,
-      trackingNumber: trackingNumber || target.trackingNumber,
-      actualShippingDate:
-        status === 'sevk_edildi' && !target.actualShippingDate ? today : target.actualShippingDate,
-      updatedAt: new Date().toISOString(),
-    };
-    const activity = logActivity(
-      'Sevkiyat Durumu Güncellendi',
-      `${target.customerName} siparişi "${status}" yapıldı.`,
-      'amber'
-    );
-    mutate(d => ({
-      ...d,
-      orders: d.orders.map(o => (o.id === id ? updated : o)),
-      activities: [activity, ...(d.activities || [])],
-    }));
-    persist([
-      { kind: 'upsert', entity: 'orders', record: updated },
-      { kind: 'upsert', entity: 'activities', record: activity },
-    ]);
-  };
-
-  // Delete Order
-  const handleDeleteOrder = (id: string) => {
-    mutate(d => ({ ...d, orders: d.orders.filter(o => o.id !== id) }));
-    persist([{ kind: 'delete', entity: 'orders', id }]);
   };
 
   // Calendar Event handlers
@@ -523,11 +407,9 @@ function Portal({ session }: { session: Session }) {
   };
 
   // Counts for alerts & badges
-  const urgentCount = data.quotes.filter(q => q.urgency === 'acil' && q.status === 'yeni_talep').length;
+  const urgentCount = data.quotes.filter(q => q.urgency === 'acil' && PENDING_STATUSES.includes(q.status)).length;
   const todayStr = new Date().toISOString().split('T')[0];
-  const notShipped = (o: Order) => o.status === 'hazirlaniyor' || o.status === 'depoda_hazir' || o.status === 'gecikmeli';
-  const todayShipmentCount = data.orders.filter(o => o.targetShippingDate === todayStr && notShipped(o)).length;
-  const pendingQuotesCount = data.quotes.filter(q => q.status === 'yeni_talep').length;
+  const pendingQuotesCount = data.quotes.filter(q => PENDING_STATUSES.includes(q.status)).length;
   const todayEventsCount = data.events.filter(e => e.date === todayStr && !e.completed).length;
 
   return (
@@ -543,7 +425,6 @@ function Portal({ session }: { session: Session }) {
         onSignOut={handleSignOut}
         userEmail={session.user.email || ''}
         urgentCount={urgentCount}
-        todayShipmentCount={todayShipmentCount}
       />
 
       {/* Navigation (Desktop Top Bar / Mobile Bottom Bar) */}
@@ -551,7 +432,6 @@ function Portal({ session }: { session: Session }) {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         quotesCount={pendingQuotesCount}
-        ordersCount={data.orders.filter(notShipped).length}
         eventsCount={todayEventsCount}
       />
       </div>
@@ -577,24 +457,8 @@ function Portal({ session }: { session: Session }) {
             onOpenNewQuote={() => setIsNewQuoteOpen(true)}
             onUpdateQuoteStatus={handleUpdateQuoteStatus}
             onDeleteQuote={handleDeleteQuote}
-            onConvertToOrder={handleConvertToOrder}
             onAddCalendarEventFromQuote={handleAddCalendarEventFromQuote}
             onPrintQuote={setPrintableQuote}
-          />
-        )}
-
-        {/* Tab 2: Sipariş & Sevkiyat Takibi */}
-        {activeTab === 'orders' && (
-          <OrderShippingTracker
-            orders={data.orders}
-            currentRole={currentRole}
-            onSaveOrder={handleSaveOrder}
-            onUpdateOrderStatus={handleUpdateOrderStatus}
-            onDeleteOrder={handleDeleteOrder}
-            onOpenNewOrderModal={() => {
-              setConvertingQuote(null);
-              setIsNewOrderOpen(true);
-            }}
           />
         )}
 
@@ -602,6 +466,7 @@ function Portal({ session }: { session: Session }) {
         {activeTab === 'customers' && (
           <CustomersPanel
             customers={data.customers || []}
+            quotes={data.quotes}
             onSaveCustomer={handleSaveCustomer}
             onDeleteCustomer={handleDeleteCustomer}
             onCreateQuoteForCustomer={(customer) => {
@@ -646,25 +511,6 @@ function Portal({ session }: { session: Session }) {
           onClose={() => {
             setIsNewQuoteOpen(false);
             setQuoteCustomer(null);
-          }}
-        />
-      )}
-
-      {/* 2. New Order / Convert Quote to Shipment Modal */}
-      {isNewOrderOpen && (
-        <NewOrderModal
-          currentRole={currentRole}
-          initialQuote={convertingQuote}
-          customers={data.customers || []}
-          onSaveOrder={(order) => {
-            handleSaveOrder(order);
-            setIsNewOrderOpen(false);
-            setConvertingQuote(null);
-            setActiveTab('orders');
-          }}
-          onClose={() => {
-            setIsNewOrderOpen(false);
-            setConvertingQuote(null);
           }}
         />
       )}

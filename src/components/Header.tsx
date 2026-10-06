@@ -10,7 +10,6 @@ interface HeaderProps {
   onSignOut: () => void;
   userEmail: string;
   urgentCount: number;
-  todayShipmentCount: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,12 +19,11 @@ export const Header: React.FC<HeaderProps> = ({
   onSignOut,
   userEmail,
   urgentCount,
-  todayShipmentCount,
 }) => {
   return (
     <header className="bg-white text-slate-900 shadow-sm border-b border-slate-200 pt-safe">
       {/* Top Notification Bar if there are urgent items */}
-      {(urgentCount > 0 || todayShipmentCount > 0) && (
+      {urgentCount > 0 && (
         <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-1.5 text-xs sm:text-sm font-medium flex items-center justify-between text-white shadow-inner">
           <div className="flex items-center gap-2 overflow-hidden">
             <span className="flex h-2 w-2 rounded-full bg-white animate-ping shrink-0" />
@@ -33,9 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
               {urgentCount > 0 && (
                 <span className="mr-3 font-semibold">⚠️ {urgentCount} Teklif acil işlem bekliyor!</span>
               )}
-              {todayShipmentCount > 0 && (
-                <span className="font-semibold">🚚 Bugün sevk edilmesi gereken {todayShipmentCount} sipariş var!</span>
-              )}
+
             </span>
           </div>
           

@@ -8,13 +8,12 @@ import {
   TrendingUp
 } from 'lucide-react';
 
-export type ActiveTab = 'quotes' | 'orders' | 'customers' | 'calendar' | 'notes';
+export type ActiveTab = 'quotes' | 'customers' | 'calendar' | 'notes';
 
 interface NavigationProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   quotesCount: number;
-  ordersCount: number;
   eventsCount: number;
 }
 
@@ -22,7 +21,6 @@ export const Navigation: React.FC<NavigationProps> = ({
   activeTab,
   onTabChange,
   quotesCount,
-  ordersCount,
   eventsCount,
 }) => {
   const tabs = [
@@ -33,14 +31,6 @@ export const Navigation: React.FC<NavigationProps> = ({
       icon: FileText,
       badge: quotesCount > 0 ? quotesCount : null,
       badgeColor: 'bg-brand-500',
-    },
-    {
-      id: 'orders' as ActiveTab,
-      label: 'Sipariş & Sevkiyat Takibi',
-      shortLabel: 'Sevkiyat',
-      icon: Truck,
-      badge: ordersCount > 0 ? ordersCount : null,
-      badgeColor: 'bg-emerald-600',
     },
     {
       id: 'customers' as ActiveTab,
@@ -104,7 +94,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Mobile Fixed Bottom Navigation Bar (optimized for phone usage in Isparta field) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 px-2 py-1 shadow-lg pb-safe">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-4 gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
