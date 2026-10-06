@@ -120,7 +120,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       projectLocation: projectLocation.trim() || undefined,
       requestChannel: 'telefon',
       urgency: urgency,
-      status: 'yeni_talep',
+      status: 'gonderildi',
       items: items.filter(it => it.productName.trim().length > 0),
       totalAmount: totalQuoteAmount,
       currency: 'TRY',
