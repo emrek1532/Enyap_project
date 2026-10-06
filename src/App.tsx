@@ -364,6 +364,14 @@ function Portal({ session }: { session: Session }) {
     const saved: Order = { ...order, updatedAt: now };
     const ops: PendingOp[] = [{ kind: 'upsert', entity: 'orders', record: saved }];
 
+    // Siparişe çevrilen teklif "Siparişe Dönüştü" olur ve aktif teklif listesinden düşer
+    const sourceQuote = isNew && saved.quoteId ? data.quotes.find(q => q.id === saved.quoteId) : undefined;
+    const convertedQuote: Quote | null =
+      sourceQuote && sourceQuote.status !== 'siparis'
+        ? { ...sourceQuote, status: 'siparis', updatedAt: now }
+        : null;
+    if (convertedQuote) ops.push({ kind: 'upsert', entity: 'quotes', record: convertedQuote });
+
     if (!isNew) {
       mutate(d => ({ ...d, orders: d.orders.map(o => (o.id === saved.id ? saved : o)) }));
       persist(ops);
@@ -406,6 +414,7 @@ function Portal({ session }: { session: Session }) {
 
     mutate(d => ({
       ...d,
+      quotes: convertedQuote ? d.quotes.map(q => (q.id === convertedQuote.id ? convertedQuote : q)) : d.quotes,
       orders: [saved, ...d.orders],
       events: shipEv ? [shipEv, ...d.events] : d.events,
       activities: [activity, ...(d.activities || [])],

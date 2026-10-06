@@ -30,9 +30,12 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
   const [city, setCity] = useState(initialQuote?.city || 'Isparta');
   
   // Format items summary from initial quote
-  const defaultItemsSummary = initialQuote?.items
+  // Excel'den aktarılan tekliflerde malzeme kalemi yok; not veya teklif no ile doldur
+  const defaultItemsSummary = initialQuote?.items?.length
     ? initialQuote.items.map(it => `${it.quantity} ${it.unit} ${it.productName}`).join(', ')
-    : '';
+    : initialQuote
+      ? initialQuote.notes || `${initialQuote.quoteNumber !== '-' ? initialQuote.quoteNumber + ' no.lu ' : ''}teklif kapsamındaki malzemeler`
+      : '';
 
   const [itemsSummary, setItemsSummary] = useState(defaultItemsSummary);
   const [totalAmount, setTotalAmount] = useState<number>(initialQuote?.totalAmount || 0);

@@ -6,7 +6,8 @@ export type QuoteStatus =
   | 'gonderildi'      // Müşteriye WhatsApp/Mail ile iletildi, karar bekleniyor
   | 'onaylandi'       // Müşteri onayladı! (Siparişe aktarılabilir)
   | 'revizyon'        // Revizyon / İskonto pazarlığı
-  | 'iptal';          // İptal / Başka firmadan alındı
+  | 'iptal'           // İptal / Başka firmadan alındı
+  | 'siparis';        // Siparişe dönüştürüldü (teklif listesinden düşer)
 
 export type UrgencyLevel = 'acil' | 'yuksek' | 'normal' | 'dusuk';
 
@@ -47,6 +48,12 @@ export interface Quote {
   notes?: string;
   isEncrypted?: boolean;
   tags?: string[];
+  preparedBy?: string;   // Teklifi veren kişi
+  amountUsd?: number;    // Döviz kırılımı (Excel'den aktarılan teklifler)
+  amountEur?: number;
+  amountTry?: number;
+  totalUsd?: number;
+  imported?: boolean;
 }
 
 export type OrderStatus = 

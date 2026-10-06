@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   FileText, 
   Search, 
@@ -25,6 +25,24 @@ import {
 } from 'lucide-react';
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
 
+const KANBAN_LIMIT = 30;
+const LIST_PAGE = 50;
+
+const fold = (s: string) =>
+  s.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
+
+const fmt = (n: number) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+
+/** "1.200 USD + 300 EUR + 5.000 TL" — yalnızca dövizli tekliflerde */
+const currencyBreakdown = (q: Quote) => {
+  const parts: string[] = [];
+  if (q.amountUsd) parts.push(`${fmt(q.amountUsd)} USD`);
+  if (q.amountEur) parts.push(`${fmt(q.amountEur)} EUR`);
+  if (q.amountTry && parts.length) parts.push(`${fmt(q.amountTry)} TL`);
+  return parts.length ? parts.join(' + ') : '';
+};
+
 interface QuoteManagerProps {
   quotes: Quote[];
   currentRole: UserRole;
@@ -47,25 +65,43 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onPrintQuote,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  // 'aktif' = siparişe dönüşmemiş ve iptal edilmemiş teklifler
+  const [statusFilter, setStatusFilter] = useState<string>('aktif');
+  const [listLimit, setListLimit] = useState(LIST_PAGE);
+  const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
   const [urgencyFilter, setUrgencyFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
 
-  // Filtered quotes
-  const filteredQuotes = quotes.filter((q) => {
-    const matchesSearch = 
-      q.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (q.customerPhone && q.customerPhone.includes(searchTerm)) ||
-      (q.city && q.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (q.items && q.items.some(it => it.productName.toLowerCase().includes(searchTerm.toLowerCase())));
+  // Filtered quotes (newest first). Memoized: there can be thousands of quotes.
+  const filteredQuotes = useMemo(() => {
+    const q = fold(searchTerm.trim());
+    return quotes
+      .filter((quote) => {
+        const matchesSearch =
+          !q ||
+          fold(quote.customerName).includes(q) ||
+          fold(quote.quoteNumber).includes(q) ||
+          fold(quote.city || '').includes(q) ||
+          fold(quote.preparedBy || '').includes(q) ||
+          fold(quote.notes || '').includes(q) ||
+          (quote.items || []).some((it) => fold(it.productName).includes(q));
 
-    const matchesStatus = statusFilter === 'all' || q.status === statusFilter;
-    const matchesUrgency = urgencyFilter === 'all' || q.urgency === urgencyFilter;
+        const matchesStatus =
+          statusFilter === 'all' ||
+          (statusFilter === 'aktif' ? !['siparis', 'iptal'].includes(quote.status) : quote.status === statusFilter);
+        const matchesUrgency = urgencyFilter === 'all' || quote.urgency === urgencyFilter;
 
-    return matchesSearch && matchesStatus && matchesUrgency;
-  });
+        return matchesSearch && matchesStatus && matchesUrgency;
+      })
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }, [quotes, searchTerm, statusFilter, urgencyFilter]);
+
+  const showAllOfStatus = (status: QuoteStatus) => {
+    setStatusFilter(status);
+    setViewMode('list');
+    setListLimit(LIST_PAGE);
+  };
 
   const getStatusBadge = (status: QuoteStatus) => {
     switch (status) {
@@ -76,7 +112,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       case 'gonderildi':
         return { label: 'Teklif Gönderildi', color: 'bg-purple-100 text-purple-800 border-purple-200' };
       case 'onaylandi':
-        return { label: 'Onaylandı (Sipariş)', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+        return { label: 'Onaylandı', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+      case 'siparis':
+        return { label: 'Siparişe Dönüştü', color: 'bg-accent-100 text-accent-800 border-accent-200' };
       case 'revizyon':
         return { label: 'Revizyon Bekliyor', color: 'bg-brand-100 text-brand-800 border-brand-200' };
       case 'iptal':
@@ -101,7 +139,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     { status: 'yeni_talep', title: 'Yeni Talep', hint: 'Fiyatlandırma bekliyor', border: 'border-t-amber-500' },
     { status: 'hazirlaniyor', title: 'Hazırlanıyor', hint: 'İstanbul fiyatlandırıyor', border: 'border-t-blue-500' },
     { status: 'gonderildi', title: 'Teklif Gönderildi', hint: 'Müşteri onayı bekleniyor', border: 'border-t-purple-500' },
-    { status: 'onaylandi', title: 'Onaylandı', hint: 'Siparişe & Sevke hazır', border: 'border-t-emerald-500' },
+    { status: 'onaylandi', title: 'Onaylandı', hint: 'Siparişe çevrilmeyi bekliyor', border: 'border-t-emerald-500' },
   ];
 
   return (
@@ -126,16 +164,18 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setListLimit(LIST_PAGE); }}
             className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           >
-            <option value="all">Tüm Durumlar</option>
+            <option value="aktif">Aktif Teklifler</option>
+            <option value="all">Tüm Teklifler</option>
             <option value="yeni_talep">Yeni Talep (Bekleyen)</option>
             <option value="hazirlaniyor">Hazırlanıyor</option>
             <option value="gonderildi">Gönderildi</option>
             <option value="onaylandi">Onaylandı</option>
             <option value="revizyon">Revizyon</option>
             <option value="iptal">İptal</option>
+            <option value="siparis">Siparişe Dönüşenler</option>
           </select>
 
           <select
@@ -188,7 +228,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       {viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
           {kanbanColumns.map((col) => {
-            const colQuotes = filteredQuotes.filter((q) => q.status === col.status);
+            const allColQuotes = filteredQuotes.filter((q) => q.status === col.status);
+            const colQuotes = expandedColumns[col.status] ? allColQuotes : allColQuotes.slice(0, KANBAN_LIMIT);
+            const hiddenCount = allColQuotes.length - colQuotes.length;
             return (
               <div 
                 key={col.status} 
@@ -200,7 +242,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                       <span>{col.title}</span>
                       <span className="px-1.5 py-0.2 rounded-full text-xs bg-slate-100 font-bold text-slate-600">
-                        {colQuotes.length}
+                        {allColQuotes.length}
                       </span>
                     </h3>
                     <p className="text-[11px] text-slate-500">{col.hint}</p>
@@ -209,7 +251,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
                 {/* Cards List */}
                 <div className="p-2 space-y-2.5 overflow-y-auto flex-1">
-                  {colQuotes.length === 0 ? (
+                  {allColQuotes.length === 0 ? (
                     <div className="text-center py-8 text-xs text-slate-400 font-medium">
                       Bu aşamada teklif yok
                     </div>
@@ -274,6 +316,13 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                                   + {quote.items.length - 2} kalem malzeme daha
                                 </p>
                               )}
+                            </div>
+                          )}
+
+                          {(quote.preparedBy || currencyBreakdown(quote)) && (
+                            <div className="text-[11px] text-slate-500 space-y-0.5">
+                              {quote.preparedBy && <p>Teklifi veren: <span className="font-semibold text-slate-700">{quote.preparedBy}</span></p>}
+                              {currencyBreakdown(quote) && <p className="font-mono">{currencyBreakdown(quote)}</p>}
                             </div>
                           )}
 
@@ -348,6 +397,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                       );
                     })
                   )}
+                  {hiddenCount > 0 && (
+                    <button
+                      onClick={() => showAllOfStatus(col.status)}
+                      className="w-full py-2 rounded-lg bg-white hover:bg-brand-50 border border-slate-200 text-xs font-bold text-brand-600"
+                    >
+                      + {hiddenCount} teklif daha · listede gör
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -364,7 +421,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <tr>
                   <th className="py-3 px-3">Teklif No</th>
                   <th className="py-3 px-3">Müşteri & Şehir</th>
-                  <th className="py-3 px-3">Malzeme Özeti</th>
+                  <th className="py-3 px-3">Malzeme / Not</th>
                   <th className="py-3 px-3">Tutar</th>
                   <th className="py-3 px-3">Aciliyet</th>
                   <th className="py-3 px-3">Durum</th>
@@ -380,7 +437,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  filteredQuotes.map((quote) => {
+                  filteredQuotes.slice(0, listLimit).map((quote) => {
                     const statusBadge = getStatusBadge(quote.status);
                     const urgencyBadge = getUrgencyBadge(quote.urgency);
 
@@ -393,11 +450,13 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                           <div className="font-bold text-slate-900">{quote.customerName}</div>
                           <div className="text-xs text-slate-500 flex items-center gap-1">
                             <MapPin className="w-3 h-3 text-slate-400" />
-                            {quote.city} {quote.customerPhone ? `• ${quote.customerPhone}` : ''}
+                            {quote.city}{quote.preparedBy ? ` • ${quote.preparedBy}` : ''}
                           </div>
                         </td>
                         <td className="py-3 px-3 max-w-[200px] truncate text-slate-700">
-                          {quote.items?.map(it => `${it.quantity} ${it.unit} ${it.productName}`).join(', ') || 'Belirtilmedi'}
+                          {quote.items?.length
+                            ? quote.items.map(it => `${it.quantity} ${it.unit} ${it.productName}`).join(', ')
+                            : quote.notes || currencyBreakdown(quote) || '-'}
                         </td>
                         <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
                           {quote.totalAmount > 0 ? `${quote.totalAmount.toLocaleString('tr-TR')} TL` : 'Fiyat Bekleniyor'}
@@ -440,6 +499,17 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               </tbody>
             </table>
           </div>
+          {filteredQuotes.length > listLimit && (
+            <div className="p-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+              <span>{listLimit} / {filteredQuotes.length} teklif gösteriliyor</span>
+              <button
+                onClick={() => setListLimit((n) => n + LIST_PAGE)}
+                className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold"
+              >
+                {LIST_PAGE} teklif daha göster
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -506,7 +576,16 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 </div>
               </div>
 
+              {currencyBreakdown(selectedQuote) && (
+                <div className="p-3 rounded-lg bg-brand-50 border border-brand-100 text-xs text-brand-800 flex flex-wrap gap-x-4 gap-y-1">
+                  <span className="font-bold">Döviz kırılımı:</span>
+                  <span className="font-mono">{currencyBreakdown(selectedQuote)}</span>
+                  {!!selectedQuote.totalUsd && <span>Genel toplam: <b>{fmt(selectedQuote.totalUsd)} USD</b></span>}
+                </div>
+              )}
+
               {/* Items Table */}
+              {(selectedQuote.items?.length || 0) > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -539,6 +618,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   </table>
                 </div>
               </div>
+              )}
 
               {/* Notes */}
               {selectedQuote.notes && (
@@ -577,7 +657,12 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 </button>
               </div>
 
-              {/* Convert to Order Button if approved or ready */}
+              {/* Convert to Order Button (hidden once the quote became an order) */}
+              {selectedQuote.status === 'siparis' ? (
+                <p className="pt-2 text-xs font-semibold text-accent-700 bg-accent-50 border border-accent-200 rounded-lg p-2.5">
+                  Bu teklif siparişe dönüştürüldü. Takibi Sevkiyat sekmesinden yapılır.
+                </p>
+              ) : (
               <div className="pt-2">
                 <button
                   onClick={() => {
@@ -590,10 +675,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <span>🚚 Bu Teklifi Siparişe & Sevkiyata Dönüştür</span>
                 </button>
               </div>
+              )}
 
               {/* Danger zone delete */}
               <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
-                <span>Oluşturan: {selectedQuote.createdBy === 'isparta' ? 'Isparta' : 'İstanbul'}</span>
+                <span>Teklifi veren: {selectedQuote.preparedBy || (selectedQuote.createdBy === 'isparta' ? 'Isparta' : 'İstanbul')}</span>
                 <button
                   onClick={() => {
                     if (confirm('Bu teklifi silmek istediğinize emin misiniz?')) {
