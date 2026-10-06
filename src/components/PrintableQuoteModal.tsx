@@ -34,7 +34,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
         {/* Top Modal Controls (Hidden in Print) */}
         <div className="no-print p-3 sm:p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-orange-400" />
+            <Flame className="w-5 h-5 text-brand-400" />
             <span className="font-bold text-sm sm:text-base">
               Resmi Antetli Teklif Mektubu Önizleme
             </span>
@@ -42,7 +42,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs sm:text-sm shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs sm:text-sm shadow-sm transition-colors"
             >
               <Printer className="w-4 h-4" />
               <span>Yazdır / PDF Kaydet</span>
@@ -62,7 +62,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
           {/* Header with Company Logo & Contact */}
           <div className="border-b-2 border-slate-900 pb-5 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-orange-600 flex items-center justify-center text-white shadow-md">
+              <div className="w-12 h-12 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-md">
                 <Flame className="w-7 h-7" />
               </div>
               <div>
@@ -116,7 +116,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
               </div>
               <div>
                 <span className="text-slate-500 font-medium">Hazırlayan: </span>
-                <span className="font-bold text-orange-700">Şakir Emre - Satış Pazarlama Müh.</span>
+                <span className="font-bold text-brand-700">Şakir Emre - Satış Pazarlama Müh.</span>
               </div>
             </div>
           </div>
@@ -185,7 +185,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({
               </div>
               <div className="border-t-2 border-slate-900 pt-2 flex justify-between text-base font-black text-slate-950">
                 <span>GENEL TOPLAM:</span>
-                <span className="text-orange-600">{grandTotal.toLocaleString('tr-TR')} TL</span>
+                <span className="text-brand-600">{grandTotal.toLocaleString('tr-TR')} TL</span>
               </div>
             </div>
           </div>

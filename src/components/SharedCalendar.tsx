@@ -87,7 +87,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
       case 'musteri_takip':
         return { label: 'Müşteri Görüşme / Arama', color: 'bg-sky-500 text-white', dot: 'bg-sky-500' };
       case 'sevkiyat':
-        return { label: 'Sevkiyat Teslimatı', color: 'bg-orange-500 text-white', dot: 'bg-orange-500' };
+        return { label: 'Sevkiyat Teslimatı', color: 'bg-brand-500 text-white', dot: 'bg-brand-500' };
       case 'odeme':
         return { label: 'Ödeme / Vade / Çek', color: 'bg-purple-500 text-white', dot: 'bg-purple-500' };
       case 'kritik':
@@ -177,7 +177,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           >
             <option value="all">Tüm Kategoriler</option>
             <option value="saha_ziyaret">Saha Keşif / Ziyaret</option>
@@ -193,7 +193,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
               setNewEvent(prev => ({ ...prev, date: selectedDateStr }));
               setShowAddModal(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>+ Hatırlatıcı / Not Ekle</span>
@@ -246,7 +246,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
                   onClick={() => setSelectedDateStr(dateStr)}
                   className={`min-h-[70px] sm:min-h-[85px] p-1.5 rounded-lg border transition-all cursor-pointer flex flex-col justify-between ${
                     isSelected
-                      ? 'bg-orange-50/70 border-orange-500 ring-2 ring-orange-500/30'
+                      ? 'bg-brand-50/70 border-brand-500 ring-2 ring-brand-500/30'
                       : isToday
                       ? 'bg-sky-50/60 border-sky-400'
                       : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50'
@@ -258,7 +258,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
                         isToday
                           ? 'bg-sky-600 text-white'
                           : isSelected
-                          ? 'bg-orange-500 text-white'
+                          ? 'bg-brand-500 text-white'
                           : 'text-slate-700'
                       }`}
                     >
@@ -306,7 +306,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
               Müşteri Görüşme
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-500" />
               Sevkiyat
             </span>
             <span className="flex items-center gap-1">
@@ -342,7 +342,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
                 setNewEvent(prev => ({ ...prev, date: selectedDateStr }));
                 setShowAddModal(true);
               }}
-              className="p-1.5 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 font-bold text-xs flex items-center gap-1"
+              className="p-1.5 rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 font-bold text-xs flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Ekle</span>
@@ -360,7 +360,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
                     setNewEvent(prev => ({ ...prev, date: selectedDateStr }));
                     setShowAddModal(true);
                   }}
-                  className="block mx-auto mt-2 text-orange-600 font-bold hover:underline"
+                  className="block mx-auto mt-2 text-brand-600 font-bold hover:underline"
                 >
                   + Not veya Ziyaret Ekle
                 </button>
@@ -431,7 +431,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
 
                     <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 pl-6 border-t border-slate-100">
                       <span>Atanan: {ev.assignedUser === 'isparta' ? 'Şakir Emre (Isparta)' : ev.assignedUser === 'istanbul' ? 'İstanbul Ofis' : 'Ortak'}</span>
-                      {ev.reminder && <span className="text-orange-600 font-semibold">🔔 Hatırlatıcı Aktif</span>}
+                      {ev.reminder && <span className="text-brand-600 font-semibold">🔔 Hatırlatıcı Aktif</span>}
                     </div>
 
                   </div>
@@ -551,7 +551,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
                   id="reminderCheck"
                   checked={newEvent.reminder}
                   onChange={(e) => setNewEvent({ ...newEvent, reminder: e.target.checked })}
-                  className="w-4 h-4 text-orange-500 rounded border-slate-300"
+                  className="w-4 h-4 text-brand-500 rounded border-slate-300"
                 />
                 <label htmlFor="reminderCheck" className="text-xs font-medium text-slate-700">
                   Bildirim ve ajanda uyarısı aktif olsun
@@ -561,7 +561,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
               <div className="flex gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="submit"
-                  className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-sm"
+                  className="flex-1 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow-sm"
                 >
                   Takvime Kaydet
                 </button>

@@ -122,13 +122,13 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         {/* Card 1: Bekleyen Teklifler */}
         <div 
           onClick={() => onNavigateTab('quotes')}
-          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-orange-300 hover:shadow-md transition-all cursor-pointer group"
+          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-brand-300 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Bekleyen Talepler
             </span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Clock className="w-4 h-4" />
             </div>
           </div>
@@ -136,8 +136,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             <span className="text-xl sm:text-2xl font-black text-slate-900">
               {pendingQuotes.length}
             </span>
-            <span className="text-[11px] font-medium text-orange-600 flex items-center">
-              Isparta &rarr; Ofis
+            <span className="text-[11px] font-medium text-brand-600 flex items-center">
+              Yanıt bekliyor
             </span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1 truncate">
@@ -223,47 +223,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </p>
         </div>
 
-      </div>
-
-      {/* Role Context Bar & Quick Action Banner */}
-      <div className="bg-slate-900 text-white rounded-xl p-3 sm:p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 shadow-sm">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center text-orange-400 shrink-0 border border-slate-700">
-            <MapPin className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-xs sm:text-sm">
-                {currentRole === 'isparta' ? 'Isparta Saha Satış Ekranı' : 'İstanbul Merkez Ofis Operasyon Ekranı'}
-              </span>
-              <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700">
-                {currentRole === 'isparta' ? 'Mobil Hızlı Giriş Modu' : 'Tam Operasyon & Fiyatlandırma'}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {currentRole === 'isparta'
-                ? 'Müşteriden gelen WhatsApp taleplerini saniyeler içinde ekleyin, ofis anında görsün.'
-                : 'Isparta’dan gelen talepleri fiyatlandırıp onaylayın, sevk tarihlerini sisteme girin.'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
-          <button
-            onClick={onOpenNewQuote}
-            className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 sm:whitespace-nowrap px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-sm shadow-orange-500/20"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>+ Hızlı Teklif Ekle</span>
-          </button>
-          <button
-            onClick={() => onNavigateTab('calendar')}
-            className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 sm:whitespace-nowrap px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all border border-slate-700"
-          >
-            <Calendar className="w-3.5 h-3.5 text-sky-400" />
-            <span>+ Takvime Not Ekle</span>
-          </button>
-        </div>
       </div>
 
     </div>

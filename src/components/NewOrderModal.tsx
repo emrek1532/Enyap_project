@@ -117,8 +117,6 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
                   const match = findCustomer(customers, e.target.value);
                   if (match) {
                     if (match.city) setCity(match.city);
-                    if (match.contactPerson) setCustomerContact(match.contactPerson);
-                    if (match.phone) setCustomerPhone(match.phone);
                   }
                 }}
                 className="w-full p-2 border border-slate-200 rounded-lg text-sm"
@@ -128,19 +126,6 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
                   <option key={c.id} value={c.name}>{c.city}</option>
                 ))}
               </datalist>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Yetkili Kişi & Telefon
-              </label>
-              <input
-                type="text"
-                placeholder="Örn: 0532 555 12 34"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-              />
             </div>
 
             <div className="sm:col-span-2">
@@ -171,9 +156,9 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
               />
             </div>
 
-            <div className="bg-orange-50 p-3 rounded-xl border border-orange-200 sm:col-span-2">
-              <label className="block text-xs font-black text-orange-900 mb-1 flex items-center gap-1">
-                <Calendar className="w-4 h-4 text-orange-600" />
+            <div className="bg-brand-50 p-3 rounded-xl border border-brand-200 sm:col-span-2">
+              <label className="block text-xs font-black text-brand-900 mb-1 flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-brand-600" />
                 Hedef Sevk Tarihi (Ne Zaman Sevk Edilecek?) *
               </label>
               <input
@@ -181,9 +166,9 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
                 required
                 value={targetShippingDate}
                 onChange={(e) => setTargetShippingDate(e.target.value)}
-                className="w-full p-2 border border-orange-300 rounded-lg text-sm bg-white font-bold text-slate-900"
+                className="w-full p-2 border border-brand-300 rounded-lg text-sm bg-white font-bold text-slate-900"
               />
-              <p className="text-[11px] text-orange-700 mt-1">
+              <p className="text-[11px] text-brand-700 mt-1">
                 Bu tarih ortak takvimde ve ana sayfada sevk uyarısı olarak otomatik görüntülenecektir.
               </p>
             </div>

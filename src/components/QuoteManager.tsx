@@ -24,7 +24,6 @@ import {
   Check
 } from 'lucide-react';
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
-import { formatQuoteForOffice, formatQuoteForCustomer } from '../lib/whatsappParser';
 
 interface QuoteManagerProps {
   quotes: Quote[];
@@ -52,7 +51,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [urgencyFilter, setUrgencyFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
-  const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
 
   // Filtered quotes
   const filteredQuotes = quotes.filter((q) => {
@@ -72,7 +70,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const getStatusBadge = (status: QuoteStatus) => {
     switch (status) {
       case 'yeni_talep':
-        return { label: 'Yeni Talep (Isparta)', color: 'bg-amber-100 text-amber-800 border-amber-200' };
+        return { label: 'Yeni Talep', color: 'bg-amber-100 text-amber-800 border-amber-200' };
       case 'hazirlaniyor':
         return { label: 'Ofiste Hazırlanıyor', color: 'bg-blue-100 text-blue-800 border-blue-200' };
       case 'gonderildi':
@@ -80,7 +78,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       case 'onaylandi':
         return { label: 'Onaylandı (Sipariş)', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
       case 'revizyon':
-        return { label: 'Revizyon Bekliyor', color: 'bg-orange-100 text-orange-800 border-orange-200' };
+        return { label: 'Revizyon Bekliyor', color: 'bg-brand-100 text-brand-800 border-brand-200' };
       case 'iptal':
         return { label: 'İptal / Kaybedildi', color: 'bg-slate-100 text-slate-700 border-slate-200' };
     }
@@ -99,21 +97,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     }
   };
 
-  const handleCopyWhatsApp = (quote: Quote, target: 'office' | 'customer') => {
-    const text = target === 'office' ? formatQuoteForOffice(quote) : formatQuoteForCustomer(quote);
-    navigator.clipboard.writeText(text);
-    setCopiedQuoteId(quote.id);
-    setTimeout(() => setCopiedQuoteId(null), 2500);
-
-    // Also open WhatsApp web/app if mobile or requested
-    const encoded = encodeURIComponent(text);
-    const targetPhone = target === 'customer' && quote.customerPhone ? quote.customerPhone.replace(/\D/g, '') : '';
-    const url = targetPhone ? `https://wa.me/${targetPhone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
-    window.open(url, '_blank');
-  };
-
   const kanbanColumns: { status: QuoteStatus; title: string; hint: string; border: string }[] = [
-    { status: 'yeni_talep', title: 'Yeni Talep', hint: 'Isparta iletti, ofis bekliyor', border: 'border-t-amber-500' },
+    { status: 'yeni_talep', title: 'Yeni Talep', hint: 'Fiyatlandırma bekliyor', border: 'border-t-amber-500' },
     { status: 'hazirlaniyor', title: 'Hazırlanıyor', hint: 'İstanbul fiyatlandırıyor', border: 'border-t-blue-500' },
     { status: 'gonderildi', title: 'Teklif Gönderildi', hint: 'Müşteri onayı bekleniyor', border: 'border-t-purple-500' },
     { status: 'onaylandi', title: 'Onaylandı', hint: 'Siparişe & Sevke hazır', border: 'border-t-emerald-500' },
@@ -130,10 +115,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Müşteri adı, teklif no, telefon, şehir veya ürün ara..."
+            placeholder="Müşteri adı, teklif no, şehir veya ürün ara..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
           />
         </div>
 
@@ -142,7 +127,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           >
             <option value="all">Tüm Durumlar</option>
             <option value="yeni_talep">Yeni Talep (Bekleyen)</option>
@@ -156,7 +141,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           <select
             value={urgencyFilter}
             onChange={(e) => setUrgencyFilter(e.target.value)}
-            className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           >
             <option value="all">Tüm Aciliyetler</option>
             <option value="acil">Acil</option>
@@ -189,7 +174,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           {/* Add New Quote Button */}
           <button
             onClick={onOpenNewQuote}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">+ Yeni Teklif Talebi</span>
@@ -309,17 +294,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                           </div>
 
                           {/* Quick Action Buttons on Card */}
-                          <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-100">
-                            {/* WhatsApp Button */}
-                            <button
-                              onClick={() => handleCopyWhatsApp(quote, currentRole === 'isparta' ? 'office' : 'customer')}
-                              className="flex items-center justify-center gap-1 px-2 py-1.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 transition-colors"
-                              title={currentRole === 'isparta' ? 'İstanbul Ofise WhatsApp ile İlet' : 'Müşteriye WhatsApp Teklif Gönder'}
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>{copiedQuoteId === quote.id ? 'İletildi ✓' : 'WhatsApp'}</span>
-                            </button>
-
+                          <div className="grid grid-cols-1 gap-1.5 pt-1 border-t border-slate-100">
                             {/* View / Detail */}
                             <button
                               onClick={() => setSelectedQuote(quote)}
@@ -336,7 +311,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                               onClick={() => onUpdateQuoteStatus(quote.id, 'hazirlaniyor')}
                               className="w-full flex items-center justify-center gap-1 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold border border-blue-200 transition-colors"
                             >
-                              <span>Ofiste Hazırlanıyor'a Al &rarr;</span>
+                              <span>Hazırlanıyor'a Al &rarr;</span>
                             </button>
                           )}
 
@@ -443,13 +418,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => handleCopyWhatsApp(quote, currentRole === 'isparta' ? 'office' : 'customer')}
-                              className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-600 transition-colors"
-                              title="WhatsApp ile İlet"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </button>
-                            <button
                               onClick={() => onPrintQuote(quote)}
                               className="p-1.5 rounded-md hover:bg-sky-50 text-sky-600 transition-colors"
                               title="Resmi Antetli Teklif Yazdır / PDF"
@@ -527,7 +495,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         }}
                         className={`p-2 rounded-lg text-xs font-bold border transition-all text-center ${
                           isCurrent
-                            ? 'bg-orange-500 text-white border-orange-600 shadow-sm'
+                            ? 'bg-brand-500 text-white border-brand-600 shadow-sm'
                             : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                         }`}
                       >
@@ -572,24 +540,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 </div>
               </div>
 
-              {/* Original WhatsApp text if available */}
-              {selectedQuote.rawWhatsAppText && (
-                <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3">
-                  <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1 mb-1">
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    Müşterinin Orijinal WhatsApp Mesajı:
-                  </span>
-                  <p className="text-xs text-emerald-950 font-mono whitespace-pre-wrap">
-                    {selectedQuote.rawWhatsAppText}
-                  </p>
-                </div>
-              )}
-
               {/* Notes */}
               {selectedQuote.notes && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Saha & Ofis Notları
+                    Notlar
                   </label>
                   <p className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700">
                     {selectedQuote.notes}
@@ -598,23 +553,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               )}
 
               {/* Action Buttons Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200">
-                <button
-                  onClick={() => handleCopyWhatsApp(selectedQuote, 'office')}
-                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Ofise İlet</span>
-                </button>
-
-                <button
-                  onClick={() => handleCopyWhatsApp(selectedQuote, 'customer')}
-                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Müşteriye İlet</span>
-                </button>
-
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
                 <button
                   onClick={() => {
                     onPrintQuote(selectedQuote);
@@ -645,7 +584,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     onConvertToOrder(selectedQuote);
                     setSelectedQuote(null);
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-black shadow-md shadow-orange-500/20 transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-amber-500 hover:from-brand-600 hover:to-amber-600 text-white text-sm font-black shadow-md shadow-brand-500/20 transition-all"
                 >
                   <Truck className="w-4 h-4" />
                   <span>🚚 Bu Teklifi Siparişe & Sevkiyata Dönüştür</span>
@@ -654,7 +593,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
               {/* Danger zone delete */}
               <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
-                <span>Oluşturan: {selectedQuote.createdBy === 'isparta' ? 'Şakir Emre (Isparta)' : 'İstanbul Ofis'}</span>
+                <span>Oluşturan: {selectedQuote.createdBy === 'isparta' ? 'Isparta' : 'İstanbul'}</span>
                 <button
                   onClick={() => {
                     if (confirm('Bu teklifi silmek istediğinize emin misiniz?')) {
