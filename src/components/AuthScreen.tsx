@@ -51,17 +51,17 @@ export const AuthScreen: React.FC = () => {
   };
 
   const inputCls =
-    'w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500';
+    'w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6 text-white">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-sky-600 flex items-center justify-center shadow-lg mb-3">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 via-amber-500 to-sky-600 flex items-center justify-center shadow-lg mb-3">
             <Flame className="w-7 h-7 text-white" />
           </div>
           <h1 className="font-extrabold text-2xl tracking-tight">
-            ENYAP <span className="text-orange-400">ISI</span>
+            ENYAP <span className="text-brand-400">ISI</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">Saha & Ofis Takip Portalı</p>
         </div>
@@ -102,7 +102,7 @@ export const AuthScreen: React.FC = () => {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="isparta">Isparta Saha Satış</option>
                   <option value="istanbul">İstanbul Merkez Ofis</option>
@@ -143,7 +143,7 @@ export const AuthScreen: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm shadow-md disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-amber-500 hover:from-brand-600 hover:to-amber-600 text-white font-bold text-sm shadow-md disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {mode === 'signin' ? 'Giriş Yap' : 'Hesap Oluştur'}

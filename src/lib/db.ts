@@ -300,19 +300,6 @@ export function isPermanentError(err: any): boolean {
   return !!code && /^[0-9A-Z]{5}$/.test(code) && !code.startsWith('08');
 }
 
-/** Tüm tabloları temizleyip verilen veri setini yazar (yedek geri yükleme / demo). */
-export async function replaceAllData(data: AppData): Promise<AppData> {
-  for (const table of ['orders', 'events', 'notes', 'activities', 'quotes']) {
-    check(await supabase.from(table).delete().neq('id', ''));
-  }
-  await upsert('quotes', (data.quotes || []).map(quoteToRow));
-  await upsert('orders', (data.orders || []).map(orderToRow));
-  await upsert('events', (data.events || []).map(eventToRow));
-  await upsert('notes', (data.notes || []).map(noteToRow));
-  await upsert('activities', (data.activities || []).map(activityToRow));
-  return fetchAllData();
-}
-
 /** Diğer cihazlardan gelen değişiklikleri canlı dinler. */
 export function subscribeToChanges(onChange: () => void): () => void {
   const channel = supabase.channel('enyap-db-changes');

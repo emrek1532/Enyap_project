@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Plus, MapPin, Phone, User, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
+import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
 import { Customer } from '../types';
 
 interface CustomersPanelProps {
@@ -9,7 +9,7 @@ interface CustomersPanelProps {
   onCreateQuoteForCustomer: (customer: Customer) => void;
 }
 
-const emptyForm = { name: '', city: 'Isparta', contactPerson: '', phone: '', email: '', notes: '' };
+const emptyForm = { name: '', city: 'Isparta' };
 
 const trCompare = (a: string, b: string) => a.localeCompare(b, 'tr');
 // Arama için Türkçe karakterleri sadeleştir: "isparta", "ISPARTA" ve "Isparta" aynı sonucu versin
@@ -50,9 +50,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       .filter(c =>
         !q ||
         fold(c.name).includes(q) ||
-        fold(c.city || '').includes(q) ||
-        fold(c.contactPerson || '').includes(q) ||
-        (c.phone || '').replace(/\s/g, '').includes(q.replace(/\s/g, ''))
+        fold(c.city || '').includes(q)
       )
       .sort((a, b) => trCompare(a.name, b.name));
   }, [customers, search, cityFilter]);
@@ -66,14 +64,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
   const openEdit = (c: Customer) => {
     setEditing(c);
-    setForm({
-      name: c.name,
-      city: c.city || '',
-      contactPerson: c.contactPerson || '',
-      phone: c.phone || '',
-      email: c.email || '',
-      notes: c.notes || '',
-    });
+    setForm({ name: c.name, city: c.city || '' });
     setError(null);
     setIsFormOpen(true);
   };
@@ -89,20 +80,17 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     }
     const now = new Date().toISOString();
     onSaveCustomer({
+      ...editing,
       id: editing?.id || 'cus-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       name,
       city: form.city.trim(),
-      contactPerson: form.contactPerson.trim(),
-      phone: form.phone.trim(),
-      email: form.email.trim(),
-      notes: form.notes.trim(),
       createdAt: editing?.createdAt || now,
       updatedAt: now,
     });
     setIsFormOpen(false);
   };
 
-  const inputCls = 'w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500';
+  const inputCls = 'w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500';
 
   return (
     <div className="space-y-4">
@@ -113,10 +101,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="search"
-              placeholder="Firma adı, şehir, yetkili veya telefon ara..."
+              placeholder="Firma adı veya şehir ara..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div className="flex gap-2">
@@ -132,7 +120,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             </select>
             <button
               onClick={openNew}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-sm whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow-sm whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
               <span>Yeni Müşteri</span>
@@ -163,23 +151,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   {c.city || '—'}
                 </span>
               </div>
-              {(c.contactPerson || c.phone) && (
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
-                  {c.contactPerson && (
-                    <span className="inline-flex items-center gap-1"><User className="w-3 h-3" />{c.contactPerson}</span>
-                  )}
-                  {c.phone && (
-                    <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1 text-sky-700 hover:underline">
-                      <Phone className="w-3 h-3" />{c.phone}
-                    </a>
-                  )}
-                </div>
-              )}
-              {c.notes && <p className="text-xs text-slate-500 line-clamp-2">{c.notes}</p>}
               <div className="flex gap-1.5 pt-1 mt-auto">
                 <button
                   onClick={() => onCreateQuoteForCustomer(c)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200"
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold border border-brand-200"
                 >
                   <FilePlus2 className="w-3.5 h-3.5" /> Teklif Aç
                 </button>
@@ -223,40 +198,20 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <label className="block text-xs font-semibold text-slate-600 mb-1">Firma Adı *</label>
               <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Şehir</label>
-                <input
-                  list="customer-city-list"
-                  value={form.city}
-                  onChange={e => setForm({ ...form, city: e.target.value })}
-                  className={inputCls}
-                />
-                <datalist id="customer-city-list">
-                  {cityCounts.map(([city]) => <option key={city} value={city} />)}
-                </datalist>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Telefon</label>
-                <input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={inputCls} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Yetkili Kişi</label>
-                <input value={form.contactPerson} onChange={e => setForm({ ...form, contactPerson: e.target.value })} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta</label>
-                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputCls} />
-              </div>
-            </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Not</label>
-              <textarea rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={inputCls} />
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Şehir</label>
+              <input
+                list="customer-city-list"
+                value={form.city}
+                onChange={e => setForm({ ...form, city: e.target.value })}
+                className={inputCls}
+              />
+              <datalist id="customer-city-list">
+                {cityCounts.map(([city]) => <option key={city} value={city} />)}
+              </datalist>
             </div>
             {error && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">{error}</p>}
-            <button type="submit" className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm">
+            <button type="submit" className="w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm">
               Kaydet
             </button>
           </form>

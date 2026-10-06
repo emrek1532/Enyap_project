@@ -24,19 +24,16 @@ import {
   saveLocalData,
   loadOutbox,
   saveOutbox,
-  clearLocalCache,
-  setStoredUserRole
+  clearLocalCache
 } from './lib/storage';
 import { supabase } from './lib/supabase';
 import {
   fetchAllData,
   applyOp,
   isPermanentError,
-  replaceAllData,
   subscribeToChanges,
   PendingOp
 } from './lib/db';
-import { getDemoData } from './lib/demoData';
 import { findCustomer } from './lib/customers';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
@@ -46,13 +43,10 @@ import { QuoteManager } from './components/QuoteManager';
 import { OrderShippingTracker } from './components/OrderShippingTracker';
 import { SharedCalendar } from './components/SharedCalendar';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
-import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { NewQuoteModal } from './components/NewQuoteModal';
 import { NewOrderModal } from './components/NewOrderModal';
 import { CustomersPanel } from './components/CustomersPanel';
-
-const USER_ROLE_KEY = 'enyap_active_user_role_v1';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -70,7 +64,7 @@ export default function App() {
   if (!authReady) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-orange-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-brand-400 animate-spin" />
       </div>
     );
   }
@@ -81,11 +75,8 @@ export default function App() {
 }
 
 function Portal({ session }: { session: Session }) {
-  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
-    const stored = localStorage.getItem(USER_ROLE_KEY);
-    if (stored === 'isparta' || stored === 'istanbul') return stored;
-    return session.user.user_metadata?.role === 'istanbul' ? 'istanbul' : 'isparta';
-  });
+  // Kullanıcının ekibi kayıt sırasında seçilir; kayıtlarda kimin eklediğini göstermek için kullanılır
+  const currentRole: UserRole = session.user.user_metadata?.role === 'istanbul' ? 'istanbul' : 'isparta';
   const [activeTab, setActiveTab] = useState<ActiveTab>('quotes');
 
   // App Data State (Offline-first initialized)
@@ -117,14 +108,7 @@ function Portal({ session }: { session: Session }) {
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [convertingQuote, setConvertingQuote] = useState<Quote | null>(null);
   const [quoteCustomer, setQuoteCustomer] = useState<Customer | null>(null);
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [printableQuote, setPrintableQuote] = useState<Quote | null>(null);
-
-  // Switch role handler
-  const handleRoleChange = (role: UserRole) => {
-    setCurrentRole(role);
-    setStoredUserRole(role);
-  };
 
   // Apply a local (optimistic) change and cache it
   const mutate = useCallback((fn: (prev: AppData) => AppData) => {
@@ -506,38 +490,6 @@ function Portal({ session }: { session: Session }) {
     persist([{ kind: 'delete', entity: 'notes', id }]);
   };
 
-  // Import Backup: merge imported records into the shared database
-  const handleImportData = (importedData: AppData) => {
-    mutate(() => ({ ...importedData, customers: importedData.customers || data.customers || [] }));
-    persist([
-      ...(importedData.customers || []).map(record => ({ kind: 'upsert', entity: 'customers', record }) as PendingOp),
-      ...(importedData.quotes || []).map(record => ({ kind: 'upsert', entity: 'quotes', record }) as PendingOp),
-      ...(importedData.orders || []).map(record => ({ kind: 'upsert', entity: 'orders', record }) as PendingOp),
-      ...(importedData.events || []).map(record => ({ kind: 'upsert', entity: 'events', record }) as PendingOp),
-      ...(importedData.notes || []).map(record => ({ kind: 'upsert', entity: 'notes', record }) as PendingOp),
-      ...(importedData.activities || []).map(record => ({ kind: 'upsert', entity: 'activities', record }) as PendingOp),
-    ]);
-  };
-
-  // Reset Demo: replace the shared database with sample data
-  const handleResetDemo = async () => {
-    if (!navigator.onLine) {
-      alert('Örnek verileri yüklemek için internet bağlantısı gerekli.');
-      return;
-    }
-    setSyncStatus(prev => ({ ...prev, isSyncing: true, error: null }));
-    try {
-      saveOutbox([]);
-      const fresh = await replaceAllData(getDemoData());
-      setData(fresh);
-      saveLocalData(fresh);
-      setSyncStatus(prev => ({ ...prev, isSyncing: false, pendingSync: false, lastSyncedAt: new Date() }));
-    } catch (err: any) {
-      console.error(err);
-      setSyncStatus(prev => ({ ...prev, isSyncing: false, error: err?.message || 'Örnek veriler yüklenemedi' }));
-    }
-  };
-
   const handleSignOut = async () => {
     if (loadOutbox().length > 0 &&
       !confirm('Henüz buluta gönderilmemiş değişiklikler var. Çıkış yaparsanız bu değişiklikler kaybolur. Devam edilsin mi?')) {
@@ -561,12 +513,9 @@ function Portal({ session }: { session: Session }) {
       <div className="sticky top-0 z-30">
       {/* Top Application Header */}
       <Header
-        currentRole={currentRole}
-        onRoleChange={handleRoleChange}
         syncStatus={syncStatus}
         onTriggerSync={() => performSync()}
         onOpenNewQuote={() => setIsNewQuoteOpen(true)}
-        onOpenSyncModal={() => setIsSyncModalOpen(true)}
         onSignOut={handleSignOut}
         userEmail={session.user.email || ''}
         urgentCount={urgentCount}
@@ -659,23 +608,6 @@ function Portal({ session }: { session: Session }) {
           />
         )}
 
-        {/* Tab 5: Güvenlik, Şifreleme & Cihaz Aktarımı */}
-        {activeTab === 'sync' && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs max-w-2xl mx-auto">
-            <h3 className="text-lg font-black text-slate-900 mb-2">
-              Veri Yönetimi, Güvenlik ve Eşitleme
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Uçtan uca AES-256 şifreleme ayarlarını yapın, cihazlar arasında yedek aktarın veya çevrimdışı önbelleği yönetin.
-            </p>
-            <button
-              onClick={() => setIsSyncModalOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-sm"
-            >
-              Şifreleme & Cihaz Aktarım Panelini Aç
-            </button>
-          </div>
-        )}
 
       </main>
 
@@ -718,18 +650,6 @@ function Portal({ session }: { session: Session }) {
         <PrintableQuoteModal
           quote={printableQuote}
           onClose={() => setPrintableQuote(null)}
-        />
-      )}
-
-      {/* 4. Device Sync & Encryption Modal */}
-      {isSyncModalOpen && (
-        <DeviceSyncModal
-          data={data}
-          syncStatus={syncStatus}
-          onTriggerSync={() => performSync()}
-          onImportData={handleImportData}
-          onResetDemo={handleResetDemo}
-          onClose={() => setIsSyncModalOpen(false)}
         />
       )}
 

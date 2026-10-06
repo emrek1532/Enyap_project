@@ -1,19 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  Sparkles, 
-  Plus, 
-  Trash2, 
-  MessageCircle, 
-  Building, 
-  MapPin, 
-  Phone, 
-  Clock, 
-  DollarSign,
-  FileText
-} from 'lucide-react';
-import { Quote, QuoteItem, UrgencyLevel, RequestChannel, UserRole, Customer } from '../types';
+import { Plus, Trash2 } from 'lucide-react';
+import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
-import { parseWhatsAppMessage } from '../lib/whatsappParser';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -45,13 +33,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   customers = [],
   initialCustomer = null,
 }) => {
-  const [activeTab, setActiveTab] = useState<'whatsapp' | 'manual'>(initialCustomer ? 'manual' : 'whatsapp');
-  const [rawWhatsApp, setRawWhatsApp] = useState('');
-  
   // Form fields
   const [customerName, setCustomerName] = useState(initialCustomer?.name || '');
-  const [customerContact, setCustomerContact] = useState(initialCustomer?.contactPerson || '');
-  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone || '');
   const [city, setCity] = useState(initialCustomer?.city || 'Isparta');
 
   // Kayıtlı bir müşteri seçilince şehir / yetkili / telefon otomatik dolsun
@@ -60,12 +43,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     const match = findCustomer(customers, value);
     if (match) {
       if (match.city) setCity(match.city);
-      if (match.contactPerson) setCustomerContact(match.contactPerson);
-      if (match.phone) setCustomerPhone(match.phone);
     }
   };
   const [projectLocation, setProjectLocation] = useState('');
-  const [requestChannel, setRequestChannel] = useState<RequestChannel>('whatsapp');
   const [urgency, setUrgency] = useState<UrgencyLevel>('normal');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<QuoteItem[]>([
@@ -80,33 +60,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       totalPrice: 0,
     }
   ]);
-
-  const handleParseWhatsApp = () => {
-    if (!rawWhatsApp.trim()) return;
-    const parsed = parseWhatsAppMessage(rawWhatsApp);
-    
-    setCustomerName(parsed.customerName);
-    if (parsed.customerPhone) setCustomerPhone(parsed.customerPhone);
-    if (parsed.city) setCity(parsed.city);
-    if (parsed.urgency) setUrgency(parsed.urgency);
-    if (parsed.notes) setNotes(parsed.notes);
-
-    if (parsed.items && parsed.items.length > 0) {
-      const convertedItems: QuoteItem[] = parsed.items.map((it, idx) => ({
-        id: `it-${Date.now()}-${idx}`,
-        productName: it.productName,
-        quantity: it.quantity,
-        unit: it.unit,
-        unitPrice: 0,
-        discount: 0,
-        vatRate: 20,
-        totalPrice: 0,
-      }));
-      setItems(convertedItems);
-    }
-
-    setActiveTab('manual'); // Switch to manual tab to review filled inputs
-  };
 
   const handleItemChange = (index: number, field: keyof QuoteItem, value: any) => {
     setItems((prev) => {
@@ -162,14 +115,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       id: quoteId,
       quoteNumber: `EY-${new Date().getFullYear()}-0${count}`,
       customerName: customerName.trim(),
-      customerContact: customerContact.trim() || undefined,
-      customerPhone: customerPhone.trim(),
+      customerPhone: '',
       city: city.trim(),
       projectLocation: projectLocation.trim() || undefined,
-      requestChannel: requestChannel,
+      requestChannel: 'telefon',
       urgency: urgency,
       status: 'yeni_talep',
-      rawWhatsAppText: rawWhatsApp.trim() || undefined,
       items: items.filter(it => it.productName.trim().length > 0),
       totalAmount: totalQuoteAmount,
       currency: 'TRY',
@@ -197,9 +148,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               + Yeni Teklif Talebi Girişi
             </h3>
             <p className="text-xs text-slate-400">
-              {currentRole === 'isparta' 
-                ? 'Isparta Saha: WhatsApp talebini yapıştırın veya manuel formu doldurun.' 
-                : 'İstanbul Ofis: Teklif talebini kayda alın ve fiyatlandırın.'}
+              Müşteriyi seçin, malzemeleri girin ve kaydedin.
             </p>
           </div>
           <button
@@ -210,73 +159,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Buttons */}
-        <div className="flex border-b border-slate-200 bg-slate-50">
-          <button
-            type="button"
-            onClick={() => setActiveTab('whatsapp')}
-            className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
-              activeTab === 'whatsapp'
-                ? 'border-orange-500 text-orange-600 bg-white shadow-2xs'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-emerald-500" />
-            <span>WhatsApp Metninden Hızlı Ayrıştır (Akıllı Doldur)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('manual')}
-            className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
-              activeTab === 'manual'
-                ? 'border-orange-500 text-orange-600 bg-white shadow-2xs'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <FileText className="w-4 h-4 text-sky-500" />
-            <span>Detaylı Form & Malzeme Kalemleri</span>
-          </button>
-        </div>
-
         {/* Tab Contents */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm flex-1">
           
-          {activeTab === 'whatsapp' && (
-            <div className="space-y-3">
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-emerald-900 text-xs">
-                <p className="font-bold mb-1 flex items-center gap-1.5">
-                  <MessageCircle className="w-4 h-4 text-emerald-600" />
-                  Müşteriden Gelen WhatsApp Mesajını Buraya Yapıştırın:
-                </p>
-                <p className="text-emerald-800/80">
-                  Sistem otomatik olarak müşteri adını, telefon numarasını, şehri, kombi / radyatör / boru miktarlarını ve aciliyeti algılayıp formu doldurur.
-                </p>
-              </div>
-
-              <textarea
-                rows={6}
-                value={rawWhatsApp}
-                onChange={(e) => setRawWhatsApp(e.target.value)}
-                placeholder="Örnek:&#10;Selam Şakir Bey, Isparta Modernevler projemiz için 24 adet 24 kW yoğuşmalı kombi ve 800 mt pex boru fiyatı lazım çok acil..."
-                className="w-full p-3 border border-slate-300 rounded-xl font-mono text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-              />
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleParseWhatsApp}
-                  disabled={!rawWhatsApp.trim()}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-sm transition-all disabled:opacity-50"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Sihirli Ayrıştır ve Formu Doldur &rarr;</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'manual' && (
             <form id="newQuoteForm" onSubmit={handleSubmit} className="space-y-4">
               
               {/* Customer & Location Details */}
@@ -300,32 +185,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       <option key={c.id} value={c.name}>{c.city}</option>
                     ))}
                   </datalist>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Yetkili Kişi
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Örn: Ahmet Bey"
-                    value={customerContact}
-                    onChange={(e) => setCustomerContact(e.target.value)}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Telefon Numarası
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="Örn: 0532 555 12 34"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                  />
                 </div>
 
                 <div>
@@ -355,23 +214,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Kanal
-                    </label>
-                    <select
-                      value={requestChannel}
-                      onChange={(e) => setRequestChannel(e.target.value as RequestChannel)}
-                      className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white"
-                    >
-                      <option value="whatsapp">WhatsApp</option>
-                      <option value="telefon">Telefon</option>
-                      <option value="ziyaret">Saha Ziyareti</option>
-                      <option value="email">E-posta</option>
-                    </select>
-                  </div>
-                  <div>
+                <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Aciliyet
                     </label>
@@ -385,7 +228,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       <option value="normal">Normal</option>
                       <option value="dusuk">Düşük</option>
                     </select>
-                  </div>
                 </div>
               </div>
 
@@ -398,7 +240,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   <button
                     type="button"
                     onClick={handleAddItem}
-                    className="text-xs text-orange-600 font-bold hover:underline flex items-center gap-1"
+                    className="text-xs text-brand-600 font-bold hover:underline flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     + Kalem Ekle
@@ -491,7 +333,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               {/* Notes */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Saha Notu / Müşteri Talebi Açıklaması
+                  Not
                 </label>
                 <textarea
                   rows={2}
@@ -503,7 +345,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
 
             </form>
-          )}
 
         </div>
 
@@ -526,16 +367,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (activeTab === 'whatsapp' && rawWhatsApp.trim()) {
-                  handleParseWhatsApp();
-                } else {
-                  const form = document.getElementById('newQuoteForm') as HTMLFormElement;
-                  if (form) form.requestSubmit();
-                }
+                const form = document.getElementById('newQuoteForm') as HTMLFormElement;
+                if (form) form.requestSubmit();
               }}
-              className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs sm:text-sm shadow-sm transition-all"
+              className="px-5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs sm:text-sm shadow-sm transition-all"
             >
-              {activeTab === 'whatsapp' ? 'Ayrıştır ve İlerle' : 'Kaydet ve Ofise Bildir'}
+              Teklifi Kaydet
             </button>
           </div>
         </div>

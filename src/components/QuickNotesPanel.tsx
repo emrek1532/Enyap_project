@@ -64,7 +64,7 @@ export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({
         {/* Create Note Input */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 mb-2">
-            <StickyNote className="w-4 h-4 text-orange-500" />
+            <StickyNote className="w-4 h-4 text-brand-500" />
             <span>Ortak Hızlı Not / Ofis & Saha Mesajı Ekle</span>
           </h3>
 
@@ -75,7 +75,7 @@ export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({
               placeholder="Örn: Bucak mermer fabrikası kaskad kazan stokları teyit edildi. Ambar saat 17:00'ye kadar yükleme alıyor..."
               value={newNoteContent}
               onChange={(e) => setNewNoteContent(e.target.value)}
-              className="w-full p-2.5 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              className="w-full p-2.5 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             />
 
             <div className="flex items-center justify-between">
@@ -98,7 +98,7 @@ export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({
 
               <button
                 type="submit"
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs shadow-xs"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Notu Paylaş</span>
@@ -175,7 +175,7 @@ export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({
           ) : (
             activities.map((act) => (
               <div key={act.id} className="flex items-start gap-2.5 text-xs pb-2 border-b border-slate-100 last:border-0">
-                <div className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0" />
+                <div className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
                     <span className="font-bold text-slate-800 truncate">{act.action}</span>

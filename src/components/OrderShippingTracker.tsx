@@ -79,29 +79,7 @@ export const OrderShippingTracker: React.FC<OrderShippingTrackerProps> = ({
     }
   };
 
-  const handleSendShippingWhatsApp = (order: Order) => {
-    const message = `🔥 *ENYAP ISI - SEVKİYAT BİLGİLENDİRMESİ* 🔥
-Sayın ${order.customerName},
 
-${order.orderNumber} numaralı siparişiniz sevk sürecindedir.
-
-📦 *Malzeme Özeti:* ${order.itemsSummary}
-🚚 *Nakliye / Ambar:* ${order.carrierCompany || 'Belirtilmedi'}
-🔖 *İrsaliye / Takip No:* ${order.trackingNumber || 'Hazırlanıyor'}
-📅 *Hedef Sevk Tarihi:* ${order.targetShippingDate}
-📍 *Teslimat Adresi:* ${order.deliveryAddress || order.city}
-${order.driverContact ? `📞 *Sürücü / Ambar İletişim:* ${order.driverContact}\n` : ''}
-${order.statusNotes ? `ℹ️ *Durum Notu:* ${order.statusNotes}\n` : ''}
-
-Malzemeler ulaştığında kontrol edip teslim alabilirsiniz.
-İyi çalışmalar dileriz.
-*Enyap Isı Sistemleri*`;
-
-    const encoded = encodeURIComponent(message);
-    const phone = order.customerPhone ? order.customerPhone.replace(/\D/g, '') : '';
-    const url = phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
-    window.open(url, '_blank');
-  };
 
   return (
     <div className="space-y-4">
@@ -117,7 +95,7 @@ Malzemeler ulaştığında kontrol edip teslim alabilirsiniz.
             placeholder="Sipariş no, müşteri, nakliye ambarı veya irsaliye no ara..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
           />
         </div>
 
@@ -298,17 +276,7 @@ Malzemeler ulaştığında kontrol edip teslim alabilirsiniz.
 
                 {/* Card Actions */}
                 <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {/* WhatsApp notification */}
-                    <button
-                      onClick={() => handleSendShippingWhatsApp(order)}
-                      className="flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200 transition-colors"
-                      title="Müşteriye veya Sahaya WhatsApp Sevkiyat Bilgisi Gönder"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      <span>WhatsApp Bilgi</span>
-                    </button>
-
+                  <div className="grid grid-cols-1 gap-1.5">
                     {/* Edit / Detail modal */}
                     <button
                       onClick={() => setSelectedOrder(order)}
@@ -462,7 +430,7 @@ Malzemeler ulaştığında kontrol edip teslim alabilirsiniz.
                   onSaveOrder(selectedOrder);
                   setSelectedOrder(null);
                 }}
-                className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-sm"
+                className="flex-1 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow-sm"
               >
                 Kaydet ve Senkronize Et
               </button>
