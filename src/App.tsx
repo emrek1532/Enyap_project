@@ -8,6 +8,7 @@ import type { Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import {
   AppData,
+  Customer,
   Quote,
   Order,
   CalendarEvent,
@@ -36,6 +37,7 @@ import {
   PendingOp
 } from './lib/db';
 import { getDemoData } from './lib/demoData';
+import { findCustomer } from './lib/customers';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import { Navigation, ActiveTab } from './components/Navigation';
@@ -48,6 +50,7 @@ import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { NewQuoteModal } from './components/NewQuoteModal';
 import { NewOrderModal } from './components/NewOrderModal';
+import { CustomersPanel } from './components/CustomersPanel';
 
 const USER_ROLE_KEY = 'enyap_active_user_role_v1';
 
@@ -90,6 +93,7 @@ function Portal({ session }: { session: Session }) {
     const local = loadLocalData();
     if (local) return local;
     return {
+      customers: [],
       quotes: [],
       orders: [],
       events: [],
@@ -112,6 +116,7 @@ function Portal({ session }: { session: Session }) {
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [convertingQuote, setConvertingQuote] = useState<Quote | null>(null);
+  const [quoteCustomer, setQuoteCustomer] = useState<Customer | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [printableQuote, setPrintableQuote] = useState<Quote | null>(null);
 
@@ -256,6 +261,41 @@ function Portal({ session }: { session: Session }) {
     };
   }, [performSync]);
 
+  // Teklif/siparişte geçen firma listede yoksa müşteri olarak ekle
+  const newCustomerFor = (name: string, city: string, contact?: string, phone?: string): Customer | null => {
+    if (!name.trim() || findCustomer(data.customers, name)) return null;
+    const now = new Date().toISOString();
+    return {
+      id: 'cus-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      name: name.trim(),
+      city: city || '',
+      contactPerson: contact || '',
+      phone: phone || '',
+      createdAt: now,
+      updatedAt: now,
+    };
+  };
+
+  const addCustomerLocally = (customer: Customer | null) => {
+    if (!customer) return;
+    mutate(d => ({ ...d, customers: [...(d.customers || []), customer] }));
+  };
+
+  // Customers
+  const handleSaveCustomer = (customer: Customer) => {
+    mutate(d => {
+      const list = d.customers || [];
+      const exists = list.some(c => c.id === customer.id);
+      return { ...d, customers: exists ? list.map(c => (c.id === customer.id ? customer : c)) : [...list, customer] };
+    });
+    persist([{ kind: 'upsert', entity: 'customers', record: customer }]);
+  };
+
+  const handleDeleteCustomer = (id: string) => {
+    mutate(d => ({ ...d, customers: (d.customers || []).filter(c => c.id !== id) }));
+    persist([{ kind: 'delete', entity: 'customers', id }]);
+  };
+
   // Save new quote
   const handleSaveQuote = (newQuote: Quote) => {
     const activity = logActivity(
@@ -263,12 +303,15 @@ function Portal({ session }: { session: Session }) {
       `${newQuote.customerName} için ${newQuote.quoteNumber} nolu talep oluşturuldu.`,
       'sky'
     );
+    const customer = newCustomerFor(newQuote.customerName, newQuote.city, newQuote.customerContact, newQuote.customerPhone);
+    addCustomerLocally(customer);
     mutate(d => ({
       ...d,
       quotes: [newQuote, ...d.quotes.filter(q => q.id !== newQuote.id)],
       activities: [activity, ...(d.activities || [])],
     }));
     persist([
+      ...(customer ? [{ kind: 'upsert', entity: 'customers', record: customer } as PendingOp] : []),
       { kind: 'upsert', entity: 'quotes', record: newQuote },
       { kind: 'upsert', entity: 'activities', record: activity },
     ]);
@@ -371,6 +414,12 @@ function Portal({ session }: { session: Session }) {
     );
     ops.push({ kind: 'upsert', entity: 'activities', record: activity });
 
+    const customer = newCustomerFor(saved.customerName, saved.city, saved.customerContact, saved.customerPhone);
+    if (customer) {
+      addCustomerLocally(customer);
+      ops.unshift({ kind: 'upsert', entity: 'customers', record: customer });
+    }
+
     mutate(d => ({
       ...d,
       orders: [saved, ...d.orders],
@@ -459,8 +508,9 @@ function Portal({ session }: { session: Session }) {
 
   // Import Backup: merge imported records into the shared database
   const handleImportData = (importedData: AppData) => {
-    mutate(() => importedData);
+    mutate(() => ({ ...importedData, customers: importedData.customers || data.customers || [] }));
     persist([
+      ...(importedData.customers || []).map(record => ({ kind: 'upsert', entity: 'customers', record }) as PendingOp),
       ...(importedData.quotes || []).map(record => ({ kind: 'upsert', entity: 'quotes', record }) as PendingOp),
       ...(importedData.orders || []).map(record => ({ kind: 'upsert', entity: 'orders', record }) as PendingOp),
       ...(importedData.events || []).map(record => ({ kind: 'upsert', entity: 'events', record }) as PendingOp),
@@ -575,6 +625,19 @@ function Portal({ session }: { session: Session }) {
           />
         )}
 
+        {/* Müşteriler */}
+        {activeTab === 'customers' && (
+          <CustomersPanel
+            customers={data.customers || []}
+            onSaveCustomer={handleSaveCustomer}
+            onDeleteCustomer={handleDeleteCustomer}
+            onCreateQuoteForCustomer={(customer) => {
+              setQuoteCustomer(customer);
+              setIsNewQuoteOpen(true);
+            }}
+          />
+        )}
+
         {/* Tab 3: Ortak Takvim & Ajanda */}
         {activeTab === 'calendar' && (
           <SharedCalendar
@@ -621,8 +684,13 @@ function Portal({ session }: { session: Session }) {
       {isNewQuoteOpen && (
         <NewQuoteModal
           currentRole={currentRole}
+          customers={data.customers || []}
+          initialCustomer={quoteCustomer}
           onSaveQuote={handleSaveQuote}
-          onClose={() => setIsNewQuoteOpen(false)}
+          onClose={() => {
+            setIsNewQuoteOpen(false);
+            setQuoteCustomer(null);
+          }}
         />
       )}
 
@@ -631,6 +699,7 @@ function Portal({ session }: { session: Session }) {
         <NewOrderModal
           currentRole={currentRole}
           initialQuote={convertingQuote}
+          customers={data.customers || []}
           onSaveOrder={(order) => {
             handleSaveOrder(order);
             setIsNewOrderOpen(false);

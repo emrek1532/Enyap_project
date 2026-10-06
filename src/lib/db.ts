@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { AppData, Quote, Order, CalendarEvent, QuickNote, ActivityLog } from '../types';
+import { AppData, Customer, Quote, Order, CalendarEvent, QuickNote, ActivityLog } from '../types';
 
 /**
  * Supabase veri katmanı: uygulamadaki camelCase modeller ile
@@ -11,6 +11,30 @@ type Row = Record<string, any>;
 const orNull = (v: any) => (v === '' || v === undefined ? null : v);
 
 // ---------- Mappers ----------
+const customerToRow = (c: Customer): Row => ({
+  id: c.id,
+  name: c.name,
+  city: c.city ?? '',
+  contact_person: orNull(c.contactPerson),
+  phone: orNull(c.phone),
+  email: orNull(c.email),
+  notes: orNull(c.notes),
+  created_at: c.createdAt,
+  updated_at: c.updatedAt,
+});
+
+const rowToCustomer = (r: Row): Customer => ({
+  id: r.id,
+  name: r.name,
+  city: r.city ?? '',
+  contactPerson: r.contact_person ?? '',
+  phone: r.phone ?? '',
+  email: r.email ?? '',
+  notes: r.notes ?? '',
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+});
+
 const quoteToRow = (q: Quote): Row => ({
   id: q.id,
   quote_number: q.quoteNumber,
@@ -208,7 +232,8 @@ async function remove(table: string, id: string) {
 
 // ---------- Public API ----------
 export async function fetchAllData(): Promise<AppData> {
-  const [quotes, orders, events, notes, activities] = await Promise.all([
+  const [customers, quotes, orders, events, notes, activities] = await Promise.all([
+    supabase.from('customers').select('*').order('name', { ascending: true }).limit(5000),
     supabase.from('quotes').select('*').order('created_at', { ascending: false }),
     supabase.from('orders').select('*').order('created_at', { ascending: false }),
     supabase.from('events').select('*').order('date', { ascending: true }),
@@ -217,6 +242,7 @@ export async function fetchAllData(): Promise<AppData> {
   ]);
 
   return {
+    customers: (check(customers) || []).map(rowToCustomer),
     quotes: (check(quotes) || []).map(rowToQuote),
     orders: (check(orders) || []).map(rowToOrder),
     events: (check(events) || []).map(rowToEvent),
@@ -226,10 +252,11 @@ export async function fetchAllData(): Promise<AppData> {
   };
 }
 
-export type Entity = 'quotes' | 'orders' | 'events' | 'notes' | 'activities';
+export type Entity = 'customers' | 'quotes' | 'orders' | 'events' | 'notes' | 'activities';
 
 /** Sunucuya yazılacak tek bir değişiklik (çevrimdışıyken kuyrukta bekler). */
 export type PendingOp =
+  | { kind: 'upsert'; entity: 'customers'; record: Customer }
   | { kind: 'upsert'; entity: 'quotes'; record: Quote }
   | { kind: 'upsert'; entity: 'orders'; record: Order }
   | { kind: 'upsert'; entity: 'events'; record: CalendarEvent }
@@ -238,6 +265,7 @@ export type PendingOp =
   | { kind: 'delete'; entity: Entity; id: string };
 
 export const toRow: Record<Entity, (x: any) => Row> = {
+  customers: customerToRow,
   quotes: quoteToRow,
   orders: orderToRow,
   events: eventToRow,
@@ -288,7 +316,7 @@ export async function replaceAllData(data: AppData): Promise<AppData> {
 /** Diğer cihazlardan gelen değişiklikleri canlı dinler. */
 export function subscribeToChanges(onChange: () => void): () => void {
   const channel = supabase.channel('enyap-db-changes');
-  for (const table of ['quotes', 'orders', 'events', 'notes', 'activities']) {
+  for (const table of ['customers', 'quotes', 'orders', 'events', 'notes', 'activities']) {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange);
   }
   channel.subscribe();

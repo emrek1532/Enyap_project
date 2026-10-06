@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Truck, Calendar, MapPin, Phone, User, Package, FileText } from 'lucide-react';
-import { Order, OrderStatus, UserRole, Quote } from '../types';
+import { Order, OrderStatus, UserRole, Quote, Customer } from '../types';
+import { findCustomer } from '../lib/customers';
 
 interface NewOrderModalProps {
   currentRole: UserRole;
   initialQuote?: Quote | null;
   onSaveOrder: (order: Order) => void;
   onClose: () => void;
+  customers?: Customer[];
 }
 
 export const NewOrderModal: React.FC<NewOrderModalProps> = ({
@@ -14,6 +16,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
   initialQuote,
   onSaveOrder,
   onClose,
+  customers = [],
 }) => {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
@@ -105,10 +108,26 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
               <input
                 type="text"
                 required
+                list="order-customer-list"
+                autoComplete="off"
+                placeholder="Kayıtlı müşterilerden seçin..."
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => {
+                  setCustomerName(e.target.value);
+                  const match = findCustomer(customers, e.target.value);
+                  if (match) {
+                    if (match.city) setCity(match.city);
+                    if (match.contactPerson) setCustomerContact(match.contactPerson);
+                    if (match.phone) setCustomerPhone(match.phone);
+                  }
+                }}
                 className="w-full p-2 border border-slate-200 rounded-lg text-sm"
               />
+              <datalist id="order-customer-list">
+                {customers.map((c) => (
+                  <option key={c.id} value={c.name}>{c.city}</option>
+                ))}
+              </datalist>
             </div>
 
             <div>
