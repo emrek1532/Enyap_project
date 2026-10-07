@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, CalendarClock } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
@@ -23,6 +23,9 @@ interface LedgerPanelProps {
   currentRole: UserRole;
   onSave: (record: LedgerRecord) => void;
   onDelete: (id: string) => void;
+  /** Ana sayfadaki "Ekle" kısayoluyla açıldıysa formu hemen aç */
+  startNew?: boolean;
+  onStartNewHandled?: () => void;
 }
 
 const LIST_PAGE = 50;
@@ -62,7 +65,7 @@ const withExisting = (base: string[], values: (string | undefined)[]) => {
   return [...set];
 };
 
-export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete }) => {
+export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, onStartNewHandled }) => {
   const isCollection = kind === 'collections';
   const t = isCollection
     ? { one: 'Tahsilat', party: 'Müşteri / Firma', Icon: Wallet, tone: 'text-accent-600 bg-accent-50' }
@@ -141,6 +144,11 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
     };
     setEditing(isCollection ? { ...base, customerName: '' } : { ...base, category: EXPENSE_CATEGORIES[0] });
   };
+
+  useEffect(() => {
+    if (startNew) { openNew(); onStartNewHandled?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startNew]);
 
   const handleDelete = (r: LedgerRecord) => {
     if (confirm(`${fmtDate(r.date)} tarihli ${money(r.amount, r.currency)} ${t.one.toLocaleLowerCase('tr')} kaydı silinsin mi?`)) onDelete(r.id);

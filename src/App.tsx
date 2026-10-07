@@ -40,12 +40,13 @@ import { findCustomer } from './lib/customers';
 import { PENDING_STATUSES } from './lib/quoteRules';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
-import { Navigation, ActiveTab } from './components/Navigation';
+import type { ActiveTab } from './components/Navigation';
 import { DashboardStats } from './components/DashboardStats';
 import { QuoteManager } from './components/QuoteManager';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
+import { HomePage, PageHeader, SECTION_META } from './components/HomePage';
 import { ReportsPanel } from './components/ReportsPanel';
 import { NewQuoteModal } from './components/NewQuoteModal';
 import { CustomersPanel } from './components/CustomersPanel';
@@ -79,7 +80,37 @@ export default function App() {
 function Portal({ session }: { session: Session }) {
   // Kullanıcının ekibi kayıt sırasında seçilir; kayıtlarda kimin eklediğini göstermek için kullanılır
   const currentRole: UserRole = session.user.user_metadata?.role === 'istanbul' ? 'istanbul' : 'isparta';
-  const [activeTab, setActiveTab] = useState<ActiveTab>('quotes');
+  const [activeTab, setActiveTabState] = useState<ActiveTab>('home');
+  // Ana sayfadan "Tahsilat / Harcama Ekle" ile gelince form açık başlasın
+  const [ledgerStartNew, setLedgerStartNew] = useState<'collections' | 'expenses' | null>(null);
+
+  // Sayfa geçişleri tarayıcı geçmişine yazılır: telefonun geri tuşu da önceki sayfaya döner
+  useEffect(() => {
+    window.history.replaceState({ tab: 'home' }, '');
+    const onPop = (e: PopStateEvent) => setActiveTabState((e.state?.tab as ActiveTab) || 'home');
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const activeTabRef = useRef<ActiveTab>('home');
+  activeTabRef.current = activeTab;
+  const setActiveTab = useCallback((tab: ActiveTab) => {
+    if (activeTabRef.current === tab) return;
+    activeTabRef.current = tab;
+    window.history.pushState({ tab }, '');
+    setActiveTabState(tab);
+    window.scrollTo({ top: 0 });
+  }, []);
+  const goBack = () => {
+    if (window.history.state?.tab && window.history.state.tab !== 'home') window.history.back();
+    else setActiveTab('home');
+  };
+  const goHome = () => {
+    if (activeTab === 'home') return;
+    activeTabRef.current = 'home';
+    setActiveTabState('home');
+    window.history.pushState({ tab: 'home' }, '');
+    window.scrollTo({ top: 0 });
+  };
   // Teklif listesinin durum filtresi; üstteki kutucuklar da bunu ayarlar
   const [quoteFilter, setQuoteFilter] = useState('all');
 
@@ -416,7 +447,7 @@ function Portal({ session }: { session: Session }) {
   const todayEventsCount = data.events.filter(e => e.date === todayStr && !e.completed).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-20 md:pb-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-8">
       
       {/* Header + desktop tabs stay pinned together while scrolling */}
       <div className="sticky top-0 z-30">
@@ -428,19 +459,39 @@ function Portal({ session }: { session: Session }) {
         onSignOut={handleSignOut}
         userEmail={session.user.email || ''}
         urgentCount={urgentCount}
+        onHome={goHome}
       />
 
-      {/* Navigation (Desktop Top Bar / Mobile Bottom Bar) */}
-      <Navigation
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        quotesCount={pendingQuotesCount}
-        eventsCount={todayEventsCount}
-      />
       </div>
 
       {/* Main App Content Area */}
       <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1">
+
+        {/* Ana sayfa */}
+        {activeTab === 'home' && (
+          <HomePage
+            quotes={data.quotes}
+            customers={data.customers || []}
+            collections={data.collections || []}
+            expenses={data.expenses || []}
+            notes={data.notes}
+            onOpen={setActiveTab}
+            onNewQuote={() => setIsNewQuoteOpen(true)}
+            onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
+            onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
+          />
+        )}
+
+        {/* Bölüm başlığı: geri / ana sayfa */}
+        {activeTab !== 'home' && (
+          <PageHeader
+            title={SECTION_META[activeTab].title}
+            icon={SECTION_META[activeTab].icon}
+            tone={SECTION_META[activeTab].tone}
+            onBack={goBack}
+            onHome={goHome}
+          />
+        )}
         
         {/* KPI Dashboard & Urgent Action Banner */}
         {activeTab === 'quotes' && (
@@ -508,6 +559,8 @@ function Portal({ session }: { session: Session }) {
             currentRole={currentRole}
             onSave={(r) => handleSaveCollection(r as Collection)}
             onDelete={handleDeleteCollection}
+            startNew={ledgerStartNew === 'collections'}
+            onStartNewHandled={() => setLedgerStartNew(null)}
           />
         )}
 
@@ -519,6 +572,8 @@ function Portal({ session }: { session: Session }) {
             currentRole={currentRole}
             onSave={(r) => handleSaveExpense(r as Expense)}
             onDelete={handleDeleteExpense}
+            startNew={ledgerStartNew === 'expenses'}
+            onStartNewHandled={() => setLedgerStartNew(null)}
           />
         )}
 
