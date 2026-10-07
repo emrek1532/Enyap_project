@@ -4,12 +4,20 @@ import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { findCustomer } from '../lib/customers';
 import { DecimalInput } from './DecimalInput';
+import { SuggestInput } from './SuggestInput';
 
 export const COLLECTION_METHODS = ['Çek', 'Nakit', 'Havale/EFT', 'Kredi Kartı', 'Senet'];
 export const EXPENSE_METHODS = ['Kredi Kartı **9973', 'UTTS', 'Şahsi', 'Şirket', 'Nakit', 'Havale/EFT'];
 export const EXPENSE_CATEGORIES = [
   'Yakıt', 'Yemek', 'Konaklama', 'AdBlue', 'Otopark', 'İkramlık', 'Araç Bakım', 'Ulaşım',
   'Kargo/Nakliye', 'Malzeme', 'Ofis', 'Telefon/İnternet', 'Trafik Cezası', 'Vergi/Harç', 'Personel', 'Diğer',
+];
+/** Çek bankaları (öneri listesi; kayıtlardaki yazımlarla uyumlu) */
+export const BANKS = [
+  'Halkbank', 'Ziraat Bankası', 'Vakıfbank', 'Garanti Bankası', 'İş Bankası', 'Yapı Kredi', 'Akbank',
+  'QNB Bank', 'Denizbank', 'TEB Bankası', 'Kuveyttürk', 'Vakıf Katılım', 'Ziraat Katılım', 'Emlak Katılım',
+  'Türkiye Finans', 'Albaraka Bankası', 'Şekerbank', 'ING Bank', 'HSBC', 'Fibabanka', 'Odeabank',
+  'Anadolubank', 'Alternatif Bank', 'Burgan Bank', 'ICBC Turkey', 'Enpara',
 ];
 /** Vadesi olan tahsilat şekilleri */
 const HAS_DUE = ['Çek', 'Senet'];
@@ -40,6 +48,20 @@ const fmtDate = (s?: string) => (s ? s.split('-').reverse().join('.') : '-');
 const money = (v: number, c: Currency) =>
   `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c]}`;
 const fold = (s: string) => s.toLocaleLowerCase('tr').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
+
+/** Yazılana göre öneriler: tüm kelimeler geçmeli, yazılanla başlayanlar önce; birebir eşleşmede liste kapanır */
+function suggest<T>(items: T[], q: string, label: (t: T) => string, limit = 8): T[] {
+  const f = fold(q.trim());
+  if (!f) return [];
+  const toks = f.split(/\s+/);
+  const rows = items.map(t => ({ t, f: fold(label(t)) }));
+  if (rows.some(r => r.f === f)) return [];
+  return rows
+    .filter(r => toks.every(k => r.f.includes(k)))
+    .sort((a, b) => Number(b.f.startsWith(f)) - Number(a.f.startsWith(f)) || a.f.localeCompare(b.f, 'tr'))
+    .slice(0, limit)
+    .map(r => r.t);
+}
 
 const isCollectionRec = (r: LedgerRecord): r is Collection => 'customerName' in r;
 /** Kaydın "kime / ne için" alanı: tahsilatta müşteri, harcamada kategori */
@@ -86,6 +108,19 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   const todayStr = today();
   const methods = useMemo(() => withExisting(isCollection ? COLLECTION_METHODS : EXPENSE_METHODS, records.map(r => r.method)), [records, isCollection]);
   const categories = useMemo(() => (isCollection ? [] : withExisting(EXPENSE_CATEGORIES, records.map(r => partyOf(r)))), [records, isCollection]);
+  // Kayıtlardaki şubeler, bankaya göre (öneri için)
+  const branches = useMemo(() => {
+    const out: { bank: string; branch: string }[] = [];
+    const seen = new Set<string>();
+    records.forEach(r => {
+      if (!isCollectionRec(r) || !r.bankBranch?.trim()) return;
+      const k = fold(`${r.bankName || ''}|${r.bankBranch}`);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ bank: r.bankName || '', branch: r.bankBranch.trim() });
+    });
+    return out;
+  }, [records]);
   const regions = useMemo(() => (isCollection ? [] : withExisting([], records.map(r => (r as Expense).region)).sort((a, b) => a.localeCompare(b, 'tr'))), [records, isCollection]);
 
   const filtered = useMemo(() => {
@@ -384,6 +419,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           categories={categories}
           regions={regions}
           customers={customers}
+          branches={branches}
           onCancel={() => setEditing(null)}
           onSave={rec => { onSave(rec); setEditing(null); }}
         />
@@ -409,9 +445,10 @@ const LedgerForm: React.FC<{
   categories: string[];
   regions: string[];
   customers: Customer[];
+  branches: { bank: string; branch: string }[];
   onCancel: () => void;
   onSave: (r: LedgerRecord) => void;
-}> = ({ kind, record, title, partyLabel, methods, categories, regions, customers, onCancel, onSave }) => {
+}> = ({ kind, record, title, partyLabel, methods, categories, regions, customers, branches, onCancel, onSave }) => {
   const [form, setForm] = useState<LedgerRecord>(record);
   const isCollection = kind === 'collections';
   const col = form as Collection;
@@ -460,16 +497,25 @@ const LedgerForm: React.FC<{
           {isCollection ? (
             <div className="grid grid-cols-3 gap-3">
               <Field label={`${partyLabel} *`} className="col-span-2">
-                <input required list="ledger-customer-list" autoComplete="off" placeholder="Kayıtlı müşterilerden seçin..."
+                <SuggestInput<Customer>
+                  required
+                  placeholder="Yazın, Enter / Tab ile seçin..."
                   value={col.customerName}
-                  onChange={e => {
-                    const match = findCustomer(customers, e.target.value);
-                    set({ customerName: e.target.value, ...(match?.city && !col.city ? { city: match.city } : {}) });
+                  onChange={text => {
+                    const match = findCustomer(customers, text);
+                    set({ customerName: text, ...(match?.city && !col.city ? { city: match.city } : {}) });
                   }}
-                  className={inputCls} />
-                <datalist id="ledger-customer-list">
-                  {customers.map(c => <option key={c.id} value={c.name}>{c.city}</option>)}
-                </datalist>
+                  onPick={c => set({ customerName: c.name, ...(c.city ? { city: c.city } : {}) })}
+                  suggestions={suggest(customers, col.customerName, c => c.name)}
+                  getKey={c => c.id}
+                  inputClassName={inputCls}
+                  renderItem={c => (
+                    <span className="flex items-center justify-between gap-2 text-sm">
+                      <span className="font-semibold text-slate-800 truncate">{c.name}</span>
+                      <span className="text-xs text-slate-500 shrink-0">{c.city}</span>
+                    </span>
+                  )}
+                />
               </Field>
               <Field label="Şehir">
                 <input value={col.city || ''} onChange={e => set({ city: e.target.value })} className={inputCls} />
@@ -478,19 +524,29 @@ const LedgerForm: React.FC<{
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <Field label={`${partyLabel} *`}>
-                <input required list="ledger-category-list" autoComplete="off" placeholder="Seçin veya yazın..."
-                  value={exp.category} onChange={e => set({ category: e.target.value })} onFocus={e => e.target.select()}
-                  className={inputCls} />
-                <datalist id="ledger-category-list">
-                  {categories.map(c => <option key={c} value={c} />)}
-                </datalist>
+                <SuggestInput<string>
+                  required
+                  placeholder="Yazın, Enter / Tab ile seçin..."
+                  value={exp.category}
+                  onChange={text => set({ category: text })}
+                  onPick={c => set({ category: c })}
+                  suggestions={suggest(categories, exp.category, c => c)}
+                  getKey={c => c}
+                  inputClassName={inputCls}
+                  renderItem={c => <span className="text-sm text-slate-800">{c}</span>}
+                />
               </Field>
               <Field label="Bölge">
-                <input list="ledger-region-list" autoComplete="off" placeholder="Örn: KONYA BÖLGE"
-                  value={exp.region || ''} onChange={e => set({ region: e.target.value })} className={inputCls} />
-                <datalist id="ledger-region-list">
-                  {regions.map(c => <option key={c} value={c} />)}
-                </datalist>
+                <SuggestInput<string>
+                  placeholder="Örn: KONYA BÖLGE"
+                  value={exp.region || ''}
+                  onChange={text => set({ region: text })}
+                  onPick={r => set({ region: r })}
+                  suggestions={suggest(regions, exp.region || '', r => r)}
+                  getKey={r => r}
+                  inputClassName={inputCls}
+                  renderItem={r => <span className="text-sm text-slate-800">{r}</span>}
+                />
               </Field>
             </div>
           )}
@@ -519,10 +575,32 @@ const LedgerForm: React.FC<{
               {form.method === 'Çek' && (
                 <>
                   <Field label="Banka">
-                    <input value={col.bankName || ''} onChange={e => set({ bankName: e.target.value })} className={`${inputCls} bg-white`} />
+                    <SuggestInput<string>
+                      placeholder="Yazın, Enter / Tab ile seçin..."
+                      value={col.bankName || ''}
+                      onChange={text => set({ bankName: text })}
+                      onPick={b => set({ bankName: b })}
+                      suggestions={suggest(BANKS, col.bankName || '', b => b)}
+                      getKey={b => b}
+                      inputClassName={`${inputCls} bg-white`}
+                      renderItem={b => <span className="text-sm text-slate-800">{b}</span>}
+                    />
                   </Field>
                   <Field label="Şube">
-                    <input value={col.bankBranch || ''} onChange={e => set({ bankBranch: e.target.value })} className={`${inputCls} bg-white`} />
+                    <SuggestInput<string>
+                      placeholder="Örn: Isparta Şubesi"
+                      value={col.bankBranch || ''}
+                      onChange={text => set({ bankBranch: text })}
+                      onPick={b => set({ bankBranch: b })}
+                      suggestions={suggest(
+                        [...new Set(branches
+                          .filter(x => !col.bankName?.trim() || fold(x.bank) === fold(col.bankName))
+                          .map(x => x.branch))],
+                        col.bankBranch || '', b => b)}
+                      getKey={b => b}
+                      inputClassName={`${inputCls} bg-white`}
+                      renderItem={b => <span className="text-sm text-slate-800">{b}</span>}
+                    />
                   </Field>
                 </>
               )}

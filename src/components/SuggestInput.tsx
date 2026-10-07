@@ -44,7 +44,9 @@ export function SuggestInput<T>({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  useEffect(() => { setActive(0); }, [suggestions]);
+  // Liste içeriği değişince seçimi başa al (her çizimde yeni dizi gelse de)
+  const listKey = suggestions.map(getKey).join('|');
+  useEffect(() => { setActive(0); }, [listKey]);
   useEffect(() => {
     listRef.current?.querySelector<HTMLElement>(`[data-idx="${active}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [active]);
