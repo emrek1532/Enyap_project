@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { Collection, Expense, Quote, QuoteItem } from '../types';
 import { Currency } from './money';
-import { MATERIAL_UNITS, searchMaterials } from './materials';
+import { MATERIAL_UNITS, Material, foldTr, searchMaterials } from './materials';
 import { parseLocally } from './voiceParser';
 
 /** Sesli asistanın sunucudan döndürdüğü yapı (worker/index.ts içindeki şemayla aynı) */
@@ -93,20 +93,55 @@ export async function interpret(text: string, ctx: AiContext): Promise<AiResult>
   return parseLocally(text, ctx);
 }
 
+// Kelimeyi kökü gibi kısalt: "vanası" → "vana", "radyatörü" → "radya" (ekler eşleşmeyi bozmasın)
+const stem = (w: string) => (/^[\d/.,-]+$/.test(w) ? w : w.slice(0, w.length >= 7 ? 5 : 4));
+
+/** Söylenen ifadeye en uygun katalog malzemesini seçer (kelime kökleri + ölçü + marka puanı) */
+async function findMaterial(query: string): Promise<Material | null> {
+  const words = foldTr(query).split(/\s+/).filter(w => w && (w.length >= 2 || /\d/.test(w)));
+  if (!words.length) return null;
+  const stems = [...new Set(words.map(stem))];
+  const weight = (t: string) => (/\d/.test(t) ? 6 : t.length);
+  // Aday listesi: önce tüm köklerle; bulunamazsa birer kelime çıkararak (yanlış duyulan kelime elensin),
+  // en sonda en ayırt edici (uzun) iki / tek kökle ara
+  const byLen = [...stems].sort((a, b) => weight(b) - weight(a));
+  const minusOne = [...byLen].reverse().map(drop => byLen.filter(t => t !== drop).join(' '));
+  const words2 = byLen.filter(t => !/^[\d/.,-]+$/.test(t));
+  const tries = [byLen.join(' '), ...(byLen.length > 2 ? minusOne : []), words2.slice(0, 2).join(' '), words2[0], words2[1]]
+    .filter((q, i, a) => q && a.indexOf(q) === i);
+  const within = <T,>(p: Promise<T>) => Promise.race([p, new Promise<null>(r => setTimeout(() => r(null), 2500))]);
+  const pool = new Map<string, Material>();
+  for (const q of tries) {
+    const r = await within(searchMaterials(q, { limit: 60, field: 'name' })).catch(() => null);
+    r?.items.forEach(m => pool.set(m.code, m));
+    if (pool.size) break; // en çok kelimeyi tutan ilk arama yeterli
+  }
+  if (!pool.size) return null;
+
+  const totalW = stems.reduce((a, t) => a + weight(t), 0);
+  let best: Material | null = null;
+  let bestScore = 0;
+  for (const m of pool.values()) {
+    const hay = foldTr(`${m.name} ${m.code}`);
+    const hayWords = hay.split(/[\s()"',]+/);
+    let sc = 0;
+    for (const t of stems) {
+      if (/^[\d/.,-]+$/.test(t)) { if (hay.includes(t)) sc += weight(t); }
+      else if (hayWords.some(h => h.startsWith(t))) sc += weight(t);
+    }
+    sc = sc / totalW + (m.price > 0 ? 0.05 : 0) - hay.length / 2000; // fiyatlı ve kısa adlar hafif öne
+    if (sc > bestScore) { bestScore = sc; best = m; }
+  }
+  // Söylenenin en az yarısı tutmuyorsa yanlış malzeme koymaktansa boş bırak
+  return bestScore >= 0.5 ? best : null;
+}
+
 /** Söylenen malzemeyi katalogda bulup teklif kalemine çevirir (bulunamazsa söylendiği gibi kalır) */
 async function toQuoteItem(it: AiItem, i: number): Promise<QuoteItem> {
-  let match = null;
-  // Katalog araması en fazla ~2,5 sn sürsün; yavaş bağlantıda form beklemeden açılır
-  const within = <T,>(p: Promise<T>) => Promise.race([p, new Promise<null>(r => setTimeout(() => r(null), 2500))]);
+  let match: Material | null = null;
   try {
-    if (it.code) match = (await within(searchMaterials(it.code, { limit: 1, field: 'code' })))?.items[0] || null;
-    // Tam ifade bulunamazsa son kelimeyi atıp bir kez daha dene ("pex boru kalde" → "pex boru")
-    const words = it.query.split(/\s+/).filter(Boolean);
-    const tries = [words, words.slice(0, -1)].filter(w => w.length && !(w.length === 1 && w[0].length < 4));
-    for (const w of tries) {
-      if (match) break;
-      match = (await within(searchMaterials(w.join(' '), { limit: 1, field: 'all' })))?.items[0] || null;
-    }
+    if (it.code) match = (await searchMaterials(it.code, { limit: 1, field: 'code' })).items[0] || null;
+    if (!match) match = await findMaterial(it.query);
   } catch { /* internet yoksa katalogsuz devam */ }
 
   const quantity = it.quantity && it.quantity > 0 ? it.quantity : 1;
