@@ -4,7 +4,8 @@ import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { TURKISH_CITIES } from '../lib/cities';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
-import { Material, MATERIAL_UNITS, rememberMaterial } from '../lib/materials';
+import { Material, MATERIAL_UNITS, foldTr, rememberMaterial } from '../lib/materials';
+import { SuggestInput } from './SuggestInput';
 import { MaterialPicker } from './MaterialPicker';
 
 interface NewQuoteModalProps {
@@ -46,6 +47,21 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       if (match.city) setCity(match.city);
     }
   };
+  // Müşteri önerileri: tüm kelimeler geçmeli, adı yazılanla başlayanlar önce
+  const customerSuggestions = useMemo(() => {
+    const q = foldTr(customerName.trim());
+    if (!q) return [];
+    const toks = q.split(/\s+/);
+    const exact = customers.find(c => foldTr(c.name) === q);
+    if (exact) return [];
+    return customers
+      .map(c => ({ c, f: foldTr(c.name) }))
+      .filter(x => toks.every(t => x.f.includes(t)))
+      .sort((a, b) => Number(b.f.startsWith(q)) - Number(a.f.startsWith(q)) || a.f.localeCompare(b.f, 'tr'))
+      .slice(0, 8)
+      .map(x => x.c);
+  }, [customers, customerName]);
+
   const [projectLocation, setProjectLocation] = useState(editQuote?.projectLocation || '');
   const [urgency, setUrgency] = useState<UrgencyLevel>(editQuote?.urgency || 'normal');
   const [paymentTerm, setPaymentTerm] = useState(editQuote?.paymentTerm || '');
@@ -93,6 +109,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       const unit = (MATERIAL_UNITS as readonly string[]).includes(m.unit) ? m.unit as QuoteItem['unit'] : 'Adet';
       const target: QuoteItem = {
         ...updated[index],
+        code: m.code,
         productName: m.name || m.code,
         unit,
         unitPrice: m.price || 0,
@@ -105,6 +122,15 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       updated[index] = target;
       return updated;
     });
+  };
+
+  // Koddan malzeme seçilince ad zaten dolar; doğrudan miktara geç
+  const focusQuantity = (input: HTMLInputElement) => {
+    const qty = input.closest('[data-quote-item]')?.querySelector<HTMLInputElement>('input[data-qty]');
+    if (!qty) return false;
+    qty.focus();
+    qty.select();
+    return true;
   };
 
   const handleAddItem = () => {
@@ -256,21 +282,22 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Müşteri / Firma Adı *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Yazmaya başlayın, kayıtlı müşterilerden seçin..."
-                    list="quote-customer-list"
-                    autoComplete="off"
+                  <SuggestInput<Customer>
                     value={customerName}
-                    onChange={(e) => handleCustomerNameChange(e.target.value)}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-sm"
+                    required
+                    placeholder="Yazmaya başlayın, Enter / Tab ile seçin..."
+                    onChange={handleCustomerNameChange}
+                    onPick={(c) => handleCustomerNameChange(c.name)}
+                    suggestions={customerSuggestions}
+                    getKey={(c) => c.id}
+                    inputClassName="w-full p-2 border border-slate-200 rounded-lg text-sm"
+                    renderItem={(c) => (
+                      <span className="flex items-center justify-between gap-2 text-sm">
+                        <span className="font-semibold text-slate-800 truncate">{c.name}</span>
+                        <span className="text-xs text-slate-500 shrink-0">{c.city}</span>
+                      </span>
+                    )}
                   />
-                  <datalist id="quote-customer-list">
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.name}>{c.city}</option>
-                    ))}
-                  </datalist>
                 </div>
 
                 <div>
@@ -359,18 +386,29 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                   {items.map((item, index) => (
-                    <div key={item.id} className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
-                      <div className="flex gap-2">
-                        <div className="flex-1">
+                    <div key={item.id} data-quote-item className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
+                      <div className="flex gap-2 items-start">
+                        <div className="grid grid-cols-[7.5rem_1fr] sm:grid-cols-[9rem_1fr] gap-2 flex-1 min-w-0">
                           <MaterialPicker
+                            field="code"
+                            value={item.code || ''}
+                            placeholder="Kod"
+                            focusAfterPick={focusQuantity}
+                            onChange={(text) => handleItemChange(index, 'code', text)}
+                            onPick={(m) => handlePickMaterial(index, m)}
+                          />
+                          <MaterialPicker
+                            field="name"
                             value={item.productName}
                             required={!isEdit || items.length > 1}
+                            placeholder="Malzeme adı (Örn: köşe radyatör vana 1/2)"
                             onChange={(text) => handleItemChange(index, 'productName', text)}
                             onPick={(m) => handlePickMaterial(index, m)}
                           />
                         </div>
                         <button
                           type="button"
+                          tabIndex={-1}
                           onClick={() => handleRemoveItem(index)}
                           className="text-slate-400 hover:text-rose-600 p-1"
                           title="Sil"
@@ -388,6 +426,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                             step="any"
                             inputMode="decimal"
                             placeholder="1"
+                            data-qty
                             value={item.quantity || ''}
                             onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
                             onFocus={(e) => e.target.select()}

@@ -13,6 +13,9 @@ export interface Material {
   updatedAt?: string;
 }
 
+/** Arama hangi alanda: ad+kod birlikte, ya da sadece kod */
+export type MaterialField = 'all' | 'name' | 'code';
+
 export const MATERIAL_UNITS = ['Adet', 'Metre', 'Takım', 'Paket', 'Kg', 'Set'] as const;
 
 const fromRow = (r: any): Material => ({
@@ -26,12 +29,13 @@ const fromRow = (r: any): Material => ({
   updatedAt: r.updated_at ?? undefined,
 });
 
-export async function searchMaterials(q: string, opts: { limit?: number; offset?: number; onlyPriced?: boolean } = {}) {
+export async function searchMaterials(q: string, opts: { limit?: number; offset?: number; onlyPriced?: boolean; field?: MaterialField } = {}) {
   const { data, error } = await supabase.rpc('search_materials', {
     q,
     lim: opts.limit ?? 20,
     off: opts.offset ?? 0,
     only_priced: opts.onlyPriced ?? false,
+    field: opts.field ?? 'all',
   });
   if (error) throw error;
   const rows = (data || []) as any[];
@@ -87,11 +91,14 @@ export const foldTr = (s: string) =>
   s.replace(/[İIı]/g, 'i').replace(/[Şş]/g, 's').replace(/[Ğğ]/g, 'g').replace(/[Üü]/g, 'u')
     .replace(/[Öö]/g, 'o').replace(/[Çç]/g, 'c').toLowerCase();
 
-export function searchRecent(q: string, limit = 8): Material[] {
+export function searchRecent(q: string, field: MaterialField = 'all', limit = 8): Material[] {
   const toks = foldTr(q).split(/\s+/).filter(Boolean);
   if (!toks.length) return [];
   return getRecentMaterials()
-    .filter(m => { const s = foldTr(`${m.code} ${m.name}`); return toks.every(t => s.includes(t)); })
+    .filter(m => {
+      const s = foldTr(field === 'code' ? m.code : field === 'name' ? m.name : `${m.code} ${m.name}`);
+      return toks.every(t => s.includes(t));
+    })
     .slice(0, limit);
 }
 
