@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Mic, MicOff, Send, Sparkles, X } from 'lucide-react';
-import { AiContext, AiError, AiResult, interpret, speak } from '../lib/ai';
+import { AiContext, AiError, AiResult, interpret, speak, transcribeAndParse, voiceAvailable } from '../lib/ai';
+import { RecordingHandle, canRecord, startRecording } from '../lib/recorder';
 import { bestTranscript } from '../lib/voiceParser';
 
 // Tarayıcının ses tanıma arayüzü (Chrome / Android'de webkit önekli)
@@ -36,6 +37,11 @@ export const VoiceAssistant: React.FC<{
   const finalRef = useRef('');
   const autoSend = useRef(false);
   const silenceTimer = useRef<number | undefined>(undefined);
+  // Sunucu modu: ses kaydedilip Cloudflare'de (Whisper + yapay zeka) çözülür — telefonun ses tanımasından çok daha iyi
+  const serverMode = useRef<boolean | null>(null);
+  const recording = useRef<RecordingHandle | null>(null);
+  const [level, setLevel] = useState(0);
+  const [stage, setStage] = useState('');
 
   // Dinleme oturumu: tarayıcı her duraksamada tanımayı bitirir; biz kullanıcı susana kadar
   // yeniden başlatıp parçaları birleştiririz (Android'deki tekrar eden sonuçlar da böylece oluşmaz)
@@ -106,13 +112,47 @@ export const VoiceAssistant: React.FC<{
   };
 
   const stopRec = () => {
+    if (recording.current) { recording.current.stop(); return; }
     session.current.active = false;
     try { recRef.current?.stop(); } catch { finish(); }
   };
 
   useEffect(() => () => { session.current.active = false; try { recRef.current?.abort(); } catch { /* */ } }, []);
 
+  const startServerRec = async () => {
+    setError('');
+    try {
+      const h = await startRecording({ silenceMs: 2200, firstWaitMs: 9000, onLevel: setLevel });
+      recording.current = h;
+      setListening(true);
+      const audio = await h.result;
+      recording.current = null;
+      setListening(false); setLevel(0);
+      if (!audio) { if (autoSend.current) setError('Ses algılanmadı, mikrofona dokunup tekrar konuşun.'); autoSend.current = false; return; }
+      if (!autoSend.current) return; // kapatıldı / iptal
+      autoSend.current = false;
+      setBusy(true); setStage('Ses yazıya çevriliyor…');
+      try {
+        const { text: heard, result } = await transcribeAndParse(audio, context());
+        setText(heard); finalRef.current = heard;
+        setStage('Form hazırlanıyor…');
+        await handleResult(result);
+      } catch (err) {
+        const msg = err instanceof AiError ? err.message : 'Beklenmeyen bir hata oluştu.';
+        setError(msg); speak(msg);
+        // Sunucu tarafı kullanılamıyorsa telefonun kendi ses tanımasına dön
+        if (err instanceof AiError && ['quota', 'no_ai', 'stt'].includes(err.code)) serverMode.current = false;
+      } finally {
+        setBusy(false); setStage('');
+      }
+    } catch {
+      setListening(false);
+      setError('Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.');
+    }
+  };
+
   const startRec = () => {
+    if (serverMode.current) { autoSend.current = true; startServerRec(); return; }
     if (!RecognitionCtor) { setError('Bu tarayıcı sesle yazmayı desteklemiyor. Chrome kullanın veya metni yazın.'); return; }
     setError('');
     // Kutuda yazan metin varsa yeni söylenenler sonuna eklenir
@@ -130,6 +170,13 @@ export const VoiceAssistant: React.FC<{
     if (listening) { stopRec(); } else { startRec(); }
   };
 
+  const handleResult = async (r: AiResult) => {
+    speak(r.reply);
+    if (r.intent === 'unknown') { setError(r.reply || 'Ne yapmak istediğinizi anlayamadım. Örnek cümlelere bakın.'); return; }
+    await onResult(r);
+    setOpen(false); setText(''); finalRef.current = '';
+  };
+
   const submit = async (value = text) => {
     const t = value.trim();
     if (!t || busy) return;
@@ -139,11 +186,7 @@ export const VoiceAssistant: React.FC<{
     if (listening) { try { recRef.current?.abort(); } catch { /* */ } setListening(false); }
     setBusy(true); setError('');
     try {
-      const r = await interpret(t, context());
-      speak(r.reply);
-      if (r.intent === 'unknown') { setError(r.reply || 'Ne yapmak istediğinizi anlayamadım.'); return; }
-      await onResult(r);
-      setOpen(false); setText(''); finalRef.current = '';
+      await handleResult(await interpret(t, context()));
     } catch (err) {
       const msg = err instanceof AiError ? err.message : 'Beklenmeyen bir hata oluştu.';
       setError(msg); speak(msg);
@@ -154,10 +197,13 @@ export const VoiceAssistant: React.FC<{
 
   const openPanel = () => {
     setOpen(true); setError(''); setText(''); finalRef.current = '';
-    // Açılır açılmaz dinlemeye başla
-    window.setTimeout(startRec, 150);
+    // Açılır açılmaz dinlemeye başla (sunucu ses tanıması varsa onu kullan)
+    const go = (server: boolean) => { serverMode.current = server; window.setTimeout(startRec, 150); };
+    if (serverMode.current !== null) go(serverMode.current);
+    else if (!canRecord()) go(false);
+    else voiceAvailable().then(go, () => go(false));
   };
-  const close = () => { autoSend.current = false; session.current.active = false; window.clearTimeout(silenceTimer.current); try { recRef.current?.abort(); } catch { /* */ } setOpen(false); };
+  const close = () => { autoSend.current = false; recording.current?.cancel(); recording.current = null; session.current.active = false; window.clearTimeout(silenceTimer.current); try { recRef.current?.abort(); } catch { /* */ } setOpen(false); };
 
   return (
     <>
@@ -191,8 +237,13 @@ export const VoiceAssistant: React.FC<{
                   {busy ? <Loader2 className="w-10 h-10 animate-spin" /> : listening ? <MicOff className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
                 </button>
                 <p className="text-sm font-semibold text-slate-700">
-                  {busy ? 'Anlıyorum, form hazırlanıyor…' : listening ? 'Dinliyorum… bitince 3 sn susun ya da dokunun' : 'Konuşmak için dokunun'}
+                  {busy ? (stage || 'Anlıyorum, form hazırlanıyor…') : listening ? 'Dinliyorum… bitince 2 sn susun ya da dokunun' : 'Konuşmak için dokunun'}
                 </p>
+                {listening && serverMode.current && (
+                  <div className="w-40 h-1.5 rounded-full bg-slate-100 overflow-hidden" aria-hidden>
+                    <div className="h-full bg-rose-500 transition-[width] duration-75" style={{ width: `${Math.round(level * 100)}%` }} />
+                  </div>
+                )}
               </div>
 
               <div>

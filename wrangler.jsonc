@@ -9,6 +9,8 @@
   "build": {
     "command": "npm run build"
   },
+  // Cloudflare Workers AI: ses tanıma (Whisper) ve metni anlama (Llama), günlük ücretsiz kota ile
+  "ai": { "binding": "AI" },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

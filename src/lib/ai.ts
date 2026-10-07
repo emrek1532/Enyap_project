@@ -63,20 +63,101 @@ export async function parseSpeech(text: string, ctx: AiContext): Promise<AiResul
   }
   const body = await res.json().catch(() => null);
   if (!res.ok || !body?.result) throw new AiError(body?.error || 'unknown', body?.message || 'Yapay zeka şu an cevap veremedi.');
-  return body.result as AiResult;
+  return normalize(body.result);
+}
+
+/** Sesi sunucuya gönderir: Whisper yazıya çevirir, yapay zeka anlar. Anlama başarısızsa yerel çözücü devreye girer. */
+export async function transcribeAndParse(audio: string, ctx: AiContext): Promise<{ text: string; result: AiResult }> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  let res: Response;
+  try {
+    res = await fetch('/api/ai/voice', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ audio, today: todayStr(), ...ctx }),
+    });
+  } catch {
+    throw new AiError('offline', 'İnternet bağlantısı yok.');
+  }
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.text) throw new AiError(body?.error || 'unknown', body?.message || 'Ses yazıya çevrilemedi.');
+  const text = String(body.text);
+  let result: AiResult | null = null;
+  try { result = body.result ? normalize(body.result) : null; } catch { result = null; }
+  // Yapay zeka cevabı yoksa ya da hiçbir şey anlamadıysa cihazdaki çözücüyle dene
+  if (!result || result.intent === 'unknown') {
+    const local = parseLocally(text, ctx);
+    if (local.intent !== 'unknown' || !result) result = local;
+  }
+  return { text, result };
+}
+
+// ---- Yapay zeka cevabını uygulamanın beklediği biçime getir (eksik / hatalı alanlara karşı) ----
+const CURRENCIES = ['TRY', 'USD', 'EUR'];
+const TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
+const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+const nOrNull = (v: unknown) => {
+  const x = typeof v === 'string' ? Number(v.replace(',', '.')) : v;
+  return typeof x === 'number' && Number.isFinite(x) ? x : null;
+};
+const cur = (v: unknown) => { const c = s(v)?.toUpperCase(); return c && CURRENCIES.includes(c) ? (c as Currency) : null; };
+
+function normalize(r: any): AiResult {
+  const intent = ['quote', 'collection', 'expense'].includes(r?.intent) ? r.intent : 'unknown';
+  const q = r?.quote, c = r?.collection, e = r?.expense;
+  const unitOf = (u: unknown) => {
+    const x = s(u);
+    if (!x) return null;
+    const hit = (MATERIAL_UNITS as readonly string[]).find(m => m.toLocaleLowerCase('tr') === x.toLocaleLowerCase('tr'));
+    return hit || null;
+  };
+  return {
+    intent,
+    reply: s(r?.reply) || '',
+    quote: intent === 'quote' && q ? {
+      customerName: s(q.customerName),
+      city: s(q.city),
+      paymentTerm: TERMS.includes(String(q.paymentTerm || '').toLocaleUpperCase('tr')) ? String(q.paymentTerm).toLocaleUpperCase('tr') : null,
+      notes: s(q.notes),
+      items: (Array.isArray(q.items) ? q.items : []).filter((it: any) => s(it?.query)).map((it: any) => ({
+        query: s(it.query)!,
+        label: s(it.query)!.toLocaleUpperCase('tr'),
+        code: s(it.code),
+        quantity: nOrNull(it.quantity),
+        unit: unitOf(it.unit),
+        unitPrice: nOrNull(it.unitPrice),
+        currency: cur(it.currency),
+        discount: nOrNull(it.discount),
+      })),
+    } : null,
+    collection: intent === 'collection' && c ? {
+      customerName: s(c.customerName), amount: nOrNull(c.amount), currency: cur(c.currency), method: s(c.method),
+      date: s(c.date), bankName: s(c.bankName), bankBranch: s(c.bankBranch), checkNo: s(c.checkNo),
+      dueDate: s(c.dueDate), description: s(c.description),
+    } : null,
+    expense: intent === 'expense' && e ? {
+      category: s(e.category), amount: nOrNull(e.amount), currency: cur(e.currency), method: s(e.method),
+      region: s(e.region), date: s(e.date), description: s(e.description),
+    } : null,
+  };
 }
 
 // Sunucuda yapay zeka anahtarı var mı? (yoksa ücretsiz yerel çözücü kullanılır)
-let aiReady: Promise<boolean> | null = null;
-const checkAiReady = () => {
-  if (!aiReady) {
-    aiReady = fetch('/api/ai/status')
-      .then(r => (r.ok ? r.json() : { ready: false }))
-      .then(b => !!b.ready)
-      .catch(() => false);
+let status: Promise<{ ready: boolean; voice: boolean }> | null = null;
+const getStatus = () => {
+  if (!status) {
+    status = fetch('/api/ai/status')
+      .then(r => (r.ok ? r.json() : {}))
+      .then((b: any) => ({ ready: !!b.ready, voice: !!b.voice }))
+      .catch(() => ({ ready: false, voice: false }));
   }
-  return aiReady;
+  return status;
 };
+let aiReady: Promise<boolean> | null = null;
+const checkAiReady = () => (aiReady ||= getStatus().then(st => st.ready));
+/** Sunucuda ses tanıma (Whisper) var mı? */
+export const voiceAvailable = () => getStatus().then(st => st.voice);
 
 /**
  * Konuşmayı anlar: yapay zeka anahtarı tanımlıysa Claude, değilse cihazda çalışan ücretsiz çözücü.
