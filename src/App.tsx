@@ -599,6 +599,7 @@ function Portal({ session }: { session: Session }) {
         <NewQuoteModal
           currentRole={currentRole}
           customers={data.customers || []}
+          quotes={data.quotes}
           initialCustomer={quoteCustomer}
           onSaveQuote={handleSaveQuote}
           onClose={() => {
