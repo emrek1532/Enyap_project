@@ -34,8 +34,33 @@ interface Totals { gross: number; discount: number; net: number; vat: number; gr
 const ROW_TOP = 71.2;
 const ROW_PITCH = 5.04;
 const ROWS_PER_PAGE = 28;
-/** Ürün tanımı sütununa (86 mm) bir satırda sığan yaklaşık karakter sayısı */
+/** Ürün tanımı sütununun genişliği (mm) */
+const NAME_WIDTH_MM = 86;
+/** Ölçüm yapılamazsa (eski tarayıcı) bir satıra sığan yaklaşık karakter sayısı */
 const NAME_CHARS_PER_ROW = 52;
+
+/**
+ * Ürün adının 86 mm'lik sütunda kaç satır tutacağını gerçek yazı genişliğiyle hesaplar
+ * (karakter sayısıyla tahmin, sığan uzun adlarda boş satır bırakıyordu).
+ */
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+function nameRows(name: string): number {
+  if (measureCtx === undefined) {
+    measureCtx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+    if (measureCtx) measureCtx.font = "8pt Arial, Arimo, 'Liberation Sans', Helvetica, sans-serif";
+  }
+  if (!measureCtx) return Math.max(1, Math.ceil(name.length / NAME_CHARS_PER_ROW));
+  // Yazı tipi farklarına karşı küçük pay bırak
+  const maxPx = (NAME_WIDTH_MM / 25.4) * 96 * 0.98;
+  let rows = 1;
+  let line = '';
+  for (const word of name.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && measureCtx.measureText(next).width > maxPx) { rows++; line = word; }
+    else line = next;
+  }
+  return rows;
+}
 const VAT_RATE = 0.2;
 
 /** Kuruşa yuvarlama (0,795 → 0,80; kayan nokta hatası olmadan) */
@@ -170,7 +195,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
         discAmount,
         net: round2(qty * price - qty * price * disc / 100),
         cur: curOf(it.currency || quote.currency),
-        rows: Math.max(1, Math.ceil(name.length / NAME_CHARS_PER_ROW)),
+        rows: nameRows(name),
       };
     });
   }, [quote]);
@@ -214,7 +239,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
       return (
         <React.Fragment key={l.no}>
           <T r={14.7} y={y}>{l.no})</T>
-          <T x={16.9} y={y - (ROW_PITCH - 2.82) / 2} w={86} lh={ROW_PITCH}>{l.name}</T>
+          <T x={16.9} y={y - (ROW_PITCH - 2.82) / 2} w={NAME_WIDTH_MM} lh={ROW_PITCH}>{l.name}</T>
           <T r={111.7} y={y}>{num(l.qty)}</T>
           <T x={115} y={y}>{l.unit}</T>
           <T r={138.1} y={y}>{num(l.price)}</T>
