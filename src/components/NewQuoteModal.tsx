@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ListPlus, Plus, Trash2 } from 'lucide-react';
 import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { TURKISH_CITIES } from '../lib/cities';
@@ -142,22 +142,53 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     return true;
   };
 
+  const blankItem = (currency?: QuoteItem['currency']): QuoteItem => ({
+    id: `it-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    productName: '',
+    quantity: 1,
+    unit: 'Adet',
+    unitPrice: 0,
+    discount: 0,
+    vatRate: 20,
+    totalPrice: 0,
+    currency: currency || 'TRY',
+  });
+
+  // Yeni kalem bir öncekinin para birimiyle başlar
   const handleAddItem = () => {
-    setItems((prev) => [
-      ...prev,
-      {
-        id: `it-${Date.now()}`,
-        productName: '',
-        quantity: 1,
-        unit: 'Adet',
-        unitPrice: 0,
-        discount: 0,
-        vatRate: 20,
-        totalPrice: 0,
-        // Yeni kalem bir öncekinin para birimiyle başlar
-        currency: prev[prev.length - 1]?.currency || 'TRY',
-      }
-    ]);
+    setItems((prev) => [...prev, blankItem(prev[prev.length - 1]?.currency)]);
+  };
+
+  // ---- Kalem sırası: yukarı / aşağı taşı, araya ekle ----
+  const pendingFocus = useRef<{ id: string; sel: string; pos?: number } | null>(null);
+  const focusItemLater = (id: string, sel = 'input') => { pendingFocus.current = { id, sel }; };
+  useEffect(() => {
+    const p = pendingFocus.current;
+    if (!p) return;
+    pendingFocus.current = null;
+    const row = document.querySelector<HTMLElement>(`#newQuoteForm [data-item-id="${p.id}"]`);
+    row?.scrollIntoView({ block: 'nearest' });
+    const el = p.pos !== undefined
+      ? row?.querySelectorAll<HTMLElement>('input, select')[p.pos]
+      : row?.querySelector<HTMLElement>(p.sel);
+    el?.focus();
+  }, [items]);
+
+  const moveItem = (index: number, dir: -1 | 1, sel?: string) => {
+    const to = index + dir;
+    if (to < 0 || to >= items.length) return;
+    focusItemLater(items[index].id, sel);
+    setItems(prev => {
+      const next = [...prev];
+      [next[index], next[to]] = [next[to], next[index]];
+      return next;
+    });
+  };
+
+  const insertItemAfter = (index: number) => {
+    const it = blankItem(items[index]?.currency);
+    focusItemLater(it.id);
+    setItems(prev => [...prev.slice(0, index + 1), it, ...prev.slice(index + 1)]);
   };
 
   // ---- Klavye ile kalem girişi ----
@@ -178,7 +209,42 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     window.setTimeout(() => notesRef.current?.focus(), 0);
   };
 
+  /** Kalem satırı araçları: taşı, araya ekle, sil */
+  const rowTools = (index: number) => (
+    <>
+      <button type="button" tabIndex={-1} data-move="up" onClick={() => moveItem(index, -1, '[data-move="up"]')} disabled={index === 0}
+        className="p-1 text-slate-400 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Yukarı taşı (Alt+↑)">
+        <ArrowUp className="w-4 h-4" />
+      </button>
+      <button type="button" tabIndex={-1} data-move="down" onClick={() => moveItem(index, 1, '[data-move="down"]')} disabled={index === items.length - 1}
+        className="p-1 text-slate-400 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Aşağı taşı (Alt+↓)">
+        <ArrowDown className="w-4 h-4" />
+      </button>
+      <button type="button" tabIndex={-1} onClick={() => insertItemAfter(index)}
+        className="p-1 text-slate-400 hover:text-emerald-600" title="Altına yeni kalem ekle">
+        <ListPlus className="w-4 h-4" />
+      </button>
+      <button type="button" tabIndex={-1} onClick={() => handleRemoveItem(index)} disabled={items.length <= 1}
+        className="p-1 text-slate-400 hover:text-rose-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Sil">
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </>
+  );
+
   const handleItemsKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Alt+↑ / Alt+↓: bulunduğun kalemi taşı (imleç aynı kutuda kalır)
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      const t = e.target as HTMLElement;
+      const rowEls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[data-quote-item]'));
+      const ri = rowEls.findIndex(r => r.contains(t));
+      if (ri < 0) return;
+      e.preventDefault();
+      const pos = Array.from(rowEls[ri].querySelectorAll<HTMLElement>('input, select')).indexOf(t);
+      // Taşındıktan sonra aynı kutuya (pos. sıradaki alan) geri odaklan
+      moveItem(ri, e.key === 'ArrowUp' ? -1 : 1, undefined);
+      if (pos >= 0 && pendingFocus.current) pendingFocus.current.pos = pos;
+      return;
+    }
     if (e.key !== 'Tab' || e.shiftKey || e.ctrlKey || e.altKey) return;
     const target = e.target as HTMLElement;
     const rowEls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[data-quote-item]'));
@@ -427,7 +493,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                     Talep Edilen Malzemeler ({items.filter(it => it.productName.trim()).length} Kalem)
                   </label>
                   <span className="hidden sm:inline text-[10px] text-slate-400 normal-case">
-                    Son kutuda Tab → yeni kalem · Ctrl+Enter → Not / Kaydet
+                    Son kutuda Tab → yeni kalem · Alt+↑↓ → taşı · Ctrl+Enter → Not / Kaydet
                   </span>
                   <button
                     type="button"
@@ -441,8 +507,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto" onKeyDownCapture={handleItemsKeyDown}>
                   {items.map((item, index) => (
-                    <div key={item.id} data-quote-item className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
+                    <div key={item.id} data-quote-item data-item-id={item.id} className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
                       <div className="flex gap-2 items-start">
+                        <span className="mt-1.5 w-5 shrink-0 text-right text-[11px] font-bold text-slate-400 tabular-nums">{index + 1}</span>
                         <div className="grid grid-cols-[7.5rem_1fr] sm:grid-cols-[9rem_1fr] gap-2 flex-1 min-w-0">
                           <MaterialPicker
                             field="code"
@@ -463,17 +530,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                             />
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          tabIndex={-1}
-                          onClick={() => handleRemoveItem(index)}
-                          className="text-slate-400 hover:text-rose-600 p-1"
-                          title="Sil"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="hidden sm:flex items-center shrink-0">{rowTools(index)}</div>
                       </div>
 
+                      <div className="flex sm:hidden items-center justify-end -mt-1">{rowTools(index)}</div>
                       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-xs">
                         <div>
                           <label className="block text-[10px] text-slate-500">Miktar</label>
