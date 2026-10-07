@@ -348,6 +348,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim()) return;
+    if (!paymentTerm && !isEdit) return; // yeni teklifte vade zorunlu (tarayıcı da uyarır)
 
     const filledItems = items
       .filter(it => it.productName.trim().length > 0)
@@ -454,7 +455,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             )}
 
             {/* Teklif bilgileri */}
-            <div className="bg-white border border-slate-200 rounded-md p-2.5 grid grid-cols-2 sm:grid-cols-12 gap-x-2 gap-y-2">
+            <div className="bg-white border border-slate-200 rounded-md p-2.5 grid grid-cols-2 grid-flow-dense sm:grid-flow-row sm:grid-cols-12 gap-x-2 gap-y-2">
               <div className="col-span-1 sm:col-span-2">
                 <label className="ql">Teklif No</label>
                 <input
@@ -465,13 +466,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   className={`qf font-mono ${duplicateNo ? '!border-amber-400' : ''}`}
                   title={typedNo ? 'Elle girildi' : isEdit ? 'Boş bırakılırsa değişmez' : 'Boş bırakılırsa otomatik verilir'}
                 />
-              </div>
-              <div className="col-span-1 sm:col-span-2 sm:order-last">
-                <label className="ql">Vade</label>
-                <select value={paymentTerm} onChange={(e) => setPaymentTerm(e.target.value)} className="qf">
-                  <option value="">Seçiniz</option>
-                  {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
               </div>
               <div className="col-span-2 sm:col-span-5">
                 <label className="ql">Müşteri / Firma *</label>
@@ -508,7 +502,14 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   {cityOptions.map((c) => <option key={c} value={c} />)}
                 </datalist>
               </div>
-              <div className="col-span-1 sm:col-span-2 sm:order-last">
+              <div className="col-span-1 sm:col-span-2 ">
+                <label className="ql">Vade{isEdit ? '' : ' *'}</label>
+                <select required={!isEdit} value={paymentTerm} onChange={(e) => setPaymentTerm(e.target.value)} className="qf">
+                  <option value="">Seçiniz</option>
+                  {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="col-span-1 sm:col-span-2">
                 <label className="ql">Aciliyet</label>
                 <select value={urgency} onChange={(e) => setUrgency(e.target.value as UrgencyLevel)} className="qf">
                   <option value="acil">Acil</option>
@@ -517,7 +518,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   <option value="dusuk">Düşük</option>
                 </select>
               </div>
-              <div className="col-span-2 sm:col-span-10 sm:order-last">
+              <div className="col-span-2 sm:col-span-10">
                 <label className="ql">Proje / Şantiye</label>
                 <input
                   type="text"
