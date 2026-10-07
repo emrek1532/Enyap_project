@@ -39,11 +39,13 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   // Düzenlemede mevcut teklif, sesli taslakta taslak; ikisi de yoksa boş form
   const init: Partial<Quote> | null = editQuote || draft;
   // Form fields
-  // Yeni teklifte numara otomatik (EK-2026-0001); düzenlemede mevcut numara korunur
-  const quoteNumber = useMemo(
-    () => (editQuote ? editQuote.quoteNumber : nextQuoteNumber(quotes)),
-    [editQuote, quotes],
+  // Teklif no: kullanıcı girerse o kullanılır; boş bırakılırsa kayıtta otomatik verilir (EK-2026-0001)
+  const autoNumber = useMemo(() => nextQuoteNumber(quotes), [quotes]);
+  const [quoteNoInput, setQuoteNoInput] = useState(
+    editQuote && editQuote.quoteNumber && editQuote.quoteNumber !== '-' ? editQuote.quoteNumber : '',
   );
+  const typedNo = quoteNoInput.trim();
+  const duplicateNo = !!typedNo && quotes.some(q => q.id !== editQuote?.id && (q.quoteNumber || '').trim().toLocaleUpperCase('tr') === typedNo.toLocaleUpperCase('tr'));
   const [customerName, setCustomerName] = useState(init?.customerName || initialCustomer?.name || '');
   const [city, setCity] = useState(init?.city || initialCustomer?.city || 'Isparta');
   // Şehir önerileri: 81 il + müşteri kayıtlarındaki şehirler
@@ -307,6 +309,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       const keepAmounts = filledItems.length === 0 && (editQuote.items?.length || 0) === 0;
       onSaveQuote({
         ...editQuote,
+        quoteNumber: typedNo || editQuote.quoteNumber, // düzenlemede boş bırakılırsa eski numara kalır
         customerName: customerName.trim(),
         city: city.trim(),
         projectLocation: projectLocation.trim() || undefined,
@@ -334,8 +337,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
     const newQuote: Quote = {
       id: quoteId,
-      // Kaydetme anında tekrar hesapla (bu arada başka teklif eklendiyse çakışmasın)
-      quoteNumber: nextQuoteNumber(quotes),
+      // Girilen numara; boşsa kaydetme anında otomatik (bu arada başka teklif eklendiyse çakışmasın)
+      quoteNumber: typedNo || nextQuoteNumber(quotes),
       customerName: customerName.trim(),
       customerPhone: '',
       city: city.trim(),
@@ -396,10 +399,19 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Teklif No
                   </label>
-                  <div className="w-full p-2 border border-slate-200 rounded-lg text-sm font-mono bg-slate-50 text-slate-700 flex items-center justify-between gap-2">
-                    <span>{quoteNumber}</span>
-                    <span className="text-[10px] font-sans text-slate-400">{isEdit ? 'değiştirilemez' : 'otomatik'}</span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={quoteNoInput}
+                      onChange={e => setQuoteNoInput(e.target.value)}
+                      placeholder={isEdit ? (editQuote!.quoteNumber || '-') : autoNumber}
+                      className={`w-full p-2 pr-24 border rounded-lg text-sm font-mono bg-white text-slate-800 placeholder:text-slate-400 ${duplicateNo ? 'border-amber-400' : 'border-slate-300'}`}
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">
+                      {typedNo ? 'elle girildi' : isEdit ? 'değişmez' : 'boşsa otomatik'}
+                    </span>
                   </div>
+                  {duplicateNo && <p className="text-[11px] text-amber-700 mt-1">Bu teklif no başka bir teklifte de var.</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">

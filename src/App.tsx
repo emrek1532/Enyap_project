@@ -54,6 +54,7 @@ import { VoiceAssistant } from './components/VoiceAssistant';
 import { AiResult, collectionDraftFrom, expenseDraftFrom, quoteDraftFrom } from './lib/ai';
 import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './components/LedgerPanel';
 import { CustomersPanel } from './components/CustomersPanel';
+import { PdfQuoteImport } from './components/PdfQuoteImport';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -144,6 +145,7 @@ function Portal({ session }: { session: Session }) {
 
   // Modals state
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
+  const [pdfImportOpen, setPdfImportOpen] = useState(false);
   const [quoteCustomer, setQuoteCustomer] = useState<Customer | null>(null);
   // Sesli asistanın hazırladığı taslaklar
   const [quoteDraft, setQuoteDraft] = useState<Partial<Quote> | null>(null);
@@ -557,6 +559,7 @@ function Portal({ session }: { session: Session }) {
             quotes={data.quotes}
             currentRole={currentRole}
             onOpenNewQuote={() => setIsNewQuoteOpen(true)}
+            onImportPdf={() => setPdfImportOpen(true)}
             onUpdateQuoteStatus={handleUpdateQuoteStatus}
             onDeleteQuote={handleDeleteQuote}
             onPrintQuote={setPrintableQuote}
@@ -656,6 +659,18 @@ function Portal({ session }: { session: Session }) {
         />
       )}
 
+      {/* Muhasebe programının teklif PDF'lerini içe aktar */}
+      {pdfImportOpen && (
+        <PdfQuoteImport
+          quotes={data.quotes}
+          customers={data.customers || []}
+          currentRole={currentRole}
+          onCreate={handleSaveQuote}
+          onUpdate={handleUpdateQuote}
+          onClose={() => setPdfImportOpen(false)}
+        />
+      )}
+
       {/* Teklif düzenleme / revize */}
       {editingQuote && (
         <NewQuoteModal
@@ -663,6 +678,7 @@ function Portal({ session }: { session: Session }) {
           currentRole={currentRole}
           customers={data.customers || []}
           editQuote={editingQuote}
+          quotes={data.quotes}
           onSaveQuote={handleUpdateQuote}
           onClose={() => setEditingQuote(null)}
         />
