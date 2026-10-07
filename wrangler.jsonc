@@ -3,12 +3,16 @@
   // Cloudflare Workers Builds bu adı kullanır; Cloudflare'deki Worker adıyla aynı olmalı
   "name": "enyap-project",
   "compatibility_date": "2026-09-05",
+  // /api/* istekleri (yapay zeka) worker/index.ts'de karşılanır, gerisi statik site
+  "main": "worker/index.ts",
   // `wrangler deploy` önce siteyi derler, sonra dist/ klasörünü statik site olarak yayınlar
   "build": {
     "command": "npm run build"
   },
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
   }
 }
