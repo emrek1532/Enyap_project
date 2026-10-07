@@ -64,6 +64,7 @@ export function SuggestInput<T>({
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // Ctrl+Enter vb. formun kısayolları
     if (!visible || suggestions.length === 0) {
       if (e.key === 'Enter') { e.preventDefault(); focusNextField(e.currentTarget); }
       return;
