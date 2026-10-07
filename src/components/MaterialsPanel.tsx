@@ -12,6 +12,7 @@ const fmtStock = (v?: number | null) => (v == null ? '-' : v.toLocaleString('tr-
 
 export const MaterialsPanel: React.FC = () => {
   const [query, setQuery] = useState('');
+  const [codeQuery, setCodeQuery] = useState('');
   const [onlyPriced, setOnlyPriced] = useState(false);
   const [items, setItems] = useState<Material[]>([]);
   const [total, setTotal] = useState(0);
@@ -26,7 +27,9 @@ export const MaterialsPanel: React.FC = () => {
     const id = ++reqId.current;
     setLoading(true);
     try {
-      const r = await searchMaterials(query.trim(), { limit: PAGE, offset, onlyPriced });
+      // Kod kutusu doluysa sadece kodda, değilse adda ve kodda aranır
+      const byCode = codeQuery.trim() !== '';
+      const r = await searchMaterials(byCode ? codeQuery.trim() : query.trim(), { limit: PAGE, offset, onlyPriced, field: byCode ? 'code' : 'all' });
       if (id !== reqId.current) return;
       setItems(prev => (append ? [...prev, ...r.items] : r.items));
       setTotal(r.total);
@@ -44,7 +47,7 @@ export const MaterialsPanel: React.FC = () => {
     const t = window.setTimeout(() => load(0, false), 250);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, onlyPriced, reload]);
+  }, [query, codeQuery, onlyPriced, reload]);
 
   const handleDelete = async (code: string) => {
     try {
@@ -78,15 +81,25 @@ export const MaterialsPanel: React.FC = () => {
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3 sm:p-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="grid grid-cols-[8.5rem_1fr] sm:grid-cols-[11rem_1fr] gap-2 flex-1 min-w-0">
             <input
               type="search"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Malzeme adı veya kodu ara (Örn: kalde vana 1/2)"
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-200 text-sm"
+              value={codeQuery}
+              onChange={e => { setCodeQuery(e.target.value); if (e.target.value) setQuery(''); }}
+              placeholder="Kod ara"
+              aria-label="Kod ara"
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-mono uppercase placeholder:normal-case placeholder:font-sans"
             />
+            <div className="relative min-w-0">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="search"
+                value={query}
+                onChange={e => { setQuery(e.target.value); if (e.target.value) setCodeQuery(''); }}
+                placeholder="Malzeme adı ara (Örn: kalde vana 1/2)"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-200 text-sm"
+              />
+            </div>
           </div>
           <div className="flex gap-2">
             <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 whitespace-nowrap cursor-pointer">
@@ -103,7 +116,7 @@ export const MaterialsPanel: React.FC = () => {
         </div>
         <div className="text-xs text-slate-500 flex items-center gap-2">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          <span>{total.toLocaleString('tr-TR')} malzeme{query.trim() ? ' bulundu' : ''}</span>
+          <span>{total.toLocaleString('tr-TR')} malzeme{query.trim() || codeQuery.trim() ? ' bulundu' : ''}</span>
         </div>
         {error && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
       </div>

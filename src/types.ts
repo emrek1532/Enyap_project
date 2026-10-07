@@ -16,6 +16,8 @@ export type RequestChannel = 'whatsapp' | 'telefon' | 'ziyaret' | 'email';
 
 export interface QuoteItem {
   id: string;
+  /** Fiyat kataloğundaki malzeme kodu (varsa) */
+  code?: string;
   productName: string;
   quantity: number;
   unit: 'Adet' | 'Metre' | 'Takım' | 'Paket' | 'Kg' | 'Set';
