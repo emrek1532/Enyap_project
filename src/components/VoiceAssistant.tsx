@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Mic, MicOff, Send, Sparkles, X } from 'lucide-react';
 import { AiContext, AiError, AiResult, interpret, speak } from '../lib/ai';
+import { mergeTranscripts } from '../lib/voiceParser';
 
 // Tarayıcının ses tanıma arayüzü (Chrome / Android'de webkit önekli)
 type Recognition = {
@@ -34,6 +35,7 @@ export const VoiceAssistant: React.FC<{
   const recRef = useRef<Recognition | null>(null);
   const finalRef = useRef('');
   const autoSend = useRef(false);
+  const silenceTimer = useRef<number | undefined>(undefined);
 
   const stopRec = () => { try { recRef.current?.stop(); } catch { /* zaten durmuş */ } };
 
@@ -46,16 +48,21 @@ export const VoiceAssistant: React.FC<{
     rec.lang = 'tr-TR';
     rec.continuous = true;
     rec.interimResults = true;
-    finalRef.current = text ? `${text.trim()} ` : '';
+    // Bu oturumdan önce kutuda yazan metin (ikinci kez mikrofona basınca üstüne eklenir)
+    const base = text.trim();
+    finalRef.current = base;
+    const scheduleStop = () => {
+      // Kendi sessizlik sayacımız: 1,6 sn yeni kelime gelmezse dinlemeyi bitir ve gönder
+      window.clearTimeout(silenceTimer.current);
+      silenceTimer.current = window.setTimeout(() => { try { rec.stop(); } catch { /* */ } }, 1600);
+    };
     rec.onresult = (e: any) => {
-      let fin = '';
-      let mid = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) fin += r[0].transcript; else mid += r[0].transcript;
-      }
-      if (fin) { finalRef.current += `${fin.trim()} `; setText(finalRef.current); }
-      setInterim(mid);
+      // Android Chrome her sonuçta cümlenin tamamını baştan gönderebiliyor; tekrarları birleştir
+      const acc = mergeTranscripts(Array.from(e.results as ArrayLike<any>).map((r: any) => String(r[0]?.transcript || '')));
+      finalRef.current = [base, acc].filter(Boolean).join(' ');
+      setText(finalRef.current);
+      setInterim('');
+      scheduleStop();
     };
     rec.onerror = (e: any) => {
       if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') setError('Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.');
@@ -63,6 +70,7 @@ export const VoiceAssistant: React.FC<{
       else if (e?.error && e.error !== 'aborted') setError('Ses tanıma hatası. İnternet bağlantısını kontrol edin.');
     };
     rec.onend = () => {
+      window.clearTimeout(silenceTimer.current);
       setListening(false);
       setInterim('');
       // Konuşma bitince (sessizlik) kendiliğinden gönder: araçta ekrana dokunmak gerekmesin

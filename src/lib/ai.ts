@@ -96,13 +96,16 @@ export async function interpret(text: string, ctx: AiContext): Promise<AiResult>
 /** Söylenen malzemeyi katalogda bulup teklif kalemine çevirir (bulunamazsa söylendiği gibi kalır) */
 async function toQuoteItem(it: AiItem, i: number): Promise<QuoteItem> {
   let match = null;
+  // Katalog araması en fazla ~2,5 sn sürsün; yavaş bağlantıda form beklemeden açılır
+  const within = <T,>(p: Promise<T>) => Promise.race([p, new Promise<null>(r => setTimeout(() => r(null), 2500))]);
   try {
-    if (it.code) match = (await searchMaterials(it.code, { limit: 1, field: 'code' })).items[0] || null;
-    // Tam ifade bulunamazsa sondan kelime atarak daha genel ara ("pex boru kalde" → "pex boru")
+    if (it.code) match = (await within(searchMaterials(it.code, { limit: 1, field: 'code' })))?.items[0] || null;
+    // Tam ifade bulunamazsa son kelimeyi atıp bir kez daha dene ("pex boru kalde" → "pex boru")
     const words = it.query.split(/\s+/).filter(Boolean);
-    for (let n = words.length; !match && n >= 1; n--) {
-      if (n === 1 && words[0].length < 4) break;
-      match = (await searchMaterials(words.slice(0, n).join(' '), { limit: 1, field: 'all' })).items[0] || null;
+    const tries = [words, words.slice(0, -1)].filter(w => w.length && !(w.length === 1 && w[0].length < 4));
+    for (const w of tries) {
+      if (match) break;
+      match = (await within(searchMaterials(w.join(' '), { limit: 1, field: 'all' })))?.items[0] || null;
     }
   } catch { /* internet yoksa katalogsuz devam */ }
 
@@ -127,7 +130,7 @@ async function toQuoteItem(it: AiItem, i: number): Promise<QuoteItem> {
 }
 
 export async function quoteDraftFrom(q: NonNullable<AiResult['quote']>): Promise<Partial<Quote>> {
-  const items = await Promise.all(q.items.map(toQuoteItem));
+  const items = await Promise.all(q.items.slice(0, 40).map(toQuoteItem));
   return {
     customerName: q.customerName || '',
     city: q.city || undefined,
