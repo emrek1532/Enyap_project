@@ -26,7 +26,7 @@ import {
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
-import { formatQuoteAmount, quoteAmountParts, hasAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
+import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 
 const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
@@ -37,11 +37,10 @@ const fold = (s: string) =>
 
 const fmt = (n: number) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
-type QuoteSortKey = 'number' | 'customer' | 'material' | 'amount' | 'urgency' | 'status' | 'date';
+type QuoteSortKey = 'number' | 'customer' | 'urgency' | 'status' | 'date';
 /** Durum sırası: Beklemede → Onaylandı → İptal */
 const STATUS_RANK: Record<string, number> = { yeni_talep: 0, hazirlaniyor: 0, gonderildi: 0, revizyon: 0, onaylandi: 1, siparis: 1, iptal: 2 };
 const URGENCY_RANK: Record<string, number> = { dusuk: 0, normal: 1, yuksek: 2, acil: 3 };
-const materialOf = (q: Quote) => (q.items?.length ? q.items.map(it => it.productName).join(', ') : q.notes || '');
 
 interface QuoteManagerProps {
   quotes: Quote[];
@@ -109,8 +108,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         switch (sort.key) {
           case 'number': r = compareText(a.quoteNumber, b.quoteNumber); break;
           case 'customer': r = compareText(a.customerName, b.customerName) || compareText(a.city, b.city); break;
-          case 'material': r = compareText(materialOf(a), materialOf(b)); break;
-          case 'amount': r = (a.totalAmount || 0) - (b.totalAmount || 0); break;
           case 'urgency': r = URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency]; break;
           case 'status': r = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9); break;
           default: r = (a.createdAt || '').localeCompare(b.createdAt || '');
@@ -278,8 +275,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         <MobileSortSelect sort={sort} onChange={(s) => { setSort(s); setListLimit(LIST_PAGE); }} options={[
           { key: 'date', dir: 'desc', label: 'Tarih: yeniden eskiye' },
           { key: 'date', dir: 'asc', label: 'Tarih: eskiden yeniye' },
-          { key: 'amount', dir: 'desc', label: 'Tutar: büyükten küçüğe' },
-          { key: 'amount', dir: 'asc', label: 'Tutar: küçükten büyüğe' },
           { key: 'customer', dir: 'asc', label: 'Müşteri: A → Z' },
           { key: 'customer', dir: 'desc', label: 'Müşteri: Z → A' },
           { key: 'status', dir: 'asc', label: 'Durum' },
@@ -307,18 +302,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         <span className="font-mono font-semibold text-slate-600">{quote.quoteNumber}</span> · {quote.city || '-'} · {new Date(quote.createdAt).toLocaleDateString('tr-TR')}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-black text-slate-900 text-sm tabular-nums">
-                        {hasAmount(quote) ? quoteAmountParts(quote).map(p => <div key={p} className="whitespace-nowrap">{p}</div>) : 'Fiyat Bekleniyor'}
-                      </div>
-                      {quote.imported && quote.totalAmount > 0 && <div className="text-[10px] text-slate-400">KDV hariç</div>}
-                    </div>
                   </button>
-                  {(quote.items?.length || quote.notes) ? (
-                    <p className="text-xs text-slate-600 line-clamp-2">
-                      {quote.items?.length ? quote.items.map(it => `${it.quantity} ${it.unit} ${it.productName}`).join(', ') : quote.notes}
-                    </p>
-                  ) : null}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>{statusBadge.label}</span>
@@ -350,8 +334,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <tr>
                   <SortHeader label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
                   <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
-                  <SortHeader label="Malzeme / Not" active={sort.key === 'material'} dir={sort.dir} onClick={() => sortBy('material', 'asc')} />
-                  <SortHeader label="Tutar" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
                   <SortHeader label="Aciliyet" active={sort.key === 'urgency'} dir={sort.dir} onClick={() => sortBy('urgency', 'desc')} />
                   <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
                   <SortHeader label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
@@ -361,7 +343,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {filteredQuotes.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
                       Arama kriterine uygun teklif bulunamadı.
                     </td>
                   </tr>
@@ -381,17 +363,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                             <MapPin className="w-3 h-3 text-slate-400" />
                             {quote.city}
                           </div>
-                        </td>
-                        <td className="py-3 px-3 max-w-[200px] truncate text-slate-700">
-                          {quote.items?.length
-                            ? quote.items.map(it => `${it.quantity} ${it.unit} ${it.productName}`).join(', ')
-                            : quote.notes || '-'}
-                        </td>
-                        <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
-                          {hasAmount(quote) ? quoteAmountParts(quote).map(p => <span key={p} className="block">{p}</span>) : 'Fiyat Bekleniyor'}
-                          {quote.imported && quote.totalAmount > 0 && (
-                            <span className="block text-[10px] font-medium text-slate-400">KDV hariç</span>
-                          )}
                         </td>
                         <td className="py-3 px-3">
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${urgencyBadge.color}`}>

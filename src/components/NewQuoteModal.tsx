@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
@@ -160,6 +160,54 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     ]);
   };
 
+  // ---- Klavye ile kalem girişi ----
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const focusNewItem = useRef(false);
+  useEffect(() => {
+    if (!focusNewItem.current) return;
+    focusNewItem.current = false;
+    const rows = document.querySelectorAll<HTMLElement>('#newQuoteForm [data-quote-item]');
+    rows[rows.length - 1]?.querySelector<HTMLInputElement>('input')?.focus();
+  }, [items.length]);
+
+  const isEmptyItem = (it: QuoteItem) => !it.productName.trim() && !(it.code || '').trim();
+
+  /** Kalemleri bitirip alt kısma geç: sondaki boş kalemi at, Not alanına odaklan */
+  const finishItems = () => {
+    setItems(prev => (prev.length > 1 && isEmptyItem(prev[prev.length - 1]) ? prev.slice(0, -1) : prev));
+    window.setTimeout(() => notesRef.current?.focus(), 0);
+  };
+
+  const handleItemsKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab' || e.shiftKey || e.ctrlKey || e.altKey) return;
+    const target = e.target as HTMLElement;
+    const rowEls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[data-quote-item]'));
+    const rowIndex = rowEls.findIndex(r => r.contains(target));
+    if (rowIndex !== items.length - 1) return; // sadece son kalemde
+    const last = items[rowIndex];
+    if (target.hasAttribute('data-disc')) {
+      // Son kalemin son kutusu: yeni kalem aç (dolu ise)
+      if (isEmptyItem(last)) return;
+      e.preventDefault();
+      focusNewItem.current = true;
+      handleAddItem();
+    } else if (target.closest('[data-name-cell]') && isEmptyItem(last) && items.length > 1) {
+      // Boş yeni kalemde adı da boş geçerse kalem girişi bitti: alt kısma in
+      e.preventDefault();
+      finishItems();
+    }
+  };
+
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    if (document.activeElement === notesRef.current) {
+      (e.currentTarget as HTMLFormElement).requestSubmit();
+    } else {
+      finishItems();
+    }
+  };
+
   const handleRemoveItem = (index: number) => {
     if (items.length <= 1) return;
     setItems((prev) => prev.filter((_, i) => i !== index));
@@ -269,7 +317,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         {/* Tab Contents */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm flex-1">
           
-            <form id="newQuoteForm" onSubmit={handleSubmit} className="space-y-4">
+            <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-4">
               
               {/* Customer & Location Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -376,8 +424,11 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               <div className="pt-2 border-t border-slate-200">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Talep Edilen Malzemeler ({items.length} Kalem)
+                    Talep Edilen Malzemeler ({items.filter(it => it.productName.trim()).length} Kalem)
                   </label>
+                  <span className="hidden sm:inline text-[10px] text-slate-400 normal-case">
+                    Son kutuda Tab → yeni kalem · Ctrl+Enter → Not / Kaydet
+                  </span>
                   <button
                     type="button"
                     onClick={handleAddItem}
@@ -388,7 +439,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto" onKeyDownCapture={handleItemsKeyDown}>
                   {items.map((item, index) => (
                     <div key={item.id} data-quote-item className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
                       <div className="flex gap-2 items-start">
@@ -401,14 +452,16 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                             onChange={(text) => handleItemChange(index, 'code', text)}
                             onPick={(m) => handlePickMaterial(index, m)}
                           />
-                          <MaterialPicker
-                            field="name"
-                            value={item.productName}
-                            required={!isEdit || items.length > 1}
-                            placeholder="Malzeme adı (Örn: köşe radyatör vana 1/2)"
-                            onChange={(text) => handleItemChange(index, 'productName', text)}
-                            onPick={(m) => handlePickMaterial(index, m)}
-                          />
+                          <div data-name-cell className="min-w-0">
+                            <MaterialPicker
+                              field="name"
+                              value={item.productName}
+                              required={index === 0 && !isEdit}
+                              placeholder="Malzeme adı (Örn: köşe radyatör vana 1/2)"
+                              onChange={(text) => handleItemChange(index, 'productName', text)}
+                              onPick={(m) => handlePickMaterial(index, m)}
+                            />
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -472,6 +525,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                           <label className="block text-[10px] text-slate-500">İskonto %</label>
                           <DecimalInput
                             placeholder="0"
+                            data-disc
                             value={item.discount || 0}
                             onValueChange={(v) => handleItemChange(index, 'discount', Math.min(100, Math.max(0, v)))}
                             className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
@@ -489,6 +543,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   Not
                 </label>
                 <textarea
+                  ref={notesRef}
                   rows={2}
                   placeholder="Müşteri pazartesiye kadar yanıt istiyor, ödeme nakit olacak..."
                   value={notes}
