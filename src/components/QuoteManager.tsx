@@ -21,7 +21,8 @@ import {
   Sparkles,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  Pencil
 } from 'lucide-react';
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
@@ -44,6 +45,7 @@ interface QuoteManagerProps {
   onDeleteQuote: (id: string) => void;
   onAddCalendarEventFromQuote: (quote: Quote) => void;
   onPrintQuote: (quote: Quote) => void;
+  onEditQuote: (quote: Quote) => void;
   statusFilter: string;
   onStatusFilterChange: (filter: string) => void;
 }
@@ -56,6 +58,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onDeleteQuote,
   onAddCalendarEventFromQuote,
   onPrintQuote,
+  onEditQuote,
   statusFilter,
   onStatusFilterChange: setStatusFilter,
 }) => {
@@ -348,9 +351,16 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                               <Printer className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={() => onEditQuote(quote)}
+                              className="p-1.5 rounded-md hover:bg-amber-50 text-amber-600 transition-colors"
+                              title="Düzenle / Revize Et"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => setSelectedQuote(quote)}
                               className="p-1.5 rounded-md hover:bg-slate-100 text-slate-700 transition-colors"
-                              title="Detay & Düzenle"
+                              title="Detay"
                             >
                               <ChevronRight className="w-4 h-4" />
                             </button>
@@ -489,7 +499,17 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               )}
 
               {/* Action Buttons Grid */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200">
+                <button
+                  onClick={() => {
+                    onEditQuote(selectedQuote);
+                    setSelectedQuote(null);
+                  }}
+                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Düzenle / Revize</span>
+                </button>
                 <button
                   onClick={() => {
                     onPrintQuote(selectedQuote);

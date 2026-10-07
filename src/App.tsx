@@ -112,6 +112,7 @@ function Portal({ session }: { session: Session }) {
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [quoteCustomer, setQuoteCustomer] = useState<Customer | null>(null);
   const [printableQuote, setPrintableQuote] = useState<Quote | null>(null);
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
 
   // Apply a local (optimistic) change and cache it
   const mutate = useCallback((fn: (prev: AppData) => AppData) => {
@@ -305,6 +306,27 @@ function Portal({ session }: { session: Session }) {
     ]);
   };
 
+  // Mevcut teklifi düzenle / revize et
+  const handleUpdateQuote = (updated: Quote) => {
+    const activity = logActivity(
+      'Teklif Revize Edildi',
+      `${updated.customerName} için ${updated.quoteNumber} nolu teklif güncellendi.`,
+      'amber'
+    );
+    const customer = newCustomerFor(updated.customerName, updated.city, updated.customerContact, updated.customerPhone);
+    addCustomerLocally(customer);
+    mutate(d => ({
+      ...d,
+      quotes: d.quotes.map(q => (q.id === updated.id ? updated : q)),
+      activities: [activity, ...(d.activities || [])],
+    }));
+    persist([
+      ...(customer ? [{ kind: 'upsert', entity: 'customers', record: customer } as PendingOp] : []),
+      { kind: 'upsert', entity: 'quotes', record: updated },
+      { kind: 'upsert', entity: 'activities', record: activity },
+    ]);
+  };
+
   // Update Quote Status
   const handleUpdateQuoteStatus = (id: string, status: QuoteStatus) => {
     const target = data.quotes.find(q => q.id === id);
@@ -463,19 +485,21 @@ function Portal({ session }: { session: Session }) {
       <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1">
         
         {/* KPI Dashboard & Urgent Action Banner */}
-        <DashboardStats
-          quotes={data.quotes}
-          orders={data.orders}
-          events={data.events}
-          currentRole={currentRole}
-          onOpenNewQuote={() => setIsNewQuoteOpen(true)}
-          onNavigateTab={setActiveTab}
-          onShowQuotes={(filter) => {
-            setQuoteFilter(filter);
-            setActiveTab('quotes');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-        />
+        {activeTab === 'quotes' && (
+          <DashboardStats
+            quotes={data.quotes}
+            orders={data.orders}
+            events={data.events}
+            currentRole={currentRole}
+            onOpenNewQuote={() => setIsNewQuoteOpen(true)}
+            onNavigateTab={setActiveTab}
+            onShowQuotes={(filter) => {
+              setQuoteFilter(filter);
+              setActiveTab('quotes');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
 
         {/* Tab 1: Teklifler (Kanban & List) */}
         {activeTab === 'quotes' && (
@@ -487,6 +511,7 @@ function Portal({ session }: { session: Session }) {
             onDeleteQuote={handleDeleteQuote}
             onAddCalendarEventFromQuote={handleAddCalendarEventFromQuote}
             onPrintQuote={setPrintableQuote}
+            onEditQuote={setEditingQuote}
             statusFilter={quoteFilter}
             onStatusFilterChange={setQuoteFilter}
           />
@@ -574,6 +599,18 @@ function Portal({ session }: { session: Session }) {
             setIsNewQuoteOpen(false);
             setQuoteCustomer(null);
           }}
+        />
+      )}
+
+      {/* Teklif düzenleme / revize */}
+      {editingQuote && (
+        <NewQuoteModal
+          key={editingQuote.id}
+          currentRole={currentRole}
+          customers={data.customers || []}
+          editQuote={editingQuote}
+          onSaveQuote={handleUpdateQuote}
+          onClose={() => setEditingQuote(null)}
         />
       )}
 
