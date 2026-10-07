@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ListPlus, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, FileUp, ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { TURKISH_CITIES } from '../lib/cities';
@@ -9,6 +9,7 @@ import { SuggestInput } from './SuggestInput';
 import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
+import { catalogCode, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -220,20 +221,20 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const rowTools = (index: number) => (
     <>
       <button type="button" tabIndex={-1} data-move="up" onClick={() => moveItem(index, -1, '[data-move="up"]')} disabled={index === 0}
-        className="p-1 text-slate-400 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Yukarı taşı (Alt+↑)">
-        <ArrowUp className="w-4 h-4" />
+        className="p-1.5 md:p-0.5 text-slate-400 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Yukarı taşı (Alt+↑)">
+        <ArrowUp className="w-3.5 h-3.5" />
       </button>
       <button type="button" tabIndex={-1} data-move="down" onClick={() => moveItem(index, 1, '[data-move="down"]')} disabled={index === items.length - 1}
-        className="p-1 text-slate-400 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Aşağı taşı (Alt+↓)">
-        <ArrowDown className="w-4 h-4" />
+        className="p-1.5 md:p-0.5 text-slate-400 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Aşağı taşı (Alt+↓)">
+        <ArrowDown className="w-3.5 h-3.5" />
       </button>
       <button type="button" tabIndex={-1} onClick={() => insertItemAfter(index)}
-        className="p-1 text-slate-400 hover:text-emerald-600" title="Altına yeni kalem ekle">
-        <ListPlus className="w-4 h-4" />
+        className="p-1.5 md:p-0.5 text-slate-400 hover:text-emerald-600" title="Altına yeni kalem ekle">
+        <ListPlus className="w-3.5 h-3.5" />
       </button>
       <button type="button" tabIndex={-1} onClick={() => handleRemoveItem(index)} disabled={items.length <= 1}
-        className="p-1 text-slate-400 hover:text-rose-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Sil">
-        <Trash2 className="w-4 h-4" />
+        className="p-1.5 md:p-0.5 text-slate-400 hover:text-rose-600 disabled:opacity-25 disabled:hover:text-slate-400" title="Sil">
+        <Trash2 className="w-3.5 h-3.5" />
       </button>
     </>
   );
@@ -295,6 +296,55 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const quoteCurrency: Currency = usedCurrencies.length === 1 ? usedCurrencies[0] : 'TRY';
   const totalQuoteAmount = usedCurrencies.length === 1 ? totalsByCurrency[quoteCurrency] : totalsByCurrency.TRY;
 
+  // ---- PDF'ten doldur: muhasebe programının teklif PDF'i formu doldurur ----
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfMsg, setPdfMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pdfMeta, setPdfMeta] = useState<{ preparedBy?: string; date?: string } | null>(null);
+
+  const fillFromPdf = async (file: File) => {
+    setPdfBusy(true); setPdfMsg(null);
+    try {
+      const pdf = await readQuotePdf(file);
+      if (!pdf.items.length && !pdf.quoteNumber) {
+        setPdfMsg({ ok: false, text: 'PDF okunamadı (taranmış / resim PDF olabilir).' });
+        return;
+      }
+      if (pdf.quoteNumber && !isEdit) setQuoteNoInput(pdf.quoteNumber);
+      if (pdf.customerName && !isEdit) {
+        const names = [...new Set([...customers.map(c => c.name), ...quotes.map(q => q.customerName)].filter(Boolean))];
+        const name = matchCustomer(pdf.customerName, names) || titleTr(pdf.customerName.split(/\s+/).slice(0, 3).join(' '));
+        handleCustomerNameChange(name);
+        if (!findCustomer(customers, name)) {
+          const known = quotes.find(q => q.customerName === name)?.city;
+          if (pdf.city || known) setCity(pdf.city || known!);
+        }
+      }
+      if (pdf.paymentTerm && PAYMENT_TERMS.includes(pdf.paymentTerm)) setPaymentTerm(pdf.paymentTerm);
+      if (pdf.items.length) {
+        // Katalogda adı birebir aynı olan malzemelerin kodu da gelsin
+        let i = 0;
+        const work = async () => { while (i < pdf.items.length) { const it = pdf.items[i++]; const c = await catalogCode(it.productName); if (c) it.code = c; } };
+        await Promise.all([work(), work(), work(), work()]);
+        setItems(pdf.items.map((it, k) => ({ ...it, id: `it-${Date.now()}-${k}` })));
+      }
+      setPdfMeta({ preparedBy: pdf.preparedBy || undefined, date: pdf.date || undefined });
+      setPdfMsg({ ok: true, text: `${pdf.items.length} kalem PDF'ten aktarıldı${pdf.warnings.length ? ' · ' + pdf.warnings.join(', ') : ''}. Kontrol edip kaydedin.` });
+    } catch {
+      setPdfMsg({ ok: false, text: 'PDF açılamadı.' });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  // Genel toplamlar (Mikro'daki gibi: ara toplam, iskonto, KDV, genel toplam — para birimi başına)
+  const summary = (['TRY', 'USD', 'EUR'] as Currency[]).map(c => {
+    const rows = items.filter(it => (it.currency || 'TRY') === c);
+    const gross = rows.reduce((a, it) => a + (it.quantity || 0) * (it.unitPrice || 0), 0);
+    const net = rows.reduce((a, it) => a + (it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100), 0);
+    return { c, gross, disc: gross - net, net, vat: net * 0.2, total: net * 1.2 };
+  }).filter(r => r.gross > 0);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim()) return;
@@ -332,7 +382,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     }
 
     const quoteId = 'qt-' + Date.now();
-    const now = new Date();
+    const now = pdfMeta?.date ? new Date(`${pdfMeta.date}T09:00:00+03:00`) : new Date();
     const in5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const newQuote: Quote = {
@@ -359,6 +409,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       assignedTo: 'istanbul',
       notes: notes.trim() || undefined,
       paymentTerm: paymentTerm || undefined,
+      preparedBy: pdfMeta?.preparedBy,
       isEncrypted: false,
     };
 
@@ -366,304 +417,291 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     onClose();
   };
 
+  const fmt2 = (n: number) => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const lineNet = (it: QuoteItem) => (it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100);
+
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-        
-        {/* Header */}
-        <div className="p-4 sm:p-5 bg-brand-600 text-white flex items-center justify-between border-b border-brand-700">
-          <div>
-            <h3 className="font-black text-base sm:text-lg">
-              {isEdit ? `Teklifi Düzenle / Revize Et · ${editQuote!.quoteNumber}` : '+ Yeni Teklif Talebi Girişi'}
-            </h3>
-            <p className="text-xs text-brand-100">
-              {isEdit ? 'Durum ve tarih korunur; değişiklikleri yapıp kaydedin.' : 'Müşteriyi seçin, malzemeleri girin ve kaydedin.'}
-            </p>
-          </div>
+    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4">
+      <div className="bg-white w-full sm:max-w-6xl sm:rounded-xl shadow-2xl border border-slate-300 overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[94vh]">
+
+        {/* Başlık çubuğu */}
+        <div className="px-3 py-2 bg-brand-600 text-white flex items-center gap-2 pt-safe">
+          <h3 className="font-black text-sm sm:text-base flex-1 min-w-0 truncate">
+            {isEdit ? `Teklif Düzenle · ${editQuote!.quoteNumber}` : 'Yeni Fiyat Teklifi'}
+          </h3>
           <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700 font-bold"
+            type="button"
+            onClick={() => pdfInputRef.current?.click()}
+            disabled={pdfBusy}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/15 hover:bg-white/25 text-xs font-bold disabled:opacity-60"
+            title="Muhasebe programının teklif PDF'inden firma, teklif no ve kalemleri doldur"
           >
-            ✕
+            {pdfBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+            <span>PDF'ten Doldur</span>
           </button>
+          <input ref={pdfInputRef} type="file" accept="application/pdf,.pdf" hidden
+            onChange={e => { const f = e.target.files?.[0]; if (f) fillFromPdf(f); e.target.value = ''; }} />
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-white/15" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
 
-        {/* Tab Contents */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm flex-1">
-          
-            <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-4">
-              
-              {/* Customer & Location Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2 sm:max-w-[50%] sm:pr-1.5">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Teklif No
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={quoteNoInput}
-                      onChange={e => setQuoteNoInput(e.target.value)}
-                      placeholder={isEdit ? (editQuote!.quoteNumber || '-') : autoNumber}
-                      className={`w-full p-2 pr-24 border rounded-lg text-sm font-mono bg-white text-slate-800 placeholder:text-slate-400 ${duplicateNo ? 'border-amber-400' : 'border-slate-300'}`}
-                    />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">
-                      {typedNo ? 'elle girildi' : isEdit ? 'değişmez' : 'boşsa otomatik'}
+        <div className="overflow-y-auto flex-1 bg-slate-100/60">
+          <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-2.5 sm:p-3 space-y-2.5">
+
+            {pdfMsg && (
+              <div className={`text-xs rounded-md px-3 py-2 ${pdfMsg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                {pdfMsg.text}
+              </div>
+            )}
+
+            {/* Teklif bilgileri */}
+            <div className="bg-white border border-slate-200 rounded-md p-2.5 grid grid-cols-2 sm:grid-cols-12 gap-x-2 gap-y-2">
+              <div className="col-span-1 sm:col-span-2">
+                <label className="ql">Teklif No</label>
+                <input
+                  type="text"
+                  value={quoteNoInput}
+                  onChange={e => setQuoteNoInput(e.target.value)}
+                  placeholder={isEdit ? (editQuote!.quoteNumber || '-') : autoNumber}
+                  className={`qf font-mono ${duplicateNo ? '!border-amber-400' : ''}`}
+                  title={typedNo ? 'Elle girildi' : isEdit ? 'Boş bırakılırsa değişmez' : 'Boş bırakılırsa otomatik verilir'}
+                />
+              </div>
+              <div className="col-span-1 sm:col-span-2 sm:order-last">
+                <label className="ql">Vade</label>
+                <select value={paymentTerm} onChange={(e) => setPaymentTerm(e.target.value)} className="qf">
+                  <option value="">Seçiniz</option>
+                  {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2 sm:col-span-5">
+                <label className="ql">Müşteri / Firma *</label>
+                <SuggestInput<Customer>
+                  value={customerName}
+                  required
+                  placeholder="Yazın, Enter / Tab ile seçin"
+                  onChange={handleCustomerNameChange}
+                  onPick={(c) => handleCustomerNameChange(c.name)}
+                  suggestions={customerSuggestions}
+                  getKey={(c) => c.id}
+                  inputClassName="qf"
+                  renderItem={(c) => (
+                    <span className="flex items-center justify-between gap-2 text-sm">
+                      <span className="font-semibold text-slate-800 truncate">{c.name}</span>
+                      <span className="text-xs text-slate-500 shrink-0">{c.city}</span>
                     </span>
-                  </div>
-                  {duplicateNo && <p className="text-[11px] text-amber-700 mt-1">Bu teklif no başka bir teklifte de var.</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Müşteri / Firma Adı *
-                  </label>
-                  <SuggestInput<Customer>
-                    value={customerName}
-                    required
-                    placeholder="Yazmaya başlayın, Enter / Tab ile seçin..."
-                    onChange={handleCustomerNameChange}
-                    onPick={(c) => handleCustomerNameChange(c.name)}
-                    suggestions={customerSuggestions}
-                    getKey={(c) => c.id}
-                    inputClassName="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                    renderItem={(c) => (
-                      <span className="flex items-center justify-between gap-2 text-sm">
-                        <span className="font-semibold text-slate-800 truncate">{c.name}</span>
-                        <span className="text-xs text-slate-500 shrink-0">{c.city}</span>
-                      </span>
-                    )}
-                  />
-                </div>
+                  )}
+                />
+              </div>
+              <div className="col-span-1 sm:col-span-3">
+                <label className="ql">Şehir *</label>
+                <input
+                  type="text"
+                  required
+                  list="quote-city-list"
+                  autoComplete="off"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  className="qf"
+                />
+                <datalist id="quote-city-list">
+                  {cityOptions.map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+              <div className="col-span-1 sm:col-span-2 sm:order-last">
+                <label className="ql">Aciliyet</label>
+                <select value={urgency} onChange={(e) => setUrgency(e.target.value as UrgencyLevel)} className="qf">
+                  <option value="acil">Acil</option>
+                  <option value="yuksek">Yüksek</option>
+                  <option value="normal">Normal</option>
+                  <option value="dusuk">Düşük</option>
+                </select>
+              </div>
+              <div className="col-span-2 sm:col-span-10 sm:order-last">
+                <label className="ql">Proje / Şantiye</label>
+                <input
+                  type="text"
+                  placeholder="Örn: Modern Evler 32 Konut"
+                  value={projectLocation}
+                  onChange={(e) => setProjectLocation(e.target.value)}
+                  className="qf"
+                />
+              </div>
+              {duplicateNo && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no başka bir teklifte de var.</p>}
+            </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Şehir *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Yazmaya başlayın, listeden seçin..."
-                    list="quote-city-list"
-                    autoComplete="off"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    onFocus={(e) => e.target.select()}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                  />
-                  <datalist id="quote-city-list">
-                    {cityOptions.map((c) => (
-                      <option key={c} value={c} />
-                    ))}
-                  </datalist>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Proje / Şantiye Bilgisi
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Örn: Modern Evler 32 Konut Projesi"
-                    value={projectLocation}
-                    onChange={(e) => setProjectLocation(e.target.value)}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                  />
-                </div>
-
-                <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Aciliyet
-                    </label>
-                    <select
-                      value={urgency}
-                      onChange={(e) => setUrgency(e.target.value as UrgencyLevel)}
-                      className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white"
-                    >
-                      <option value="acil">Acil (Aynı Gün)</option>
-                      <option value="yuksek">Yüksek (24 Saat)</option>
-                      <option value="normal">Normal</option>
-                      <option value="dusuk">Düşük</option>
-                    </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Ödeme (Vade)
-                  </label>
-                  <select
-                    value={paymentTerm}
-                    onChange={(e) => setPaymentTerm(e.target.value)}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white"
-                  >
-                    <option value="">Seçiniz</option>
-                    {PAYMENT_TERMS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
+            {/* Kalemler */}
+            <div className="bg-white border border-slate-200 rounded-md">
+              <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-200 bg-slate-50 rounded-t-md">
+                <span className="text-[11px] font-black text-slate-700 uppercase tracking-wide">
+                  Kalemler ({items.filter(it => it.productName.trim()).length})
+                </span>
+                <span className="hidden md:inline text-[10px] text-slate-400 flex-1 text-right">
+                  Son kutuda Tab → yeni kalem · Alt+↑↓ → taşı · Ctrl+Enter → Not / Kaydet
+                </span>
+                <button type="button" onClick={handleAddItem}
+                  className="ml-auto md:ml-0 flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-brand-700 hover:bg-brand-50">
+                  <Plus className="w-3.5 h-3.5" /> Kalem
+                </button>
               </div>
 
-              {/* Items List */}
-              <div className="pt-2 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Talep Edilen Malzemeler ({items.filter(it => it.productName.trim()).length} Kalem)
-                  </label>
-                  <span className="hidden sm:inline text-[10px] text-slate-400 normal-case">
-                    Son kutuda Tab → yeni kalem · Alt+↑↓ → taşı · Ctrl+Enter → Not / Kaydet
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="text-xs text-brand-600 font-bold hover:underline flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    + Kalem Ekle
-                  </button>
-                </div>
+              {/* Sütun başlıkları (geniş ekran) */}
+              <div className="qrow hidden md:grid px-2 py-1 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                <span data-a="no" className="text-right">#</span>
+                <span data-a="kod">Kod</span>
+                <span data-a="ad">Malzeme Adı</span>
+                <span data-a="qty" className="text-right">Miktar</span>
+                <span data-a="br">Birim</span>
+                <span data-a="fiyat" className="text-right">B.Fiyat</span>
+                <span data-a="dvz">Dvz</span>
+                <span data-a="isk" className="text-right">İsk%</span>
+                <span data-a="tut" className="text-right">Net Tutar</span>
+                <span data-a="tools" />
+              </div>
 
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto" onKeyDownCapture={handleItemsKeyDown}>
-                  {items.map((item, index) => (
-                    <div key={item.id} data-quote-item data-item-id={item.id} className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
-                      <div className="flex gap-2 items-start">
-                        <span className="mt-1.5 w-5 shrink-0 text-right text-[11px] font-bold text-slate-400 tabular-nums">{index + 1}</span>
-                        <div className="grid grid-cols-[7.5rem_1fr] sm:grid-cols-[9rem_1fr] gap-2 flex-1 min-w-0">
-                          <MaterialPicker
-                            field="code"
-                            value={item.code || ''}
-                            placeholder="Kod"
-                            focusAfterPick={focusQuantity}
-                            onChange={(text) => handleItemChange(index, 'code', text)}
-                            onPick={(m) => handlePickMaterial(index, m)}
-                          />
-                          <div data-name-cell className="min-w-0">
-                            <MaterialPicker
-                              field="name"
-                              value={item.productName}
-                              required={index === 0 && !isEdit}
-                              placeholder="Malzeme adı (Örn: köşe radyatör vana 1/2)"
-                              onChange={(text) => handleItemChange(index, 'productName', text)}
-                              onPick={(m) => handlePickMaterial(index, m)}
-                            />
-                          </div>
-                        </div>
-                        <div className="hidden sm:flex items-center shrink-0">{rowTools(index)}</div>
-                      </div>
+              {/* Telefonda ikinci satırın sütun adları */}
+              <div className="qrow md:hidden px-2 pt-1 -mb-1 text-[9px] font-bold text-slate-400 uppercase" aria-hidden>
+                <span data-a="qty" className="text-right">Miktar</span>
+                <span data-a="br">Birim</span>
+                <span data-a="fiyat" className="text-right">B.Fiyat</span>
+                <span data-a="dvz">Dvz</span>
+                <span data-a="isk" className="text-right">İsk%</span>
+              </div>
 
-                      <div className="flex sm:hidden items-center justify-end -mt-1">{rowTools(index)}</div>
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-xs">
-                        <div>
-                          <label className="block text-[10px] text-slate-500">Miktar</label>
-                          <DecimalInput
-                            placeholder="1"
-                            data-qty
-                            value={item.quantity || 0}
-                            onValueChange={(v) => handleItemChange(index, 'quantity', v)}
-                            onFocus={(e) => e.target.select()}
-                            className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-slate-500">Birim</label>
-                          <select
-                            value={item.unit}
-                            onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                            className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
-                          >
-                            <option value="Adet">Adet</option>
-                            <option value="Metre">Metre</option>
-                            <option value="Takım">Takım</option>
-                            <option value="Paket">Paket</option>
-                            <option value="Set">Set</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-slate-500">Birim Fiyat</label>
-                          <DecimalInput
-                            placeholder="Örn. 1.250,50"
-                            value={item.unitPrice || 0}
-                            onValueChange={(v) => handleItemChange(index, 'unitPrice', v)}
-                            className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-slate-500">Para Birimi</label>
-                          <select
-                            value={item.currency || 'TRY'}
-                            onChange={(e) => handleItemChange(index, 'currency', e.target.value)}
-                            className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
-                          >
-                            <option value="TRY">TL</option>
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-slate-500">İskonto %</label>
-                          <DecimalInput
-                            placeholder="0"
-                            data-disc
-                            value={item.discount || 0}
-                            onValueChange={(v) => handleItemChange(index, 'discount', Math.min(100, Math.max(0, v)))}
-                            className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
-                          />
-                        </div>
-                      </div>
+              <div className="divide-y divide-slate-200" onKeyDownCapture={handleItemsKeyDown}>
+                {items.map((item, index) => (
+                  <div key={item.id} data-quote-item data-item-id={item.id}
+                    className={`qrow px-2 py-1.5 ${index % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
+                    <span data-a="no" className="text-[11px] font-bold text-slate-400 tabular-nums md:text-right">{index + 1}.</span>
+                    <div data-a="kod" className="min-w-0">
+                      <MaterialPicker
+                        field="code"
+                        value={item.code || ''}
+                        placeholder="Kod"
+                        inputClassName="qf"
+                        focusAfterPick={focusQuantity}
+                        onChange={(text) => handleItemChange(index, 'code', text)}
+                        onPick={(m) => handlePickMaterial(index, m)}
+                      />
                     </div>
-                  ))}
-                </div>
+                    <div data-a="ad" data-name-cell className="min-w-0">
+                      <MaterialPicker
+                        field="name"
+                        value={item.productName}
+                        required={index === 0 && !isEdit}
+                        placeholder="Malzeme adı"
+                        inputClassName="qf"
+                        focusAfterPick={focusQuantity}
+                        onChange={(text) => handleItemChange(index, 'productName', text)}
+                        onPick={(m) => handlePickMaterial(index, m)}
+                      />
+                    </div>
+                    <div data-a="qty">
+                      <DecimalInput
+                        placeholder="Miktar"
+                        data-qty
+                        value={item.quantity || 0}
+                        onValueChange={(v) => handleItemChange(index, 'quantity', v)}
+                        onFocus={(e) => e.target.select()}
+                        className="qf text-right tabular-nums"
+                        title="Miktar"
+                      />
+                    </div>
+                    <div data-a="br">
+                      <select value={item.unit} onChange={(e) => handleItemChange(index, 'unit', e.target.value)} className="qf !px-1" title="Birim">
+                        {MATERIAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                    <div data-a="fiyat">
+                      <DecimalInput
+                        placeholder="B.Fiyat"
+                        value={item.unitPrice || 0}
+                        onValueChange={(v) => handleItemChange(index, 'unitPrice', v)}
+                        className="qf text-right tabular-nums"
+                        title="Birim fiyat"
+                      />
+                    </div>
+                    <div data-a="dvz">
+                      <select value={item.currency || 'TRY'} onChange={(e) => handleItemChange(index, 'currency', e.target.value)} className="qf !px-1" title="Para birimi">
+                        <option value="TRY">TL</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                      </select>
+                    </div>
+                    <div data-a="isk">
+                      <DecimalInput
+                        placeholder="İsk%"
+                        data-disc
+                        value={item.discount || 0}
+                        onValueChange={(v) => handleItemChange(index, 'discount', Math.min(100, Math.max(0, v)))}
+                        className="qf text-right tabular-nums"
+                        title="İskonto %"
+                      />
+                    </div>
+                    <div data-a="tut" className="text-xs font-bold text-slate-700 tabular-nums md:text-right truncate">
+                      {lineNet(item) > 0 ? `${fmt2(lineNet(item))} ${CURRENCY_LABEL[item.currency || 'TRY']}` : <span className="text-slate-300 font-normal">—</span>}
+                    </div>
+                    <div data-a="tools" className="flex items-center">{rowTools(index)}</div>
+                  </div>
+                ))}
               </div>
+            </div>
 
-              {/* Notes */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Not
-                </label>
+            {/* Not + toplamlar */}
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2.5 items-start">
+              <div className="bg-white border border-slate-200 rounded-md p-2.5">
+                <label className="ql">Not</label>
                 <textarea
                   ref={notesRef}
                   rows={2}
-                  placeholder="Müşteri pazartesiye kadar yanıt istiyor, ödeme nakit olacak..."
+                  placeholder="Müşteri pazartesiye kadar yanıt istiyor..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                  className="qf !h-auto py-1.5"
                 />
               </div>
-
-            </form>
-
+              {summary.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-md overflow-x-auto">
+                  <table className="text-xs tabular-nums w-full">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] uppercase text-slate-500">
+                        <th className="px-2.5 py-1 text-left font-bold" />
+                        {summary.map(r => <th key={r.c} className="px-2.5 py-1 text-right font-bold">{CURRENCY_LABEL[r.c]}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody className="text-slate-700">
+                      {([['Ara Toplam', 'gross'], ['İskonto', 'disc'], ['Net', 'net'], ['KDV %20', 'vat']] as const).map(([label, k]) => (
+                        <tr key={k}>
+                          <td className="px-2.5 py-0.5 text-slate-500">{label}</td>
+                          {summary.map(r => <td key={r.c} className="px-2.5 py-0.5 text-right">{fmt2(r[k])}</td>)}
+                        </tr>
+                      ))}
+                      <tr className="border-t border-slate-300 font-black text-slate-900">
+                        <td className="px-2.5 py-1">G.Toplam</td>
+                        {summary.map(r => <td key={r.c} className="px-2.5 py-1 text-right">{fmt2(r.total)}</td>)}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </form>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <div className="text-xs text-slate-500">
-            {usedCurrencies.length > 0 && (
-              <span>Tahmini Toplam (KDV dahil): <strong>
-                {usedCurrencies.map(c => `${totalsByCurrency[c].toLocaleString('tr-TR')} ${CURRENCY_LABEL[c]}`).join(' + ')}
-              </strong></span>
-            )}
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs transition-colors"
-            >
-              Vazgeç
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const form = document.getElementById('newQuoteForm') as HTMLFormElement;
-                if (form) form.requestSubmit();
-              }}
-              className="px-5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs sm:text-sm shadow-sm transition-all"
-            >
-              {isEdit ? 'Değişiklikleri Kaydet' : 'Teklifi Kaydet'}
-            </button>
-          </div>
+        {/* Alt çubuk */}
+        <div className="px-3 py-2 bg-white border-t border-slate-200 flex items-center justify-end gap-2 pb-safe">
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">
+            Vazgeç
+          </button>
+          <button
+            type="button"
+            onClick={() => (document.getElementById('newQuoteForm') as HTMLFormElement | null)?.requestSubmit()}
+            className="px-5 py-2 rounded-md bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm"
+          >
+            {isEdit ? 'Değişiklikleri Kaydet' : 'Teklifi Kaydet'}
+          </button>
         </div>
-
       </div>
     </div>
   );

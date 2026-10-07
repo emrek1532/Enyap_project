@@ -27,9 +27,11 @@ export const MaterialPicker: React.FC<{
   placeholder?: string;
   className?: string;
   focusAfterPick?: (input: HTMLInputElement) => boolean;
+  /** Kutunun görünümü (verilmezse varsayılan küçük kutu) */
+  inputClassName?: string;
   onChange: (text: string) => void;
   onPick: (m: Material) => void;
-}> = ({ field, value, required, placeholder, className, focusAfterPick, onChange, onPick }) => {
+}> = ({ field, value, required, placeholder, className, focusAfterPick, inputClassName, onChange, onPick }) => {
   const [results, setResults] = useState<Material[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -104,7 +106,7 @@ export const MaterialPicker: React.FC<{
       required={required}
       placeholder={placeholder}
       focusAfterPick={focusAfterPick}
-      inputClassName={`w-full p-1.5 border border-slate-300 rounded text-xs bg-white ${field === 'code' ? 'font-mono uppercase' : ''}`}
+      inputClassName={`${inputClassName || 'w-full p-1.5 border border-slate-300 rounded text-xs bg-white'} ${field === 'code' ? 'font-mono uppercase' : ''}`}
       header={offline ? (
         <div className="px-2.5 py-1.5 text-[10px] text-amber-700 bg-amber-50">
           İnternet yok — sadece son kullanılan malzemeler gösteriliyor

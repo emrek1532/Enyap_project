@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader2 } from 'lucide-react';
 
 /** Formda bir sonraki yazılabilir alana geçer (Enter ile seçimden sonra) */
@@ -53,6 +54,43 @@ export function SuggestInput<T>({
 
   const visible = open && value.trim().length >= minChars && (suggestions.length > 0 || !!header);
 
+  // Liste sayfanın üstünde (portal) açılır: dar kutularda bile geniş görünür, kaydırılan alanlarda kesilmez.
+  // Telefonda ekran genişliğinde, büyük dokunma satırlarıyla açılır.
+  const [pos, setPos] = useState<React.CSSProperties | null>(null);
+  const [narrow, setNarrow] = useState(false);
+  useLayoutEffect(() => {
+    if (!visible) { setPos(null); return; }
+    const place = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const vw = vv?.width ?? window.innerWidth;
+      const vh = (vv?.height ?? window.innerHeight) + (vv?.offsetTop ?? 0);
+      const isNarrow = vw < 640;
+      setNarrow(isNarrow);
+      const below = vh - r.bottom - 8;
+      const above = r.top - 8;
+      const up = below < 180 && above > below;
+      const maxHeight = Math.max(120, Math.min(isNarrow ? 360 : 300, up ? above : below));
+      const width = isNarrow ? vw - 16 : Math.min(Math.max(r.width, 420), vw - 16);
+      const left = isNarrow ? 8 : Math.min(r.left, vw - width - 8);
+      setPos({
+        position: 'fixed', left, width, maxHeight, zIndex: 80,
+        ...(up ? { bottom: window.innerHeight - r.top + 2 } : { top: r.bottom + 2 }),
+      });
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    window.visualViewport?.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+      window.visualViewport?.removeEventListener('resize', place);
+    };
+  }, [visible, suggestions.length]);
+
   const pick = (item: T, moveNext: boolean) => {
     onPick(item);
     setOpen(false);
@@ -97,10 +135,10 @@ export function SuggestInput<T>({
         />
         {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 absolute right-2 top-1/2 -translate-y-1/2" />}
       </div>
-      {visible && (
-        <div className="mt-1 rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {visible && pos && createPortal(
+        <div style={pos} className="rounded-lg border border-slate-300 bg-white shadow-xl overflow-hidden flex flex-col">
           {header}
-          <ul ref={listRef} className="max-h-56 overflow-y-auto divide-y divide-slate-100">
+          <ul ref={listRef} className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100 overscroll-contain">
             {suggestions.map((item, i) => (
               <li key={getKey(item)} data-idx={i}>
                 <button
@@ -108,8 +146,8 @@ export function SuggestInput<T>({
                   tabIndex={-1}
                   onMouseDown={(e) => e.preventDefault()}
                   onMouseEnter={() => setActive(i)}
-                  onClick={() => pick(item, false)}
-                  className={`w-full text-left px-2.5 py-2 ${i === active ? 'bg-brand-50' : 'hover:bg-slate-50'}`}
+                  onClick={() => pick(item, true)}
+                  className={`w-full text-left ${narrow ? 'px-3 py-3' : 'px-2.5 py-1.5'} ${i === active ? 'bg-brand-50' : 'hover:bg-slate-50 active:bg-brand-50'}`}
                 >
                   {renderItem(item, i === active)}
                 </button>
@@ -117,7 +155,8 @@ export function SuggestInput<T>({
             ))}
           </ul>
           {footer}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

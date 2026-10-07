@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileUp, Loader2, X } from 'lucide-react';
 import { Customer, Quote, UserRole } from '../types';
-import { PdfQuote, readQuotePdf } from '../lib/pdfQuote';
-import { foldTr, searchMaterials } from '../lib/materials';
+import { PdfQuote, catalogCode, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
+import { foldTr } from '../lib/materials';
 import { nextQuoteNumber } from '../lib/quoteRules';
 import { CURRENCY_LABEL } from '../lib/money';
 
@@ -17,53 +17,7 @@ interface Plan {
   codes: 'pending' | 'done';
 }
 
-const GENERIC = new Set(['ltd', 'sti', 'san', 'tic', 'ins', 'insaat', 'taah', 'muh', 've', 'as', 'sirketi', 'limited', 'sanayi', 'ticaret',
-  'imalat', 'tes', 'sihhi', 'muhendislik', 'enerji', 'yapi', 'mekanik', 'isi', 'dogal', 'gaz', 'dogalgaz']);
-const toks = (s: string) => foldTr(s).split(/[^a-z0-9]+/).filter(t => t.length >= 3);
-
-/** PDF'teki resmi unvanı ("MURAT DOĞAL GAZ SIHHİ TES…") sistemdeki kısa müşteri adına ("Murat Doğalgaz") eşler */
-function matchCustomer(pdfName: string, names: string[]): string | null {
-  const flat = (s: string) => foldTr(s).replace(/[^a-z0-9]/g, '');
-  const pf = flat(pdfName);
-  const pt = toks(pdfName);
-  let best: string | null = null, bestScore = 0;
-  for (const n of names) {
-    const nf = flat(n);
-    let sc = 0;
-    if (nf.length >= 5 && pf.startsWith(nf)) sc = 100 + nf.length;
-    else {
-      const nt = toks(n);
-      const key = nt.filter(t => !GENERIC.has(t));
-      if (!key.length) continue;
-      // Ayırt edici kelimelerin hepsi unvanda geçmeli ("Tavsan Makine" ↔ "TAVSAN MAKİNE İMALAT…")
-      const hit = (t: string) => pt.some(p => p.slice(0, 4) === t.slice(0, 4));
-      if (!key.every(hit)) continue;
-      sc = key.reduce((a, t) => a + t.length, 0) + nt.filter(hit).length;
-      if (!hit(nt[0])) sc -= 5; // ilk kelime tutmuyorsa zayıf
-    }
-    if (sc > bestScore) { bestScore = sc; best = n; }
-  }
-  return bestScore >= 5 ? best : null;
-}
-
-const titleTr = (s: string) =>
-  s.toLocaleLowerCase('tr').replace(/(^|[\s(/-])(\p{L})/gu, (_, a, b) => a + b.toLocaleUpperCase('tr'));
-
 const fmt = (n: number) => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** Katalogda adı birebir aynı olan malzemenin kodunu bulur (yanlış kod yazmamak için sadece tam eşleşme) */
-async function catalogCode(name: string): Promise<string | undefined> {
-  const norm = (s: string) => foldTr(s).replace(/\s+/g, ' ').trim();
-  const target = norm(name);
-  const words = target.split(' ').filter(w => w.length >= 3).sort((a, b) => b.length - a.length).slice(0, 3);
-  if (!words.length) return undefined;
-  try {
-    const r = await searchMaterials(words.join(' '), { limit: 30, field: 'name' });
-    return r.items.find(m => norm(m.name) === target)?.code;
-  } catch {
-    return undefined;
-  }
-}
 
 export const PdfQuoteImport: React.FC<{
   quotes: Quote[];
