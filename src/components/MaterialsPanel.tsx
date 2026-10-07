@@ -2,19 +2,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { parseDecimal } from './DecimalInput';
-import { Material, MATERIAL_UNITS, deleteMaterial, formatPrice, saveMaterial, searchMaterials } from '../lib/materials';
+import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
+import { MobileSortSelect, SortHeader, SortState, nextSort } from './SortHeader';
 
 const PAGE = 50;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
 const EMPTY: Material = { code: '', name: '', price: 0, currency: 'TRY', unit: 'Adet', vatRate: 20, stock: null };
 
+const selectCls = 'w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium bg-white text-slate-700';
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('tr-TR') : '-');
 const fmtStock = (v?: number | null) => (v == null ? '-' : v.toLocaleString('tr-TR', { maximumFractionDigits: 2 }));
 
 export const MaterialsPanel: React.FC = () => {
   const [query, setQuery] = useState('');
   const [codeQuery, setCodeQuery] = useState('');
-  const [onlyPriced, setOnlyPriced] = useState(false);
+  const [filters, setFilters] = useState<MaterialFilters>({ currency: '', unit: '', price: '', stock: '' });
+  const [sort, setSort] = useState<SortState<MaterialSortKey>>({ key: 'default', dir: 'asc' });
+  const setFilter = <K extends keyof MaterialFilters>(k: K, v: MaterialFilters[K]) => setFilters(prev => ({ ...prev, [k]: v }));
+  const activeFilters = Object.values(filters).filter(Boolean).length;
   const [items, setItems] = useState<Material[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -30,7 +35,9 @@ export const MaterialsPanel: React.FC = () => {
     try {
       // Kod kutusu doluysa sadece kodda, değilse adda ve kodda aranır
       const byCode = codeQuery.trim() !== '';
-      const r = await searchMaterials(byCode ? codeQuery.trim() : query.trim(), { limit: PAGE, offset, onlyPriced, field: byCode ? 'code' : 'all' });
+      const r = await listMaterials(byCode ? codeQuery.trim() : query.trim(), {
+        limit: PAGE, offset, field: byCode ? 'code' : 'all', filters, sortKey: sort.key, sortDir: sort.dir,
+      });
       if (id !== reqId.current) return;
       setItems(prev => (append ? [...prev, ...r.items] : r.items));
       setTotal(r.total);
@@ -48,7 +55,7 @@ export const MaterialsPanel: React.FC = () => {
     const t = window.setTimeout(() => load(0, false), 250);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, codeQuery, onlyPriced, reload]);
+  }, [query, codeQuery, filters, sort, reload]);
 
   const handleDelete = async (code: string) => {
     try {
@@ -103,10 +110,6 @@ export const MaterialsPanel: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 whitespace-nowrap cursor-pointer">
-              <input type="checkbox" checked={onlyPriced} onChange={e => setOnlyPriced(e.target.checked)} className="accent-brand-600" />
-              Sadece fiyatlı
-            </label>
             <button
               onClick={() => setEditing({ m: { ...EMPTY } })}
               className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold whitespace-nowrap flex-1 sm:flex-none"
@@ -115,9 +118,55 @@ export const MaterialsPanel: React.FC = () => {
             </button>
           </div>
         </div>
-        <div className="text-xs text-slate-500 flex items-center gap-2">
+        {/* Filtreler */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">
+            <option value="">Fiyat: Tümü</option>
+            <option value="priced">Fiyatlı</option>
+            <option value="unpriced">Fiyatsız</option>
+          </select>
+          <select value={filters.currency} onChange={e => setFilter('currency', e.target.value as MaterialFilters['currency'])} className={selectCls} aria-label="Para birimi">
+            <option value="">Para Birimi: Tümü</option>
+            {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
+          </select>
+          <select value={filters.stock} onChange={e => setFilter('stock', e.target.value as MaterialFilters['stock'])} className={selectCls} aria-label="Stok durumu">
+            <option value="">Stok: Tümü</option>
+            <option value="in">Stokta var</option>
+            <option value="zero">Stok yok (0)</option>
+            <option value="negative">Eksi stok</option>
+          </select>
+          <select value={filters.unit} onChange={e => setFilter('unit', e.target.value)} className={selectCls} aria-label="Birim">
+            <option value="">Birim: Tümü</option>
+            {MATERIAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+        <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          <span>{total.toLocaleString('tr-TR')} malzeme{query.trim() || codeQuery.trim() ? ' bulundu' : ''}</span>
+          <span>{total.toLocaleString('tr-TR')} malzeme{query.trim() || codeQuery.trim() || activeFilters ? ' bulundu' : ''}</span>
+          {(activeFilters > 0 || query || codeQuery || sort.key !== 'default') && (
+            <button
+              onClick={() => { setFilters({ currency: '', unit: '', price: '', stock: '' }); setQuery(''); setCodeQuery(''); setSort({ key: 'default', dir: 'asc' }); }}
+              className="text-brand-600 font-bold hover:underline"
+            >
+              Filtreleri temizle
+            </button>
+          )}
+          <MobileSortSelect<MaterialSortKey>
+            sort={sort}
+            onChange={setSort}
+            className="ml-auto"
+            options={[
+              { key: 'default', dir: 'asc', label: 'Önerilen (fiyatlılar önce)' },
+              { key: 'name', dir: 'asc', label: 'Ad (A → Z)' },
+              { key: 'name', dir: 'desc', label: 'Ad (Z → A)' },
+              { key: 'code', dir: 'asc', label: 'Kod (A → Z)' },
+              { key: 'price', dir: 'desc', label: 'Fiyat (yüksek → düşük)' },
+              { key: 'price', dir: 'asc', label: 'Fiyat (düşük → yüksek)' },
+              { key: 'stock', dir: 'desc', label: 'Stok (çok → az)' },
+              { key: 'stock', dir: 'asc', label: 'Stok (az → çok)' },
+              { key: 'updated', dir: 'desc', label: 'Son güncellenen' },
+            ]}
+          />
         </div>
         {error && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
       </div>
@@ -144,15 +193,15 @@ export const MaterialsPanel: React.FC = () => {
       {/* Tablet / masaüstü: tablo */}
       <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-xs overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold text-left">
+          <thead className="bg-slate-50 text-[11px] text-slate-500 font-bold text-left">
             <tr>
-              <th className="py-3 px-3">Kod</th>
-              <th className="py-3 px-3">Malzeme Adı</th>
+              <SortHeader label="Kod" active={sort.key === 'code'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'code', 'asc'))} />
+              <SortHeader label="Malzeme Adı" active={sort.key === 'name'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'name', 'asc'))} />
               <th className="py-3 px-3">Birim</th>
-              <th className="py-3 px-3 text-right">Birim Fiyat</th>
+              <SortHeader label="Birim Fiyat" align="right" active={sort.key === 'price'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'price', 'desc'))} />
               <th className="py-3 px-3 text-right">KDV</th>
-              <th className="py-3 px-3 text-right">Stok</th>
-              <th className="py-3 px-3">Güncelleme</th>
+              <SortHeader label="Stok" align="right" active={sort.key === 'stock'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'stock', 'desc'))} />
+              <SortHeader label="Güncelleme" active={sort.key === 'updated'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'updated', 'desc'))} />
               <th className="py-3 px-3"></th>
             </tr>
           </thead>
