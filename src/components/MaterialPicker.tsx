@@ -121,10 +121,10 @@ export const MaterialPicker: React.FC<{
         <span className="flex items-start gap-2">
           <Package className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
           <span className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold text-slate-800 leading-snug">{m.name || m.code}</span>
+            <span className="block text-xs font-semibold text-slate-800 leading-snug break-words">{m.name || m.code}</span>
             <span className="block text-[10px] text-slate-500 font-mono">{m.code}</span>
           </span>
-          <span className={`text-xs font-bold tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
+          <span className={`shrink-0 text-right text-xs font-bold tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
             {m.price > 0 ? `${formatPrice(m.price)} ${CURRENCY_LABEL[m.currency]}` : 'fiyat yok'}
           </span>
         </span>
