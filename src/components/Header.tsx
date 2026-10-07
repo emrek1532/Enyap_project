@@ -10,6 +10,7 @@ interface HeaderProps {
   onSignOut: () => void;
   userEmail: string;
   urgentCount: number;
+  onHome: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSignOut,
   userEmail,
   urgentCount,
+  onHome,
 }) => {
   return (
     <header className="bg-white text-slate-900 shadow-sm border-b border-slate-200 pt-safe">
@@ -42,12 +44,12 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           
           {/* Logo */}
-          <div className="flex items-center gap-3 shrink-0 min-w-0">
+          <button onClick={onHome} className="flex items-center gap-3 shrink-0 min-w-0 text-left" title="Ana Sayfa">
             <BrandLogo className="h-7 sm:h-9" />
             <span className="hidden md:block pl-3 border-l border-slate-200 text-xs font-semibold text-slate-500 leading-tight">
               Isı Sistemleri<br />Teklif & Sipariş Takibi
             </span>
-          </div>
+          </button>
 
           {/* Actions: Sync, New Quote, Sign out */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap">
