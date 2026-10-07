@@ -47,6 +47,7 @@ import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
 import { HomePage, PageHeader, SECTION_META } from './components/HomePage';
+import { MaterialsPanel } from './components/MaterialsPanel';
 import { ReportsPanel } from './components/ReportsPanel';
 import { NewQuoteModal } from './components/NewQuoteModal';
 import { CustomersPanel } from './components/CustomersPanel';
@@ -576,6 +577,9 @@ function Portal({ session }: { session: Session }) {
             onStartNewHandled={() => setLedgerStartNew(null)}
           />
         )}
+
+        {/* Malzemeler (fiyat kataloğu) */}
+        {activeTab === 'materials' && <MaterialsPanel />}
 
         {/* Rapor */}
         {activeTab === 'reports' && (

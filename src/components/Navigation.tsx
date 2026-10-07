@@ -8,7 +8,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 
-export type ActiveTab = 'home' | 'quotes' | 'customers' | 'notes' | 'collections' | 'expenses' | 'reports';
+export type ActiveTab = 'home' | 'quotes' | 'customers' | 'notes' | 'collections' | 'expenses' | 'reports' | 'materials';
 
 interface NavigationProps {
   activeTab: ActiveTab;
