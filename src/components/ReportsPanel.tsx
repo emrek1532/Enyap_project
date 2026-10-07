@@ -144,7 +144,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
 };
 
 // ---------- Yatay çubuk listesi ----------
-const BarList: React.FC<{ title: string; subtitle?: string; rows: { label: string; value: number; note?: string }[]; color: string; empty: string }> = ({ title, subtitle, rows, color, empty }) => {
+const BarList: React.FC<{ title: string; subtitle?: string; rows: { label: string; value: number; note?: string }[]; color: string; empty: string; sort?: boolean }> = ({ title, subtitle, rows, color, empty, sort = true }) => {
   const max = Math.max(1, ...rows.map(r => r.value));
   return (
     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
@@ -157,7 +157,7 @@ const BarList: React.FC<{ title: string; subtitle?: string; rows: { label: strin
           {rows.map((r, i) => (
             <div key={r.label + i} className="text-xs">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-semibold text-slate-800 truncate">{i + 1}. {r.label}</span>
+                <span className="font-semibold text-slate-800 truncate">{sort ? `${i + 1}. ` : ''}{r.label}</span>
                 <span className="font-bold text-slate-900 tabular-nums whitespace-nowrap">{tl(r.value)}</span>
               </div>
               <div className="flex items-center gap-2 mt-1">
@@ -266,6 +266,24 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     pExpenses.filter(e => e.currency === 'TRY').forEach(e => map.set(e.category || 'Diğer', (map.get(e.category || 'Diğer') || 0) + e.amount));
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
   }, [pExpenses]);
+  const expByRegion = useMemo(() => {
+    const map = new Map<string, number>();
+    pExpenses.filter(e => e.currency === 'TRY').forEach(e => map.set(e.region || 'Belirtilmemiş', (map.get(e.region || 'Belirtilmemiş') || 0) + e.amount));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
+  }, [pExpenses]);
+  // Portföy: vadesi gelmemiş çek / senetlerin aylara göre dağılımı (dönemden bağımsız)
+  const dueByMonth = useMemo(() => {
+    const todayStr = ymd(new Date());
+    const map = new Map<string, { value: number; count: number }>();
+    collections.filter(c => c.dueDate && c.dueDate >= todayStr && c.currency === 'TRY').forEach(c => {
+      const m = c.dueDate!.slice(0, 7);
+      const g = map.get(m) || { value: 0, count: 0 };
+      g.value += c.amount; g.count++;
+      map.set(m, g);
+    });
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([m, g]) => ({ label: `${MONTHS_TR[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`, value: g.value, note: `${g.count} adet` }));
+  }, [collections]);
   const colByCustomer = useMemo(() => {
     const map = new Map<string, number>();
     pCollections.filter(c => c.currency === 'TRY').forEach(c => map.set(c.customerName || '-', (map.get(c.customerName || '-') || 0) + c.amount));
@@ -384,6 +402,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           rows={colByCustomer} empty="Bu dönemde tahsilat kaydı yok." />
         <BarList title="Harcamalar (Kategoriye Göre)" subtitle="TL harcamalar" color={C_EXPENSE}
           rows={expByCategory} empty="Bu dönemde harcama kaydı yok." />
+        <BarList title="Harcamalar (Bölgeye Göre)" subtitle="TL harcamalar" color={C_EXPENSE}
+          rows={expByRegion} empty="Bu dönemde harcama kaydı yok." />
+        <BarList title="Çek / Senet Vade Takvimi" subtitle="Vadesi gelmemiş TL çek ve senetler, aylara göre (dönemden bağımsız)" color={C_QUOTE}
+          rows={dueByMonth} sort={false} empty="Vadesi gelmemiş çek / senet yok." />
       </div>
 
       {/* Teklifi verenler */}

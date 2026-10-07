@@ -159,6 +159,11 @@ export interface Collection {
   amount: number;
   currency: 'TRY' | 'USD' | 'EUR';
   method: string;        // Nakit, Havale/EFT, Kredi Kartı, Çek, Senet
+  city?: string;
+  bankName?: string;     // Çek / senet bilgileri
+  bankBranch?: string;
+  checkNo?: string;
+  dueDate?: string;      // Vade (YYYY-MM-DD)
   description?: string;
   createdBy: UserRole;
   createdAt: string;
@@ -172,7 +177,8 @@ export interface Expense {
   category: string;      // Yakıt, Yemek, Konaklama, ...
   amount: number;
   currency: 'TRY' | 'USD' | 'EUR';
-  method: string;        // Nakit, Kredi Kartı, Havale/EFT
+  method: string;        // UTTS, Kredi Kartı, Şahsi, Şirket...
+  region?: string;       // Bölge / gezi (ör. KONYA BÖLGE)
   description?: string;
   createdBy: UserRole;
   createdAt: string;
