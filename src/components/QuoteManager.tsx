@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
-import { SortHeader, SortState, nextSort, compareText, SortDir } from './SortHeader';
+import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 import { formatQuoteAmount, hasAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 
 const KANBAN_LIMIT = 30;
@@ -192,7 +192,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div>
 
         {/* Filter controls */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap [&>select]:w-full sm:[&>select]:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setListLimit(LIST_PAGE); }}
@@ -226,7 +226,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             {cities.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          <div className="flex items-center gap-1 text-xs text-slate-500">
+          <div className="col-span-2 order-last sm:order-none flex items-center gap-1 text-xs text-slate-500 [&>input]:flex-1 sm:[&>input]:flex-none">
             <input
               type="date"
               value={dateFrom}
@@ -245,7 +245,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           </div>
 
           {(hasExtraFilters || statusFilter !== 'all') && (
-            <button onClick={resetFilters} className="px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100">
+            <button onClick={resetFilters} className="px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 sm:border-0">
               Filtreleri temizle
             </button>
           )}
@@ -253,11 +253,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           {/* Add New Quote Button */}
           <button
             onClick={onOpenNewQuote}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors shrink-0"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">+ Yeni Teklif Talebi</span>
-            <span className="sm:hidden">+ Teklif</span>
+            <span className="sm:hidden">Yeni Teklif</span>
           </button>
         </div>
 
@@ -273,11 +273,76 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </button>
       )}
 
-      <p className="text-xs text-slate-500 px-1">{filteredQuotes.length} teklif</p>
+      <div className="flex items-center justify-between gap-2 px-1">
+        <p className="text-xs text-slate-500">{filteredQuotes.length} teklif</p>
+        <MobileSortSelect sort={sort} onChange={(s) => { setSort(s); setListLimit(LIST_PAGE); }} options={[
+          { key: 'date', dir: 'desc', label: 'Tarih: yeniden eskiye' },
+          { key: 'date', dir: 'asc', label: 'Tarih: eskiden yeniye' },
+          { key: 'amount', dir: 'desc', label: 'Tutar: büyükten küçüğe' },
+          { key: 'amount', dir: 'asc', label: 'Tutar: küçükten büyüğe' },
+          { key: 'customer', dir: 'asc', label: 'Müşteri: A → Z' },
+          { key: 'customer', dir: 'desc', label: 'Müşteri: Z → A' },
+          { key: 'status', dir: 'asc', label: 'Durum' },
+          { key: 'number', dir: 'desc', label: 'Teklif No' },
+        ]} />
+      </div>
 
       {(
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Telefon: kart görünümü (yana kaydırma yok) */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {filteredQuotes.length === 0 && (
+              <p className="py-8 text-center text-sm text-slate-400">Arama kriterine uygun teklif bulunamadı.</p>
+            )}
+            {filteredQuotes.slice(0, listLimit).map((quote) => {
+              const statusBadge = getStatusBadge(quote.status);
+              const urgencyBadge = getUrgencyBadge(quote.urgency);
+              const pending = PENDING_STATUSES.includes(quote.status);
+              return (
+                <div key={quote.id} className="p-3 space-y-2">
+                  <button onClick={() => setSelectedQuote(quote)} className="w-full text-left flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-900 text-sm leading-snug">{quote.customerName}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        <span className="font-mono font-semibold text-slate-600">{quote.quoteNumber}</span> · {quote.city || '-'} · {new Date(quote.createdAt).toLocaleDateString('tr-TR')}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-black text-slate-900 text-sm tabular-nums">{hasAmount(quote) ? formatQuoteAmount(quote) : 'Fiyat Bekleniyor'}</div>
+                      {quote.imported && quote.totalAmount > 0 && <div className="text-[10px] text-slate-400">KDV hariç</div>}
+                    </div>
+                  </button>
+                  {(quote.items?.length || quote.notes) ? (
+                    <p className="text-xs text-slate-600 line-clamp-2">
+                      {quote.items?.length ? quote.items.map(it => `${it.quantity} ${it.unit} ${it.productName}`).join(', ') : quote.notes}
+                    </p>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>{statusBadge.label}</span>
+                      {quote.urgency !== 'normal' && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${urgencyBadge.color}`}>{urgencyBadge.label}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {pending && (
+                        <>
+                          <button onClick={() => onUpdateQuoteStatus(quote.id, 'onaylandi')}
+                            className="px-2 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">✓ Onayla</button>
+                          <button onClick={() => onUpdateQuoteStatus(quote.id, 'iptal')}
+                            className="px-2 py-1.5 rounded-md bg-slate-50 text-slate-500 text-[11px] font-bold border border-slate-200">✕</button>
+                        </>
+                      )}
+                      <button onClick={() => onPrintQuote(quote)} className="p-1.5 rounded-md text-sky-600 bg-sky-50" title="Resmi Teklif"><Printer className="w-4 h-4" /></button>
+                      <button onClick={() => onEditQuote(quote)} className="p-1.5 rounded-md text-amber-600 bg-amber-50" title="Düzenle / Revize Et"><Pencil className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Tablet / bilgisayar: tablo */}
+          <div className="overflow-x-auto hidden md:block">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                 <tr>

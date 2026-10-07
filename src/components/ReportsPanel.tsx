@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, FileText, Clock, CheckCircle2, XCircle, Percent, Wallet, Receipt, Scale, Calculator, Award, Building2, HandCoins } from 'lucide-react';
 import { Collection, Expense, Quote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
-import { SortHeader, SortState, nextSort, compareText, SortDir } from './SortHeader';
+import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
 interface ReportsPanelProps {
   quotes: Quote[];
@@ -68,14 +68,26 @@ interface Series { key: string; label: string; color: string; values: number[] }
 
 const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[]; series: Series[] }> = ({ title, subtitle, months, series }) => {
   const [hover, setHover] = useState<number | null>(null);
-  const H = 220, top = 12, bottom = 28, left = 52, right = 8;
-  const groupW = Math.max(44, Math.min(90, 640 / Math.max(1, months.length)));
+  // Grafik kutunun genişliğine sığar (telefonda yana kaydırma olmasın)
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [boxW, setBoxW] = useState(640);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBoxW(el.clientWidth || 640));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [months.length]);
+  const H = 220, top = 12, bottom = 28, left = 44, right = 4;
+  const groupW = Math.max(14, Math.min(90, (boxW - left - right) / Math.max(1, months.length)));
   const W = left + right + groupW * months.length;
+  // Dar ekranda ay etiketleri seyreltilir
+  const labelEvery = Math.max(1, Math.ceil(40 / groupW));
   const max = Math.max(0, ...series.flatMap(s => s.values));
   const ticks = niceTicks(max);
   const yMax = ticks[ticks.length - 1] || 1;
   const y = (v: number) => top + (H - top - bottom) * (1 - v / yMax);
-  const barW = Math.min(24, (groupW - 12 - 2 * (series.length - 1)) / series.length);
+  const barW = Math.max(3, Math.min(24, (groupW - Math.min(12, groupW * 0.3) - 2 * (series.length - 1)) / series.length));
   const r = 4;
 
   return (
@@ -94,7 +106,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
       {months.length === 0 ? (
         <p className="text-xs text-slate-500 py-10 text-center">Bu dönemde veri yok.</p>
       ) : (
-        <div className="relative overflow-x-auto">
+        <div ref={boxRef} className="relative overflow-x-auto">
           <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="block" role="img" aria-label={title}>
             {ticks.map(t => (
               <g key={t}>
@@ -120,7 +132,9 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
                         d={`M${x},${H - bottom} V${yy + rr} Q${x},${yy} ${x + rr},${yy} H${x + barW - rr} Q${x + barW},${yy} ${x + barW},${yy + rr} V${H - bottom} Z`} />
                     );
                   })}
-                  <text x={gx + groupW / 2} y={H - bottom + 16} textAnchor="middle" fontSize={10} fill="#64748b">{monthLabel(m)}</text>
+                  {i % labelEvery === 0 && (
+                    <text x={gx + groupW / 2} y={H - bottom + 16} textAnchor="middle" fontSize={10} fill="#64748b">{monthLabel(m)}</text>
+                  )}
                 </g>
               );
             })}
@@ -128,7 +142,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
           </svg>
           {hover !== null && (
             <div className="absolute top-1 pointer-events-none bg-slate-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg"
-              style={{ left: Math.min(left + hover * groupW + groupW, W - 170) }}>
+              style={{ left: Math.max(0, Math.min(left + hover * groupW + groupW, W - 180)) }}>
               <div className="font-bold mb-1">{monthLabel(months[hover])}</div>
               {series.map(s => (
                 <div key={s.key} className="flex items-center gap-1.5 tabular-nums">
@@ -143,6 +157,30 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
     </div>
   );
 };
+
+// ---------- Telefon için tablo yerine kart listesi ----------
+interface MobileRow { key: string; title: React.ReactNode; aside?: React.ReactNode; fields: [string, React.ReactNode][] }
+const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, empty = 'Bu dönemde veri yok.' }) => (
+  <div className="md:hidden divide-y divide-slate-100 border-t border-slate-200">
+    {rows.length === 0 && <p className="py-6 text-center text-xs text-slate-500">{empty}</p>}
+    {rows.map(r => (
+      <div key={r.key} className="p-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="font-bold text-slate-900 text-sm min-w-0">{r.title}</div>
+          {r.aside && <div className="font-black text-slate-900 text-sm tabular-nums whitespace-nowrap">{r.aside}</div>}
+        </div>
+        <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs tabular-nums">
+          {r.fields.map(([k, v]) => (
+            <div key={k} className="flex justify-between gap-2 min-w-0">
+              <dt className="text-slate-500 truncate">{k}</dt>
+              <dd className="font-semibold text-slate-800 whitespace-nowrap">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    ))}
+  </div>
+);
 
 // ---------- Yatay çubuk listesi ----------
 const BarList: React.FC<{ title: string; subtitle?: string; rows: { label: string; value: number; note?: string }[]; color: string; empty: string; sort?: boolean }> = ({ title, subtitle, rows, color, empty, sort = true }) => {
@@ -428,7 +466,23 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           <h3 className="font-bold text-slate-900 text-sm">Aylık Özet Tablosu</h3>
           <p className="text-xs text-slate-500">Tutarlar TL. Satış oranı tutar bazlıdır (onaylanan tutar ÷ verilen tutar). Excel'den aktarılan tekliflerin tutarı KDV hariçtir.</p>
         </div>
-        <div className="overflow-x-auto">
+        <MobileList rows={[
+          ...[...monthly].reverse().map(([m, v]) => ({
+            key: m, title: monthLabel(m), aside: pct(v.apprAmt, v.quoteAmt),
+            fields: [
+              ['Teklif', `${v.quoteCount} · ${tl(v.quoteAmt)}`], ['Onay', `${v.apprCount} · ${tl(v.apprAmt)}`],
+              ['Tahsilat', tl(v.col)], ['Harcama', tl(v.exp)], ['Net', tl(v.col - v.exp)], ['Adet oranı', pct(v.apprCount, v.quoteCount)],
+            ] as [string, React.ReactNode][],
+          })),
+          ...(monthly.length ? [{
+            key: 'toplam', title: 'Toplam', aside: pct(monthlyTotals.apprAmt, monthlyTotals.quoteAmt),
+            fields: [
+              ['Teklif', tl(monthlyTotals.quoteAmt)], ['Onay', tl(monthlyTotals.apprAmt)],
+              ['Tahsilat', tl(monthlyTotals.col)], ['Harcama', tl(monthlyTotals.exp)],
+            ] as [string, React.ReactNode][],
+          }] : []),
+        ]} />
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-right text-xs sm:text-sm tabular-nums">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
               <tr>
@@ -506,7 +560,14 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         <div className="p-4 pb-2">
           <h3 className="font-bold text-slate-900 text-sm">Teklifi Verene Göre Performans</h3>
         </div>
-        <div className="overflow-x-auto">
+        <MobileList empty="Bu dönemde teklif yok." rows={byPreparer.map(([name, g]) => ({
+          key: name, title: name, aside: pct(g.approvedAmt, g.totalAmt),
+          fields: [
+            ['Teklif', `${g.total} · ${tl(g.totalAmt)}`], ['Onay', `${g.approved} · ${tl(g.approvedAmt)}`],
+            ['Adet oranı', pct(g.approved, g.total)],
+          ] as [string, React.ReactNode][],
+        }))} />
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-right text-xs sm:text-sm tabular-nums">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
               <tr>
@@ -545,7 +606,14 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           <h3 className="font-bold text-slate-900 text-sm">Teklif Büyüklüğüne Göre Dağılım</h3>
           <p className="text-xs text-slate-500">Hangi tutar aralığındaki teklifler ne oranda onaylanıyor</p>
         </div>
-        <div className="overflow-x-auto">
+        <MobileList rows={sizeBuckets.map(b => ({
+          key: b.label, title: b.label, aside: pct(b.approvedAmt, b.totalAmt),
+          fields: [
+            ['Teklif', `${b.total} · ${tl(b.totalAmt)}`], ['Onay', `${b.approved} · ${tl(b.approvedAmt)}`],
+            ['Adet oranı', pct(b.approved, b.total)],
+          ] as [string, React.ReactNode][],
+        }))} />
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-right text-xs sm:text-sm tabular-nums">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
               <tr>
@@ -579,9 +647,25 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 pb-2">
           <h3 className="font-bold text-slate-900 text-sm">Müşteri Performansı</h3>
-          <p className="text-xs text-slate-500">Sütun başlığına tıklayarak sıralayın · {customerRows.length} firma</p>
+          <p className="text-xs text-slate-500"><span className="hidden md:inline">Sütun başlığına tıklayarak sıralayın · </span>{customerRows.length} firma</p>
+          <MobileSortSelect className="mt-2 w-full" sort={custSort} onChange={setCustSort} options={[
+            { key: 'approvedAmt', dir: 'desc', label: 'Onay tutarı: yüksek' },
+            { key: 'totalAmt', dir: 'desc', label: 'Teklif tutarı: yüksek' },
+            { key: 'rate', dir: 'desc', label: 'Satış oranı: yüksek' },
+            { key: 'rate', dir: 'asc', label: 'Satış oranı: düşük' },
+            { key: 'collected', dir: 'desc', label: 'Tahsilat: yüksek' },
+            { key: 'total', dir: 'desc', label: 'En çok teklif' },
+            { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
+          ]} />
         </div>
-        <div className="overflow-x-auto">
+        <MobileList empty="Bu dönemde teklif yok." rows={customerRows.slice(0, custLimit).map(r => ({
+          key: r.name, title: <>{r.name}<span className="block text-[11px] font-normal text-slate-500">{r.city || '-'}</span></>, aside: pct(r.approvedAmt, r.totalAmt),
+          fields: [
+            ['Teklif', `${r.total} · ${tl(r.totalAmt)}`], ['Onay', `${r.approved} · ${tl(r.approvedAmt)}`],
+            ['Tahsilat', r.collected ? tl(r.collected) : '-'],
+          ] as [string, React.ReactNode][],
+        }))} />
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-right text-xs sm:text-sm tabular-nums">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
               <tr>

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
 import { Customer, Quote, QuoteStatus } from '../types';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
-import { SortHeader, SortState, nextSort, compareText, SortDir } from './SortHeader';
+import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
 interface CustomersPanelProps {
   customers: Customer[];
@@ -183,7 +183,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
-          <div className="grid grid-cols-2 sm:flex gap-2">
+          <div className="grid grid-cols-2 sm:flex gap-2 [&>select]:w-full sm:[&>select]:w-auto">
             <select
               value={cityFilter}
               onChange={e => { setCityFilter(e.target.value); setLimit(PAGE); }}
@@ -207,6 +207,17 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <option value="followup">Tekrar görüşülecekler</option>
               <option value="none">Hiç teklif verilmeyenler</option>
             </select>
+            <MobileSortSelect className="!py-2.5 !rounded-xl !text-sm" sort={sort} onChange={(s) => { setSort(s); setLimit(PAGE); }} options={[
+              { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
+              { key: 'name', dir: 'desc', label: 'Firma: Z → A' },
+              { key: 'total', dir: 'desc', label: 'Onaylı tutar: yüksek' },
+              { key: 'quotes', dir: 'desc', label: 'En çok teklif' },
+              { key: 'approved', dir: 'desc', label: 'En çok onay' },
+              { key: 'pending', dir: 'desc', label: 'En çok bekleyen' },
+              { key: 'last', dir: 'desc', label: 'Son teklif: yeni' },
+              { key: 'last', dir: 'asc', label: 'Son teklif: eski' },
+              { key: 'city', dir: 'asc', label: 'Şehir: A → Z' },
+            ]} />
             <button
               onClick={openNew}
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow-sm whitespace-nowrap"
@@ -238,7 +249,41 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Telefon: kart görünümü */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {filtered.slice(0, limit).map(({ c, st }) => (
+              <div key={c.id} className="p-3">
+                <button onClick={() => { setViewing(c); setOnlyApproved(true); }} className="w-full text-left flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      {c.city || '—'}{st.lastDate ? ` · son teklif ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-black text-slate-900 text-sm tabular-nums">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</div>
+                    <div className="text-[10px] text-slate-400">onaylı toplam</div>
+                  </div>
+                </button>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 flex-wrap text-[10px] font-bold tabular-nums">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{st.total} teklif</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{st.approved} onaylı</span>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">{st.pending} bekleyen</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => onCreateQuoteForCustomer(c)} title="Teklif Aç"
+                      className="p-1.5 rounded-md bg-brand-50 text-brand-700 border border-brand-200"><FilePlus2 className="w-4 h-4" /></button>
+                    <button onClick={() => openEdit(c)} title="Düzenle"
+                      className="p-1.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => { if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id); }} title="Sil"
+                      className="p-1.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="overflow-x-auto hidden md:block">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                 <tr>

@@ -39,3 +39,27 @@ export const SortHeader: React.FC<{
 const collator = new Intl.Collator('tr', { numeric: true, sensitivity: 'base' });
 /** Türkçe ve sayıları doğal sıralayan karşılaştırma (68551 < 68552, "Ç" doğru yerde) */
 export const compareText = (a: string, b: string) => collator.compare(a || '', b || '');
+
+/** Telefonda sütun başlıkları görünmediği için aynı sıralamayı açılır listeyle sunar */
+export function MobileSortSelect<K extends string>({ sort, onChange, options, className = '' }: {
+  sort: SortState<K>;
+  onChange: (s: SortState<K>) => void;
+  options: { key: K; dir: SortDir; label: string }[];
+  className?: string;
+}) {
+  const value = `${sort.key}:${sort.dir}`;
+  return (
+    <select
+      value={value}
+      onChange={e => {
+        const [key, dir] = e.target.value.split(':') as [K, SortDir];
+        onChange({ key, dir });
+      }}
+      className={`md:hidden px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium bg-white ${className}`}
+      aria-label="Sıralama"
+    >
+      {!options.some(o => `${o.key}:${o.dir}` === value) && <option value={value}>Sıralama</option>}
+      {options.map(o => <option key={`${o.key}:${o.dir}`} value={`${o.key}:${o.dir}`}>{o.label}</option>)}
+    </select>
+  );
+}
