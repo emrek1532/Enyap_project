@@ -13,7 +13,6 @@ import {
   ChevronRight, 
   Printer, 
   Truck, 
-  Calendar, 
   Trash2, 
   Edit3, 
   Layers, 
@@ -26,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
+import { SortHeader, SortState, nextSort, compareText, SortDir } from './SortHeader';
 import { formatQuoteAmount, hasAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 
 const KANBAN_LIMIT = 30;
@@ -37,13 +37,18 @@ const fold = (s: string) =>
 
 const fmt = (n: number) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
+type QuoteSortKey = 'number' | 'customer' | 'material' | 'amount' | 'urgency' | 'status' | 'date';
+/** Durum sırası: Beklemede → Onaylandı → İptal */
+const STATUS_RANK: Record<string, number> = { yeni_talep: 0, hazirlaniyor: 0, gonderildi: 0, revizyon: 0, onaylandi: 1, siparis: 1, iptal: 2 };
+const URGENCY_RANK: Record<string, number> = { dusuk: 0, normal: 1, yuksek: 2, acil: 3 };
+const materialOf = (q: Quote) => (q.items?.length ? q.items.map(it => it.productName).join(', ') : q.notes || '');
+
 interface QuoteManagerProps {
   quotes: Quote[];
   currentRole: UserRole;
   onOpenNewQuote: () => void;
   onUpdateQuoteStatus: (id: string, status: QuoteStatus) => void;
   onDeleteQuote: (id: string) => void;
-  onAddCalendarEventFromQuote: (quote: Quote) => void;
   onPrintQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
   statusFilter: string;
@@ -56,7 +61,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onOpenNewQuote,
   onUpdateQuoteStatus,
   onDeleteQuote,
-  onAddCalendarEventFromQuote,
   onPrintQuote,
   onEditQuote,
   statusFilter,
@@ -69,6 +73,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  // Sütun başlığına tıklayarak sıralama (varsayılan: tarih, yeniden eskiye)
+  const [sort, setSort] = useState<SortState<QuoteSortKey>>({ key: 'date', dir: 'desc' });
+  const sortBy = (key: QuoteSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setListLimit(LIST_PAGE); };
 
   // Filtered quotes (newest first). Memoized: there can be thousands of quotes.
   const filteredQuotes = useMemo(() => {
@@ -97,8 +104,22 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
         return matchesSearch && matchesStatus && matchesUrgency && matchesCity && matchesDate;
       })
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  }, [quotes, searchTerm, statusFilter, urgencyFilter, cityFilter, dateFrom, dateTo]);
+      .sort((a, b) => {
+        let r = 0;
+        switch (sort.key) {
+          case 'number': r = compareText(a.quoteNumber, b.quoteNumber); break;
+          case 'customer': r = compareText(a.customerName, b.customerName) || compareText(a.city, b.city); break;
+          case 'material': r = compareText(materialOf(a), materialOf(b)); break;
+          case 'amount': r = (a.totalAmount || 0) - (b.totalAmount || 0); break;
+          case 'urgency': r = URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency]; break;
+          case 'status': r = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9); break;
+          default: r = (a.createdAt || '').localeCompare(b.createdAt || '');
+        }
+        // Eşitlikte yeni teklif üstte
+        return (sort.dir === 'asc' ? r : -r) || (b.createdAt || '').localeCompare(a.createdAt || '');
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotes, searchTerm, statusFilter, urgencyFilter, cityFilter, dateFrom, dateTo, sort]);
 
   const cities = useMemo(
     () => [...new Set(quotes.map((q) => q.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr')),
@@ -260,13 +281,13 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             <table className="w-full text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-3">Teklif No</th>
-                  <th className="py-3 px-3">Müşteri & Şehir</th>
-                  <th className="py-3 px-3">Malzeme / Not</th>
-                  <th className="py-3 px-3">Tutar</th>
-                  <th className="py-3 px-3">Aciliyet</th>
-                  <th className="py-3 px-3">Durum</th>
-                  <th className="py-3 px-3">Tarih</th>
+                  <SortHeader label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
+                  <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
+                  <SortHeader label="Malzeme / Not" active={sort.key === 'material'} dir={sort.dir} onClick={() => sortBy('material', 'asc')} />
+                  <SortHeader label="Tutar" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
+                  <SortHeader label="Aciliyet" active={sort.key === 'urgency'} dir={sort.dir} onClick={() => sortBy('urgency', 'desc')} />
+                  <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
+                  <SortHeader label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
                   <th className="py-3 px-3 text-right">İşlemler</th>
                 </tr>
               </thead>
@@ -499,7 +520,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               )}
 
               {/* Action Buttons Grid */}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200">
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
                 <button
                   onClick={() => {
                     onEditQuote(selectedQuote);
@@ -521,16 +542,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <span>Resmi Teklif</span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    onAddCalendarEventFromQuote(selectedQuote);
-                    setSelectedQuote(null);
-                  }}
-                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Takvime Ekle</span>
-                </button>
               </div>
 
               {/* Danger zone delete */}

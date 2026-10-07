@@ -1,7 +1,6 @@
 import React from 'react';
 import { 
   FileText, 
-  CalendarDays, 
   StickyNote, 
   Users,
   Wallet,
@@ -9,7 +8,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 
-export type ActiveTab = 'quotes' | 'customers' | 'calendar' | 'notes' | 'collections' | 'expenses' | 'reports';
+export type ActiveTab = 'quotes' | 'customers' | 'notes' | 'collections' | 'expenses' | 'reports';
 
 interface NavigationProps {
   activeTab: ActiveTab;
@@ -40,14 +39,6 @@ export const Navigation: React.FC<NavigationProps> = ({
       icon: Users,
       badge: null,
       badgeColor: 'bg-slate-500',
-    },
-    {
-      id: 'calendar' as ActiveTab,
-      label: 'Ortak Takvim & Ajanda',
-      shortLabel: 'Takvim',
-      icon: CalendarDays,
-      badge: eventsCount > 0 ? eventsCount : null,
-      badgeColor: 'bg-sky-600',
     },
     {
       id: 'notes' as ActiveTab,
@@ -119,7 +110,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Mobile Fixed Bottom Navigation Bar (optimized for phone usage in Isparta field) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 px-2 py-1 shadow-lg pb-safe">
-        <div className="grid grid-cols-7 gap-0.5">
+        <div className="grid grid-cols-6 gap-0.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;

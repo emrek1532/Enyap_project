@@ -43,7 +43,6 @@ import { Header } from './components/Header';
 import { Navigation, ActiveTab } from './components/Navigation';
 import { DashboardStats } from './components/DashboardStats';
 import { QuoteManager } from './components/QuoteManager';
-import { SharedCalendar } from './components/SharedCalendar';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
@@ -354,47 +353,6 @@ function Portal({ session }: { session: Session }) {
     persist([{ kind: 'delete', entity: 'quotes', id }]);
   };
 
-  // Add Calendar Event directly from quote
-  const handleAddCalendarEventFromQuote = (quote: Quote) => {
-    const in2Days = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const event: CalendarEvent = {
-      id: 'ev-follow-' + Date.now(),
-      title: `Teklif Takip: ${quote.customerName}`,
-      date: in2Days,
-      time: '11:00',
-      category: 'musteri_takip',
-      relatedEntity: { type: 'quote', id: quote.id, name: quote.customerName },
-      location: quote.city || 'Isparta',
-      assignedUser: currentRole,
-      completed: false,
-      notes: `${quote.quoteNumber} nolu teklif sonucu sorulacak (${quote.totalAmount?.toLocaleString('tr-TR')} TL)`,
-      reminder: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    handleSaveEvent(event);
-    setActiveTab('calendar');
-  };
-
-  // Calendar Event handlers
-  const handleSaveEvent = (event: CalendarEvent) => {
-    const saved: CalendarEvent = { ...event, updatedAt: new Date().toISOString() };
-    mutate(d => {
-      const exists = d.events.some(e => e.id === saved.id);
-      return {
-        ...d,
-        events: exists ? d.events.map(e => (e.id === saved.id ? saved : e)) : [saved, ...d.events],
-      };
-    });
-    persist([{ kind: 'upsert', entity: 'events', record: saved }]);
-  };
-
-  const handleDeleteEvent = (id: string) => {
-    mutate(d => ({ ...d, events: d.events.filter(e => e.id !== id) }));
-    persist([{ kind: 'delete', entity: 'events', id }]);
-  };
-
   // Quick Notes handlers
   const handleSaveNote = (note: QuickNote) => {
     const saved: QuickNote = { ...note, updatedAt: new Date().toISOString() };
@@ -509,7 +467,6 @@ function Portal({ session }: { session: Session }) {
             onOpenNewQuote={() => setIsNewQuoteOpen(true)}
             onUpdateQuoteStatus={handleUpdateQuoteStatus}
             onDeleteQuote={handleDeleteQuote}
-            onAddCalendarEventFromQuote={handleAddCalendarEventFromQuote}
             onPrintQuote={setPrintableQuote}
             onEditQuote={setEditingQuote}
             statusFilter={quoteFilter}
@@ -528,16 +485,6 @@ function Portal({ session }: { session: Session }) {
               setQuoteCustomer(customer);
               setIsNewQuoteOpen(true);
             }}
-          />
-        )}
-
-        {/* Tab 3: Ortak Takvim & Ajanda */}
-        {activeTab === 'calendar' && (
-          <SharedCalendar
-            events={data.events}
-            currentRole={currentRole}
-            onSaveEvent={handleSaveEvent}
-            onDeleteEvent={handleDeleteEvent}
           />
         )}
 

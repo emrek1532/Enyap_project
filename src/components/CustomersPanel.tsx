@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
 import { Customer, Quote, QuoteStatus } from '../types';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
+import { SortHeader, SortState, nextSort, compareText, SortDir } from './SortHeader';
 
 interface CustomersPanelProps {
   customers: Customer[];
@@ -40,6 +41,8 @@ const STATUS_LABEL: Record<QuoteStatus, { label: string; cls: string }> = {
 const isApproved = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
 const tl = (n: number) => `${n.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} TL`;
 
+type CustomerSortKey = 'name' | 'city' | 'quotes' | 'approved' | 'pending' | 'total' | 'last';
+
 export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   customers,
   quotes,
@@ -50,7 +53,9 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
   const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'quotes' | 'approved' | 'total' | 'last'>('name');
+  // Sütun başlığına tıklayarak sıralama (varsayılan: firma adı A → Z)
+  const [sort, setSort] = useState<SortState<CustomerSortKey>>({ key: 'name', dir: 'asc' });
+  const sortBy = (key: CustomerSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setLimit(PAGE); };
   const [limit, setLimit] = useState(PAGE);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -106,20 +111,24 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         (quoteFilter === 'none' && st.total === 0)
       )
       .sort((a, b) => {
-        switch (sortBy) {
-          case 'quotes': return b.st.total - a.st.total || trCompare(a.c.name, b.c.name);
-          case 'approved': return b.st.approved - a.st.approved || trCompare(a.c.name, b.c.name);
-          case 'total': return b.st.approvedTotal - a.st.approvedTotal || trCompare(a.c.name, b.c.name);
-          case 'last': return b.st.lastDate.localeCompare(a.st.lastDate) || trCompare(a.c.name, b.c.name);
-          default: return trCompare(a.c.name, b.c.name);
+        let r = 0;
+        switch (sort.key) {
+          case 'city': r = compareText(a.c.city || '', b.c.city || ''); break;
+          case 'quotes': r = a.st.total - b.st.total; break;
+          case 'approved': r = a.st.approved - b.st.approved; break;
+          case 'pending': r = a.st.pending - b.st.pending; break;
+          case 'total': r = a.st.approvedTotal - b.st.approvedTotal; break;
+          case 'last': r = a.st.lastDate.localeCompare(b.st.lastDate); break;
+          default: r = compareText(a.c.name, b.c.name);
         }
+        return (sort.dir === 'asc' ? r : -r) || trCompare(a.c.name, b.c.name);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, sortBy]);
+  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, sort]);
 
-  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || sortBy !== 'name';
+  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || sort.key !== 'name' || sort.dir !== 'asc';
   const resetFilters = () => {
-    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setSortBy('name'); setLimit(PAGE);
+    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setSort({ key: 'name', dir: 'asc' }); setLimit(PAGE);
   };
 
   const openNew = () => {
@@ -198,18 +207,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <option value="followup">Tekrar görüşülecekler</option>
               <option value="none">Hiç teklif verilmeyenler</option>
             </select>
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value as typeof sortBy)}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
-              aria-label="Sıralama"
-            >
-              <option value="name">Sırala: A → Z</option>
-              <option value="quotes">Sırala: En çok teklif</option>
-              <option value="approved">Sırala: En çok onaylı</option>
-              <option value="total">Sırala: Onaylı tutar</option>
-              <option value="last">Sırala: Son teklif tarihi</option>
-            </select>
             <button
               onClick={openNew}
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow-sm whitespace-nowrap"
@@ -245,13 +242,13 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             <table className="w-full text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-3">Firma</th>
-                  <th className="py-3 px-3">Şehir</th>
-                  <th className="py-3 px-3 text-right">Teklif</th>
-                  <th className="py-3 px-3 text-right">Onaylı</th>
-                  <th className="py-3 px-3 text-right">Beklemede</th>
-                  <th className="py-3 px-3 text-right whitespace-nowrap">Onaylı Toplam</th>
-                  <th className="py-3 px-3 whitespace-nowrap">Son Teklif</th>
+                  <SortHeader label="Firma" active={sort.key === 'name'} dir={sort.dir} onClick={() => sortBy('name', 'asc')} />
+                  <SortHeader label="Şehir" active={sort.key === 'city'} dir={sort.dir} onClick={() => sortBy('city', 'asc')} />
+                  <SortHeader label="Teklif" align="right" active={sort.key === 'quotes'} dir={sort.dir} onClick={() => sortBy('quotes', 'desc')} />
+                  <SortHeader label="Onaylı" align="right" active={sort.key === 'approved'} dir={sort.dir} onClick={() => sortBy('approved', 'desc')} />
+                  <SortHeader label="Beklemede" align="right" active={sort.key === 'pending'} dir={sort.dir} onClick={() => sortBy('pending', 'desc')} />
+                  <SortHeader label="Onaylı Toplam" align="right" active={sort.key === 'total'} dir={sort.dir} onClick={() => sortBy('total', 'desc')} />
+                  <SortHeader label="Son Teklif" active={sort.key === 'last'} dir={sort.dir} onClick={() => sortBy('last', 'desc')} />
                   <th className="py-3 px-3 text-right">İşlemler</th>
                 </tr>
               </thead>
