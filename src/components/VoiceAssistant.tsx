@@ -37,51 +37,93 @@ export const VoiceAssistant: React.FC<{
   const autoSend = useRef(false);
   const silenceTimer = useRef<number | undefined>(undefined);
 
-  const stopRec = () => { try { recRef.current?.stop(); } catch { /* zaten durmuş */ } };
+  // Dinleme oturumu: tarayıcı her duraksamada tanımayı bitirir; biz kullanıcı susana kadar
+  // yeniden başlatıp parçaları birleştiririz (Android'deki tekrar eden sonuçlar da böylece oluşmaz)
+  const session = useRef({ active: false, base: '', segments: [] as string[], current: '' });
+  const SILENCE_MS = 3000;   // konuştuktan sonra bu kadar susunca biter
+  const FIRST_WAIT_MS = 8000; // hiç konuşmazsa bu kadar bekler
 
-  useEffect(() => () => { try { recRef.current?.abort(); } catch { /* */ } }, []);
+  const joined = () => {
+    const s = session.current;
+    return [s.base, ...s.segments, s.current].map(x => x.trim()).filter(Boolean).join(' ');
+  };
+
+  const armSilence = (ms: number) => {
+    window.clearTimeout(silenceTimer.current);
+    silenceTimer.current = window.setTimeout(() => {
+      session.current.active = false;
+      try { recRef.current?.stop(); } catch { /* */ }
+    }, ms);
+  };
+
+  const finish = () => {
+    window.clearTimeout(silenceTimer.current);
+    setListening(false);
+    setInterim('');
+    finalRef.current = joined();
+    // Konuşma bitince kendiliğinden gönder: araçta ekrana dokunmak gerekmesin
+    if (autoSend.current && finalRef.current.trim()) submit(finalRef.current);
+    autoSend.current = false;
+  };
+
+  const startSegment = () => {
+    if (!RecognitionCtor) return;
+    const rec = new RecognitionCtor();
+    rec.lang = 'tr-TR';
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.onresult = (e: any) => {
+      session.current.current = bestTranscript(Array.from(e.results as ArrayLike<any>).map((r: any) => String(r[0]?.transcript || '')));
+      finalRef.current = joined();
+      setText(finalRef.current);
+      armSilence(SILENCE_MS);
+    };
+    rec.onerror = (e: any) => {
+      if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') {
+        session.current.active = false;
+        setError('Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.');
+      } else if (e?.error === 'network') {
+        session.current.active = false;
+        setError('Ses tanıma hatası. İnternet bağlantısını kontrol edin.');
+      }
+      // no-speech / aborted: oturum sürüyorsa yeniden dinlemeye devam edilir
+    };
+    rec.onend = () => {
+      const s = session.current;
+      if (s.current.trim()) { s.segments.push(s.current.trim()); s.current = ''; }
+      if (s.active) {
+        // Kullanıcı daha susmadı: dinlemeye devam
+        window.setTimeout(() => {
+          if (!session.current.active) { finish(); return; }
+          try { startSegment(); } catch { session.current.active = false; finish(); }
+        }, 60);
+        return;
+      }
+      finish();
+    };
+    recRef.current = rec;
+    rec.start();
+  };
+
+  const stopRec = () => {
+    session.current.active = false;
+    try { recRef.current?.stop(); } catch { finish(); }
+  };
+
+  useEffect(() => () => { session.current.active = false; try { recRef.current?.abort(); } catch { /* */ } }, []);
 
   const startRec = () => {
     if (!RecognitionCtor) { setError('Bu tarayıcı sesle yazmayı desteklemiyor. Chrome kullanın veya metni yazın.'); return; }
     setError('');
-    const rec = new RecognitionCtor();
-    rec.lang = 'tr-TR';
-    // Tek parça dinleme: Android'in sürekli moddaki tekrar eden sonuçlarından kaçınır.
-    // Cümle bitince (sessizlikte) tarayıcı kendisi durdurur.
-    rec.continuous = false;
-    rec.interimResults = true;
-    // Bu oturumdan önce kutuda yazan metin (ikinci kez mikrofona basınca üstüne eklenir)
-    const base = text.trim();
-    finalRef.current = base;
-    const scheduleStop = () => {
-      // Kendi sessizlik sayacımız: 1,6 sn yeni kelime gelmezse dinlemeyi bitir ve gönder
-      window.clearTimeout(silenceTimer.current);
-      silenceTimer.current = window.setTimeout(() => { try { rec.stop(); } catch { /* */ } }, 1600);
-    };
-    rec.onresult = (e: any) => {
-      // Android her sonuçta cümlenin o ana kadarki tamamını (bazen başı düzeltilmiş olarak) gönderir
-      const acc = bestTranscript(Array.from(e.results as ArrayLike<any>).map((r: any) => String(r[0]?.transcript || '')));
-      finalRef.current = [base, acc].filter(Boolean).join(' ');
-      setText(finalRef.current);
-      setInterim('');
-      scheduleStop();
-    };
-    rec.onerror = (e: any) => {
-      if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') setError('Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.');
-      else if (e?.error === 'no-speech') setError('Ses algılanmadı, tekrar deneyin.');
-      else if (e?.error && e.error !== 'aborted') setError('Ses tanıma hatası. İnternet bağlantısını kontrol edin.');
-    };
-    rec.onend = () => {
-      window.clearTimeout(silenceTimer.current);
-      setListening(false);
-      setInterim('');
-      // Konuşma bitince (sessizlik) kendiliğinden gönder: araçta ekrana dokunmak gerekmesin
-      if (autoSend.current && finalRef.current.trim()) submit(finalRef.current);
-      autoSend.current = false;
-    };
-    recRef.current = rec;
+    // Kutuda yazan metin varsa yeni söylenenler sonuna eklenir
+    session.current = { active: true, base: text.trim(), segments: [], current: '' };
+    finalRef.current = session.current.base;
     autoSend.current = true;
-    try { rec.start(); setListening(true); } catch { setError('Mikrofon başlatılamadı.'); }
+    try {
+      startSegment();
+      setListening(true);
+      armSilence(FIRST_WAIT_MS);
+    } catch { session.current.active = false; setError('Mikrofon başlatılamadı.'); }
   };
 
   const toggleMic = () => {
@@ -92,7 +134,9 @@ export const VoiceAssistant: React.FC<{
     const t = value.trim();
     if (!t || busy) return;
     autoSend.current = false;
-    if (listening) { try { recRef.current?.abort(); } catch { /* */ } }
+    session.current.active = false;
+    window.clearTimeout(silenceTimer.current);
+    if (listening) { try { recRef.current?.abort(); } catch { /* */ } setListening(false); }
     setBusy(true); setError('');
     try {
       const r = await interpret(t, context());
@@ -113,7 +157,7 @@ export const VoiceAssistant: React.FC<{
     // Açılır açılmaz dinlemeye başla
     window.setTimeout(startRec, 150);
   };
-  const close = () => { autoSend.current = false; try { recRef.current?.abort(); } catch { /* */ } setOpen(false); };
+  const close = () => { autoSend.current = false; session.current.active = false; window.clearTimeout(silenceTimer.current); try { recRef.current?.abort(); } catch { /* */ } setOpen(false); };
 
   return (
     <>
@@ -147,7 +191,7 @@ export const VoiceAssistant: React.FC<{
                   {busy ? <Loader2 className="w-10 h-10 animate-spin" /> : listening ? <MicOff className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
                 </button>
                 <p className="text-sm font-semibold text-slate-700">
-                  {busy ? 'Anlıyorum, form hazırlanıyor…' : listening ? 'Dinliyorum… bitince susun ya da dokunun' : 'Konuşmak için dokunun'}
+                  {busy ? 'Anlıyorum, form hazırlanıyor…' : listening ? 'Dinliyorum… bitince 3 sn susun ya da dokunun' : 'Konuşmak için dokunun'}
                 </p>
               </div>
 
