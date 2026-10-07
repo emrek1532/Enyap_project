@@ -41,6 +41,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   editQuote = null,
 }) => {
   // Form fields
+  const [quoteNumber, setQuoteNumber] = useState(editQuote && editQuote.quoteNumber !== '-' ? editQuote.quoteNumber : '');
   const [customerName, setCustomerName] = useState(editQuote?.customerName || initialCustomer?.name || '');
   const [city, setCity] = useState(editQuote?.city || initialCustomer?.city || 'Isparta');
   // Şehir önerileri: 81 il + müşteri kayıtlarındaki şehirler
@@ -143,6 +144,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       const keepAmounts = filledItems.length === 0 && (editQuote.items?.length || 0) === 0;
       onSaveQuote({
         ...editQuote,
+        quoteNumber: quoteNumber.trim() || '-',
         customerName: customerName.trim(),
         city: city.trim(),
         projectLocation: projectLocation.trim() || undefined,
@@ -165,13 +167,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     }
 
     const quoteId = 'qt-' + Date.now();
-    const count = Math.floor(Math.random() * 900) + 100;
     const now = new Date();
     const in5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const newQuote: Quote = {
       id: quoteId,
-      quoteNumber: `EY-${new Date().getFullYear()}-0${count}`,
+      quoteNumber: quoteNumber.trim() || '-',
       customerName: customerName.trim(),
       customerPhone: '',
       city: city.trim(),
@@ -210,7 +211,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               {isEdit ? `Teklifi Düzenle / Revize Et · ${editQuote!.quoteNumber}` : '+ Yeni Teklif Talebi Girişi'}
             </h3>
             <p className="text-xs text-brand-100">
-              {isEdit ? 'Teklif numarası ve durumu korunur; değişiklikleri yapıp kaydedin.' : 'Müşteriyi seçin, malzemeleri girin ve kaydedin.'}
+              {isEdit ? 'Durum ve tarih korunur; değişiklikleri yapıp kaydedin.' : 'Müşteriyi seçin, malzemeleri girin ve kaydedin.'}
             </p>
           </div>
           <button
@@ -228,6 +229,20 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               
               {/* Customer & Location Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2 sm:max-w-[50%] sm:pr-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Teklif No
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Örn. 67625 — boş bırakılırsa “-” yazılır"
+                    autoComplete="off"
+                    value={quoteNumber}
+                    onChange={(e) => setQuoteNumber(e.target.value)}
+                    className="w-full p-2 border border-slate-200 rounded-lg text-sm font-mono"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Müşteri / Firma Adı *
