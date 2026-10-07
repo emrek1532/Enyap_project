@@ -3,6 +3,7 @@ import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, CalendarClock } from 
 import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { findCustomer } from '../lib/customers';
+import { DecimalInput } from './DecimalInput';
 
 export const COLLECTION_METHODS = ['Çek', 'Nakit', 'Havale/EFT', 'Kredi Kartı', 'Senet'];
 export const EXPENSE_METHODS = ['Kredi Kartı **9973', 'UTTS', 'Şahsi', 'Şirket', 'Nakit', 'Havale/EFT'];
@@ -496,8 +497,8 @@ const LedgerForm: React.FC<{
 
           <div className="grid grid-cols-3 gap-3">
             <Field label="Tutar *" className="col-span-2">
-              <input type="number" required min="0.01" step="0.01" inputMode="decimal" placeholder="0,00"
-                value={form.amount || ''} onChange={e => set({ amount: parseFloat(e.target.value) || 0 })}
+              <DecimalInput required placeholder="0,00"
+                value={form.amount || 0} onValueChange={v => set({ amount: v })}
                 className={`${inputCls} tabular-nums`} />
             </Field>
             <Field label="Para Birimi">

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
+import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, deleteMaterial, formatPrice, saveMaterial, searchMaterials } from '../lib/materials';
 
 const PAGE = 50;
@@ -214,7 +215,7 @@ const MaterialForm: React.FC<{
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!m.code.trim() || !m.name.trim()) { setError('Kod ve malzeme adı zorunlu.'); return; }
-    const price = parseFloat(priceText.replace(/\./g, '').replace(',', '.')) || 0;
+    const price = parseDecimal(priceText);
     setSaving(true);
     try {
       await saveMaterial({ ...m, price }, originalCode);

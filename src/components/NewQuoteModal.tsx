@@ -6,6 +6,7 @@ import { TURKISH_CITIES } from '../lib/cities';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { Material, MATERIAL_UNITS, foldTr, rememberMaterial } from '../lib/materials';
 import { SuggestInput } from './SuggestInput';
+import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 
 interface NewQuoteModalProps {
@@ -420,15 +421,11 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-xs">
                         <div>
                           <label className="block text-[10px] text-slate-500">Miktar</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="any"
-                            inputMode="decimal"
+                          <DecimalInput
                             placeholder="1"
                             data-qty
-                            value={item.quantity || ''}
-                            onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
+                            value={item.quantity || 0}
+                            onValueChange={(v) => handleItemChange(index, 'quantity', v)}
                             onFocus={(e) => e.target.select()}
                             className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
                           />
@@ -449,12 +446,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                         </div>
                         <div>
                           <label className="block text-[10px] text-slate-500">Birim Fiyat</label>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="Opsiyonel"
-                            value={item.unitPrice || ''}
-                            onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          <DecimalInput
+                            placeholder="Örn. 1.250,50"
+                            value={item.unitPrice || 0}
+                            onValueChange={(v) => handleItemChange(index, 'unitPrice', v)}
                             className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
                           />
                         </div>
@@ -472,12 +467,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                         </div>
                         <div>
                           <label className="block text-[10px] text-slate-500">İskonto %</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={item.discount || ''}
-                            onChange={(e) => handleItemChange(index, 'discount', parseFloat(e.target.value) || 0)}
+                          <DecimalInput
+                            placeholder="0"
+                            value={item.discount || 0}
+                            onValueChange={(v) => handleItemChange(index, 'discount', Math.min(100, Math.max(0, v)))}
                             className="w-full p-1 border border-slate-300 rounded bg-white text-xs"
                           />
                         </div>
