@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, FileText, Clock, CheckCircle2, XCircle, Percent, Wallet, Receipt, Scale, Calculator, Award, Building2, HandCoins } from 'lucide-react';
+import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, HandCoins, Printer, X, ChevronRight } from 'lucide-react';
 import { Collection, Expense, Quote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
-import { CURRENCY_LABEL, Currency } from '../lib/money';
+import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
+import { PrintDoc, PrintSection, ReportPrint, printReport } from './ReportPrint';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
 interface ReportsPanelProps {
@@ -182,45 +183,75 @@ const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, emp
   </div>
 );
 
-// ---------- Yatay çubuk listesi ----------
-const BarList: React.FC<{ title: string; subtitle?: string; rows: { label: string; value: number; note?: string }[]; color: string; empty: string; sort?: boolean }> = ({ title, subtitle, rows, color, empty, sort = true }) => {
-  const max = Math.max(1, ...rows.map(r => r.value));
-  return (
-    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
-      <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
-      {subtitle && <p className="text-xs text-slate-500 mb-2">{subtitle}</p>}
-      {rows.length === 0 ? (
-        <p className="text-xs text-slate-500 py-6 text-center">{empty}</p>
-      ) : (
-        <div className="space-y-2.5 mt-2">
-          {rows.map((r, i) => (
-            <div key={r.label + i} className="text-xs">
+const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; value: React.ReactNode; sub?: React.ReactNode; onClick?: () => void }> = ({ icon: Icon, tone, label, value, sub, onClick }) => (
+  <button type="button" onClick={onClick}
+    className="group text-left bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0 transition-all hover:border-brand-300 hover:shadow-md active:scale-[0.99]">
+    <div className="flex items-center justify-between gap-2">
+      <span className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-0">
+        <span className={`p-1.5 rounded-lg shrink-0 ${tone}`}><Icon className="w-4 h-4" /></span>
+        <span className="truncate">{label}</span>
+      </span>
+      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0" />
+    </div>
+    <div className="mt-2 font-black text-slate-900 tabular-nums break-words text-xl sm:text-2xl">{value}</div>
+    {sub && <div className="text-xs text-slate-500 mt-0.5 tabular-nums">{sub}</div>}
+  </button>
+);
+
+/** Kutucuğa tıklayınca açılan liste (aynı tablo PDF'e de basılır) */
+const DetailModal: React.FC<{ section: PrintSection; period: string; onPrint: () => void; onClose: () => void }> = ({ section, period, onPrint, onClose }) => (
+  <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+    <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-5xl rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] flex flex-col">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
+        <div className="min-w-0">
+          <h3 className="font-black text-slate-900 truncate">{section.heading}</h3>
+          <p className="text-xs text-slate-500">{period} · {section.rows.length.toLocaleString('tr-TR')} kayıt</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={onPrint} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">
+            <Printer className="w-4 h-4" /> PDF
+          </button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+        </div>
+      </div>
+      {section.foot && (
+        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-700 tabular-nums">
+          Toplam: {section.foot.filter(Boolean).slice(1).join(' · ')}
+        </div>
+      )}
+      <div className="overflow-y-auto">
+        {section.rows.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Bu dönemde kayıt yok.</p>}
+        {/* Telefon: kart */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {section.rows.map((r, i) => (
+            <div key={i} className="p-3 text-xs">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-semibold text-slate-800 truncate">{sort ? `${i + 1}. ` : ''}{r.label}</span>
-                <span className="font-bold text-slate-900 tabular-nums whitespace-nowrap">{tl(r.value)}</span>
+                <span className="font-bold text-slate-900 text-sm min-w-0">{r[1]}</span>
+                <span className="font-black text-slate-900 tabular-nums whitespace-nowrap">{r[r.length - 1]}</span>
               </div>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, background: color }} />
-                </div>
-                {r.note && <span className="text-slate-500 whitespace-nowrap">{r.note}</span>}
-              </div>
+              <div className="text-slate-500 mt-0.5">{[r[0], ...r.slice(2, -1)].filter(x => x && x !== '-').join(' · ')}</div>
             </div>
           ))}
         </div>
-      )}
+        {/* Tablet / masaüstü: tablo */}
+        {section.rows.length > 0 && (
+          <table className="hidden md:table w-full text-sm tabular-nums">
+            <thead className="bg-slate-50 text-xs text-slate-500 font-bold sticky top-0">
+              <tr>{section.columns.map((c, i) => <th key={i} className={`py-2.5 px-3 ${c.align === 'right' ? 'text-right' : 'text-left'}`}>{c.label}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {section.rows.map((r, i) => (
+                <tr key={i} className="hover:bg-slate-50">
+                  {r.map((cell, ci) => (
+                    <td key={ci} className={`py-2 px-3 ${section.columns[ci]?.align === 'right' ? 'text-right whitespace-nowrap font-semibold' : 'text-slate-700'} ${ci === 1 ? 'font-semibold text-slate-900' : ''}`}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
-  );
-};
-
-const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; value: React.ReactNode; sub?: React.ReactNode; className?: string; big?: boolean }> = ({ icon: Icon, tone, label, value, sub, className = '', big }) => (
-  <div className={`bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0 ${className}`}>
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</span>
-      <span className={`p-1.5 rounded-lg ${tone}`}><Icon className="w-4 h-4" /></span>
-    </div>
-    <div className={`mt-2 font-black text-slate-900 tabular-nums break-words ${big ? 'text-2xl sm:text-3xl' : 'text-xl'}`}>{value}</div>
-    {sub && <div className="text-xs text-slate-500 mt-0.5 tabular-nums">{sub}</div>}
   </div>
 );
 
@@ -302,8 +333,6 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     return [...map.entries()].sort((a, b) => b[1].approvedAmt - a[1].approvedAmt || b[1].total - a[1].total);
   };
   const byCustomer = useMemo(() => groupQuotes(q => q.customerName), [pQuotes]);
-  const topCustomers = useMemo(() => byCustomer.slice(0, 10), [byCustomer]);
-  const topCities = useMemo(() => groupQuotes(q => q.city).slice(0, 8), [pQuotes]);
   const byPreparer = useMemo(() => groupQuotes(q => q.preparedBy || (q.createdBy === 'istanbul' ? 'İstanbul Ofis' : 'Isparta Saha')), [pQuotes]);
 
   // Müşteri performans tablosu (başlığa tıklayarak sıralanır)
@@ -339,22 +368,6 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   }, [byCustomer, colByCustomerMap, custSort]);
   const sortCust = (key: CustKey, first: SortDir) => setCustSort(s => nextSort(s, key, first));
 
-  // Teklif büyüklüğüne göre dağılım
-  const sizeBuckets = useMemo(() => {
-    const buckets = [
-      { label: '0 – 50.000 TL', min: 0, max: 50000 },
-      { label: '50.000 – 250.000 TL', min: 50000, max: 250000 },
-      { label: '250.000 – 1.000.000 TL', min: 250000, max: 1000000 },
-      { label: '1.000.000 TL ve üzeri', min: 1000000, max: Infinity },
-    ].map(b => ({ ...b, total: 0, totalAmt: 0, approved: 0, approvedAmt: 0 }));
-    pQuotes.filter(q => (q.totalAmount || 0) > 0).forEach(q => {
-      const b = buckets.find(x => q.totalAmount >= x.min && q.totalAmount < x.max)!;
-      b.total++; b.totalAmt += q.totalAmount;
-      if (isApproved(q)) { b.approved++; b.approvedAmt += q.totalAmount; }
-    });
-    return buckets;
-  }, [pQuotes]);
-
   const monthlyTotals = useMemo(() => monthly.reduce((t, [, v]) => ({
     quoteCount: t.quoteCount + v.quoteCount, quoteAmt: t.quoteAmt + v.quoteAmt,
     apprCount: t.apprCount + v.apprCount, apprAmt: t.apprAmt + v.apprAmt, col: t.col + v.col, exp: t.exp + v.exp,
@@ -363,11 +376,6 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   const expByCategory = useMemo(() => {
     const map = new Map<string, number>();
     pExpenses.filter(e => e.currency === 'TRY').forEach(e => map.set(e.category || 'Diğer', (map.get(e.category || 'Diğer') || 0) + e.amount));
-    return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
-  }, [pExpenses]);
-  const expByRegion = useMemo(() => {
-    const map = new Map<string, number>();
-    pExpenses.filter(e => e.currency === 'TRY').forEach(e => map.set(e.region || 'Belirtilmemiş', (map.get(e.region || 'Belirtilmemiş') || 0) + e.amount));
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
   }, [pExpenses]);
   // Portföy: vadesi gelmemiş çek / senetlerin aylara göre dağılımı (dönemden bağımsız)
@@ -384,11 +392,123 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       .map(([m, g]) => ({ label: `${MONTHS_TR[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`, value: g.value, note: `${g.count} adet` }));
   }, [collections]);
   const portfolio = useMemo(() => dueByMonth.reduce((t, r) => ({ value: t.value + r.value, count: t.count + Number(r.note.split(' ')[0]) }), { value: 0, count: 0 }), [dueByMonth]);
-  const colByCustomer = useMemo(() => {
-    const map = new Map<string, number>();
-    pCollections.filter(c => c.currency === 'TRY').forEach(c => map.set(c.customerName || '-', (map.get(c.customerName || '-') || 0) + c.amount));
-    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([label, value]) => ({ label, value }));
-  }, [pCollections]);
+  // ---- Dönem etiketi, kutucuk listeleri ve PDF ----
+  const trD = (d: string) => d.split('-').reverse().join('.');
+  const periodLabel = period === 'all' ? 'Tüm kayıtlar'
+    : `${from.startsWith('0000') ? 'Başlangıç' : trD(from)} – ${to.startsWith('9999') ? 'Bugün' : trD(to)}`;
+  const STATUS_TR: Record<string, string> = {
+    yeni_talep: 'Yeni Talep', hazirlaniyor: 'Hazırlanıyor', gonderildi: 'Beklemede', revizyon: 'Revizyon',
+    onaylandi: 'Onaylandı', siparis: 'Sipariş', iptal: 'İptal', arsiv: 'Arşiv',
+  };
+  const byDateDesc = <T,>(list: T[], d: (x: T) => string) => [...list].sort((a, b) => d(b).localeCompare(d(a)));
+  const amountCol = { label: 'Tutar', align: 'right' as const };
+
+  const quoteSection = (heading: string, list: Quote[]): PrintSection => ({
+    heading,
+    note: "Excel'den aktarılan tekliflerin tutarı KDV hariç, sistemde hazırlananlarınki KDV dahildir.",
+    columns: [{ label: 'Tarih' }, { label: 'Firma' }, { label: 'Teklif No' }, { label: 'Şehir' }, { label: 'Durum' }, amountCol],
+    rows: byDateDesc(list, quoteDay).map(q => [trD(quoteDay(q)), q.customerName, q.quoteNumber, q.city || '-', STATUS_TR[q.status] || q.status, formatQuoteAmount(q)]),
+    foot: ['Toplam', `${list.length} teklif`, '', '', '', tl(list.reduce((t, q) => t + (q.totalAmount || 0), 0))],
+  });
+  const portfolioList = useMemo(() => {
+    const todayStr = ymd(new Date());
+    return collections.filter(c => c.dueDate && c.dueDate >= todayStr);
+  }, [collections]);
+
+  type DetailKey = 'quotes' | 'approved' | 'pending' | 'collections' | 'expenses' | 'portfolio';
+  const sectionFor = (k: DetailKey): PrintSection => {
+    switch (k) {
+      case 'quotes': return quoteSection('Verilen Teklifler', pQuotes);
+      case 'approved': return quoteSection('Onaylanan Teklifler', pQuotes.filter(isApproved));
+      case 'pending': return quoteSection('Bekleyen Teklifler', pQuotes.filter(isPending));
+      case 'collections': return {
+        heading: 'Yapılan Tahsilatlar',
+        columns: [{ label: 'Tarih' }, { label: 'Firma' }, { label: 'Şekil' }, { label: 'Banka / Şube' }, { label: 'Vade' }, amountCol],
+        rows: byDateDesc(pCollections, c => c.date).map(c => [trD(c.date), c.customerName, c.method,
+          [c.bankName, c.bankBranch].filter(Boolean).join(' / ') || '-', c.dueDate ? trD(c.dueDate) : '-', money(c.amount, c.currency)]),
+        foot: ['Toplam', `${pCollections.length} kayıt`, '', '', '', multiCurrency(colTotals).join(' + ')],
+      };
+      case 'expenses': return {
+        heading: 'Yapılan Harcamalar',
+        columns: [{ label: 'Tarih' }, { label: 'Kategori' }, { label: 'Bölge' }, { label: 'Ödeme' }, { label: 'Açıklama' }, amountCol],
+        rows: byDateDesc(pExpenses, e => e.date).map(e => [trD(e.date), e.category, e.region || '-', e.method, e.description || '-', money(e.amount, e.currency)]),
+        foot: ['Toplam', `${pExpenses.length} kayıt`, '', '', '', multiCurrency(expTotals).join(' + ')],
+      };
+      case 'portfolio': return {
+        heading: 'Portföydeki Çek / Senetler',
+        note: 'Vadesi gelmemiş çek ve senetler (dönemden bağımsız), vadeye göre.',
+        columns: [{ label: 'Vade' }, { label: 'Firma' }, { label: 'Şekil' }, { label: 'Banka / Şube' }, { label: 'No' }, amountCol],
+        rows: [...portfolioList].sort((a, b) => a.dueDate!.localeCompare(b.dueDate!)).map(c => [trD(c.dueDate!), c.customerName, c.method,
+          [c.bankName, c.bankBranch].filter(Boolean).join(' / ') || '-', c.checkNo || '-', money(c.amount, c.currency)]),
+        foot: ['Toplam', `${portfolioList.length} adet`, '', '', '', multiCurrency(sumByCurrency(portfolioList)).join(' + ')],
+      };
+    }
+  };
+
+  const [detail, setDetail] = useState<DetailKey | null>(null);
+  const [printTarget, setPrintTarget] = useState<'summary' | DetailKey>('summary');
+
+  const summaryDoc = (): PrintDoc => ({
+    title: 'Satış ve Tahsilat Raporu',
+    period: periodLabel,
+    fileName: `Enyap_Rapor_${from.startsWith('0000') ? 'tum' : from}_${to.startsWith('9999') ? ymd(new Date()) : to}`,
+    summary: [
+      ['Verilen Teklif', tl(stats.totalAmt), `${stats.total} teklif · ${stats.firms} firma`],
+      ['Onaylanan', tl(stats.approvedAmt), `${stats.approved} teklif · satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`],
+      ['Bekleyen', tl(stats.pendingAmt), `${stats.pending} teklif karar bekliyor`],
+      ['Yapılan Tahsilat', multiCurrency(colTotals).join(' + '), `${pCollections.length} kayıt`],
+      ['Yapılan Harcama', multiCurrency(expTotals).join(' + '), `${pExpenses.length} kayıt`],
+      ['Portföydeki Çek/Senet', tl(portfolio.value), `${portfolio.count} adet · vadesi gelmemiş`],
+    ],
+    sections: [
+      {
+        heading: 'Aylık Özet',
+        note: 'Tutarlar TL. Satış oranı = onaylanan tutar ÷ verilen teklif tutarı.',
+        columns: [{ label: 'Ay' }, { label: 'Teklif', align: 'right' }, { label: 'Teklif Tutarı', align: 'right' }, { label: 'Onay', align: 'right' },
+          { label: 'Onay Tutarı', align: 'right' }, { label: 'Satış Oranı', align: 'right' }, { label: 'Tahsilat', align: 'right' }, { label: 'Harcama', align: 'right' }],
+        rows: monthly.map(([m, v]) => [monthLabel(m), String(v.quoteCount), tl(v.quoteAmt), String(v.apprCount), tl(v.apprAmt), pct(v.apprAmt, v.quoteAmt), tl(v.col), tl(v.exp)]),
+        foot: ['Toplam', String(monthlyTotals.quoteCount), tl(monthlyTotals.quoteAmt), String(monthlyTotals.apprCount), tl(monthlyTotals.apprAmt),
+          pct(monthlyTotals.apprAmt, monthlyTotals.quoteAmt), tl(monthlyTotals.col), tl(monthlyTotals.exp)],
+      },
+      {
+        heading: 'Müşteri Performansı (ilk 30)',
+        columns: [{ label: 'Firma' }, { label: 'Şehir' }, { label: 'Teklif', align: 'right' }, { label: 'Teklif Tutarı', align: 'right' },
+          { label: 'Onay', align: 'right' }, { label: 'Onay Tutarı', align: 'right' }, { label: 'Satış Oranı', align: 'right' }, { label: 'Tahsilat', align: 'right' }],
+        rows: [...customerRows].sort((a, b) => b.approvedAmt - a.approvedAmt || b.totalAmt - a.totalAmt).slice(0, 30)
+          .map(r => [r.name, r.city || '-', String(r.total), tl(r.totalAmt), String(r.approved), tl(r.approvedAmt), pct(r.approvedAmt, r.totalAmt), r.collected ? tl(r.collected) : '-']),
+      },
+      {
+        heading: 'Teklifi Verene Göre',
+        columns: [{ label: 'Teklifi Veren' }, { label: 'Teklif', align: 'right' }, { label: 'Teklif Tutarı', align: 'right' }, { label: 'Onay', align: 'right' },
+          { label: 'Onay Tutarı', align: 'right' }, { label: 'Satış Oranı', align: 'right' }],
+        rows: byPreparer.map(([n, g]) => [n, String(g.total), tl(g.totalAmt), String(g.approved), tl(g.approvedAmt), pct(g.approvedAmt, g.totalAmt)]),
+      },
+      {
+        heading: 'Harcamalar (Kategoriye Göre)',
+        columns: [{ label: 'Kategori' }, { label: 'Tutar (TL)', align: 'right' }],
+        rows: expByCategory.map(r => [r.label, tl(r.value)]),
+      },
+      {
+        heading: 'Çek / Senet Vade Takvimi',
+        note: 'Vadesi gelmemiş TL çek ve senetler (dönemden bağımsız).',
+        columns: [{ label: 'Ay' }, { label: 'Adet', align: 'right' }, { label: 'Tutar', align: 'right' }],
+        rows: dueByMonth.map(r => [r.label, r.note.split(' ')[0], tl(r.value)]),
+        foot: ['Toplam', String(portfolio.count), tl(portfolio.value)],
+      },
+    ],
+  });
+
+  const printDoc: PrintDoc = printTarget === 'summary' ? summaryDoc() : {
+    title: sectionFor(printTarget).heading,
+    period: printTarget === 'portfolio' ? 'Bugün itibarıyla' : periodLabel,
+    fileName: `Enyap_${sectionFor(printTarget).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}`,
+    sections: [sectionFor(printTarget)],
+  };
+  const doPrint = (target: 'summary' | DetailKey) => {
+    setPrintTarget(target);
+    const doc = target === 'summary' ? summaryDoc() : { fileName: `Enyap_${sectionFor(target).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}` };
+    printReport(doc.fileName);
+  };
 
   const PERIODS: [Period, string][] = [['month', 'Bu Ay'], ['3m', 'Son 3 Ay'], ['year', 'Bu Yıl'], ['12m', 'Son 12 Ay'], ['all', 'Tümü'], ['custom', 'Tarih Seç']];
 
@@ -404,6 +524,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             {label}
           </button>
         ))}
+        <button onClick={() => doPrint('summary')}
+          className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">
+          <Printer className="w-4 h-4" /> PDF Rapor Al
+        </button>
         {period === 'custom' && (
           <div className="flex items-center gap-1 text-xs text-slate-500">
             <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="p-1.5 border border-slate-200 rounded-lg text-sm" />
@@ -413,235 +537,28 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         )}
       </div>
 
-      {/* Ana göstergeler (tutar bazlı) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Tile big icon={FileText} tone="text-brand-600 bg-brand-50" label="Verilen Teklif Tutarı" value={tl(stats.totalAmt)}
-          sub={`${stats.total.toLocaleString('tr-TR')} teklif`} />
-        <Tile big icon={CheckCircle2} tone="text-emerald-600 bg-emerald-50" label="Onaylanan Teklif Tutarı" value={tl(stats.approvedAmt)}
-          sub={`${stats.approved.toLocaleString('tr-TR')} teklif onaylandı`} />
-        <Tile big icon={Percent} tone="text-accent-700 bg-accent-50" label="Satış Oranı (Verim)" value={pct(stats.approvedAmt, stats.totalAmt)}
-          sub={`Onaylanan tutar ÷ verilen tutar · adet bazında ${pct(stats.approved, stats.total)}`} />
-        <Tile big icon={Clock} tone="text-purple-600 bg-purple-50" label="Bekleyen Teklif Tutarı" value={tl(stats.pendingAmt)}
-          sub={`${stats.pending.toLocaleString('tr-TR')} teklif karar bekliyor · ${pct(stats.pendingAmt, stats.totalAmt)}`} />
-      </div>
-
-      {/* Ek göstergeler */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Tile icon={XCircle} tone="text-slate-600 bg-slate-100" label="İptal" value={tl(stats.cancelledAmt)} sub={`${stats.cancelled} teklif`} />
-        <Tile icon={Calculator} tone="text-brand-600 bg-brand-50" label="Ort. Teklif" value={tl(stats.total ? stats.totalAmt / stats.total : 0)} sub="Teklif başına" />
-        <Tile icon={Award} tone="text-emerald-600 bg-emerald-50" label="Ort. Onaylı Teklif" value={tl(stats.approved ? stats.approvedAmt / stats.approved : 0)} sub="Onaylanan teklif başına" />
-        <Tile icon={Building2} tone="text-sky-600 bg-sky-50" label="Firma" value={stats.firms.toLocaleString('tr-TR')}
-          sub={`${stats.approvedFirms} firmadan onay · ${pct(stats.approvedFirms, stats.firms)}`} />
-        <Tile className="col-span-2 lg:col-span-1" icon={HandCoins} tone="text-accent-700 bg-accent-50" label="Portföydeki Çek/Senet" value={tl(portfolio.value)}
-          sub={`${portfolio.count} adet · vadesi gelmemiş (dönemden bağımsız)`} />
-      </div>
-
-      {/* Tahsilat / harcama özeti */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Özet kutuları — dokununca ilgili liste açılır */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Tile icon={FileText} tone="text-brand-600 bg-brand-50" label="Verilen Teklif" value={tl(stats.totalAmt)}
+          sub={`${stats.total.toLocaleString('tr-TR')} teklif · ${stats.firms} firma`} onClick={() => setDetail('quotes')} />
+        <Tile icon={CheckCircle2} tone="text-emerald-600 bg-emerald-50" label="Onaylanan" value={tl(stats.approvedAmt)}
+          sub={`${stats.approved.toLocaleString('tr-TR')} teklif · satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`} onClick={() => setDetail('approved')} />
+        <Tile icon={Clock} tone="text-purple-600 bg-purple-50" label="Bekleyen" value={tl(stats.pendingAmt)}
+          sub={`${stats.pending.toLocaleString('tr-TR')} teklif karar bekliyor`} onClick={() => setDetail('pending')} />
         <Tile icon={Wallet} tone="text-accent-700 bg-accent-50" label="Yapılan Tahsilat"
-          value={multiCurrency(colTotals).map(s => <div key={s}>{s}</div>)} sub={`${pCollections.length} kayıt`} />
+          value={multiCurrency(colTotals).map(x => <div key={x}>{x}</div>)} sub={`${pCollections.length} kayıt`} onClick={() => setDetail('collections')} />
         <Tile icon={Receipt} tone="text-orange-600 bg-orange-50" label="Yapılan Harcama"
-          value={multiCurrency(expTotals).map(s => <div key={s}>{s}</div>)} sub={`${pExpenses.length} kayıt`} />
-        <Tile icon={Scale} tone="text-brand-600 bg-brand-50" label="Net (Tahsilat − Harcama)"
-          value={multiCurrency(netTotals).map(s => <div key={s} className={s.startsWith('-') ? 'text-rose-600' : ''}>{s}</div>)} />
+          value={multiCurrency(expTotals).map(x => <div key={x}>{x}</div>)} sub={`${pExpenses.length} kayıt`} onClick={() => setDetail('expenses')} />
+        <Tile icon={HandCoins} tone="text-sky-600 bg-sky-50" label="Portföydeki Çek/Senet" value={tl(portfolio.value)}
+          sub={`${portfolio.count} adet · vadesi gelmemiş`} onClick={() => setDetail('portfolio')} />
       </div>
 
-      {/* Aylık grafikler */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <ColumnChart title="Aylık Teklif ve Onay" subtitle="Verilen teklif tutarı ile onaylanan tutar (TL)" months={months}
-          series={[
-            { key: 'q', label: 'Verilen Teklif', color: C_QUOTE, values: monthly.map(([, v]) => v.quoteAmt) },
-            { key: 'a', label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
-          ]} />
-        <ColumnChart title="Aylık Tahsilat ve Harcama" subtitle="TL cinsinden kayıtlar" months={months}
-          series={[
-            { key: 'c', label: 'Tahsilat', color: C_COLLECTION, values: monthly.map(([, v]) => v.col) },
-            { key: 'e', label: 'Harcama', color: C_EXPENSE, values: monthly.map(([, v]) => v.exp) },
-          ]} />
-      </div>
-
-      {/* Aylık tablo */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 pb-2">
-          <h3 className="font-bold text-slate-900 text-sm">Aylık Özet Tablosu</h3>
-          <p className="text-xs text-slate-500">Tutarlar TL. Satış oranı tutar bazlıdır (onaylanan tutar ÷ verilen tutar). Excel'den aktarılan tekliflerin tutarı KDV hariçtir.</p>
-        </div>
-        <MobileList rows={[
-          ...[...monthly].reverse().map(([m, v]) => ({
-            key: m, title: monthLabel(m), aside: pct(v.apprAmt, v.quoteAmt),
-            fields: [
-              ['Teklif', `${v.quoteCount} · ${tl(v.quoteAmt)}`], ['Onay', `${v.apprCount} · ${tl(v.apprAmt)}`],
-              ['Tahsilat', tl(v.col)], ['Harcama', tl(v.exp)], ['Net', tl(v.col - v.exp)], ['Adet oranı', pct(v.apprCount, v.quoteCount)],
-            ] as [string, React.ReactNode][],
-          })),
-          ...(monthly.length ? [{
-            key: 'toplam', title: 'Toplam', aside: pct(monthlyTotals.apprAmt, monthlyTotals.quoteAmt),
-            fields: [
-              ['Teklif', tl(monthlyTotals.quoteAmt)], ['Onay', tl(monthlyTotals.apprAmt)],
-              ['Tahsilat', tl(monthlyTotals.col)], ['Harcama', tl(monthlyTotals.exp)],
-            ] as [string, React.ReactNode][],
-          }] : []),
+      {/* Aylık grafik */}
+      <ColumnChart title="Aylık Teklif ve Onay" subtitle="Verilen teklif tutarı ile onaylanan tutar (TL)" months={months}
+        series={[
+          { key: 'q', label: 'Verilen Teklif', color: C_QUOTE, values: monthly.map(([, v]) => v.quoteAmt) },
+          { key: 'a', label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
         ]} />
-        <div className="overflow-x-auto hidden md:block">
-          <table className="w-full text-right text-xs sm:text-sm tabular-nums">
-            <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
-              <tr>
-                <th className="py-2.5 px-3 text-left">Ay</th>
-                <th className="py-2.5 px-3">Teklif</th>
-                <th className="py-2.5 px-3">Teklif Tutarı</th>
-                <th className="py-2.5 px-3">Onaylanan</th>
-                <th className="py-2.5 px-3">Onay Tutarı</th>
-                <th className="py-2.5 px-3">Satış Oranı</th>
-                <th className="py-2.5 px-3">Adet Oranı</th>
-                <th className="py-2.5 px-3">Tahsilat</th>
-                <th className="py-2.5 px-3">Harcama</th>
-                <th className="py-2.5 px-3">Net</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {[...monthly].reverse().map(([m, v]) => (
-                <tr key={m} className="hover:bg-slate-50">
-                  <td className="py-2 px-3 text-left font-semibold text-slate-800 whitespace-nowrap">{monthLabel(m)}</td>
-                  <td className="py-2 px-3">{v.quoteCount}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(v.quoteAmt)}</td>
-                  <td className="py-2 px-3">{v.apprCount}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(v.apprAmt)}</td>
-                  <td className="py-2 px-3 font-bold">{pct(v.apprAmt, v.quoteAmt)}</td>
-                  <td className="py-2 px-3 text-slate-500">{pct(v.apprCount, v.quoteCount)}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(v.col)}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(v.exp)}</td>
-                  <td className={`py-2 px-3 whitespace-nowrap font-bold ${v.col - v.exp < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(v.col - v.exp)}</td>
-                </tr>
-              ))}
-              {monthly.length === 0 && (
-                <tr><td colSpan={10} className="py-8 text-center text-slate-500">Bu dönemde veri yok.</td></tr>
-              )}
-            </tbody>
-            {monthly.length > 0 && (
-              <tfoot className="bg-slate-50 border-t-2 border-slate-200 font-black text-slate-900">
-                <tr>
-                  <td className="py-2.5 px-3 text-left">Toplam</td>
-                  <td className="py-2.5 px-3">{monthlyTotals.quoteCount}</td>
-                  <td className="py-2.5 px-3 whitespace-nowrap">{tl(monthlyTotals.quoteAmt)}</td>
-                  <td className="py-2.5 px-3">{monthlyTotals.apprCount}</td>
-                  <td className="py-2.5 px-3 whitespace-nowrap">{tl(monthlyTotals.apprAmt)}</td>
-                  <td className="py-2.5 px-3">{pct(monthlyTotals.apprAmt, monthlyTotals.quoteAmt)}</td>
-                  <td className="py-2.5 px-3 text-slate-500">{pct(monthlyTotals.apprCount, monthlyTotals.quoteCount)}</td>
-                  <td className="py-2.5 px-3 whitespace-nowrap">{tl(monthlyTotals.col)}</td>
-                  <td className="py-2.5 px-3 whitespace-nowrap">{tl(monthlyTotals.exp)}</td>
-                  <td className={`py-2.5 px-3 whitespace-nowrap ${monthlyTotals.col - monthlyTotals.exp < 0 ? 'text-rose-600' : ''}`}>{tl(monthlyTotals.col - monthlyTotals.exp)}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </div>
-
-      {/* Sıralamalar */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <BarList title="En Çok Onay Alan Müşteriler" subtitle="Onaylanan teklif tutarı (TL) · satış oranı · onay / teklif sayısı" color={C_APPROVED}
-          rows={topCustomers.filter(([, g]) => g.approvedAmt > 0).map(([label, g]) => ({ label, value: g.approvedAmt, note: `${pct(g.approvedAmt, g.totalAmt)} · ${g.approved}/${g.total}` }))}
-          empty="Bu dönemde onaylanan teklif yok." />
-        <BarList title="Şehirlere Göre Onaylanan" subtitle="Onaylanan teklif tutarı (TL) · satış oranı · onay / teklif sayısı" color={C_QUOTE}
-          rows={topCities.filter(([, g]) => g.approvedAmt > 0).map(([label, g]) => ({ label, value: g.approvedAmt, note: `${pct(g.approvedAmt, g.totalAmt)} · ${g.approved}/${g.total}` }))}
-          empty="Bu dönemde onaylanan teklif yok." />
-        <BarList title="En Çok Tahsilat Yapılan Müşteriler" subtitle="TL tahsilatlar" color={C_COLLECTION}
-          rows={colByCustomer} empty="Bu dönemde tahsilat kaydı yok." />
-        <BarList title="Harcamalar (Kategoriye Göre)" subtitle="TL harcamalar" color={C_EXPENSE}
-          rows={expByCategory} empty="Bu dönemde harcama kaydı yok." />
-        <BarList title="Harcamalar (Bölgeye Göre)" subtitle="TL harcamalar" color={C_EXPENSE}
-          rows={expByRegion} empty="Bu dönemde harcama kaydı yok." />
-        <BarList title="Çek / Senet Vade Takvimi" subtitle="Vadesi gelmemiş TL çek ve senetler, aylara göre (dönemden bağımsız)" color={C_QUOTE}
-          rows={dueByMonth} sort={false} empty="Vadesi gelmemiş çek / senet yok." />
-      </div>
-
-      {/* Teklifi verenler */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 pb-2">
-          <h3 className="font-bold text-slate-900 text-sm">Teklifi Verene Göre Performans</h3>
-        </div>
-        <MobileList empty="Bu dönemde teklif yok." rows={byPreparer.map(([name, g]) => ({
-          key: name, title: name, aside: pct(g.approvedAmt, g.totalAmt),
-          fields: [
-            ['Teklif', `${g.total} · ${tl(g.totalAmt)}`], ['Onay', `${g.approved} · ${tl(g.approvedAmt)}`],
-            ['Adet oranı', pct(g.approved, g.total)],
-          ] as [string, React.ReactNode][],
-        }))} />
-        <div className="overflow-x-auto hidden md:block">
-          <table className="w-full text-right text-xs sm:text-sm tabular-nums">
-            <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
-              <tr>
-                <th className="py-2.5 px-3 text-left">Teklifi Veren</th>
-                <th className="py-2.5 px-3">Teklif</th>
-                <th className="py-2.5 px-3">Teklif Tutarı</th>
-                <th className="py-2.5 px-3">Onaylanan</th>
-                <th className="py-2.5 px-3">Onay Tutarı</th>
-                <th className="py-2.5 px-3">Satış Oranı</th>
-                <th className="py-2.5 px-3">Adet Oranı</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {byPreparer.map(([name, g]) => (
-                <tr key={name} className="hover:bg-slate-50">
-                  <td className="py-2 px-3 text-left font-semibold text-slate-800">{name}</td>
-                  <td className="py-2 px-3">{g.total}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(g.totalAmt)}</td>
-                  <td className="py-2 px-3">{g.approved}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(g.approvedAmt)}</td>
-                  <td className="py-2 px-3 font-bold">{pct(g.approvedAmt, g.totalAmt)}</td>
-                  <td className="py-2 px-3 text-slate-500">{pct(g.approved, g.total)}</td>
-                </tr>
-              ))}
-              {byPreparer.length === 0 && (
-                <tr><td colSpan={7} className="py-8 text-center text-slate-500">Bu dönemde teklif yok.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Teklif büyüklüğüne göre */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 pb-2">
-          <h3 className="font-bold text-slate-900 text-sm">Teklif Büyüklüğüne Göre Dağılım</h3>
-          <p className="text-xs text-slate-500">Hangi tutar aralığındaki teklifler ne oranda onaylanıyor</p>
-        </div>
-        <MobileList rows={sizeBuckets.map(b => ({
-          key: b.label, title: b.label, aside: pct(b.approvedAmt, b.totalAmt),
-          fields: [
-            ['Teklif', `${b.total} · ${tl(b.totalAmt)}`], ['Onay', `${b.approved} · ${tl(b.approvedAmt)}`],
-            ['Adet oranı', pct(b.approved, b.total)],
-          ] as [string, React.ReactNode][],
-        }))} />
-        <div className="overflow-x-auto hidden md:block">
-          <table className="w-full text-right text-xs sm:text-sm tabular-nums">
-            <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
-              <tr>
-                <th className="py-2.5 px-3 text-left">Teklif Tutarı</th>
-                <th className="py-2.5 px-3">Teklif</th>
-                <th className="py-2.5 px-3">Teklif Tutarı</th>
-                <th className="py-2.5 px-3">Onaylanan</th>
-                <th className="py-2.5 px-3">Onay Tutarı</th>
-                <th className="py-2.5 px-3">Satış Oranı</th>
-                <th className="py-2.5 px-3">Adet Oranı</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {sizeBuckets.map(b => (
-                <tr key={b.label} className="hover:bg-slate-50">
-                  <td className="py-2 px-3 text-left font-semibold text-slate-800 whitespace-nowrap">{b.label}</td>
-                  <td className="py-2 px-3">{b.total}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(b.totalAmt)}</td>
-                  <td className="py-2 px-3">{b.approved}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(b.approvedAmt)}</td>
-                  <td className="py-2 px-3 font-bold">{pct(b.approvedAmt, b.totalAmt)}</td>
-                  <td className="py-2 px-3 text-slate-500">{pct(b.approved, b.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {/* Müşteri performansı */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -705,6 +622,15 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           </div>
         )}
       </div>
+      {detail && (
+        <DetailModal
+          section={sectionFor(detail)}
+          period={detail === 'portfolio' ? 'Bugün itibarıyla' : periodLabel}
+          onPrint={() => doPrint(detail)}
+          onClose={() => setDetail(null)}
+        />
+      )}
+      <ReportPrint doc={printDoc} />
     </div>
   );
 };
