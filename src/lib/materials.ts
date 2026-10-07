@@ -42,6 +42,37 @@ export async function searchMaterials(q: string, opts: { limit?: number; offset?
   return { items: rows.map(fromRow), total: rows.length ? Number(rows[0].total) : 0 };
 }
 
+export type MaterialSortKey = 'default' | 'code' | 'name' | 'price' | 'stock' | 'updated';
+export interface MaterialFilters {
+  currency?: Currency | '';
+  unit?: string;
+  price?: '' | 'priced' | 'unpriced';
+  stock?: '' | 'in' | 'zero' | 'negative';
+}
+
+/** Malzemeler sayfası: arama + filtre + sıralama sunucuda yapılır */
+export async function listMaterials(q: string, opts: {
+  field?: MaterialField; limit?: number; offset?: number;
+  filters?: MaterialFilters; sortKey?: MaterialSortKey; sortDir?: 'asc' | 'desc';
+} = {}) {
+  const f = opts.filters || {};
+  const { data, error } = await supabase.rpc('list_materials', {
+    q,
+    field: opts.field ?? 'all',
+    lim: opts.limit ?? 50,
+    off: opts.offset ?? 0,
+    f_currency: f.currency || null,
+    f_unit: f.unit || null,
+    f_price: f.price || null,
+    f_stock: f.stock || null,
+    sort_key: opts.sortKey ?? 'default',
+    sort_dir: opts.sortDir ?? 'asc',
+  });
+  if (error) throw error;
+  const rows = (data || []) as any[];
+  return { items: rows.map(fromRow), total: rows.length ? Number(rows[0].total) : 0 };
+}
+
 export async function saveMaterial(m: Material, previousCode?: string) {
   const row = {
     code: m.code.trim(),
