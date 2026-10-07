@@ -300,11 +300,39 @@ async function handleVoice(req: Request, env: Env): Promise<Response> {
   }
 }
 
+/** TCMB günlük döviz satış kurları (1 saat önbellekli) */
+async function handleRates(): Promise<Response> {
+  const cache = (caches as any).default as Cache;
+  const key = new Request('https://enyap.cache/rates');
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  try {
+    const res = await fetch('https://www.tcmb.gov.tr/kurlar/today.xml', { headers: { 'user-agent': 'Mozilla/5.0' } });
+    if (!res.ok) throw new Error(String(res.status));
+    const xml = await res.text();
+    const rate = (code: string) => {
+      const block = new RegExp(`<Currency[^>]*Kod="${code}"[\\s\\S]*?</Currency>`).exec(xml)?.[0] || '';
+      return Number(/<ForexSelling>([\d.]+)<\/ForexSelling>/.exec(block)?.[1] || 0);
+    };
+    const date = /Tarih="([^"]+)"/.exec(xml)?.[1];
+    const body = { USD: rate('USD'), EUR: rate('EUR'), date };
+    if (!(body.USD > 0 && body.EUR > 0)) throw new Error('parse');
+    const out = new Response(JSON.stringify(body), {
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=3600' },
+    });
+    await cache.put(key, out.clone());
+    return out;
+  } catch {
+    return json({ error: 'rates_unavailable' }, 503);
+  }
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/api/ai/parse' && req.method === 'POST') return handleParse(req, env);
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
+    if (url.pathname === '/api/rates') return handleRates();
     if (url.pathname === '/api/ai/status') return json({ ready: !!(env.ANTHROPIC_API_KEY || env.AI), voice: !!env.AI });
     if (url.pathname.startsWith('/api/')) return json({ error: 'not_found' }, 404);
     return env.ASSETS.fetch(req);

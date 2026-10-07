@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FileUp, 
+import { 
   FileText, 
   Search, 
   Filter, 
@@ -23,10 +23,11 @@ import { FileUp,
   Check,
   Pencil
 } from 'lucide-react';
-import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
+import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
+import { formatTl, quoteNetTry, useRates } from '../lib/rates';
 
 const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
@@ -37,16 +38,14 @@ const fold = (s: string) =>
 
 const fmt = (n: number) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
-type QuoteSortKey = 'number' | 'customer' | 'urgency' | 'status' | 'date';
+type QuoteSortKey = 'number' | 'customer' | 'amount' | 'status' | 'date';
 /** Durum sırası: Beklemede → Onaylandı → İptal */
 const STATUS_RANK: Record<string, number> = { yeni_talep: 0, hazirlaniyor: 0, gonderildi: 0, revizyon: 0, onaylandi: 1, siparis: 1, iptal: 2 };
-const URGENCY_RANK: Record<string, number> = { dusuk: 0, normal: 1, yuksek: 2, acil: 3 };
 
 interface QuoteManagerProps {
   quotes: Quote[];
   currentRole: UserRole;
   onOpenNewQuote: () => void;
-  onImportPdf?: () => void;
   onUpdateQuoteStatus: (id: string, status: QuoteStatus) => void;
   onDeleteQuote: (id: string) => void;
   onPrintQuote: (quote: Quote) => void;
@@ -59,7 +58,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   quotes,
   currentRole,
   onOpenNewQuote,
-  onImportPdf,
   onUpdateQuoteStatus,
   onDeleteQuote,
   onPrintQuote,
@@ -69,11 +67,19 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [listLimit, setListLimit] = useState(LIST_PAGE);
-  const [urgencyFilter, setUrgencyFilter] = useState<string>('all');
   const [cityFilter, setCityFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  // Müşteri kartı: o müşteriye verilen tüm teklifler
+  const [customerView, setCustomerView] = useState<string | null>(null);
+  // Tutarlar KDV hariç TL karşılığı (döviz TCMB kuruyla çevrilir)
+  const rates = useRates(quotes);
+  const netTry = useMemo(() => {
+    const m = new Map<string, number>();
+    quotes.forEach(q => m.set(q.id, quoteNetTry(q, rates)));
+    return m;
+  }, [quotes, rates]);
   // Sütun başlığına tıklayarak sıralama (varsayılan: tarih, yeniden eskiye)
   const [sort, setSort] = useState<SortState<QuoteSortKey>>({ key: 'date', dir: 'desc' });
   const sortBy = (key: QuoteSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setListLimit(LIST_PAGE); };
@@ -98,19 +104,18 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             : statusFilter === 'takip'
               ? needsFollowUp(quote)
               : quote.status === statusFilter);
-        const matchesUrgency = urgencyFilter === 'all' || quote.urgency === urgencyFilter;
         const matchesCity = cityFilter === 'all' || quote.city === cityFilter;
         const day = (quote.createdAt || '').slice(0, 10);
         const matchesDate = (!dateFrom || day >= dateFrom) && (!dateTo || day <= dateTo);
 
-        return matchesSearch && matchesStatus && matchesUrgency && matchesCity && matchesDate;
+        return matchesSearch && matchesStatus && matchesCity && matchesDate;
       })
       .sort((a, b) => {
         let r = 0;
         switch (sort.key) {
           case 'number': r = compareText(a.quoteNumber, b.quoteNumber); break;
           case 'customer': r = compareText(a.customerName, b.customerName) || compareText(a.city, b.city); break;
-          case 'urgency': r = URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency]; break;
+          case 'amount': r = (netTry.get(a.id) || 0) - (netTry.get(b.id) || 0); break;
           case 'status': r = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9); break;
           default: r = (a.createdAt || '').localeCompare(b.createdAt || '');
         }
@@ -118,16 +123,16 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         return (sort.dir === 'asc' ? r : -r) || (b.createdAt || '').localeCompare(a.createdAt || '');
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotes, searchTerm, statusFilter, urgencyFilter, cityFilter, dateFrom, dateTo, sort]);
+  }, [quotes, searchTerm, statusFilter, cityFilter, dateFrom, dateTo, sort, netTry]);
 
   const cities = useMemo(
     () => [...new Set(quotes.map((q) => q.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr')),
     [quotes]
   );
   const followUpCount = useMemo(() => quotes.filter(needsFollowUp).length, [quotes]);
-  const hasExtraFilters = cityFilter !== 'all' || urgencyFilter !== 'all' || !!dateFrom || !!dateTo || !!searchTerm;
+  const hasExtraFilters = cityFilter !== 'all' || !!dateFrom || !!dateTo || !!searchTerm;
   const resetFilters = () => {
-    setSearchTerm(''); setStatusFilter('all'); setUrgencyFilter('all');
+    setSearchTerm(''); setStatusFilter('all');
     setCityFilter('all'); setDateFrom(''); setDateTo(''); setListLimit(LIST_PAGE);
   };
 
@@ -149,19 +154,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         return { label: 'Revizyon Bekliyor', color: 'bg-brand-100 text-brand-800 border-brand-200' };
       case 'iptal':
         return { label: 'İptal', color: 'bg-slate-100 text-slate-700 border-slate-200' };
-    }
-  };
-
-  const getUrgencyBadge = (urgency: UrgencyLevel) => {
-    switch (urgency) {
-      case 'acil':
-        return { label: 'Acil', color: 'bg-rose-500 text-white' };
-      case 'yuksek':
-        return { label: 'Yüksek', color: 'bg-amber-500 text-white' };
-      case 'normal':
-        return { label: 'Normal', color: 'bg-slate-200 text-slate-700' };
-      case 'dusuk':
-        return { label: 'Düşük', color: 'bg-slate-100 text-slate-600' };
     }
   };
 
@@ -205,17 +197,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           </select>
 
           <select
-            value={urgencyFilter}
-            onChange={(e) => { setUrgencyFilter(e.target.value); setListLimit(LIST_PAGE); }}
-            className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-          >
-            <option value="all">Tüm Aciliyetler</option>
-            <option value="acil">Acil</option>
-            <option value="yuksek">Yüksek</option>
-            <option value="normal">Normal</option>
-          </select>
-
-          <select
             value={cityFilter}
             onChange={(e) => { setCityFilter(e.target.value); setListLimit(LIST_PAGE); }}
             className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white"
@@ -246,17 +227,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           {(hasExtraFilters || statusFilter !== 'all') && (
             <button onClick={resetFilters} className="px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 sm:border-0">
               Filtreleri temizle
-            </button>
-          )}
-
-          {onImportPdf && (
-            <button
-              onClick={onImportPdf}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand-300 text-brand-700 hover:bg-brand-50 text-xs sm:text-sm font-bold shrink-0"
-              title="Muhasebe programındaki teklif PDF'ini yükleyin; firma, teklif no ve kalemler otomatik eklenir"
-            >
-              <FileUp className="w-4 h-4" />
-              <span>PDF'ten Yükle</span>
             </button>
           )}
 
@@ -304,24 +274,27 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             )}
             {filteredQuotes.slice(0, listLimit).map((quote) => {
               const statusBadge = getStatusBadge(quote.status);
-              const urgencyBadge = getUrgencyBadge(quote.urgency);
               const pending = PENDING_STATUSES.includes(quote.status);
               return (
                 <div key={quote.id} className="p-3 space-y-2">
-                  <button onClick={() => setSelectedQuote(quote)} className="w-full text-left flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-bold text-slate-900 text-sm leading-snug">{quote.customerName}</div>
+                      <button onClick={() => setCustomerView(quote.customerName)} className="font-bold text-slate-900 text-sm leading-snug text-left hover:text-brand-700 underline-offset-2 hover:underline">
+                        {quote.customerName}
+                      </button>
                       <div className="text-[11px] text-slate-500 mt-0.5">
-                        <span className="font-mono font-semibold text-slate-600">{quote.quoteNumber}</span> · {quote.city || '-'} · {new Date(quote.createdAt).toLocaleDateString('tr-TR')}
+                        <button onClick={() => setSelectedQuote(quote)} className="font-mono font-bold text-brand-700 underline underline-offset-2">{quote.quoteNumber}</button>
+                        {' '}· {quote.city || '-'} · {new Date(quote.createdAt).toLocaleDateString('tr-TR')}
                       </div>
                     </div>
-                  </button>
+                    <button onClick={() => setSelectedQuote(quote)} className="text-right shrink-0">
+                      <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</div>
+                      <div className="text-[10px] text-slate-400">KDV hariç</div>
+                    </button>
+                  </div>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>{statusBadge.label}</span>
-                      {quote.urgency !== 'normal' && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${urgencyBadge.color}`}>{urgencyBadge.label}</span>
-                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {pending && (
@@ -347,9 +320,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <tr>
                   <SortHeader label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
                   <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
-                  <SortHeader label="Aciliyet" active={sort.key === 'urgency'} dir={sort.dir} onClick={() => sortBy('urgency', 'desc')} />
                   <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
                   <SortHeader label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
+                  <SortHeader label="Tutar (KDV hariç)" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
                   <th className="py-3 px-3 text-right">İşlemler</th>
                 </tr>
               </thead>
@@ -363,24 +336,23 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 ) : (
                   filteredQuotes.slice(0, listLimit).map((quote) => {
                     const statusBadge = getStatusBadge(quote.status);
-                    const urgencyBadge = getUrgencyBadge(quote.urgency);
-
                     return (
                       <tr key={quote.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-3 font-mono font-bold text-slate-900">
-                          {quote.quoteNumber}
+                        <td className="py-3 px-3">
+                          <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç"
+                            className="font-mono font-bold text-slate-900 hover:text-brand-700 hover:underline underline-offset-2">
+                            {quote.quoteNumber}
+                          </button>
                         </td>
                         <td className="py-3 px-3">
-                          <div className="font-bold text-slate-900">{quote.customerName}</div>
+                          <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri"
+                            className="font-bold text-slate-900 text-left hover:text-brand-700 hover:underline underline-offset-2">
+                            {quote.customerName}
+                          </button>
                           <div className="text-xs text-slate-500 flex items-center gap-1">
                             <MapPin className="w-3 h-3 text-slate-400" />
                             {quote.city}
                           </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${urgencyBadge.color}`}>
-                            {urgencyBadge.label}
-                          </span>
                         </td>
                         <td className="py-3 px-3">
                           <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>
@@ -394,6 +366,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         </td>
                         <td className="py-3 px-3 text-xs text-slate-500 whitespace-nowrap">
                           {new Date(quote.createdAt).toLocaleDateString('tr-TR')}
+                        </td>
+                        <td className="py-3 px-3 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                          {formatTl(netTry.get(quote.id) || 0)}
                         </td>
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
@@ -459,6 +434,18 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div>
       )}
 
+      {/* Müşteri kartı: verilen tüm teklifler */}
+      {customerView && (
+        <CustomerQuotes
+          name={customerView}
+          quotes={quotes}
+          netTry={netTry}
+          statusBadge={getStatusBadge}
+          onOpenQuote={setSelectedQuote}
+          onClose={() => setCustomerView(null)}
+        />
+      )}
+
       {/* Quote Detail & Action Modal */}
       {selectedQuote && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -471,13 +458,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <span className="text-xs font-mono font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded">
                     {selectedQuote.quoteNumber}
                   </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase ${getUrgencyBadge(selectedQuote.urgency).color}`}>
-                    {selectedQuote.urgency}
+                  <span className="text-xs font-bold text-slate-700">
+                    {formatTl(netTry.get(selectedQuote.id) ?? quoteNetTry(selectedQuote, rates))} <span className="font-normal text-slate-400">KDV hariç</span>
                   </span>
                 </div>
-                <h3 className="text-lg font-black text-slate-900 mt-1">
+                <button onClick={() => setCustomerView(selectedQuote.customerName)} title="Müşterinin tüm teklifleri"
+                  className="text-lg font-black text-slate-900 mt-1 text-left hover:text-brand-700 hover:underline underline-offset-2">
                   {selectedQuote.customerName}
-                </h3>
+                </button>
                 <p className="text-xs text-slate-500">
                   {selectedQuote.city} {selectedQuote.projectLocation ? `• ${selectedQuote.projectLocation}` : ''}
                 </p>
@@ -597,7 +585,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
               {/* Danger zone delete */}
               <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
-                <span>{selectedQuote.imported ? 'Tutar KDV hariç' : ''}</span>
+                <span>{rates.date ? `Kur: 1 USD = ${rates.USD.toLocaleString('tr-TR')} TL · 1 EUR = ${rates.EUR.toLocaleString('tr-TR')} TL (TCMB ${rates.date})` : ''}</span>
                 <button
                   onClick={() => {
                     if (confirm('Bu teklifi silmek istediğinize emin misiniz?')) {
@@ -618,6 +606,84 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div>
       )}
 
+    </div>
+  );
+};
+
+/** Müşteri kartı: özet + o müşteriye verilen tüm teklifler (tıklayınca teklif açılır) */
+const CustomerQuotes: React.FC<{
+  name: string;
+  quotes: Quote[];
+  netTry: Map<string, number>;
+  statusBadge: (s: QuoteStatus) => { label: string; color: string } | undefined;
+  onOpenQuote: (q: Quote) => void;
+  onClose: () => void;
+}> = ({ name, quotes, netTry, statusBadge, onOpenQuote, onClose }) => {
+  const list = useMemo(
+    () => quotes.filter(q => q.customerName === name).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+    [quotes, name],
+  );
+  const sum = (xs: Quote[]) => xs.reduce((t, q) => t + (netTry.get(q.id) || 0), 0);
+  const approved = list.filter(q => q.status === 'onaylandi' || q.status === 'siparis');
+  const pending = list.filter(q => PENDING_STATUSES.includes(q.status));
+  const cancelled = list.filter(q => q.status === 'iptal');
+  const city = list.find(q => q.city)?.city;
+  const first = list[list.length - 1]?.createdAt;
+  const stats: [string, string, string?][] = [
+    ['Toplam teklif', `${list.length}`, formatTl(sum(list))],
+    ['Onaylanan', `${approved.length}`, formatTl(sum(approved))],
+    ['Beklemede', `${pending.length}`, formatTl(sum(pending))],
+    ['Onay oranı', list.length ? `%${Math.round((approved.length / list.length) * 100)}` : '—', `${cancelled.length} iptal`],
+  ];
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh]">
+        <div className="p-4 border-b border-slate-200 flex items-start justify-between gap-3 bg-slate-50 sm:rounded-t-2xl pt-safe">
+          <div className="min-w-0">
+            <h3 className="text-lg font-black text-slate-900 leading-tight">{name}</h3>
+            <p className="text-xs text-slate-500">
+              {city || '—'}{first ? ` · ilk teklif ${new Date(first).toLocaleDateString('tr-TR')}` : ''}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 text-lg font-bold" aria-label="Kapat">✕</button>
+        </div>
+        <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 border-b border-slate-100">
+          {stats.map(([k, v, sub]) => (
+            <div key={k} className="rounded-lg border border-slate-200 px-3 py-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{k}</div>
+              <div className="text-lg font-black text-slate-900 tabular-nums">{v}</div>
+              {sub && <div className="text-[11px] text-slate-500 tabular-nums">{sub}</div>}
+            </div>
+          ))}
+        </div>
+        <div className="overflow-y-auto flex-1">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-[11px] uppercase text-slate-500 sticky top-0">
+              <tr>
+                <th className="px-3 py-2 text-left">Teklif No</th>
+                <th className="px-3 py-2 text-left">Tarih</th>
+                <th className="px-3 py-2 text-left">Durum</th>
+                <th className="px-3 py-2 text-right">Tutar (KDV hariç)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {list.map(q => {
+                const b = statusBadge(q.status);
+                return (
+                  <tr key={q.id} onClick={() => onOpenQuote(q)} className="cursor-pointer hover:bg-brand-50/50">
+                    <td className="px-3 py-2 font-mono font-bold text-brand-700">{q.quoteNumber}</td>
+                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{new Date(q.createdAt).toLocaleDateString('tr-TR')}</td>
+                    <td className="px-3 py-2">
+                      {b && <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${b.color}`}>{b.label}</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right font-bold tabular-nums whitespace-nowrap">{formatTl(netTry.get(q.id) || 0)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
