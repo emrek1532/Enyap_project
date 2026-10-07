@@ -4,6 +4,7 @@
  */
 import { Currency } from './money';
 import { QuoteItem } from '../types';
+import { foldTr, searchMaterials } from './materials';
 
 export interface PdfQuote {
   fileName: string;
@@ -33,8 +34,6 @@ const ROW = new RegExp(
   String.raw`^\s*(\d+)\s*\)\s*(.+?)\s+(${NUM})\s+([A-Za-zÇĞİÖŞÜçğıöşü.]+)\s+(${NUM})\s+(\d+(?:,\d+)?)(?:\s+(\d+(?:,\d+)?))?\s+(${NUM})\s+(TL|TRY|USD|EUR|EURO)\s+(${NUM})\s+(TL|TRY|USD|EUR|EURO)\s*$`,
 );
 
-const titleTr = (s: string) =>
-  s.toLocaleLowerCase('tr').replace(/(^|[\s(/-])(\p{L})/gu, (_, a, b) => a + b.toLocaleUpperCase('tr'));
 
 /** PDF satırlarından teklifi çıkarır (satırlar soldan sağa birleştirilmiş metinlerdir) */
 export function parseQuoteLines(lines: string[], fileName = ''): PdfQuote {
@@ -151,3 +150,51 @@ export async function pdfLines(data: ArrayBuffer): Promise<string[]> {
 export async function readQuotePdf(file: File): Promise<PdfQuote> {
   return parseQuoteLines(await pdfLines(await file.arrayBuffer()), file.name);
 }
+
+const GENERIC = new Set(['ltd', 'sti', 'san', 'tic', 'ins', 'insaat', 'taah', 'muh', 've', 'as', 'sirketi', 'limited', 'sanayi', 'ticaret',
+  'imalat', 'tes', 'sihhi', 'muhendislik', 'enerji', 'yapi', 'mekanik', 'isi', 'dogal', 'gaz', 'dogalgaz']);
+const toks = (s: string) => foldTr(s).split(/[^a-z0-9]+/).filter(t => t.length >= 3);
+
+/** PDF'teki resmi unvanı ("MURAT DOĞAL GAZ SIHHİ TES…") sistemdeki kısa müşteri adına ("Murat Doğalgaz") eşler */
+export function matchCustomer(pdfName: string, names: string[]): string | null {
+  const flat = (s: string) => foldTr(s).replace(/[^a-z0-9]/g, '');
+  const pf = flat(pdfName);
+  const pt = toks(pdfName);
+  let best: string | null = null, bestScore = 0;
+  for (const n of names) {
+    const nf = flat(n);
+    let sc = 0;
+    if (nf.length >= 5 && pf.startsWith(nf)) sc = 100 + nf.length;
+    else {
+      const nt = toks(n);
+      const key = nt.filter(t => !GENERIC.has(t));
+      if (!key.length) continue;
+      // Ayırt edici kelimelerin hepsi unvanda geçmeli ("Tavsan Makine" ↔ "TAVSAN MAKİNE İMALAT…")
+      const hit = (t: string) => pt.some(p => p.slice(0, 4) === t.slice(0, 4));
+      if (!key.every(hit)) continue;
+      sc = key.reduce((a, t) => a + t.length, 0) + nt.filter(hit).length;
+      if (!hit(nt[0])) sc -= 5; // ilk kelime tutmuyorsa zayıf
+    }
+    if (sc > bestScore) { bestScore = sc; best = n; }
+  }
+  return bestScore >= 5 ? best : null;
+}
+
+export const titleTr = (s: string) =>
+  s.toLocaleLowerCase('tr').replace(/(^|[\s(/-])(\p{L})/gu, (_, a, b) => a + b.toLocaleUpperCase('tr'));
+
+
+/** Katalogda adı birebir aynı olan malzemenin kodunu bulur (yanlış kod yazmamak için sadece tam eşleşme) */
+export async function catalogCode(name: string): Promise<string | undefined> {
+  const norm = (s: string) => foldTr(s).replace(/\s+/g, ' ').trim();
+  const target = norm(name);
+  const words = target.split(' ').filter(w => w.length >= 3).sort((a, b) => b.length - a.length).slice(0, 3);
+  if (!words.length) return undefined;
+  try {
+    const r = await searchMaterials(words.join(' '), { limit: 30, field: 'name' });
+    return r.items.find(m => norm(m.name) === target)?.code;
+  } catch {
+    return undefined;
+  }
+}
+

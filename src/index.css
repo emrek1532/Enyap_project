@@ -85,3 +85,52 @@ html, body {
   outline: 2px solid var(--color-brand-500);
   outline-offset: 0;
 }
+
+@layer components {
+/* Teklif kalem satırı (Mikro benzeri sıkı tablo): telefonda 3 kısa satır, geniş ekranda tek satır */
+.qrow {
+  display: grid;
+  gap: 0.25rem 0.375rem;
+  grid-template-columns: 5.4rem 3.7rem minmax(0, 1fr) 3.6rem 3.1rem;
+  grid-template-areas:
+    "kod ad ad ad ad"
+    "qty br fiyat dvz isk"
+    "no tut tut tools tools";
+  align-items: center;
+}
+.qrow > [data-a="no"] { grid-area: no; }
+.qrow > [data-a="kod"] { grid-area: kod; }
+.qrow > [data-a="ad"] { grid-area: ad; }
+.qrow > [data-a="qty"] { grid-area: qty; }
+.qrow > [data-a="br"] { grid-area: br; }
+.qrow > [data-a="fiyat"] { grid-area: fiyat; }
+.qrow > [data-a="dvz"] { grid-area: dvz; }
+.qrow > [data-a="isk"] { grid-area: isk; }
+.qrow > [data-a="tut"] { grid-area: tut; }
+.qrow > [data-a="tools"] { grid-area: tools; justify-self: end; }
+@media (min-width: 768px) {
+  .qrow {
+    grid-template-columns: 1.75rem 8.5rem minmax(0, 1fr) 4.75rem 4.75rem 6.5rem 4.25rem 3.75rem 7rem 5.25rem;
+    grid-template-areas: "no kod ad qty br fiyat dvz isk tut tools";
+  }
+}
+/* Sıkı form alanı */
+.qf {
+  height: 2rem;
+  width: 100%;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-slate-300);
+  border-radius: 0.25rem;
+  background: #fff;
+  font-size: 0.8125rem;
+  color: var(--color-slate-800);
+}
+.qf:focus { border-color: var(--color-brand-500); }
+.ql {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-slate-500);
+  margin-bottom: 0.125rem;
+}
+}
