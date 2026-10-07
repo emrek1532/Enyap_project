@@ -22,3 +22,14 @@ export const needsFollowUp = (q: Quote) =>
   new Date(q.createdAt).getTime() >= FOLLOW_UP_START &&
   quoteAgeInDays(q) >= FOLLOW_UP_AFTER_DAYS;
 
+
+/** Otomatik teklif numarası: EK-<yıl>-<4 haneli sıra>, o yılın en büyük numarasının bir fazlası */
+export function nextQuoteNumber(quotes: { quoteNumber?: string }[], date = new Date()): string {
+  const year = date.getFullYear();
+  const re = new RegExp(`^EK-${year}-(\\d+)$`, 'i');
+  const max = quotes.reduce((m, q) => {
+    const hit = re.exec((q.quoteNumber || '').trim());
+    return hit ? Math.max(m, parseInt(hit[1], 10)) : m;
+  }, 0);
+  return `EK-${year}-${String(max + 1).padStart(4, '0')}`;
+}

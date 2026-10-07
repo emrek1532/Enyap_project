@@ -8,6 +8,7 @@ import { Material, MATERIAL_UNITS, foldTr, rememberMaterial } from '../lib/mater
 import { SuggestInput } from './SuggestInput';
 import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
+import { nextQuoteNumber } from '../lib/quoteRules';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -17,6 +18,8 @@ interface NewQuoteModalProps {
   initialCustomer?: Customer | null;
   /** Doluysa form bu teklifi düzenler / revize eder */
   editQuote?: Quote | null;
+  /** Otomatik teklif numarası için mevcut teklifler */
+  quotes?: Quote[];
 }
 
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
@@ -28,9 +31,14 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   customers = [],
   initialCustomer = null,
   editQuote = null,
+  quotes = [],
 }) => {
   // Form fields
-  const [quoteNumber, setQuoteNumber] = useState(editQuote && editQuote.quoteNumber !== '-' ? editQuote.quoteNumber : '');
+  // Yeni teklifte numara otomatik (EK-2026-0001); düzenlemede mevcut numara korunur
+  const quoteNumber = useMemo(
+    () => (editQuote ? editQuote.quoteNumber : nextQuoteNumber(quotes)),
+    [editQuote, quotes],
+  );
   const [customerName, setCustomerName] = useState(editQuote?.customerName || initialCustomer?.name || '');
   const [city, setCity] = useState(editQuote?.city || initialCustomer?.city || 'Isparta');
   // Şehir önerileri: 81 il + müşteri kayıtlarındaki şehirler
@@ -180,7 +188,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       const keepAmounts = filledItems.length === 0 && (editQuote.items?.length || 0) === 0;
       onSaveQuote({
         ...editQuote,
-        quoteNumber: quoteNumber.trim() || '-',
         customerName: customerName.trim(),
         city: city.trim(),
         projectLocation: projectLocation.trim() || undefined,
@@ -208,7 +215,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
     const newQuote: Quote = {
       id: quoteId,
-      quoteNumber: quoteNumber.trim() || '-',
+      // Kaydetme anında tekrar hesapla (bu arada başka teklif eklendiyse çakışmasın)
+      quoteNumber: nextQuoteNumber(quotes),
       customerName: customerName.trim(),
       customerPhone: '',
       city: city.trim(),
@@ -269,15 +277,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Teklif No
                   </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Örn. 67625 — boş bırakılırsa “-” yazılır"
-                    autoComplete="off"
-                    value={quoteNumber}
-                    onChange={(e) => setQuoteNumber(e.target.value)}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-sm font-mono"
-                  />
+                  <div className="w-full p-2 border border-slate-200 rounded-lg text-sm font-mono bg-slate-50 text-slate-700 flex items-center justify-between gap-2">
+                    <span>{quoteNumber}</span>
+                    <span className="text-[10px] font-sans text-slate-400">{isEdit ? 'değiştirilemez' : 'otomatik'}</span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
