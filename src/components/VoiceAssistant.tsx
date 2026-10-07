@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Mic, MicOff, Send, Sparkles, X } from 'lucide-react';
-import { AiContext, AiError, AiResult, parseSpeech, speak } from '../lib/ai';
+import { AiContext, AiError, AiResult, interpret, speak } from '../lib/ai';
 
 // Tarayıcının ses tanıma arayüzü (Chrome / Android'de webkit önekli)
 type Recognition = {
@@ -85,7 +85,7 @@ export const VoiceAssistant: React.FC<{
     if (listening) { try { recRef.current?.abort(); } catch { /* */ } }
     setBusy(true); setError('');
     try {
-      const r = await parseSpeech(t, context());
+      const r = await interpret(t, context());
       speak(r.reply);
       if (r.intent === 'unknown') { setError(r.reply || 'Ne yapmak istediğinizi anlayamadım.'); return; }
       await onResult(r);
