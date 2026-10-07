@@ -1,8 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Package } from 'lucide-react';
 import { CURRENCY_LABEL } from '../lib/money';
-import { Material, MaterialField, formatPrice, searchMaterials, searchRecent } from '../lib/materials';
+import { Material, MaterialField, foldTr, formatPrice, searchMaterials, searchRecent } from '../lib/materials';
 import { SuggestInput } from './SuggestInput';
+
+// Aynı aramayı tekrar sunucuya sormamak için küçük bellek içi önbellek
+const CACHE_MAX = 300;
+const cache = new Map<string, { items: Material[]; total: number }>();
+const cacheGet = (field: MaterialField, key: string) => cache.get(`${field}|${key}`);
+const cachePut = (field: MaterialField, key: string, r: { items: Material[]; total: number }) => {
+  const k = `${field}|${key}`;
+  cache.delete(k);
+  cache.set(k, r);
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+};
 
 /**
  * Teklif kalemi için malzeme adı / kodu alanı. Yazdıkça fiyat kataloğunda arar;
@@ -23,19 +34,52 @@ export const MaterialPicker: React.FC<{
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [offline, setOffline] = useState(false);
+  const [focused, setFocused] = useState(false);
   const reqId = useRef(0);
+  const last = useRef<{ q: string; items: Material[]; total: number } | null>(null);
   const minChars = field === 'code' ? 1 : 2;
 
   useEffect(() => {
+    // Sadece yazılan kutu arar (seçimden sonra ya da düzenleme açılışında boşuna sorgu atılmaz)
+    if (!focused) return;
     const q = value.trim();
     const id = ++reqId.current;
     if (q.length < minChars) { setResults([]); setTotal(0); setLoading(false); return; }
+    const key = foldTr(q);
+
+    const show = (r: { items: Material[]; total: number }) => {
+      setResults(r.items); setTotal(r.total); setOffline(false);
+      last.current = { q: key, ...r };
+    };
+
+    // 1) Daha önce aranmışsa anında göster
+    const cached = cacheGet(field, key);
+    if (cached) { show(cached); setLoading(false); return; }
+
+    // 2) Önceki aramanın devamıysa sonuçları hemen süz (tam listeyse sunucuya hiç gitme)
+    const prev = last.current;
+    if (prev && key.startsWith(prev.q)) {
+      const toks = key.split(/\s+/).filter(Boolean);
+      const filtered = prev.items.filter(m => {
+        const hay = foldTr(field === 'code' ? m.code : field === 'name' ? m.name : `${m.code} ${m.name}`);
+        return toks.every(t => hay.includes(t));
+      });
+      if (prev.total <= prev.items.length) {
+        const r = { items: filtered, total: filtered.length };
+        cachePut(field, key, r); show(r); setLoading(false);
+        return;
+      }
+      if (filtered.length) { setResults(filtered); setTotal(Math.max(filtered.length, prev.total)); }
+    }
+
+    // 3) Sunucuya sor (kısa bekleme: hızlı yazarken her harfte istek gitmesin)
     const timer = window.setTimeout(async () => {
       setLoading(true);
       try {
         const r = await searchMaterials(q, { limit: 12, field });
+        cachePut(field, key, r);
         if (id !== reqId.current) return;
-        setResults(r.items); setTotal(r.total); setOffline(false);
+        show(r);
       } catch {
         if (id !== reqId.current) return;
         const recent = searchRecent(q, field);
@@ -43,11 +87,12 @@ export const MaterialPicker: React.FC<{
       } finally {
         if (id === reqId.current) setLoading(false);
       }
-    }, 200);
+    }, 120);
     return () => window.clearTimeout(timer);
-  }, [value, field, minChars]);
+  }, [value, field, minChars, focused]);
 
   return (
+    <div className={className} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
     <SuggestInput<Material>
       value={value}
       onChange={onChange}
@@ -58,7 +103,6 @@ export const MaterialPicker: React.FC<{
       minChars={minChars}
       required={required}
       placeholder={placeholder}
-      className={className}
       focusAfterPick={focusAfterPick}
       inputClassName={`w-full p-1.5 border border-slate-300 rounded text-xs bg-white ${field === 'code' ? 'font-mono uppercase' : ''}`}
       header={offline ? (
@@ -84,5 +128,6 @@ export const MaterialPicker: React.FC<{
         </span>
       )}
     />
+    </div>
   );
 };
