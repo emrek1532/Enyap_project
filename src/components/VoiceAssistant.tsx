@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Mic, MicOff, Send, Sparkles, X } from 'lucide-react';
 import { AiContext, AiError, AiResult, interpret, speak } from '../lib/ai';
-import { mergeTranscripts } from '../lib/voiceParser';
+import { bestTranscript } from '../lib/voiceParser';
 
 // Tarayıcının ses tanıma arayüzü (Chrome / Android'de webkit önekli)
 type Recognition = {
@@ -46,7 +46,9 @@ export const VoiceAssistant: React.FC<{
     setError('');
     const rec = new RecognitionCtor();
     rec.lang = 'tr-TR';
-    rec.continuous = true;
+    // Tek parça dinleme: Android'in sürekli moddaki tekrar eden sonuçlarından kaçınır.
+    // Cümle bitince (sessizlikte) tarayıcı kendisi durdurur.
+    rec.continuous = false;
     rec.interimResults = true;
     // Bu oturumdan önce kutuda yazan metin (ikinci kez mikrofona basınca üstüne eklenir)
     const base = text.trim();
@@ -57,8 +59,8 @@ export const VoiceAssistant: React.FC<{
       silenceTimer.current = window.setTimeout(() => { try { rec.stop(); } catch { /* */ } }, 1600);
     };
     rec.onresult = (e: any) => {
-      // Android Chrome her sonuçta cümlenin tamamını baştan gönderebiliyor; tekrarları birleştir
-      const acc = mergeTranscripts(Array.from(e.results as ArrayLike<any>).map((r: any) => String(r[0]?.transcript || '')));
+      // Android her sonuçta cümlenin o ana kadarki tamamını (bazen başı düzeltilmiş olarak) gönderir
+      const acc = bestTranscript(Array.from(e.results as ArrayLike<any>).map((r: any) => String(r[0]?.transcript || '')));
       finalRef.current = [base, acc].filter(Boolean).join(' ');
       setText(finalRef.current);
       setInterim('');
