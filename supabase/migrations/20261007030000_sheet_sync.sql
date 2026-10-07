@@ -42,6 +42,15 @@ begin
   end if;
 
   if coalesce(trim(q.quote_number), '') in ('', '-') then
+    -- Numara silindiyse eski numaralı satırı sheet'ten kaldır
+    if tg_op = 'UPDATE' and coalesce(trim(old.quote_number), '') not in ('', '-') then
+      perform net.http_post(
+        url := cfg.url,
+        body := jsonb_build_object('secret', cfg.secret, 'action', 'delete', 'quoteNumber', trim(old.quote_number)),
+        headers := '{"Content-Type": "application/json"}'::jsonb,
+        timeout_milliseconds := 10000
+      );
+    end if;
     return null;
   end if;
 
@@ -62,7 +71,8 @@ begin
       'secret', cfg.secret,
       'action', case when tg_op = 'DELETE' then 'delete' else 'upsert' end,
       'quoteNumber', trim(q.quote_number),
-      'oldQuoteNumber', case when tg_op = 'UPDATE' then trim(old.quote_number) end,
+      'oldQuoteNumber', case when tg_op = 'UPDATE' and coalesce(trim(old.quote_number), '') not in ('', '-')
+                             then trim(old.quote_number) end,
       'date', to_char(q.created_at at time zone 'Europe/Istanbul', 'YYYY-MM-DD'),
       'status', case
         when q.status in ('onaylandi', 'siparis') then 'Onaylandı'

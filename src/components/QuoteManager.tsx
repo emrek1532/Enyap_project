@@ -26,7 +26,7 @@ import {
 import { Quote, QuoteStatus, UrgencyLevel, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
-import { formatQuoteAmount, hasAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
+import { formatQuoteAmount, quoteAmountParts, hasAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 
 const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
@@ -308,7 +308,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="font-black text-slate-900 text-sm tabular-nums">{hasAmount(quote) ? formatQuoteAmount(quote) : 'Fiyat Bekleniyor'}</div>
+                      <div className="font-black text-slate-900 text-sm tabular-nums">
+                        {hasAmount(quote) ? quoteAmountParts(quote).map(p => <div key={p} className="whitespace-nowrap">{p}</div>) : 'Fiyat Bekleniyor'}
+                      </div>
                       {quote.imported && quote.totalAmount > 0 && <div className="text-[10px] text-slate-400">KDV hariç</div>}
                     </div>
                   </button>
@@ -386,7 +388,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                             : quote.notes || '-'}
                         </td>
                         <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
-                          {hasAmount(quote) ? formatQuoteAmount(quote) : 'Fiyat Bekleniyor'}
+                          {hasAmount(quote) ? quoteAmountParts(quote).map(p => <span key={p} className="block">{p}</span>) : 'Fiyat Bekleniyor'}
                           {quote.imported && quote.totalAmount > 0 && (
                             <span className="block text-[10px] font-medium text-slate-400">KDV hariç</span>
                           )}
