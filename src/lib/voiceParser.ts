@@ -402,3 +402,17 @@ export function mergeTranscripts(parts: string[]): string {
   return acc;
 }
 
+
+/**
+ * Tek parça dinlemede sonuçlardan en doğru metni seçer.
+ * Sonuçlar birbirinin devamıysa (Android) en uzunu / sonuncusu tam cümledir;
+ * birbirinden bağımsız parçalarsa (masaüstü Chrome) sırayla birleştirilir.
+ */
+export function bestTranscript(parts: string[]): string {
+  const ps = parts.map(p => p.trim()).filter(Boolean);
+  if (ps.length <= 1) return ps[0] || '';
+  const firstWord = (s: string) => normT(s).split(' ')[0];
+  const cumulative = ps.every(p => firstWord(p) === firstWord(ps[0]) || normT(p).length >= normT(ps[0]).length);
+  if (cumulative) return ps.reduce((a, b) => (normT(b).length >= normT(a).length ? b : a));
+  return mergeTranscripts(ps);
+}
