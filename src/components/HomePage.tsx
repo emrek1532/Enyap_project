@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
-import { FileText, Users, Wallet, Receipt, BarChart3, StickyNote, ChevronRight, Plus } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FileText, Users, Wallet, Receipt, BarChart3, StickyNote, Package, ChevronRight, Plus } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
+import { supabase } from '../lib/supabase';
 import type { ActiveTab } from './Navigation';
 
 interface HomePageProps {
@@ -58,6 +59,15 @@ export const HomePage: React.FC<HomePageProps> = ({
     };
   }, [quotes, customers, collections, expenses, notes]);
 
+  // Katalog sunucuda; sadece toplam sayıyı soruyoruz
+  const [materialCount, setMaterialCount] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    supabase.from('materials').select('code', { count: 'estimated', head: true })
+      .then(({ count }) => { if (alive && count != null) setMaterialCount(count); });
+    return () => { alive = false; };
+  }, []);
+
   const tiles: {
     tab: Exclude<ActiveTab, 'home'>; title: string; desc: string; Icon: React.ElementType;
     tone: string; ring: string; stat: string; statLabel: string;
@@ -68,6 +78,9 @@ export const HomePage: React.FC<HomePageProps> = ({
     { tab: 'customers', title: 'Müşteriler', desc: 'Firma kartları ve teklif geçmişi', Icon: Users,
       tone: 'bg-sky-50 text-sky-600', ring: 'hover:border-sky-300',
       stat: s.customers.toLocaleString('tr-TR'), statLabel: `kayıtlı firma · ${s.activeCustomers} teklif verilen` },
+    { tab: 'materials', title: 'Malzemeler', desc: 'Fiyat listesi, kod ve stok', Icon: Package,
+      tone: 'bg-teal-50 text-teal-600', ring: 'hover:border-teal-300',
+      stat: materialCount == null ? '—' : materialCount.toLocaleString('tr-TR'), statLabel: 'kalem fiyat listesinde' },
     { tab: 'collections', title: 'Tahsilat', desc: 'Çek, senet ve nakit tahsilatlar', Icon: Wallet,
       tone: 'bg-accent-50 text-accent-700', ring: 'hover:border-accent-300',
       stat: tl(s.colYear), statLabel: `${s.year} tahsilatı · ${s.portfolio} çek/senet portföyde` },
@@ -116,12 +129,12 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* Bölümler */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        {tiles.map(t => (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {tiles.map((t, i) => (
           <button
             key={t.tab}
             onClick={() => onOpen(t.tab)}
-            className={`group text-left bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 min-w-0 flex flex-col transition-all hover:shadow-md active:scale-[0.99] ${t.ring}`}
+            className={`${i === 0 ? 'col-span-2 ' : ''}group text-left bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 min-w-0 flex flex-col transition-all hover:shadow-md active:scale-[0.99] ${t.ring}`}
           >
             <div className="flex items-start justify-between gap-2">
               <span className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${t.tone}`}>
@@ -182,6 +195,7 @@ export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; i
   customers: { title: 'Müşteriler', icon: Users, tone: 'bg-sky-50 text-sky-600' },
   collections: { title: 'Yapılan Tahsilatlar', icon: Wallet, tone: 'bg-accent-50 text-accent-700' },
   expenses: { title: 'Yapılan Harcamalar', icon: Receipt, tone: 'bg-orange-50 text-orange-600' },
+  materials: { title: 'Malzemeler', icon: Package, tone: 'bg-teal-50 text-teal-600' },
   reports: { title: 'Rapor', icon: BarChart3, tone: 'bg-indigo-50 text-indigo-600' },
   notes: { title: 'Notlar', icon: StickyNote, tone: 'bg-amber-50 text-amber-600' },
 };

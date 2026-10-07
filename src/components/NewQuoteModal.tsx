@@ -4,6 +4,8 @@ import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { TURKISH_CITIES } from '../lib/cities';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
+import { Material, MATERIAL_UNITS, rememberMaterial } from '../lib/materials';
+import { MaterialPicker } from './MaterialPicker';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -16,21 +18,6 @@ interface NewQuoteModalProps {
 }
 
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
-
-const COMMON_PRODUCTS = [
-  '24 kW Tam Yoğuşmalı Kombi (Enyap EcoHeat)',
-  '28 kW Tam Yoğuşmalı Kombi (Enyap EcoHeat Pro)',
-  '35 kW Tam Yoğuşmalı Kombi (Enyap MaxHeat)',
-  '150 kW Duvar Tipi Yoğuşmalı Kaskad Kazan',
-  '600x1000 Panel Radyatör PKKP Tip 22',
-  '600x1200 Panel Radyatör PKKP Tip 22',
-  '16x2 Oksijen Bariyerli Pex-A Yerden Isıtma Borusu',
-  'Yerden Isıtma Kollektör Seti 8 Ağızlı Debimetreli',
-  'Termostatik Radyatör Vanası 1/2"',
-  'DN50 Flanşlı Statik Balans Vanası',
-  '200 Lt Kapalı Genleşme Deposu 10 Bar',
-  '100 kW Plakalı Eşanjör Paslanmaz'
-];
 
 export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   currentRole,
@@ -93,6 +80,28 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       const vat = net * 0.20;
       target.totalPrice = Math.round((net + vat) * 100) / 100;
 
+      updated[index] = target;
+      return updated;
+    });
+  };
+
+  // Katalogdan seçilen malzemenin birimi, fiyatı ve para birimi kaleme aktarılır
+  const handlePickMaterial = (index: number, m: Material) => {
+    rememberMaterial(m);
+    setItems((prev) => {
+      const updated = [...prev];
+      const unit = (MATERIAL_UNITS as readonly string[]).includes(m.unit) ? m.unit as QuoteItem['unit'] : 'Adet';
+      const target: QuoteItem = {
+        ...updated[index],
+        productName: m.name || m.code,
+        unit,
+        unitPrice: m.price || 0,
+        currency: m.currency,
+        vatRate: m.vatRate ?? 20,
+      };
+      const qty = Number(target.quantity) || 0;
+      const net = qty * target.unitPrice * (1 - (Number(target.discount) || 0) / 100);
+      target.totalPrice = Math.round(net * 1.2 * 100) / 100;
       updated[index] = target;
       return updated;
     });
@@ -348,25 +357,17 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                   {items.map((item, index) => (
                     <div key={item.id} className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
                       <div className="flex gap-2">
                         <div className="flex-1">
-                          <input
-                            type="text"
-                            required={!isEdit || items.length > 1}
-                            placeholder="Malzeme adı (Örn: 24 kW Kombi, Panel Radyatör, Pex Boru...)"
+                          <MaterialPicker
                             value={item.productName}
-                            onChange={(e) => handleItemChange(index, 'productName', e.target.value)}
-                            list={`prod-list-${index}`}
-                            className="w-full p-1.5 border border-slate-300 rounded text-xs bg-white"
+                            required={!isEdit || items.length > 1}
+                            onChange={(text) => handleItemChange(index, 'productName', text)}
+                            onPick={(m) => handlePickMaterial(index, m)}
                           />
-                          <datalist id={`prod-list-${index}`}>
-                            {COMMON_PRODUCTS.map((cp) => (
-                              <option key={cp} value={cp} />
-                            ))}
-                          </datalist>
                         </div>
                         <button
                           type="button"
