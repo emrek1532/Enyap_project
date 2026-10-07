@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { 
+import { FileUp, 
   FileText, 
   Search, 
   Filter, 
@@ -46,6 +46,7 @@ interface QuoteManagerProps {
   quotes: Quote[];
   currentRole: UserRole;
   onOpenNewQuote: () => void;
+  onImportPdf?: () => void;
   onUpdateQuoteStatus: (id: string, status: QuoteStatus) => void;
   onDeleteQuote: (id: string) => void;
   onPrintQuote: (quote: Quote) => void;
@@ -58,6 +59,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   quotes,
   currentRole,
   onOpenNewQuote,
+  onImportPdf,
   onUpdateQuoteStatus,
   onDeleteQuote,
   onPrintQuote,
@@ -244,6 +246,17 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           {(hasExtraFilters || statusFilter !== 'all') && (
             <button onClick={resetFilters} className="px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 sm:border-0">
               Filtreleri temizle
+            </button>
+          )}
+
+          {onImportPdf && (
+            <button
+              onClick={onImportPdf}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand-300 text-brand-700 hover:bg-brand-50 text-xs sm:text-sm font-bold shrink-0"
+              title="Muhasebe programındaki teklif PDF'ini yükleyin; firma, teklif no ve kalemler otomatik eklenir"
+            >
+              <FileUp className="w-4 h-4" />
+              <span>PDF'ten Yükle</span>
             </button>
           )}
 
