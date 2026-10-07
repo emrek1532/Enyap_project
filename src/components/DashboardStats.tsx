@@ -108,7 +108,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
       )}
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
         
         {/* Card 1: Bekleyen Teklifler */}
         <div 
@@ -183,32 +183,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <p className="text-[11px] text-slate-500 mt-1 truncate">
             Müşteri ile tekrar görüşün
-          </p>
-        </div>
-
-        {/* Card 4: Bugünkü Takvim & Ajanda */}
-        <div 
-          onClick={() => onNavigateTab('calendar')}
-          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-purple-300 hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Bugünkü Ajanda
-            </span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Calendar className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black text-slate-900">
-              {todayEvents.length}
-            </span>
-            <span className="text-[11px] font-medium text-purple-600">
-              {events.filter((e) => !e.completed).length} Bekleyen
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1 truncate">
-            Saha ziyareti ve takip notları
           </p>
         </div>
 

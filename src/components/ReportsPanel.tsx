@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart3, FileText, Clock, CheckCircle2, XCircle, Percent, Wallet, Receipt, Scale } from 'lucide-react';
+import { BarChart3, FileText, Clock, CheckCircle2, XCircle, Percent, Wallet, Receipt, Scale, Calculator, Award, Building2, HandCoins } from 'lucide-react';
 import { Collection, Expense, Quote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
+import { SortHeader, SortState, nextSort, compareText, SortDir } from './SortHeader';
 
 interface ReportsPanelProps {
   quotes: Quote[];
@@ -174,16 +175,18 @@ const BarList: React.FC<{ title: string; subtitle?: string; rows: { label: strin
   );
 };
 
-const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; value: React.ReactNode; sub?: React.ReactNode; className?: string }> = ({ icon: Icon, tone, label, value, sub, className = '' }) => (
+const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; value: React.ReactNode; sub?: React.ReactNode; className?: string; big?: boolean }> = ({ icon: Icon, tone, label, value, sub, className = '', big }) => (
   <div className={`bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0 ${className}`}>
     <div className="flex items-center justify-between gap-2">
       <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</span>
       <span className={`p-1.5 rounded-lg ${tone}`}><Icon className="w-4 h-4" /></span>
     </div>
-    <div className="mt-2 text-xl font-black text-slate-900 tabular-nums break-words">{value}</div>
+    <div className={`mt-2 font-black text-slate-900 tabular-nums break-words ${big ? 'text-2xl sm:text-3xl' : 'text-xl'}`}>{value}</div>
     {sub && <div className="text-xs text-slate-500 mt-0.5 tabular-nums">{sub}</div>}
   </div>
 );
+
+type CustKey = 'name' | 'city' | 'total' | 'totalAmt' | 'approved' | 'approvedAmt' | 'rate' | 'collected';
 
 export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections, expenses }) => {
   const [period, setPeriod] = useState<Period>('year');
@@ -213,7 +216,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     const approved = pQuotes.filter(isApproved);
     const pending = pQuotes.filter(isPending);
     const cancelled = pQuotes.filter(q => q.status === 'iptal');
+    const firms = new Set(pQuotes.map(q => q.customerName.trim().toLocaleLowerCase('tr')));
+    const approvedFirms = new Set(approved.map(q => q.customerName.trim().toLocaleLowerCase('tr')));
     return {
+      firms: firms.size, approvedFirms: approvedFirms.size,
       total: pQuotes.length, totalAmt: amount(pQuotes),
       approved: approved.length, approvedAmt: amount(approved),
       pending: pending.length, pendingAmt: amount(pending),
@@ -247,19 +253,74 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
   // En çok onay alan müşteriler / şehirler / teklifi verenler
   const groupQuotes = (keyOf: (q: Quote) => string) => {
-    const map = new Map<string, { total: number; approved: number; approvedAmt: number }>();
+    const map = new Map<string, { total: number; totalAmt: number; approved: number; approvedAmt: number; city: string }>();
     pQuotes.forEach(q => {
       const k = keyOf(q).trim() || 'Belirtilmemiş';
-      const g = map.get(k) || { total: 0, approved: 0, approvedAmt: 0 };
-      g.total++;
+      const g = map.get(k) || { total: 0, totalAmt: 0, approved: 0, approvedAmt: 0, city: q.city || '' };
+      g.total++; g.totalAmt += q.totalAmount || 0;
       if (isApproved(q)) { g.approved++; g.approvedAmt += q.totalAmount || 0; }
       map.set(k, g);
     });
     return [...map.entries()].sort((a, b) => b[1].approvedAmt - a[1].approvedAmt || b[1].total - a[1].total);
   };
-  const topCustomers = useMemo(() => groupQuotes(q => q.customerName).slice(0, 10), [pQuotes]);
+  const byCustomer = useMemo(() => groupQuotes(q => q.customerName), [pQuotes]);
+  const topCustomers = useMemo(() => byCustomer.slice(0, 10), [byCustomer]);
   const topCities = useMemo(() => groupQuotes(q => q.city).slice(0, 8), [pQuotes]);
   const byPreparer = useMemo(() => groupQuotes(q => q.preparedBy || (q.createdBy === 'istanbul' ? 'İstanbul Ofis' : 'Isparta Saha')), [pQuotes]);
+
+  // Müşteri performans tablosu (başlığa tıklayarak sıralanır)
+  const [custSort, setCustSort] = useState<SortState<CustKey>>({ key: 'approvedAmt', dir: 'desc' });
+  const [custLimit, setCustLimit] = useState(20);
+  const colByCustomerMap = useMemo(() => {
+    const map = new Map<string, number>();
+    pCollections.filter(c => c.currency === 'TRY').forEach(c => {
+      const k = c.customerName.trim().toLocaleLowerCase('tr');
+      map.set(k, (map.get(k) || 0) + c.amount);
+    });
+    return map;
+  }, [pCollections]);
+  const customerRows = useMemo(() => {
+    const rows = byCustomer.map(([name, g]) => ({
+      name, ...g,
+      rate: g.totalAmt > 0 ? g.approvedAmt / g.totalAmt : 0,
+      collected: colByCustomerMap.get(name.trim().toLocaleLowerCase('tr')) || 0,
+    }));
+    const val = (r: typeof rows[number]) => {
+      switch (custSort.key) {
+        case 'name': return 0;
+        case 'city': return 0;
+        default: return r[custSort.key];
+      }
+    };
+    return rows.sort((a, b) => {
+      const r = custSort.key === 'name' ? compareText(a.name, b.name)
+        : custSort.key === 'city' ? compareText(a.city, b.city)
+        : (val(a) as number) - (val(b) as number);
+      return (custSort.dir === 'asc' ? r : -r) || compareText(a.name, b.name);
+    });
+  }, [byCustomer, colByCustomerMap, custSort]);
+  const sortCust = (key: CustKey, first: SortDir) => setCustSort(s => nextSort(s, key, first));
+
+  // Teklif büyüklüğüne göre dağılım
+  const sizeBuckets = useMemo(() => {
+    const buckets = [
+      { label: '0 – 50.000 TL', min: 0, max: 50000 },
+      { label: '50.000 – 250.000 TL', min: 50000, max: 250000 },
+      { label: '250.000 – 1.000.000 TL', min: 250000, max: 1000000 },
+      { label: '1.000.000 TL ve üzeri', min: 1000000, max: Infinity },
+    ].map(b => ({ ...b, total: 0, totalAmt: 0, approved: 0, approvedAmt: 0 }));
+    pQuotes.filter(q => (q.totalAmount || 0) > 0).forEach(q => {
+      const b = buckets.find(x => q.totalAmount >= x.min && q.totalAmount < x.max)!;
+      b.total++; b.totalAmt += q.totalAmount;
+      if (isApproved(q)) { b.approved++; b.approvedAmt += q.totalAmount; }
+    });
+    return buckets;
+  }, [pQuotes]);
+
+  const monthlyTotals = useMemo(() => monthly.reduce((t, [, v]) => ({
+    quoteCount: t.quoteCount + v.quoteCount, quoteAmt: t.quoteAmt + v.quoteAmt,
+    apprCount: t.apprCount + v.apprCount, apprAmt: t.apprAmt + v.apprAmt, col: t.col + v.col, exp: t.exp + v.exp,
+  }), { quoteCount: 0, quoteAmt: 0, apprCount: 0, apprAmt: 0, col: 0, exp: 0 }), [monthly]);
 
   const expByCategory = useMemo(() => {
     const map = new Map<string, number>();
@@ -284,6 +345,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
       .map(([m, g]) => ({ label: `${MONTHS_TR[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`, value: g.value, note: `${g.count} adet` }));
   }, [collections]);
+  const portfolio = useMemo(() => dueByMonth.reduce((t, r) => ({ value: t.value + r.value, count: t.count + Number(r.note.split(' ')[0]) }), { value: 0, count: 0 }), [dueByMonth]);
   const colByCustomer = useMemo(() => {
     const map = new Map<string, number>();
     pCollections.filter(c => c.currency === 'TRY').forEach(c => map.set(c.customerName || '-', (map.get(c.customerName || '-') || 0) + c.amount));
@@ -313,20 +375,33 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         )}
       </div>
 
-      {/* Teklif özeti */}
+      {/* Ana göstergeler (tutar bazlı) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Tile big icon={FileText} tone="text-brand-600 bg-brand-50" label="Verilen Teklif Tutarı" value={tl(stats.totalAmt)}
+          sub={`${stats.total.toLocaleString('tr-TR')} teklif`} />
+        <Tile big icon={CheckCircle2} tone="text-emerald-600 bg-emerald-50" label="Onaylanan Teklif Tutarı" value={tl(stats.approvedAmt)}
+          sub={`${stats.approved.toLocaleString('tr-TR')} teklif onaylandı`} />
+        <Tile big icon={Percent} tone="text-accent-700 bg-accent-50" label="Satış Oranı (Verim)" value={pct(stats.approvedAmt, stats.totalAmt)}
+          sub={`Onaylanan tutar ÷ verilen tutar · adet bazında ${pct(stats.approved, stats.total)}`} />
+        <Tile big icon={Clock} tone="text-purple-600 bg-purple-50" label="Bekleyen Teklif Tutarı" value={tl(stats.pendingAmt)}
+          sub={`${stats.pending.toLocaleString('tr-TR')} teklif karar bekliyor · ${pct(stats.pendingAmt, stats.totalAmt)}`} />
+      </div>
+
+      {/* Ek göstergeler */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Tile icon={FileText} tone="text-brand-600 bg-brand-50" label="Verilen Teklif" value={stats.total.toLocaleString('tr-TR')} sub={tl(stats.totalAmt)} />
-        <Tile icon={Clock} tone="text-purple-600 bg-purple-50" label="Beklemede" value={stats.pending.toLocaleString('tr-TR')} sub={tl(stats.pendingAmt)} />
-        <Tile icon={CheckCircle2} tone="text-emerald-600 bg-emerald-50" label="Onaylanan" value={stats.approved.toLocaleString('tr-TR')} sub={tl(stats.approvedAmt)} />
-        <Tile icon={XCircle} tone="text-slate-600 bg-slate-100" label="İptal" value={stats.cancelled.toLocaleString('tr-TR')} sub={tl(stats.cancelledAmt)} />
-        <Tile className="col-span-2 lg:col-span-1" icon={Percent} tone="text-accent-700 bg-accent-50" label="Satış Oranı (Verim)" value={pct(stats.approved, stats.total)}
-          sub={<>Tutar bazında {pct(stats.approvedAmt, stats.totalAmt)} · Ort. teklif {tl(stats.total ? stats.totalAmt / stats.total : 0)}</>} />
+        <Tile icon={XCircle} tone="text-slate-600 bg-slate-100" label="İptal" value={tl(stats.cancelledAmt)} sub={`${stats.cancelled} teklif`} />
+        <Tile icon={Calculator} tone="text-brand-600 bg-brand-50" label="Ort. Teklif" value={tl(stats.total ? stats.totalAmt / stats.total : 0)} sub="Teklif başına" />
+        <Tile icon={Award} tone="text-emerald-600 bg-emerald-50" label="Ort. Onaylı Teklif" value={tl(stats.approved ? stats.approvedAmt / stats.approved : 0)} sub="Onaylanan teklif başına" />
+        <Tile icon={Building2} tone="text-sky-600 bg-sky-50" label="Firma" value={stats.firms.toLocaleString('tr-TR')}
+          sub={`${stats.approvedFirms} firmadan onay · ${pct(stats.approvedFirms, stats.firms)}`} />
+        <Tile className="col-span-2 lg:col-span-1" icon={HandCoins} tone="text-accent-700 bg-accent-50" label="Portföydeki Çek/Senet" value={tl(portfolio.value)}
+          sub={`${portfolio.count} adet · vadesi gelmemiş (dönemden bağımsız)`} />
       </div>
 
       {/* Tahsilat / harcama özeti */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Tile icon={Wallet} tone="text-accent-700 bg-accent-50" label="Yapılan Tahsilat"
-          value={multiCurrency(colTotals).map(s => <div key={s}>{s}</div>)} sub={`${pCollections.length} kayıt · onaylanan teklifin ${pct(colTotals.TRY, stats.approvedAmt)}'i (TL)`} />
+          value={multiCurrency(colTotals).map(s => <div key={s}>{s}</div>)} sub={`${pCollections.length} kayıt`} />
         <Tile icon={Receipt} tone="text-orange-600 bg-orange-50" label="Yapılan Harcama"
           value={multiCurrency(expTotals).map(s => <div key={s}>{s}</div>)} sub={`${pExpenses.length} kayıt`} />
         <Tile icon={Scale} tone="text-brand-600 bg-brand-50" label="Net (Tahsilat − Harcama)"
@@ -351,7 +426,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 pb-2">
           <h3 className="font-bold text-slate-900 text-sm">Aylık Özet Tablosu</h3>
-          <p className="text-xs text-slate-500">Tutarlar TL. Excel'den aktarılan tekliflerin tutarı KDV hariçtir.</p>
+          <p className="text-xs text-slate-500">Tutarlar TL. Satış oranı tutar bazlıdır (onaylanan tutar ÷ verilen tutar). Excel'den aktarılan tekliflerin tutarı KDV hariçtir.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs sm:text-sm tabular-nums">
@@ -363,6 +438,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
                 <th className="py-2.5 px-3">Onaylanan</th>
                 <th className="py-2.5 px-3">Onay Tutarı</th>
                 <th className="py-2.5 px-3">Satış Oranı</th>
+                <th className="py-2.5 px-3">Adet Oranı</th>
                 <th className="py-2.5 px-3">Tahsilat</th>
                 <th className="py-2.5 px-3">Harcama</th>
                 <th className="py-2.5 px-3">Net</th>
@@ -376,27 +452,44 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
                   <td className="py-2 px-3 whitespace-nowrap">{tl(v.quoteAmt)}</td>
                   <td className="py-2 px-3">{v.apprCount}</td>
                   <td className="py-2 px-3 whitespace-nowrap">{tl(v.apprAmt)}</td>
-                  <td className="py-2 px-3 font-bold">{pct(v.apprCount, v.quoteCount)}</td>
+                  <td className="py-2 px-3 font-bold">{pct(v.apprAmt, v.quoteAmt)}</td>
+                  <td className="py-2 px-3 text-slate-500">{pct(v.apprCount, v.quoteCount)}</td>
                   <td className="py-2 px-3 whitespace-nowrap">{tl(v.col)}</td>
                   <td className="py-2 px-3 whitespace-nowrap">{tl(v.exp)}</td>
                   <td className={`py-2 px-3 whitespace-nowrap font-bold ${v.col - v.exp < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(v.col - v.exp)}</td>
                 </tr>
               ))}
               {monthly.length === 0 && (
-                <tr><td colSpan={9} className="py-8 text-center text-slate-500">Bu dönemde veri yok.</td></tr>
+                <tr><td colSpan={10} className="py-8 text-center text-slate-500">Bu dönemde veri yok.</td></tr>
               )}
             </tbody>
+            {monthly.length > 0 && (
+              <tfoot className="bg-slate-50 border-t-2 border-slate-200 font-black text-slate-900">
+                <tr>
+                  <td className="py-2.5 px-3 text-left">Toplam</td>
+                  <td className="py-2.5 px-3">{monthlyTotals.quoteCount}</td>
+                  <td className="py-2.5 px-3 whitespace-nowrap">{tl(monthlyTotals.quoteAmt)}</td>
+                  <td className="py-2.5 px-3">{monthlyTotals.apprCount}</td>
+                  <td className="py-2.5 px-3 whitespace-nowrap">{tl(monthlyTotals.apprAmt)}</td>
+                  <td className="py-2.5 px-3">{pct(monthlyTotals.apprAmt, monthlyTotals.quoteAmt)}</td>
+                  <td className="py-2.5 px-3 text-slate-500">{pct(monthlyTotals.apprCount, monthlyTotals.quoteCount)}</td>
+                  <td className="py-2.5 px-3 whitespace-nowrap">{tl(monthlyTotals.col)}</td>
+                  <td className="py-2.5 px-3 whitespace-nowrap">{tl(monthlyTotals.exp)}</td>
+                  <td className={`py-2.5 px-3 whitespace-nowrap ${monthlyTotals.col - monthlyTotals.exp < 0 ? 'text-rose-600' : ''}`}>{tl(monthlyTotals.col - monthlyTotals.exp)}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
 
       {/* Sıralamalar */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <BarList title="En Çok Onay Alan Müşteriler" subtitle="Onaylanan teklif tutarı (TL) · onay / teklif sayısı" color={C_APPROVED}
-          rows={topCustomers.filter(([, g]) => g.approvedAmt > 0).map(([label, g]) => ({ label, value: g.approvedAmt, note: `${g.approved}/${g.total}` }))}
+        <BarList title="En Çok Onay Alan Müşteriler" subtitle="Onaylanan teklif tutarı (TL) · satış oranı · onay / teklif sayısı" color={C_APPROVED}
+          rows={topCustomers.filter(([, g]) => g.approvedAmt > 0).map(([label, g]) => ({ label, value: g.approvedAmt, note: `${pct(g.approvedAmt, g.totalAmt)} · ${g.approved}/${g.total}` }))}
           empty="Bu dönemde onaylanan teklif yok." />
-        <BarList title="Şehirlere Göre Onaylanan" subtitle="Onaylanan teklif tutarı (TL) · onay / teklif sayısı" color={C_QUOTE}
-          rows={topCities.filter(([, g]) => g.approvedAmt > 0).map(([label, g]) => ({ label, value: g.approvedAmt, note: `${g.approved}/${g.total}` }))}
+        <BarList title="Şehirlere Göre Onaylanan" subtitle="Onaylanan teklif tutarı (TL) · satış oranı · onay / teklif sayısı" color={C_QUOTE}
+          rows={topCities.filter(([, g]) => g.approvedAmt > 0).map(([label, g]) => ({ label, value: g.approvedAmt, note: `${pct(g.approvedAmt, g.totalAmt)} · ${g.approved}/${g.total}` }))}
           empty="Bu dönemde onaylanan teklif yok." />
         <BarList title="En Çok Tahsilat Yapılan Müşteriler" subtitle="TL tahsilatlar" color={C_COLLECTION}
           rows={colByCustomer} empty="Bu dönemde tahsilat kaydı yok." />
@@ -419,9 +512,11 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
               <tr>
                 <th className="py-2.5 px-3 text-left">Teklifi Veren</th>
                 <th className="py-2.5 px-3">Teklif</th>
+                <th className="py-2.5 px-3">Teklif Tutarı</th>
                 <th className="py-2.5 px-3">Onaylanan</th>
-                <th className="py-2.5 px-3">Satış Oranı</th>
                 <th className="py-2.5 px-3">Onay Tutarı</th>
+                <th className="py-2.5 px-3">Satış Oranı</th>
+                <th className="py-2.5 px-3">Adet Oranı</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -429,17 +524,102 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
                 <tr key={name} className="hover:bg-slate-50">
                   <td className="py-2 px-3 text-left font-semibold text-slate-800">{name}</td>
                   <td className="py-2 px-3">{g.total}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">{tl(g.totalAmt)}</td>
                   <td className="py-2 px-3">{g.approved}</td>
-                  <td className="py-2 px-3 font-bold">{pct(g.approved, g.total)}</td>
                   <td className="py-2 px-3 whitespace-nowrap">{tl(g.approvedAmt)}</td>
+                  <td className="py-2 px-3 font-bold">{pct(g.approvedAmt, g.totalAmt)}</td>
+                  <td className="py-2 px-3 text-slate-500">{pct(g.approved, g.total)}</td>
                 </tr>
               ))}
               {byPreparer.length === 0 && (
-                <tr><td colSpan={5} className="py-8 text-center text-slate-500">Bu dönemde teklif yok.</td></tr>
+                <tr><td colSpan={7} className="py-8 text-center text-slate-500">Bu dönemde teklif yok.</td></tr>
               )}
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Teklif büyüklüğüne göre */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="p-4 pb-2">
+          <h3 className="font-bold text-slate-900 text-sm">Teklif Büyüklüğüne Göre Dağılım</h3>
+          <p className="text-xs text-slate-500">Hangi tutar aralığındaki teklifler ne oranda onaylanıyor</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-right text-xs sm:text-sm tabular-nums">
+            <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
+              <tr>
+                <th className="py-2.5 px-3 text-left">Teklif Tutarı</th>
+                <th className="py-2.5 px-3">Teklif</th>
+                <th className="py-2.5 px-3">Teklif Tutarı</th>
+                <th className="py-2.5 px-3">Onaylanan</th>
+                <th className="py-2.5 px-3">Onay Tutarı</th>
+                <th className="py-2.5 px-3">Satış Oranı</th>
+                <th className="py-2.5 px-3">Adet Oranı</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {sizeBuckets.map(b => (
+                <tr key={b.label} className="hover:bg-slate-50">
+                  <td className="py-2 px-3 text-left font-semibold text-slate-800 whitespace-nowrap">{b.label}</td>
+                  <td className="py-2 px-3">{b.total}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">{tl(b.totalAmt)}</td>
+                  <td className="py-2 px-3">{b.approved}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">{tl(b.approvedAmt)}</td>
+                  <td className="py-2 px-3 font-bold">{pct(b.approvedAmt, b.totalAmt)}</td>
+                  <td className="py-2 px-3 text-slate-500">{pct(b.approved, b.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Müşteri performansı */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="p-4 pb-2">
+          <h3 className="font-bold text-slate-900 text-sm">Müşteri Performansı</h3>
+          <p className="text-xs text-slate-500">Sütun başlığına tıklayarak sıralayın · {customerRows.length} firma</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-right text-xs sm:text-sm tabular-nums">
+            <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
+              <tr>
+                <SortHeader label="Firma" className="text-left" active={custSort.key === 'name'} dir={custSort.dir} onClick={() => sortCust('name', 'asc')} />
+                <SortHeader label="Şehir" className="text-left" active={custSort.key === 'city'} dir={custSort.dir} onClick={() => sortCust('city', 'asc')} />
+                <SortHeader label="Teklif" align="right" active={custSort.key === 'total'} dir={custSort.dir} onClick={() => sortCust('total', 'desc')} />
+                <SortHeader label="Teklif Tutarı" align="right" active={custSort.key === 'totalAmt'} dir={custSort.dir} onClick={() => sortCust('totalAmt', 'desc')} />
+                <SortHeader label="Onay" align="right" active={custSort.key === 'approved'} dir={custSort.dir} onClick={() => sortCust('approved', 'desc')} />
+                <SortHeader label="Onay Tutarı" align="right" active={custSort.key === 'approvedAmt'} dir={custSort.dir} onClick={() => sortCust('approvedAmt', 'desc')} />
+                <SortHeader label="Satış Oranı" align="right" active={custSort.key === 'rate'} dir={custSort.dir} onClick={() => sortCust('rate', 'desc')} />
+                <SortHeader label="Tahsilat" align="right" active={custSort.key === 'collected'} dir={custSort.dir} onClick={() => sortCust('collected', 'desc')} />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {customerRows.slice(0, custLimit).map(r => (
+                <tr key={r.name} className="hover:bg-slate-50">
+                  <td className="py-2 px-3 text-left font-semibold text-slate-800">{r.name}</td>
+                  <td className="py-2 px-3 text-left text-slate-600">{r.city || '-'}</td>
+                  <td className="py-2 px-3">{r.total}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">{tl(r.totalAmt)}</td>
+                  <td className="py-2 px-3">{r.approved}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">{tl(r.approvedAmt)}</td>
+                  <td className="py-2 px-3 font-bold">{pct(r.approvedAmt, r.totalAmt)}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">{r.collected ? tl(r.collected) : '-'}</td>
+                </tr>
+              ))}
+              {customerRows.length === 0 && (
+                <tr><td colSpan={8} className="py-8 text-center text-slate-500">Bu dönemde teklif yok.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {customerRows.length > custLimit && (
+          <div className="p-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span>{custLimit} / {customerRows.length} firma</span>
+            <button onClick={() => setCustLimit(n => n + 20)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-slate-700">Daha fazla göster</button>
+          </div>
+        )}
       </div>
     </div>
   );
