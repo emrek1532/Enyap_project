@@ -131,17 +131,36 @@ const CITY_KEYS = new Set(TURKISH_CITIES.map(c => fold(c)));
 const cityCase = (folded: string) =>
   TURKISH_CITIES.find(c => fold(c) === folded) || folded.replace(/(^|[\s-])\p{L}/gu, ch => ch.toLocaleUpperCase('tr'));
 
+/** İki kelime arasındaki harf farkı küçük mü (4-6 harfte 1, daha uzunda 2) */
+function near(a: string, b: string): boolean {
+  if (a === b) return true;
+  const max = b.length >= 7 ? 2 : 1;
+  if (Math.abs(a.length - b.length) > max) return false;
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return dp[a.length][b.length] <= max;
+}
+
 function matchCustomer(f: string, customers: string[]): { name: string; tokens: string[] } | null {
+  const words = f.split(' ').filter(w => w.length >= 4);
   let best: { name: string; score: number; tokens: string[] } | null = null;
   for (const name of customers) {
     const toks = fold(name).split(/[^\p{L}\p{N}]+/u).filter(t => t.length >= 3);
     let score = 0, strong = false;
     const hit: string[] = [];
     for (const t of toks) {
+      const weak = GENERIC.has(t) || CITY_KEYS.has(t);
       // Ek almış hâlleri de yakala: "enorpaya", "mekanikten"
       if (new RegExp(`\\b${t}`).test(f)) {
         hit.push(t);
-        if (GENERIC.has(t) || CITY_KEYS.has(t)) score += 0.3; else { score += t.length; strong = true; }
+        if (weak) score += 0.3; else { score += t.length; strong = true; }
+      } else if (!weak && t.length >= 5) {
+        // Ses tanıma bir-iki harfi yanlış duyabilir ("Muslu" → "mutlu"); ilk harf aynı olmalı
+        const w = words.find(x => x[0] === t[0] && x.length >= t.length && near(x.slice(0, t.length), t));
+        if (w) { hit.push(w); score += t.length * 0.8; strong = true; }
       }
     }
     if (strong && (!best || score > best.score)) best = { name, score, tokens: hit };
@@ -363,3 +382,23 @@ function parseIntent(f: string, ctx: AiContext, today: Date): AiResult {
     quote: null, collection: null, expense: null,
   };
 }
+
+// ---------- ses tanıma sonuçlarını birleştirme ----------
+const normT = (s: string) => s.toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim();
+/**
+ * Ses tanıma sonuçlarını tek metne çevirir. Bir parça öncekinin devamıysa (Android'deki birikimli sonuçlar)
+ * öncekinin yerine geçer, zaten içerdiyse atlanır, yeni bir parçaysa eklenir.
+ */
+export function mergeTranscripts(parts: string[]): string {
+  let acc = '';
+  for (const raw of parts) {
+    const t = raw.trim();
+    if (!t) continue;
+    const a = normT(acc), n = normT(t);
+    if (!a || n.startsWith(a)) acc = t;
+    else if (a.endsWith(n) || a.includes(n)) continue;
+    else acc = `${acc} ${t}`;
+  }
+  return acc;
+}
+
