@@ -34,6 +34,8 @@ interface LedgerPanelProps {
   onDelete: (id: string) => void;
   /** Ana sayfadaki "Ekle" kısayoluyla açıldıysa formu hemen aç */
   startNew?: boolean;
+  /** Sesli asistandan gelen taslak: yeni kayıt formu bu bilgilerle dolu açılır */
+  startDraft?: Partial<Collection & Expense> | null;
   onStartNewHandled?: () => void;
 }
 
@@ -88,7 +90,7 @@ const withExisting = (base: string[], values: (string | undefined)[]) => {
   return [...set];
 };
 
-export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, onStartNewHandled }) => {
+export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, startDraft, onStartNewHandled }) => {
   const isCollection = kind === 'collections';
   const t = isCollection
     ? { one: 'Tahsilat', party: 'Müşteri / Firma', Icon: Wallet, tone: 'text-accent-600 bg-accent-50' }
@@ -165,7 +167,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   };
   const changed = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setLimit(LIST_PAGE); };
 
-  const openNew = () => {
+  const openNew = (draft?: Partial<Collection & Expense> | null) => {
     const now = new Date().toISOString();
     const base = {
       id: `${isCollection ? 'thl' : 'hrc'}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -178,11 +180,14 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       createdAt: now,
       updatedAt: now,
     };
-    setEditing(isCollection ? { ...base, customerName: '' } : { ...base, category: EXPENSE_CATEGORIES[0] });
+    const clean = Object.fromEntries(Object.entries(draft || {}).filter(([, v]) => v !== null && v !== undefined && v !== ''));
+    setEditing(isCollection
+      ? { ...base, customerName: '', ...clean } as Collection
+      : { ...base, category: EXPENSE_CATEGORIES[0], ...clean } as Expense);
   };
 
   useEffect(() => {
-    if (startNew) { openNew(); onStartNewHandled?.(); }
+    if (startNew) { openNew(startDraft); onStartNewHandled?.(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startNew]);
 
@@ -275,7 +280,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           {hasFilters && (
             <button onClick={resetFilters} className="px-2 py-2 rounded-lg border border-slate-200 sm:border-0 text-xs font-bold text-slate-500 hover:text-slate-800 sm:underline">Filtreleri temizle</button>
           )}
-          <button onClick={openNew}
+          <button onClick={() => openNew()}
             className={`${hasFilters ? '' : 'col-span-2 '}flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs`}>
             <Plus className="w-4 h-4" /> {t.one} Ekle
           </button>

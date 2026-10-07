@@ -20,6 +20,8 @@ interface NewQuoteModalProps {
   editQuote?: Quote | null;
   /** Otomatik teklif numarası için mevcut teklifler */
   quotes?: Quote[];
+  /** Sesli asistanın hazırladığı taslak: form bununla dolu açılır, kullanıcı kontrol edip kaydeder */
+  draft?: Partial<Quote> | null;
 }
 
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
@@ -32,15 +34,18 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   initialCustomer = null,
   editQuote = null,
   quotes = [],
+  draft = null,
 }) => {
+  // Düzenlemede mevcut teklif, sesli taslakta taslak; ikisi de yoksa boş form
+  const init: Partial<Quote> | null = editQuote || draft;
   // Form fields
   // Yeni teklifte numara otomatik (EK-2026-0001); düzenlemede mevcut numara korunur
   const quoteNumber = useMemo(
     () => (editQuote ? editQuote.quoteNumber : nextQuoteNumber(quotes)),
     [editQuote, quotes],
   );
-  const [customerName, setCustomerName] = useState(editQuote?.customerName || initialCustomer?.name || '');
-  const [city, setCity] = useState(editQuote?.city || initialCustomer?.city || 'Isparta');
+  const [customerName, setCustomerName] = useState(init?.customerName || initialCustomer?.name || '');
+  const [city, setCity] = useState(init?.city || initialCustomer?.city || 'Isparta');
   // Şehir önerileri: 81 il + müşteri kayıtlarındaki şehirler
   const cityOptions = useMemo(() => {
     const set = new Set<string>(TURKISH_CITIES);
@@ -71,12 +76,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       .map(x => x.c);
   }, [customers, customerName]);
 
-  const [projectLocation, setProjectLocation] = useState(editQuote?.projectLocation || '');
-  const [urgency, setUrgency] = useState<UrgencyLevel>(editQuote?.urgency || 'normal');
-  const [paymentTerm, setPaymentTerm] = useState(editQuote?.paymentTerm || '');
-  const [notes, setNotes] = useState(editQuote?.notes || '');
-  const [items, setItems] = useState<QuoteItem[]>(editQuote?.items?.length
-    ? editQuote.items.map(it => ({ ...it, currency: it.currency || editQuote.currency || 'TRY' }))
+  const [projectLocation, setProjectLocation] = useState(init?.projectLocation || '');
+  const [urgency, setUrgency] = useState<UrgencyLevel>(init?.urgency || 'normal');
+  const [paymentTerm, setPaymentTerm] = useState(init?.paymentTerm || '');
+  const [notes, setNotes] = useState(init?.notes || '');
+  const [items, setItems] = useState<QuoteItem[]>(init?.items?.length
+    ? init.items.map(it => ({ ...it, currency: it.currency || init.currency || 'TRY' }))
     : [
     {
       id: 'it-1',

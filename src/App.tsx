@@ -50,6 +50,9 @@ import { HomePage, PageHeader, SECTION_META } from './components/HomePage';
 import { MaterialsPanel } from './components/MaterialsPanel';
 import { ReportsPanel } from './components/ReportsPanel';
 import { NewQuoteModal } from './components/NewQuoteModal';
+import { VoiceAssistant } from './components/VoiceAssistant';
+import { AiResult, collectionDraftFrom, expenseDraftFrom, quoteDraftFrom } from './lib/ai';
+import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './components/LedgerPanel';
 import { CustomersPanel } from './components/CustomersPanel';
 
 export default function App() {
@@ -142,6 +145,9 @@ function Portal({ session }: { session: Session }) {
   // Modals state
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [quoteCustomer, setQuoteCustomer] = useState<Customer | null>(null);
+  // Sesli asistanın hazırladığı taslaklar
+  const [quoteDraft, setQuoteDraft] = useState<Partial<Quote> | null>(null);
+  const [ledgerDraft, setLedgerDraft] = useState<Partial<Collection & Expense> | null>(null);
   const [printableQuote, setPrintableQuote] = useState<Quote | null>(null);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
 
@@ -317,6 +323,40 @@ function Portal({ session }: { session: Session }) {
   };
 
   // Save new quote
+  // ---- Sesli asistan ----
+  const aiContext = () => ({
+    customers: (data.customers || []).map(c => c.name),
+    expenseCategories: EXPENSE_CATEGORIES,
+    expenseMethods: EXPENSE_METHODS,
+    regions: [...new Set((data.expenses || []).map(e => e.region).filter((r): r is string => !!r))],
+    banks: BANKS,
+  });
+
+  const cityOfCustomer = (name?: string | null) => {
+    const k = (name || '').trim().toLocaleLowerCase('tr');
+    return (data.customers || []).find(c => c.name.trim().toLocaleLowerCase('tr') === k)?.city || undefined;
+  };
+
+  const handleAiResult = async (r: AiResult) => {
+    if (r.intent === 'quote' && r.quote) {
+      const draft = await quoteDraftFrom(r.quote);
+      draft.city = draft.city || cityOfCustomer(draft.customerName);
+      setEditingQuote(null);
+      setQuoteCustomer(null);
+      setQuoteDraft(draft);
+      setIsNewQuoteOpen(true);
+    } else if (r.intent === 'collection' && r.collection) {
+      const d = collectionDraftFrom(r.collection);
+      setLedgerDraft({ ...d, city: cityOfCustomer(d.customerName) });
+      setLedgerStartNew('collections');
+      setActiveTab('collections');
+    } else if (r.intent === 'expense' && r.expense) {
+      setLedgerDraft(expenseDraftFrom(r.expense));
+      setLedgerStartNew('expenses');
+      setActiveTab('expenses');
+    }
+  };
+
   const handleSaveQuote = (newQuote: Quote) => {
     const activity = logActivity(
       'Yeni Teklif Talebi Açıldı',
@@ -561,7 +601,8 @@ function Portal({ session }: { session: Session }) {
             onSave={(r) => handleSaveCollection(r as Collection)}
             onDelete={handleDeleteCollection}
             startNew={ledgerStartNew === 'collections'}
-            onStartNewHandled={() => setLedgerStartNew(null)}
+            startDraft={ledgerDraft}
+            onStartNewHandled={() => { setLedgerStartNew(null); setLedgerDraft(null); }}
           />
         )}
 
@@ -574,7 +615,8 @@ function Portal({ session }: { session: Session }) {
             onSave={(r) => handleSaveExpense(r as Expense)}
             onDelete={handleDeleteExpense}
             startNew={ledgerStartNew === 'expenses'}
-            onStartNewHandled={() => setLedgerStartNew(null)}
+            startDraft={ledgerDraft}
+            onStartNewHandled={() => { setLedgerStartNew(null); setLedgerDraft(null); }}
           />
         )}
 
@@ -593,6 +635,9 @@ function Portal({ session }: { session: Session }) {
 
       </main>
 
+      {/* Sesli asistan: konuşarak teklif / tahsilat / harcama formu doldurur */}
+      <VoiceAssistant context={aiContext} onResult={handleAiResult} />
+
       {/* MODALS */}
       {/* 1. New Quote Modal */}
       {isNewQuoteOpen && (
@@ -601,10 +646,12 @@ function Portal({ session }: { session: Session }) {
           customers={data.customers || []}
           quotes={data.quotes}
           initialCustomer={quoteCustomer}
+          draft={quoteDraft}
           onSaveQuote={handleSaveQuote}
           onClose={() => {
             setIsNewQuoteOpen(false);
             setQuoteCustomer(null);
+            setQuoteDraft(null);
           }}
         />
       )}
