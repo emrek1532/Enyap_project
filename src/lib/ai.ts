@@ -2,10 +2,13 @@ import { supabase } from './supabase';
 import { Collection, Expense, Quote, QuoteItem } from '../types';
 import { Currency } from './money';
 import { MATERIAL_UNITS, searchMaterials } from './materials';
+import { parseLocally } from './voiceParser';
 
 /** Sesli asistanın sunucudan döndürdüğü yapı (worker/index.ts içindeki şemayla aynı) */
 export interface AiItem {
   query: string;
+  /** Katalogda bulunamazsa kaleme yazılacak ad (Türkçe harfleriyle) */
+  label?: string;
   code: string | null;
   quantity: number | null;
   unit: string | null;
@@ -63,12 +66,44 @@ export async function parseSpeech(text: string, ctx: AiContext): Promise<AiResul
   return body.result as AiResult;
 }
 
+// Sunucuda yapay zeka anahtarı var mı? (yoksa ücretsiz yerel çözücü kullanılır)
+let aiReady: Promise<boolean> | null = null;
+const checkAiReady = () => {
+  if (!aiReady) {
+    aiReady = fetch('/api/ai/status')
+      .then(r => (r.ok ? r.json() : { ready: false }))
+      .then(b => !!b.ready)
+      .catch(() => false);
+  }
+  return aiReady;
+};
+
+/**
+ * Konuşmayı anlar: yapay zeka anahtarı tanımlıysa Claude, değilse cihazda çalışan ücretsiz çözücü.
+ * Yapay zekaya ulaşılamazsa da yerel çözücüye düşer.
+ */
+export async function interpret(text: string, ctx: AiContext): Promise<AiResult> {
+  if (await checkAiReady()) {
+    try {
+      return await parseSpeech(text, ctx);
+    } catch (err) {
+      if (err instanceof AiError && err.code === 'no_key') aiReady = Promise.resolve(false);
+    }
+  }
+  return parseLocally(text, ctx);
+}
+
 /** Söylenen malzemeyi katalogda bulup teklif kalemine çevirir (bulunamazsa söylendiği gibi kalır) */
 async function toQuoteItem(it: AiItem, i: number): Promise<QuoteItem> {
   let match = null;
   try {
     if (it.code) match = (await searchMaterials(it.code, { limit: 1, field: 'code' })).items[0] || null;
-    if (!match && it.query) match = (await searchMaterials(it.query, { limit: 1, field: 'all' })).items[0] || null;
+    // Tam ifade bulunamazsa sondan kelime atarak daha genel ara ("pex boru kalde" → "pex boru")
+    const words = it.query.split(/\s+/).filter(Boolean);
+    for (let n = words.length; !match && n >= 1; n--) {
+      if (n === 1 && words[0].length < 4) break;
+      match = (await searchMaterials(words.slice(0, n).join(' '), { limit: 1, field: 'all' })).items[0] || null;
+    }
   } catch { /* internet yoksa katalogsuz devam */ }
 
   const quantity = it.quantity && it.quantity > 0 ? it.quantity : 1;
@@ -80,7 +115,7 @@ async function toQuoteItem(it: AiItem, i: number): Promise<QuoteItem> {
   return {
     id: `it-ai-${Date.now()}-${i}`,
     code: match?.code || it.code || undefined,
-    productName: match?.name || it.query,
+    productName: match?.name || it.label || it.query,
     quantity,
     unit,
     unitPrice,
