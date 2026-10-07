@@ -11,6 +11,8 @@ interface NewQuoteModalProps {
   onClose: () => void;
   customers?: Customer[];
   initialCustomer?: Customer | null;
+  /** Doluysa form bu teklifi düzenler / revize eder */
+  editQuote?: Quote | null;
 }
 
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
@@ -36,10 +38,11 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   onClose,
   customers = [],
   initialCustomer = null,
+  editQuote = null,
 }) => {
   // Form fields
-  const [customerName, setCustomerName] = useState(initialCustomer?.name || '');
-  const [city, setCity] = useState(initialCustomer?.city || 'Isparta');
+  const [customerName, setCustomerName] = useState(editQuote?.customerName || initialCustomer?.name || '');
+  const [city, setCity] = useState(editQuote?.city || initialCustomer?.city || 'Isparta');
   // Şehir önerileri: 81 il + müşteri kayıtlarındaki şehirler
   const cityOptions = useMemo(() => {
     const set = new Set<string>(TURKISH_CITIES);
@@ -55,11 +58,13 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       if (match.city) setCity(match.city);
     }
   };
-  const [projectLocation, setProjectLocation] = useState('');
-  const [urgency, setUrgency] = useState<UrgencyLevel>('normal');
-  const [paymentTerm, setPaymentTerm] = useState('');
-  const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<QuoteItem[]>([
+  const [projectLocation, setProjectLocation] = useState(editQuote?.projectLocation || '');
+  const [urgency, setUrgency] = useState<UrgencyLevel>(editQuote?.urgency || 'normal');
+  const [paymentTerm, setPaymentTerm] = useState(editQuote?.paymentTerm || '');
+  const [notes, setNotes] = useState(editQuote?.notes || '');
+  const [items, setItems] = useState<QuoteItem[]>(editQuote?.items?.length
+    ? editQuote.items.map(it => ({ ...it, currency: it.currency || editQuote.currency || 'TRY' }))
+    : [
     {
       id: 'it-1',
       productName: '',
@@ -72,6 +77,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       currency: 'TRY',
     }
   ]);
+  const isEdit = !!editQuote;
 
   const handleItemChange = (index: number, field: keyof QuoteItem, value: any) => {
     setItems((prev) => {
@@ -127,6 +133,37 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     e.preventDefault();
     if (!customerName.trim()) return;
 
+    const filledItems = items
+      .filter(it => it.productName.trim().length > 0)
+      .map(it => (it.quantity > 0 ? it : { ...it, quantity: 1 }));
+
+    // Düzenleme: numara, durum ve oluşturma tarihi korunur
+    if (editQuote) {
+      // Kalemsiz (Excel'den gelen) tekliflerde kalem girilmediyse tutarlar olduğu gibi kalır
+      const keepAmounts = filledItems.length === 0 && (editQuote.items?.length || 0) === 0;
+      onSaveQuote({
+        ...editQuote,
+        customerName: customerName.trim(),
+        city: city.trim(),
+        projectLocation: projectLocation.trim() || undefined,
+        urgency,
+        items: filledItems,
+        ...(keepAmounts ? {} : {
+          totalAmount: totalQuoteAmount,
+          currency: quoteCurrency,
+          amountTry: totalsByCurrency.TRY,
+          amountUsd: totalsByCurrency.USD,
+          amountEur: totalsByCurrency.EUR,
+          imported: false,
+        }),
+        notes: notes.trim() || undefined,
+        paymentTerm: paymentTerm || undefined,
+        updatedAt: new Date().toISOString(),
+      });
+      onClose();
+      return;
+    }
+
     const quoteId = 'qt-' + Date.now();
     const count = Math.floor(Math.random() * 900) + 100;
     const now = new Date();
@@ -142,9 +179,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       requestChannel: 'telefon',
       urgency: urgency,
       status: 'gonderildi',
-      items: items
-        .filter(it => it.productName.trim().length > 0)
-        .map(it => (it.quantity > 0 ? it : { ...it, quantity: 1 })),
+      items: filledItems,
       totalAmount: totalQuoteAmount,
       currency: quoteCurrency,
       amountTry: totalsByCurrency.TRY,
@@ -172,10 +207,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         <div className="p-4 sm:p-5 bg-brand-600 text-white flex items-center justify-between border-b border-brand-700">
           <div>
             <h3 className="font-black text-base sm:text-lg">
-              + Yeni Teklif Talebi Girişi
+              {isEdit ? `Teklifi Düzenle / Revize Et · ${editQuote!.quoteNumber}` : '+ Yeni Teklif Talebi Girişi'}
             </h3>
             <p className="text-xs text-brand-100">
-              Müşteriyi seçin, malzemeleri girin ve kaydedin.
+              {isEdit ? 'Teklif numarası ve durumu korunur; değişiklikleri yapıp kaydedin.' : 'Müşteriyi seçin, malzemeleri girin ve kaydedin.'}
             </p>
           </div>
           <button
@@ -305,7 +340,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                         <div className="flex-1">
                           <input
                             type="text"
-                            required
+                            required={!isEdit || items.length > 1}
                             placeholder="Malzeme adı (Örn: 24 kW Kombi, Panel Radyatör, Pex Boru...)"
                             value={item.productName}
                             onChange={(e) => handleItemChange(index, 'productName', e.target.value)}
@@ -441,7 +476,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               }}
               className="px-5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs sm:text-sm shadow-sm transition-all"
             >
-              Teklifi Kaydet
+              {isEdit ? 'Değişiklikleri Kaydet' : 'Teklifi Kaydet'}
             </button>
           </div>
         </div>
