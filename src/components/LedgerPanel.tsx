@@ -195,7 +195,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm"
           />
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap [&>select]:w-full sm:[&>select]:w-auto [&>select]:min-w-0">
           {!isCollection && (
             <>
               <select value={categoryFilter} onChange={e => changed(setCategoryFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
@@ -223,16 +223,16 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
             <option value="all">Tüm Para Birimleri</option>
             {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
           </select>
-          <div className="flex items-center gap-1 text-xs text-slate-500">
+          <div className="col-span-2 flex items-center gap-1 text-xs text-slate-500 [&>input]:flex-1 [&>input]:min-w-0 sm:[&>input]:flex-none">
             <input type="date" value={dateFrom} onChange={e => changed(setDateFrom)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm" />
             <span>-</span>
             <input type="date" value={dateTo} onChange={e => changed(setDateTo)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm" />
           </div>
           {hasFilters && (
-            <button onClick={resetFilters} className="text-xs font-bold text-slate-500 hover:text-slate-800 underline">Filtreleri temizle</button>
+            <button onClick={resetFilters} className="px-2 py-2 rounded-lg border border-slate-200 sm:border-0 text-xs font-bold text-slate-500 hover:text-slate-800 sm:underline">Filtreleri temizle</button>
           )}
           <button onClick={openNew}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs">
+            className={`${hasFilters ? '' : 'col-span-2 '}flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs`}>
             <Plus className="w-4 h-4" /> {t.one} Ekle
           </button>
         </div>
@@ -240,7 +240,49 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
 
       {/* Liste */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Telefon: kart görünümü */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {filtered.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-500">
+              {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok.` : 'Filtrelere uygun kayıt bulunamadı.'}
+            </p>
+          )}
+          {filtered.slice(0, limit).map(r => {
+            const c = isCollectionRec(r) ? r : null;
+            const e = c ? null : (r as Expense);
+            const overdue = !!c?.dueDate && c.dueDate < todayStr;
+            const detail = c
+              ? [c.method, c.bankName, c.checkNo ? `No ${c.checkNo}` : ''].filter(Boolean).join(' · ')
+              : [e?.region, r.method].filter(Boolean).join(' · ');
+            return (
+              <div key={r.id} className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 text-sm leading-snug">{partyOf(r) || '-'}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{fmtDate(r.date)}{c?.city ? ` · ${c.city}` : ''}</div>
+                  </div>
+                  <div className="font-black text-slate-900 text-sm tabular-nums whitespace-nowrap">{money(r.amount, r.currency)}</div>
+                </div>
+                {detail && <div className="text-xs text-slate-600 mt-1">{detail}</div>}
+                {r.description && <div className="text-xs text-slate-500 mt-0.5 line-clamp-2">{r.description}</div>}
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div>
+                    {c?.dueDate && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${overdue ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'}`}>
+                        Vade {fmtDate(c.dueDate)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setEditing(r)} title="Düzenle" className="p-1.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => handleDelete(r)} title="Sil" className="p-1.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
               <tr>

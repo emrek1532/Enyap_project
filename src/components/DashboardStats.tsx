@@ -51,6 +51,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   const cancelledQuotes = quotes.filter((q) => q.status === 'iptal');
   const approvedTotal = approvedQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0);
   const followUpQuotes = quotes.filter(needsFollowUp);
+  const pendingTotal = pendingQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0);
+  const tl = (v: number) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`;
   const todayEvents = events.filter((e) => e.date === todayStr);
 
   // Total active pipeline value
@@ -107,85 +109,33 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         </div>
       )}
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
-        
-        {/* Card 1: Bekleyen Teklifler */}
-        <div 
-          onClick={() => onShowQuotes('aktif')}
-          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-brand-300 hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Beklemede
-            </span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Clock className="w-4 h-4" />
+      {/* Özet kutucukları (Tahsilat sekmesindeki kutucuklarla aynı düzen) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          {
+            key: 'aktif', label: 'Beklemede', Icon: Clock, tone: 'text-purple-600 bg-purple-50', hover: 'hover:border-purple-300',
+            value: pendingQuotes.length.toLocaleString('tr-TR'),
+            sub: `${tl(pendingTotal)} · müşteri kararı bekleniyor`,
+          },
+          {
+            key: 'onaylandi', label: 'Onaylandı', Icon: Send, tone: 'text-emerald-600 bg-emerald-50', hover: 'hover:border-emerald-300',
+            value: approvedQuotes.length.toLocaleString('tr-TR'),
+            sub: `${tl(approvedTotal)} · ${cancelledQuotes.length} iptal`,
+          },
+        ].map(card => (
+          <button
+            key={card.key}
+            onClick={() => onShowQuotes(card.key)}
+            className={`text-left bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0 transition-colors ${card.hover}`}
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <span className={`p-1.5 rounded-lg ${card.tone}`}><card.Icon className="w-4 h-4" /></span>
+              {card.label}
             </div>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black text-slate-900">
-              {pendingQuotes.length}
-            </span>
-            <span className="text-[11px] font-medium text-brand-600 flex items-center">
-              Yanıt bekliyor
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1 truncate">
-            {pendingQuotes.length === 0 ? 'Bekleyen teklif yok' : 'Müşteri kararı bekleniyor'}
-          </p>
-        </div>
-
-        {/* Card 2: Süreçteki & Gönderilen Teklifler */}
-        <div 
-          onClick={() => onShowQuotes('onaylandi')}
-          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-sky-300 hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Onaylandı
-            </span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Send className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black text-slate-900">
-              {approvedQuotes.length}
-            </span>
-            <span className="text-[11px] font-medium text-slate-500">
-              {cancelledQuotes.length} İptal
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1 truncate">
-            {approvedTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL toplam
-          </p>
-        </div>
-
-        {/* Card 3: Müşteri ile tekrar görüşülecek teklifler */}
-        <div
-          onClick={() => onShowQuotes('takip')}
-          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Tekrar Görüşülecek
-            </span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black text-slate-900">
-              {followUpQuotes.length}
-            </span>
-            <span className="text-[11px] font-medium text-amber-600">3+ gün</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1 truncate">
-            Müşteri ile tekrar görüşün
-          </p>
-        </div>
-
+            <div className="mt-2 text-2xl font-black text-slate-900 tabular-nums">{card.value}</div>
+            <div className="text-xs text-slate-500 mt-0.5 tabular-nums">{card.sub}</div>
+          </button>
+        ))}
       </div>
 
     </div>
