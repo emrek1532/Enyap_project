@@ -63,7 +63,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
         setRows(r => r.map(x => (x.name === f.name ? {
           ...x, status: 'ok',
-          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${res.ocr ? ' (resimden okundu)' : ''}`,
+          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.failedPages ? ` · ${imp.failedPages} sayfa okunamadı` : ''}${res.ocr ? ' (resimden okundu)' : ''}`,
         } : x)));
         onImported?.();
       } catch (e) {
@@ -182,6 +182,7 @@ export const SupplierListsPanel: React.FC = () => {
     try {
       const r = await reimportList(current.sourceFile, setReading);
       setReading(null);
+      if (r.failedPages) setError(`${r.items} kalem okundu; ${r.failedPages} sayfa okunamadı. Tekrar "Yeniden oku" deneyebilirsiniz.`);
       await reloadLists();
       setActive(r.listId);
       load(0, false);
