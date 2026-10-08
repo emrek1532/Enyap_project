@@ -103,6 +103,15 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [regionFilter, setRegionFilter] = useState('all');
   const [dueFilter, setDueFilter] = useState<'all' | 'upcoming' | 'past'>('all');
+  // Sıralama: varsayılan son eklenen en üstte (tarihi eski olsa bile); seçim cihazda hatırlanır
+  const sortStore = `enyap-ledger-sort-${kind}`;
+  const [sortMode, setSortModeState] = useState<'added' | 'date'>(() => {
+    try { return localStorage.getItem(sortStore) === 'date' ? 'date' : 'added'; } catch { return 'added'; }
+  });
+  const setSortMode = (v: 'added' | 'date') => {
+    setSortModeState(v);
+    try { localStorage.setItem(sortStore, v); } catch { /* */ }
+  };
   const [currencyFilter, setCurrencyFilter] = useState('all');
   const [limit, setLimit] = useState(LIST_PAGE);
   const [editing, setEditing] = useState<LedgerRecord | null>(null);
@@ -147,9 +156,10 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       .sort((a, b) => {
         // Vade filtresinde en yakın vade üstte
         if (dueFilter === 'upcoming') return ((a as Collection).dueDate || '').localeCompare((b as Collection).dueDate || '');
+        if (sortMode === 'added') return (b.createdAt || '').localeCompare(a.createdAt || '') || (b.date || '').localeCompare(a.date || '');
         return (b.date || '').localeCompare(a.date || '') || b.createdAt.localeCompare(a.createdAt);
       });
-  }, [records, search, dateFrom, dateTo, methodFilter, categoryFilter, regionFilter, currencyFilter, dueFilter, todayStr]);
+  }, [records, search, dateFrom, dateTo, methodFilter, categoryFilter, regionFilter, currencyFilter, dueFilter, todayStr, sortMode]);
 
   const filteredTotals = useMemo(() => sumByCurrency(filtered), [filtered]);
   const monthPrefix = todayStr.slice(0, 7);
@@ -268,6 +278,10 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
               <option value="past">Vadesi Geçmiş</option>
             </select>
           )}
+          <select value={sortMode} onChange={e => setSortMode(e.target.value as 'added' | 'date')} className="p-2 border border-slate-200 rounded-lg text-sm bg-white" aria-label="Sıralama">
+            <option value="added">Son eklenen en üstte</option>
+            <option value="date">Tarih: yeniden eskiye</option>
+          </select>
           <select value={currencyFilter} onChange={e => changed(setCurrencyFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
             <option value="all">Tüm Para Birimleri</option>
             {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
