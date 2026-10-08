@@ -45,6 +45,12 @@ export async function setSupplierDiscount(id: string, discount: number) {
   if (error) throw error;
 }
 
+/** Firma kalemini bizim malzeme koduna bağlar (null: bağı kaldırır) */
+export async function setSupplierOurCode(id: number, ourCode: string | null) {
+  const { error } = await supabase.from('supplier_items').update({ our_code: ourCode }).eq('id', id);
+  if (error) throw error;
+}
+
 export async function searchSupplierItems(q: string, opts: { list?: string | null; limit?: number; offset?: number } = {}) {
   const { data, error } = await supabase.rpc('search_supplier_items', {
     q, list: opts.list ?? null, lim: opts.limit ?? 30, off: opts.offset ?? 0,
