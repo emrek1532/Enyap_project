@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, FileUp, Link2, Loader2, Search, X, XCircle } from 'lucide-react';
+import { CheckCircle2, FileUp, Link2, Loader2, Plus, Search, X, XCircle } from 'lucide-react';
 import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
@@ -133,6 +133,7 @@ export const SupplierListsPanel: React.FC = () => {
   const [linking, setLinking] = useState<number | null>(null);
   const [linkText, setLinkText] = useState('');
   const [onlyUnlinked, setOnlyUnlinked] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const linkItem = async (it: SupplierItem, code: string | null) => {
     try {
       await setSupplierOurCode(it.id, code);
@@ -191,192 +192,204 @@ export const SupplierListsPanel: React.FC = () => {
   if (lists === null) {
     return <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
   }
-  if (!lists.length) {
-    return (
-      <div className="space-y-3">
-        <SupplierUploader />
-        <div className="bg-white rounded-xl border border-slate-200 p-6 text-center text-sm text-slate-500">
-          Henüz firma fiyat listesi eklenmedi. Listeler eklendiğinde burada her firma ayrı bir klasör olarak görünecek.
-        </div>
-      </div>
-    );
-  }
 
-  const totalItems = lists.reduce((a, l) => a + l.itemCount, 0);
   const net = (it: SupplierItem) => it.price * (1 - (it.discount || 0) / 100);
+  const initial = (name: string) => name.slice(0, 1).toLocaleUpperCase('tr');
+  const ageBadge = (listDate: string) => {
+    const age = ageMonths(listDate);
+    if (age === null) return null;
+    return age >= 6
+      ? <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">{age} ay önce</span>
+      : <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">Güncel</span>;
+  };
+  const showUploader = uploadOpen || !lists.length;
 
   return (
     <div className="space-y-3">
-      <SupplierUploader />
-      {/* Firma klasörleri */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      {/* Başlık: liste sayısı ve yükleme */}
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+          Firmalar · {lists.length} liste
+        </div>
         <button
-          onClick={() => setActive(null)}
-          className={`shrink-0 px-3 py-1.5 rounded-full border text-sm font-bold ${!active ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}
+          type="button"
+          onClick={() => setUploadOpen(o => !o)}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-brand-200 bg-white text-brand-700 text-sm font-extrabold hover:bg-brand-50"
         >
-          Tümü <span className={`text-[11px] font-semibold ${!active ? 'text-brand-100' : 'text-slate-400'}`}>{totalItems.toLocaleString('tr-TR')}</span>
+          {uploadOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} Liste Yükle
         </button>
-        {lists.map(l => (
-          <button
-            key={l.id}
-            onClick={() => setActive(l.id)}
-            className={`shrink-0 px-3 py-1.5 rounded-full border text-sm font-bold whitespace-nowrap ${active === l.id ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}
-            title={l.title}
-          >
-            {l.name}{l.listDate ? <span className="font-medium opacity-70"> · {l.listDate}</span> : null}
-          </button>
-        ))}
       </div>
+      {/* Yükleyici kapatılsa da yükleme sürer (bileşen yerinde kalır, sadece gizlenir) */}
+      <div className={showUploader ? '' : 'hidden'}><SupplierUploader /></div>
 
-      {/* Seçili liste bilgisi */}
-      {current ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-3 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-black shrink-0" style={{ background: supplierColor(current.name) }}>
-            {current.name.slice(0, 1).toLocaleUpperCase('tr')}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-black text-slate-900 truncate">{current.title || current.name}</div>
-            <div className="text-xs text-slate-500">
-              {current.listDate || 'tarih yok'} · {CURRENCY_LABEL[current.currency]} · {current.itemCount.toLocaleString('tr-TR')} kalem · liste fiyatı
-            </div>
-          </div>
-          <label className="flex items-center gap-1 text-xs text-slate-500 shrink-0">
-            İskonto %
-            <input
-              value={discountDraft}
-              onChange={e => setDiscountDraft(e.target.value)}
-              onBlur={saveDiscount}
-              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              inputMode="decimal"
-              placeholder="0"
-              className="w-14 px-2 py-1.5 border border-slate-300 rounded-md text-sm text-right font-bold text-slate-900"
-            />
-          </label>
-          {(() => {
-            const age = ageMonths(current.listDate);
-            return age !== null && age >= 6
-              ? <span className="hidden sm:inline text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">{age} ay önce</span>
-              : null;
-          })()}
+      {!lists.length ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center text-sm text-slate-500">
+          Henüz firma fiyat listesi eklenmedi. Listeler eklendiğinde burada her firma ayrı bir klasör olarak görünecek.
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {lists.map(l => {
-            const age = ageMonths(l.listDate);
-            return (
-              <button key={l.id} onClick={() => setActive(l.id)} className="text-left bg-white rounded-xl border border-slate-200 hover:border-brand-300 p-3 space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0" style={{ background: supplierColor(l.name) }}>
-                    {l.name.slice(0, 1).toLocaleUpperCase('tr')}
-                  </span>
-                  <span className="font-black text-slate-900 truncate">{l.name}</span>
-                </div>
-                <div className="text-xs text-slate-500">{l.itemCount.toLocaleString('tr-TR')} kalem · {CURRENCY_LABEL[l.currency]}{l.discount ? ` · %${l.discount}` : ''}</div>
-                <div className="text-xs text-slate-500 flex items-center gap-1.5">
-                  {l.listDate || 'tarih yok'}
-                  {age !== null && age >= 6 && <span className="text-[10px] font-bold px-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">{age} ay</span>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Arama */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          type="search"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder={current ? `${current.name} listesinde kod veya ürün ara…` : 'Tüm firma listelerinde ara (kod, ürün)…'}
-          className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white"
-        />
-      </div>
-
-      {error && <div className="text-sm text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
-
-      {(active || query.trim()) && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 flex items-center gap-2">
-            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {total.toLocaleString('tr-TR')} kalem
-            {items.length > 0 && (
-              <span className="ml-auto">
-                {items.filter(i => i.ourCode).length}/{items.length} bizim koda bağlı ·{' '}
-                <label className="inline-flex items-center gap-1 cursor-pointer">
-                  <input type="checkbox" checked={onlyUnlinked} onChange={e => setOnlyUnlinked(e.target.checked)} />
-                  sadece bağlanmamışlar
-                </label>
-              </span>
-            )}
+        <>
+          {/* Firma şeridi */}
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none]">
+            {[{ id: null as string | null, name: 'Tümü', count: lists.reduce((a, l) => a + l.itemCount, 0) },
+              ...lists.map(l => ({ id: l.id as string | null, name: l.name, count: l.itemCount }))].map(c => {
+              const on = active === c.id;
+              return (
+                <button
+                  key={c.id ?? 'all'}
+                  onClick={() => { setActive(c.id); setOnlyUnlinked(false); }}
+                  className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-extrabold whitespace-nowrap transition-colors ${on ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-brand-300'}`}
+                >
+                  {c.name}
+                  <span className={`text-[11px] font-bold tabular-nums ${on ? 'text-brand-100' : 'text-slate-400'}`}>{c.count.toLocaleString('tr-TR')}</span>
+                </button>
+              );
+            })}
           </div>
-          {items.length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-400">Sonuç yok.</p>}
-          <div className="divide-y divide-slate-100">
-            {items.filter(it => !onlyUnlinked || !it.ourCode).map(it => (
-              <div key={it.id} className="px-3 py-2.5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-900 leading-snug break-words">
-                    {!active && (
-                      <span className="text-[10px] font-black text-white rounded px-1.5 py-0.5 mr-1.5 align-[1px]" style={{ background: supplierColor(it.listName) }}>
-                        {it.listName.toLocaleUpperCase('tr')}
-                      </span>
-                    )}
-                    {it.name}
-                  </div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                    {it.code ? `Firma kodu: ${it.code}` : 'kodsuz'} · {it.unit}
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                    {it.ourCode ? (
-                      <>
-                        <span className="font-mono px-1.5 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-800">Bizim kod: {it.ourCode}</span>
-                        <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }} className="text-brand-700 font-semibold hover:underline">değiştir</button>
-                        <button type="button" onClick={() => linkItem(it, null)} className="text-slate-400 hover:text-rose-600" title="Bağı kaldır"><X className="w-3.5 h-3.5" /></button>
-                      </>
-                    ) : (
-                      <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-dashed border-amber-300 bg-amber-50 text-amber-800 font-semibold">
-                        <Link2 className="w-3 h-3" /> Bizim koda bağla
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">
-                    {it.price > 0 ? `${formatPrice(it.price)} ${CURRENCY_LABEL[it.currency]}` : <span className="text-slate-400 font-semibold">fiyat yok</span>}
-                  </div>
-                  {it.price > 0 && it.discount > 0 && (
-                    <div className="text-[11px] text-slate-500 tabular-nums whitespace-nowrap">net {formatPrice(net(it))} (−%{it.discount})</div>
-                  )}
-                </div>
+
+          {/* Seçili firmanın bilgi kartı veya firma kartları */}
+          {current ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-3.5 flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black shrink-0" style={{ background: supplierColor(current.name) }}>
+                {initial(current.name)}
               </div>
-              {linking === it.id && (
-                <div className="mt-2 flex items-center gap-2">
-                  <MaterialPicker
-                    field="all"
-                    ownOnly
-                    autoFocus
-                    value={linkText}
-                    onChange={setLinkText}
-                    onPick={m => linkItem(it, m.code)}
-                    placeholder="Bizim malzemelerde ara (kod veya ad)…"
-                    className="flex-1 min-w-0"
-                    inputClassName="w-full px-3 py-2 border border-brand-300 rounded-lg text-sm bg-white"
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-slate-900 leading-tight">{current.name} Fiyat Listesi</div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  {current.listDate || 'tarih yok'} · {CURRENCY_LABEL[current.currency]} · liste fiyatı
+                </div>
+                <label className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                  İskonto %
+                  <input
+                    value={discountDraft}
+                    onChange={e => setDiscountDraft(e.target.value)}
+                    onBlur={saveDiscount}
+                    onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                    inputMode="decimal"
+                    placeholder="0"
+                    className="w-14 px-2 py-1 border border-slate-300 rounded-lg text-sm text-right font-black text-slate-900"
                   />
-                  <button type="button" onClick={() => setLinking(null)} className="text-xs font-semibold text-slate-500 px-2 py-2">Vazgeç</button>
-                </div>
-              )}
+                </label>
               </div>
-            ))}
-          </div>
-          {items.length < total && (
-            <button onClick={() => load(items.length, true)} disabled={loading}
-              className="w-full py-2.5 text-sm font-bold text-brand-700 hover:bg-brand-50 border-t border-slate-100 disabled:opacity-50">
-              Daha fazla göster ({(total - items.length).toLocaleString('tr-TR')} kalem kaldı)
-            </button>
+              <div className="shrink-0 self-start">{ageBadge(current.listDate)}</div>
+            </div>
+          ) : !query.trim() && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {lists.map(l => (
+                <button key={l.id} onClick={() => setActive(l.id)}
+                  className="text-left bg-white rounded-2xl border border-slate-200 hover:border-brand-300 hover:shadow-sm p-3.5 flex flex-col gap-1.5 transition">
+                  <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black" style={{ background: supplierColor(l.name) }}>
+                    {initial(l.name)}
+                  </span>
+                  <span className="font-black text-slate-900 text-base leading-tight truncate mt-0.5">{l.name}</span>
+                  <span className="text-xs text-slate-500">{l.itemCount.toLocaleString('tr-TR')} kalem · {CURRENCY_LABEL[l.currency]}</span>
+                  <span className="text-xs text-slate-500">{l.listDate || 'tarih yok'}{l.discount ? ` · %${l.discount}` : ''}</span>
+                  <span className="mt-0.5">{ageBadge(l.listDate)}</span>
+                </button>
+              ))}
+            </div>
           )}
-        </div>
+
+          {/* Arama */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={current ? `${current.name} listesinde ara…` : 'Tüm listelerde ara (kod, ürün)…'}
+              className="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200 text-sm bg-white"
+            />
+          </div>
+
+          {error && <div className="text-sm text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
+
+          {(active || query.trim()) && (
+            <>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-slate-500">
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{total.toLocaleString('tr-TR')} kalem</span>
+                {items.length > 0 && (
+                  <label className="ml-auto inline-flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" checked={onlyUnlinked} onChange={e => setOnlyUnlinked(e.target.checked)} />
+                    sadece eşleşmeyenler
+                  </label>
+                )}
+              </div>
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                {items.length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-400">Sonuç yok.</p>}
+                <div className="divide-y divide-slate-100">
+                  {items.filter(it => !onlyUnlinked || !it.ourCode).map(it => (
+                    <div key={it.id} className="px-3.5 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-extrabold text-slate-900 leading-snug break-words">
+                            {!active && (
+                              <span className="text-[10px] font-black text-white rounded px-1.5 py-0.5 mr-1.5 align-[1px]" style={{ background: supplierColor(it.listName) }}>
+                                {it.listName.toLocaleUpperCase('tr')}
+                              </span>
+                            )}
+                            {it.name}
+                          </div>
+                          <div className="text-xs text-slate-500 font-mono mt-0.5">
+                            {it.code ? `${it.listName} kodu: ${it.code}` : `${it.listName} · kodsuz`}
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                            Bizim kod:
+                            {it.ourCode ? (
+                              <>
+                                <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }} title="Değiştir"
+                                  className="font-mono px-2 py-0.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-300">
+                                  {it.ourCode}
+                                </button>
+                                <button type="button" onClick={() => linkItem(it, null)} className="text-slate-300 hover:text-rose-600" title="Bağı kaldır"><X className="w-3.5 h-3.5" /></button>
+                              </>
+                            ) : (
+                              <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 font-semibold hover:border-amber-400">
+                                eşleşmedi <Link2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-base font-black text-slate-900 tabular-nums whitespace-nowrap">
+                            {it.price > 0 ? `${formatPrice(it.price)} ${CURRENCY_LABEL[it.currency]}` : <span className="text-sm text-slate-400 font-semibold">fiyat yok</span>}
+                          </div>
+                          {it.price > 0 && it.discount > 0 && (
+                            <div className="text-xs font-bold text-slate-400 tabular-nums whitespace-nowrap">net {formatPrice(net(it))}</div>
+                          )}
+                        </div>
+                      </div>
+                      {linking === it.id && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <MaterialPicker
+                            field="all"
+                            ownOnly
+                            autoFocus
+                            value={linkText}
+                            onChange={setLinkText}
+                            onPick={m => linkItem(it, m.code)}
+                            placeholder="Bizim malzemelerde ara (kod veya ad)…"
+                            className="flex-1 min-w-0"
+                            inputClassName="w-full px-3 py-2 border border-brand-300 rounded-xl text-sm bg-white"
+                          />
+                          <button type="button" onClick={() => setLinking(null)} className="text-xs font-semibold text-slate-500 px-2 py-2">Vazgeç</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {items.length < total && (
+                  <button onClick={() => load(items.length, true)} disabled={loading}
+                    className="w-full py-3 text-sm font-bold text-brand-700 hover:bg-brand-50 border-t border-slate-100 disabled:opacity-50">
+                    Daha fazla göster ({(total - items.length).toLocaleString('tr-TR')} kalem kaldı)
+                  </button>
+                )}
+              </div>
+              <p className="px-1 text-xs text-slate-400">Firma kodları bizim kodlarla karışmaz; aynı ürünse "Bizim kod" bağlantısı gösterilir.</p>
+            </>
+          )}
+        </>
       )}
     </div>
   );
