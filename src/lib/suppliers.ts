@@ -56,22 +56,29 @@ export async function setSupplierDiscount(id: string, discount: number) {
  */
 export async function importListFromText(
   fileName: string, pages: string[][], onInfo?: (info: string) => void,
-): Promise<{ listId: string; name: string; items: number; matched: number }> {
+): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number }> {
   const { parsePriceLines, detectCurrency, guessListInfo, listIdFor } = await import('./priceParse');
   const lines = pages.flat().filter(l => l !== '#OCR');
   const currency = detectCurrency(lines.join('\n'));
   // Her sayfa yapay zekayla okunur (katalog düzenindeki listeler için); olmazsa genel kurallarla
   type Item = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency };
   const parsed: Item[] = [];
-  let aiOk = 0;
+  let failed = 0;
   const textPages = pages.map(p => p.filter(l => l !== '#OCR')).filter(p => p.join('').replace(/\s/g, '').length > 40);
-  for (let i = 0; i < textPages.length; i += 3) {
-    onInfo?.(`sayfalar okunuyor ${Math.min(i + 3, textPages.length)}/${textPages.length}`);
-    const batch = await Promise.all(textPages.slice(i, i + 3).map(async pg => {
+  // Sayfalar ikişer ikişer okunur; yapay zeka hata verirse 2 kez daha denenir (yoğunlukta kısa bekleyerek)
+  const readPage = async (pg: string[]) => {
+    for (let attempt = 0; attempt < 3; attempt++) {
       const ai = await aiPriceListPage(pg.join('\n')).catch(() => null);
-      if (ai) { aiOk++; return ai; }
-      return parsePriceLines(pg).map(x => ({ ...x, currency }));
-    }));
+      if (ai) return ai;
+      await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+    }
+    const rule = parsePriceLines(pg).map(x => ({ ...x, currency }));
+    if (!rule.length) failed++;
+    return rule;
+  };
+  for (let i = 0; i < textPages.length; i += 2) {
+    onInfo?.(`sayfalar okunuyor ${Math.min(i + 2, textPages.length)}/${textPages.length}${failed ? ` · ${failed} sayfa okunamadı` : ''}`);
+    const batch = await Promise.all(textPages.slice(i, i + 2).map(readPage));
     batch.forEach(b => parsed.push(...b));
   }
   if (parsed.length < 3) throw new Error('kalem bulunamadı (liste düzeni okunamadı)');
@@ -103,7 +110,7 @@ export async function importListFromText(
     if (error) throw error;
   }
   const matched = await autoMatchList(listId, parsed.length, onInfo);
-  return { listId, name, items: parsed.length, matched };
+  return { listId, name, items: parsed.length, matched, failedPages: failed };
 }
 
 /** Fiyat listesinin bir sayfasını sunucudaki yapay zekayla kalemlere ayırır (null: okunamadı) */
@@ -116,7 +123,7 @@ async function aiPriceListPage(text: string): Promise<{ code: string; name: stri
     body: JSON.stringify({ text: text.slice(0, 12000) }),
   });
   if (!res.ok) return null;
-  const out = await res.json();
+  const out = await res.json().catch(() => null);
   if (!Array.isArray(out?.items)) return null;
   const cur = (c: string): Currency => (/usd|\$/i.test(c) ? 'USD' : /eur|€/i.test(c) ? 'EUR' : 'TRY');
   return out.items
