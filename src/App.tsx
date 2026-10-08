@@ -154,6 +154,7 @@ function Portal({ session }: { session: Session }) {
   // WhatsApp vb. uygulamadan "Paylaş" ile gelen teklif PDF'i: forma otomatik doldurulur
   const [sharedPdf, setSharedPdf] = useState<File | null>(null);
   const [shareError, setShareError] = useState('');
+  const [pdfNotice, setPdfNotice] = useState('');
 
   // Apply a local (optimistic) change and cache it
   const mutate = useCallback((fn: (prev: AppData) => AppData) => {
@@ -376,6 +377,13 @@ function Portal({ session }: { session: Session }) {
         description: `${why || 'neden yok (eski service worker?)'}\n${navigator.userAgent}`.slice(0, 2000),
         author: currentRole, timestamp: new Date().toISOString(), badge_color: 'slate',
       }).then(() => undefined, () => undefined);
+      // Telefon yalnızca dosya adını gönderdiyse: yeni teklifi açıp PDF'i elle seçtir
+      const name = /title=txt\(([^)]*\.pdf)/i.exec(why || '')?.[1];
+      if (name) {
+        setPdfNotice(`Telefonunuz WhatsApp'tan dosyanın kendisini göndermedi, sadece adını gönderdi. Yukarıdaki "PDF'ten Doldur" düğmesine basın, açılan pencerede Son kullanılanlar veya "WhatsApp Documents" klasöründen "${name}" dosyasını seçin.`);
+        setIsNewQuoteOpen(true);
+        return;
+      }
       setShareError(`Paylaşılan dosya alınamadı.${why ? ` (${why})` : ''}`);
       return;
     }
@@ -689,10 +697,12 @@ function Portal({ session }: { session: Session }) {
           initialCustomer={quoteCustomer}
           draft={quoteDraft}
           initialPdf={sharedPdf}
+          pdfNotice={pdfNotice}
           onSaveQuote={handleSaveQuote}
           onClose={() => {
             setIsNewQuoteOpen(false);
             setSharedPdf(null);
+            setPdfNotice('');
             setQuoteCustomer(null);
             setQuoteDraft(null);
           }}
