@@ -34,9 +34,12 @@ export const MaterialPicker: React.FC<{
   focusAfterPick?: (input: HTMLInputElement) => boolean;
   /** Kutunun görünümü (verilmezse varsayılan küçük kutu) */
   inputClassName?: string;
+  /** Sadece bizim malzemeler (firma listeleri aranmaz) */
+  ownOnly?: boolean;
+  autoFocus?: boolean;
   onChange: (text: string) => void;
   onPick: (m: Material) => void;
-}> = ({ field, value, required, placeholder, className, focusAfterPick, inputClassName, onChange, onPick }) => {
+}> = ({ field, value, required, placeholder, className, focusAfterPick, inputClassName, ownOnly, autoFocus, onChange, onPick }) => {
   const [results, setResults] = useState<Material[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -101,7 +104,7 @@ export const MaterialPicker: React.FC<{
   }, [value, field, minChars, focused]);
 
   useEffect(() => {
-    if (!focused) return;
+    if (!focused || ownOnly) return;
     const q = value.trim();
     if (q.length < 3) { setSupplierResults([]); return; }
     let cancelled = false;
@@ -113,7 +116,7 @@ export const MaterialPicker: React.FC<{
       } catch { if (!cancelled) setSupplierResults([]); }
     }, 300);
     return () => { cancelled = true; window.clearTimeout(t); };
-  }, [value, focused]);
+  }, [value, focused, ownOnly]);
 
   const suggestions = supplierResults.length ? [...results, ...supplierResults] : results;
   const firstSupplier = results.length;
@@ -131,6 +134,7 @@ export const MaterialPicker: React.FC<{
       required={required}
       placeholder={placeholder}
       focusAfterPick={focusAfterPick}
+      autoFocus={autoFocus}
       inputClassName={`${inputClassName || 'w-full p-1.5 border border-slate-300 rounded text-xs bg-white'} ${field === 'code' ? 'font-mono uppercase' : ''}`}
       header={offline ? (
         <div className="px-2.5 py-1.5 text-[10px] text-amber-700 bg-amber-50">

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, FileUp, Loader2, Search, XCircle } from 'lucide-react';
+import { CheckCircle2, FileUp, Link2, Loader2, Search, X, XCircle } from 'lucide-react';
+import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, setSupplierDiscount, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, setSupplierDiscount, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -128,6 +129,19 @@ export const SupplierListsPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [discountDraft, setDiscountDraft] = useState('');
+  // Bizim koda bağlama: açık olan kalem ve arama metni
+  const [linking, setLinking] = useState<number | null>(null);
+  const [linkText, setLinkText] = useState('');
+  const [onlyUnlinked, setOnlyUnlinked] = useState(false);
+  const linkItem = async (it: SupplierItem, code: string | null) => {
+    try {
+      await setSupplierOurCode(it.id, code);
+      setItems(prev => prev.map(x => (x.id === it.id ? { ...x, ourCode: code } : x)));
+      setLinking(null); setLinkText('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Kaydedilemedi');
+    }
+  };
   const reqId = useRef(0);
 
   useEffect(() => {
@@ -287,11 +301,21 @@ export const SupplierListsPanel: React.FC = () => {
           <div className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 flex items-center gap-2">
             {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {total.toLocaleString('tr-TR')} kalem
+            {items.length > 0 && (
+              <span className="ml-auto">
+                {items.filter(i => i.ourCode).length}/{items.length} bizim koda bağlı ·{' '}
+                <label className="inline-flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={onlyUnlinked} onChange={e => setOnlyUnlinked(e.target.checked)} />
+                  sadece bağlanmamışlar
+                </label>
+              </span>
+            )}
           </div>
           {items.length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-400">Sonuç yok.</p>}
           <div className="divide-y divide-slate-100">
-            {items.map(it => (
-              <div key={it.id} className="px-3 py-2.5 flex items-start justify-between gap-3">
+            {items.filter(it => !onlyUnlinked || !it.ourCode).map(it => (
+              <div key={it.id} className="px-3 py-2.5">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-slate-900 leading-snug break-words">
                     {!active && (
@@ -303,7 +327,19 @@ export const SupplierListsPanel: React.FC = () => {
                   </div>
                   <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                     {it.code ? `Firma kodu: ${it.code}` : 'kodsuz'} · {it.unit}
-                    {it.ourCode && <span className="font-sans ml-1.5 px-1.5 rounded border border-slate-200 bg-slate-50">Bizim kod: {it.ourCode}</span>}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                    {it.ourCode ? (
+                      <>
+                        <span className="font-mono px-1.5 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-800">Bizim kod: {it.ourCode}</span>
+                        <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }} className="text-brand-700 font-semibold hover:underline">değiştir</button>
+                        <button type="button" onClick={() => linkItem(it, null)} className="text-slate-400 hover:text-rose-600" title="Bağı kaldır"><X className="w-3.5 h-3.5" /></button>
+                      </>
+                    ) : (
+                      <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-dashed border-amber-300 bg-amber-50 text-amber-800 font-semibold">
+                        <Link2 className="w-3 h-3" /> Bizim koda bağla
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -314,6 +350,23 @@ export const SupplierListsPanel: React.FC = () => {
                     <div className="text-[11px] text-slate-500 tabular-nums whitespace-nowrap">net {formatPrice(net(it))} (−%{it.discount})</div>
                   )}
                 </div>
+              </div>
+              {linking === it.id && (
+                <div className="mt-2 flex items-center gap-2">
+                  <MaterialPicker
+                    field="all"
+                    ownOnly
+                    autoFocus
+                    value={linkText}
+                    onChange={setLinkText}
+                    onPick={m => linkItem(it, m.code)}
+                    placeholder="Bizim malzemelerde ara (kod veya ad)…"
+                    className="flex-1 min-w-0"
+                    inputClassName="w-full px-3 py-2 border border-brand-300 rounded-lg text-sm bg-white"
+                  />
+                  <button type="button" onClick={() => setLinking(null)} className="text-xs font-semibold text-slate-500 px-2 py-2">Vazgeç</button>
+                </div>
+              )}
               </div>
             ))}
           </div>
