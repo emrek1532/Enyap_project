@@ -5,7 +5,7 @@
  */
 import { Currency } from './money';
 
-export interface ParsedItem { code: string; name: string; price: number; unit: string }
+export interface ParsedItem { code: string; name: string; price: number; unit: string; grp?: string }
 
 // 1.234,56 · 1234,56 · 1,234.56 · 1234.56 (en az 2 ondalık hane)
 const PRICE = /(\d{1,3}(?:[.\s]\d{3})+,\d{2,4}|\d+,\d{2,4}|\d{1,3}(?:,\d{3})+\.\d{2,4}|\d+\.\d{2,4})/g;
@@ -71,9 +71,7 @@ export function parsePriceLines(lines: string[]): ParsedItem[] {
       const key = `${cn.code}|${cn.name}|${price}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const fold = (x: string) => x.toLocaleLowerCase('tr');
-      const head = heading && !fold(cn.name).includes(fold(heading).split(' ')[0]) ? ` · ${heading}` : '';
-      out.push({ ...cn, name: (cn.name + head).slice(0, 200), price: Math.round(price * 10000) / 10000, unit });
+      out.push({ ...cn, grp: heading || undefined, price: Math.round(price * 10000) / 10000, unit });
     }
   }
   return out;
