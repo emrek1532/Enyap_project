@@ -1,9 +1,9 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v7';
+const CACHE = 'enyap-shell-v8';
 // WhatsApp vb. uygulamalardan "Paylaş" ile gelen PDF burada bekletilir, uygulama açılınca okunur
 const SHARE_CACHE = 'enyap-share';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
+const SHELL = ['/', '/index.html', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
@@ -46,6 +46,8 @@ self.addEventListener('fetch', (event) => {
   if (req.cache === 'no-store') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  // Uygulama ayar dosyası (manifest) her zaman sunucudan: telefon güncel paylaşım ayarını alsın
+  if (url.pathname === '/manifest.webmanifest') return;
 
   // Sayfa gezintisi: önce ağ, olmazsa önbellekteki index.html
   if (req.mode === 'navigate') {
