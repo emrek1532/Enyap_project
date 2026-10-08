@@ -5,6 +5,8 @@ import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
 import { MobileSortSelect, SortHeader, SortState, nextSort } from './SortHeader';
 import { SupplierListsPanel } from './SupplierListsPanel';
+import { supabase } from '../lib/supabase';
+import { fetchSupplierLists } from '../lib/suppliers';
 
 const PAGE = 50;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
@@ -342,13 +344,30 @@ export const MaterialsPanel: React.FC = () => {
     try { return localStorage.getItem('enyap-materials-tab') === 'suppliers' ? 'suppliers' : 'own'; } catch { return 'own'; }
   });
   const choose = (t: 'own' | 'suppliers') => { setTab(t); try { localStorage.setItem('enyap-materials-tab', t); } catch { /* */ } };
+  // Sekmelerin altında kalem sayıları
+  const [ownCount, setOwnCount] = useState<number | null>(null);
+  const [supInfo, setSupInfo] = useState<{ lists: number; items: number } | null>(null);
+  useEffect(() => {
+    supabase.from('materials').select('code', { count: 'exact', head: true })
+      .then(({ count }) => setOwnCount(count ?? null), () => undefined);
+    fetchSupplierLists()
+      .then(l => setSupInfo({ lists: l.length, items: l.reduce((a, x) => a + x.itemCount, 0) }), () => undefined);
+  }, []);
+  const tr = (n: number) => n.toLocaleString('tr-TR');
   const tabCls = (on: boolean) =>
-    `flex-1 px-3 py-2 rounded-lg text-sm font-bold transition-colors ${on ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`;
+    `flex-1 px-3 py-2 rounded-lg text-sm font-extrabold leading-tight transition-colors ${on ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`;
+  const sub = 'block text-[11px] font-semibold text-slate-400 mt-0.5';
   return (
     <div className="space-y-3">
       <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70" role="tablist">
-        <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>Bizim Malzemeler</button>
-        <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>Firma Fiyat Listeleri</button>
+        <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
+          Bizim Malzemeler
+          <span className={sub}>{ownCount !== null ? `${tr(ownCount)} kalem` : '\u00a0'}</span>
+        </button>
+        <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>
+          Firma Fiyat Listeleri
+          <span className={sub}>{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '\u00a0'}</span>
+        </button>
       </div>
       {tab === 'own' ? <OwnMaterials /> : <SupplierListsPanel />}
     </div>
