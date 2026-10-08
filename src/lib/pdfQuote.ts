@@ -204,6 +204,7 @@ export async function pdfLines(data: ArrayBuffer): Promise<string[]> {
 export async function readQuotePdf(file: File, opts: { ai?: boolean } = {}): Promise<PdfQuote> {
   const lines = await pdfLines(await file.arrayBuffer());
   const q = parseQuoteLines(lines, file.name);
+  if (opts.ai !== false) logPdfRead(file, q, lines.length);
   if (q.items.length || opts.ai === false || !lines.length) return q;
 
   logUnreadPdf(file.name, lines);
@@ -219,6 +220,15 @@ export async function readQuotePdf(file: File, opts: { ai?: boolean } = {}): Pro
     q.warnings.push(`yapay zeka okuyamadı: ${String((e as Error)?.message || e).slice(0, 120)}`);
   }
   return q;
+}
+
+/** Her PDF okumasının kısa özeti (tanı için) */
+function logPdfRead(file: File, q: PdfQuote, lineCount: number) {
+  supabase.from('activities').insert({
+    id: `diag-read-${Date.now()}`, action: 'PDF okundu (tanı)',
+    description: `${file.name} · ${file.size} bayt · ${lineCount} satır · no=${q.quoteNumber} · ${q.items.length} kalem · ${q.warnings.join(', ')}`.slice(0, 2000),
+    author: 'isparta', timestamp: new Date().toISOString(), badge_color: 'slate',
+  }).then(() => undefined, () => undefined);
 }
 
 /** Okunamayan PDF'in metnini tanı için kaydeder (okuyucuyu bu formata göre düzeltebilmek için) */
