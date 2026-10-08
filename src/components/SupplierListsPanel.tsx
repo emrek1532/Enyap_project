@@ -44,14 +44,14 @@ const SupplierUploader: React.FC = () => {
       const f = pdfs[i];
       setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'run', info: 'okunuyor…' } : x)));
       try {
-        const res = await uploadSupplierPdf(f, (d, t) =>
-          setRows(r => r.map(x => (x.name === f.name ? { ...x, info: `${d}/${t} sayfa kaydedildi` } : x))));
+        const res = await uploadSupplierPdf(f, info =>
+          setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
         setRows(r => r.map(x => (x.name === f.name ? {
           ...x, status: res.chars > 200 ? 'ok' : 'err',
-          info: res.chars > 200 ? `${res.pages} sayfa` : `${res.pages} sayfa ama yazı yok (taranmış/resim PDF)`,
+          info: res.chars > 200 ? `${res.pages} sayfa${res.ocr ? ' (resimden okundu)' : ''}` : `${res.pages} sayfa ama yazı okunamadı`,
         } : x)));
       } catch (e) {
-        setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'err', info: 'okunamadı / kaydedilemedi' } : x)));
+        setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'err', info: `okunamadı / kaydedilemedi${e instanceof Error ? ': ' + e.message : ''}` } : x)));
       }
     }
     setBusy(false);
