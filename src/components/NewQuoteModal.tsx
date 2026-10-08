@@ -126,7 +126,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
   // Katalogdan seçilen malzemenin birimi, fiyatı ve para birimi kaleme aktarılır
   const handlePickMaterial = (index: number, m: Material) => {
-    rememberMaterial(m);
+    if (!m.supplier) rememberMaterial(m);
     setItems((prev) => {
       const updated = [...prev];
       const unit = (MATERIAL_UNITS as readonly string[]).includes(m.unit) ? m.unit as QuoteItem['unit'] : 'Adet';
@@ -138,6 +138,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         unitPrice: m.price || 0,
         currency: m.currency,
         vatRate: m.vatRate ?? 20,
+        // Firma listesinden seçildiyse o firmanın standart iskontosu gelir
+        ...(m.supplier && m.supplierDiscount ? { discount: m.supplierDiscount } : {}),
       };
       const qty = Number(target.quantity) || 0;
       const net = qty * target.unitPrice * (1 - (Number(target.discount) || 0) / 100);
