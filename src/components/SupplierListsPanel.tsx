@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Search } from 'lucide-react';
+import { CheckCircle2, FileUp, Loader2, Search, XCircle } from 'lucide-react';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, setSupplierDiscount, supplierColor } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, setSupplierDiscount, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -16,6 +16,94 @@ function ageMonths(listDate: string): number | null {
   const now = new Date();
   return (now.getFullYear() - Number(y)) * 12 + (now.getMonth() - (m >= 0 ? m : 0));
 }
+
+type UpState = { name: string; status: 'wait' | 'run' | 'ok' | 'err' | 'skip'; info?: string };
+
+/**
+ * Fiyat listesi PDF'lerini toplu yükleme: PDF cihazda okunur, sadece yazısı sisteme gider
+ * (543 MB'lık klasör bile birkaç MB yazı eder). Kalemlere ayrıştırma sonra yapılır.
+ */
+const SupplierUploader: React.FC = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [rows, setRows] = useState<UpState[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [uploaded, setUploaded] = useState<number | null>(null);
+
+  useEffect(() => { uploadedSupplierFiles().then(m => setUploaded(Object.keys(m).length), () => setUploaded(null)); }, []);
+
+  const run = async (files: File[]) => {
+    const pdfs = files.filter(f => /\.pdf$/i.test(f.name));
+    const others = files.filter(f => !/\.pdf$/i.test(f.name));
+    const list: UpState[] = [
+      ...pdfs.map(f => ({ name: f.name, status: 'wait' as const })),
+      ...others.map(f => ({ name: f.name, status: 'skip' as const, info: 'PDF değil — bu dosyayı sohbete ayrıca gönderin' })),
+    ];
+    setRows(list);
+    setBusy(true);
+    for (let i = 0; i < pdfs.length; i++) {
+      const f = pdfs[i];
+      setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'run', info: 'okunuyor…' } : x)));
+      try {
+        const res = await uploadSupplierPdf(f, (d, t) =>
+          setRows(r => r.map(x => (x.name === f.name ? { ...x, info: `${d}/${t} sayfa kaydedildi` } : x))));
+        setRows(r => r.map(x => (x.name === f.name ? {
+          ...x, status: res.chars > 200 ? 'ok' : 'err',
+          info: res.chars > 200 ? `${res.pages} sayfa` : `${res.pages} sayfa ama yazı yok (taranmış/resim PDF)`,
+        } : x)));
+      } catch (e) {
+        setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'err', info: 'okunamadı / kaydedilemedi' } : x)));
+      }
+    }
+    setBusy(false);
+    uploadedSupplierFiles().then(m => setUploaded(Object.keys(m).length), () => undefined);
+  };
+
+  const done = rows.filter(r => r.status === 'ok').length;
+  const total = rows.filter(r => r.status !== 'skip').length;
+
+  return (
+    <div className="bg-white rounded-xl border border-dashed border-brand-300 p-3 space-y-2">
+      <div className="flex items-center gap-3">
+        <FileUp className="w-6 h-6 text-brand-600 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="font-bold text-sm text-slate-900">Fiyat listesi PDF'lerini yükle</div>
+          <div className="text-xs text-slate-500">
+            Klasördeki tüm PDF'leri birlikte seçebilirsiniz. PDF'ler cihazınızda okunur, sadece yazısı gönderilir.
+            {uploaded !== null && uploaded > 0 && <> · Şu ana kadar <b>{uploaded}</b> dosya yüklendi.</>}
+          </div>
+        </div>
+        <button
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          className="shrink-0 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold disabled:opacity-60"
+        >
+          {busy ? `Yükleniyor ${done}/${total}` : 'PDF Seç'}
+        </button>
+        <input ref={inputRef} type="file" accept="application/pdf,.pdf" multiple hidden
+          onChange={e => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (fs.length) run(fs); }} />
+      </div>
+      {rows.length > 0 && (
+        <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 border-t border-slate-100">
+          {rows.map(r => (
+            <div key={r.name} className="py-1.5 flex items-center gap-2 text-xs">
+              {r.status === 'run' ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-600 shrink-0" />
+                : r.status === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                : r.status === 'err' || r.status === 'skip' ? <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                : <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0" />}
+              <span className="min-w-0 flex-1 truncate text-slate-700">{r.name}</span>
+              <span className="shrink-0 text-slate-500">{r.info}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {!busy && total > 0 && done === total && (
+        <div className="text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-md px-2 py-1.5">
+          {done} PDF yüklendi. Claude'a "yükledim" yazın; listeler firma firma ayrıştırılıp buraya eklenecek.
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** Malzemeler → Firma Fiyat Listeleri: her firma ayrı klasör; kalemleri bizim katalogla karışmaz */
 export const SupplierListsPanel: React.FC = () => {
@@ -78,8 +166,11 @@ export const SupplierListsPanel: React.FC = () => {
   }
   if (!lists.length) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-6 text-center text-sm text-slate-500">
-        Henüz firma fiyat listesi yüklenmedi. Listeler yüklendiğinde burada her firma ayrı bir klasör olarak görünecek.
+      <div className="space-y-3">
+        <SupplierUploader />
+        <div className="bg-white rounded-xl border border-slate-200 p-6 text-center text-sm text-slate-500">
+          Henüz firma fiyat listesi eklenmedi. Listeler eklendiğinde burada her firma ayrı bir klasör olarak görünecek.
+        </div>
       </div>
     );
   }
@@ -89,6 +180,7 @@ export const SupplierListsPanel: React.FC = () => {
 
   return (
     <div className="space-y-3">
+      <SupplierUploader />
       {/* Firma klasörleri */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         <button
