@@ -172,29 +172,40 @@ export function parseQuoteLines(lines: string[], fileName = ''): PdfQuote {
 }
 
 /** PDF dosyasını satırlara ayırır (aynı yükseklikteki metinler soldan sağa birleştirilir) */
-export async function pdfLines(data: ArrayBuffer): Promise<string[]> {
+/** PDF'i sayfa sayfa satırlara ayırır (aynı yükseklikteki metinler soldan sağa birleştirilir) */
+export async function pdfPages(data: ArrayBuffer): Promise<string[][]> {
   const pdfjs = await import('pdfjs-dist');
   if (typeof window !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerSrc) {
     pdfjs.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
   }
   const doc = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
-  const out: string[] = [];
-  for (let p = 1; p <= doc.numPages; p++) {
-    const page = await doc.getPage(p);
-    const content = await page.getTextContent();
-    const rows: { y: number; parts: { x: number; s: string }[] }[] = [];
-    for (const it of content.items as any[]) {
-      const s = String(it.str ?? '');
-      if (!s.trim()) continue;
-      const x = it.transform[4], y = it.transform[5];
-      let row = rows.find(r => Math.abs(r.y - y) < 2.5);
-      if (!row) { row = { y, parts: [] }; rows.push(row); }
-      row.parts.push({ x, s });
+  const pages: string[][] = [];
+  try {
+    for (let p = 1; p <= doc.numPages; p++) {
+      const page = await doc.getPage(p);
+      const content = await page.getTextContent();
+      const rows: { y: number; parts: { x: number; s: string }[] }[] = [];
+      for (const it of content.items as any[]) {
+        const s = String(it.str ?? '');
+        if (!s.trim()) continue;
+        const x = it.transform[4], y = it.transform[5];
+        let row = rows.find(r => Math.abs(r.y - y) < 2.5);
+        if (!row) { row = { y, parts: [] }; rows.push(row); }
+        row.parts.push({ x, s });
+      }
+      rows.sort((a, b) => b.y - a.y);
+      pages.push(rows.map(r => r.parts.sort((a, b) => a.x - b.x).map(p => p.s.trim()).join('  ')));
+      page.cleanup();
     }
-    rows.sort((a, b) => b.y - a.y);
-    for (const r of rows) out.push(r.parts.sort((a, b) => a.x - b.x).map(p => p.s.trim()).join('  '));
+  } finally {
+    doc.destroy();
   }
-  return out;
+  return pages;
+}
+
+/** PDF'i satırlara ayırır (tüm sayfalar art arda) */
+export async function pdfLines(data: ArrayBuffer): Promise<string[]> {
+  return (await pdfPages(data)).flat();
 }
 
 /**

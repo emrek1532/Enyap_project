@@ -74,3 +74,33 @@ export const supplierColor = (name: string) => {
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return COLORS[h % COLORS.length];
 };
+
+/** Firma fiyat listesi PDF'inin yazısını sayfa sayfa sisteme kaydeder (kalemlere ayrıştırma sonra yapılır) */
+export async function uploadSupplierPdf(file: File, onPage?: (done: number, total: number) => void): Promise<{ pages: number; chars: number }> {
+  const { pdfPages } = await import('./pdfQuote');
+  const pages = await pdfPages(await file.arrayBuffer());
+  const rows = pages.map((lines, i) => ({ file_name: file.name, page: i + 1, content: lines.join('\n'), uploaded_at: new Date().toISOString() }));
+  // Önce bu dosyanın eski kaydı silinir (tekrar yüklemede fazladan sayfa kalmasın)
+  await supabase.from('supplier_raw_pages').delete().eq('file_name', file.name);
+  let chars = 0;
+  for (let i = 0; i < rows.length; i += 20) {
+    const batch = rows.slice(i, i + 20);
+    const { error } = await supabase.from('supplier_raw_pages').upsert(batch);
+    if (error) throw error;
+    chars += batch.reduce((a, r) => a + r.content.length, 0);
+    onPage?.(Math.min(i + 20, rows.length), rows.length);
+  }
+  return { pages: rows.length, chars };
+}
+
+/** Daha önce yüklenmiş PDF dosyaları (ad → sayfa sayısı) */
+export async function uploadedSupplierFiles(): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('supplier_raw_pages').select('file_name').eq('page', 1).range(from, from + 999);
+    if (error || !data?.length) break;
+    data.forEach((r: any) => { out[r.file_name] = 1; });
+    if (data.length < 1000) break;
+  }
+  return out;
+}
