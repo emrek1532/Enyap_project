@@ -1,6 +1,6 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v5';
+const CACHE = 'enyap-shell-v6';
 // WhatsApp vb. uygulamalardan "Paylaş" ile gelen PDF burada bekletilir, uygulama açılınca okunur
 const SHARE_CACHE = 'enyap-share';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
@@ -24,8 +24,10 @@ self.addEventListener('fetch', (event) => {
   if (req.method === 'POST' && shareUrl.origin === self.location.origin && shareUrl.pathname === '/share-target') {
     event.respondWith((async () => {
       try {
-        const form = await req.formData();
-        const file = form.getAll('file').find((f) => f && typeof f !== 'string');
+        const form = await req.clone().formData();
+        // Alan adı ne olursa olsun ilk dosyayı al
+        let file = null;
+        for (const [, v] of form.entries()) { if (v && typeof v !== 'string' && v.size > 0) { file = v; break; } }
         if (file) {
           const cache = await caches.open(SHARE_CACHE);
           await cache.put('/shared-pdf', new Response(file, {
@@ -33,8 +35,8 @@ self.addEventListener('fetch', (event) => {
           }));
           return Response.redirect('/?shared-pdf=1', 303);
         }
-      } catch (e) { /* paylaşım okunamadı */ }
-      return Response.redirect('/?shared-pdf=0', 303);
+      } catch (e) { /* okunamadı: sunucu denesin */ }
+      return fetch(req);
     })());
     return;
   }
