@@ -76,21 +76,57 @@ export const supplierColor = (name: string) => {
 };
 
 /** Firma fiyat listesi PDF'inin yazısını sayfa sayfa sisteme kaydeder (kalemlere ayrıştırma sonra yapılır) */
-export async function uploadSupplierPdf(file: File, onPage?: (done: number, total: number) => void): Promise<{ pages: number; chars: number }> {
+/** Taranmış (resim) PDF sayfalarını cihazda yazı tanıma (OCR) ile okur */
+async function ocrPdfPages(data: ArrayBuffer, onInfo?: (info: string) => void): Promise<string[][]> {
+  const pdfjs = await import('pdfjs-dist');
+  const { createWorker } = await import('tesseract.js');
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
+  onInfo?.('yazı tanıma hazırlanıyor…');
+  const worker = await createWorker('tur');
+  const pages: string[][] = [];
+  try {
+    for (let p = 1; p <= doc.numPages; p++) {
+      onInfo?.(`yazı tanınıyor ${p}/${doc.numPages} sayfa`);
+      const page = await doc.getPage(p);
+      const vp = page.getViewport({ scale: 2 });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
+      await page.render({ canvas, canvasContext: canvas.getContext('2d')!, viewport: vp }).promise;
+      const { data: res } = await worker.recognize(canvas);
+      pages.push(res.text.split('\n').map(l => l.trim()).filter(Boolean));
+      page.cleanup();
+      canvas.width = canvas.height = 0;
+    }
+  } finally {
+    await worker.terminate();
+    doc.destroy();
+  }
+  return pages;
+}
+
+export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => void): Promise<{ pages: number; chars: number; ocr: boolean }> {
   const { pdfPages } = await import('./pdfQuote');
-  const pages = await pdfPages(await file.arrayBuffer());
-  const rows = pages.map((lines, i) => ({ file_name: file.name, page: i + 1, content: lines.join('\n'), uploaded_at: new Date().toISOString() }));
+  const data = await file.arrayBuffer();
+  let pages = await pdfPages(data.slice(0));
+  let ocr = false;
+  const textLen = (ps: string[][]) => ps.reduce((a, l) => a + l.join('').length, 0);
+  // Sayfa başına çok az yazı varsa PDF taranmıştır: resimden okunur
+  if (textLen(pages) < pages.length * 50) {
+    pages = await ocrPdfPages(data, onInfo);
+    ocr = true;
+  }
+  const chars = textLen(pages);
+  if (!chars) return { pages: pages.length, chars, ocr };
+  const now = new Date().toISOString();
+  const rows = pages.map((lines, i) => ({ file_name: file.name, page: i + 1, content: (ocr ? '#OCR\n' : '') + lines.join('\n'), uploaded_at: now }));
   // Önce bu dosyanın eski kaydı silinir (tekrar yüklemede fazladan sayfa kalmasın)
   await supabase.from('supplier_raw_pages').delete().eq('file_name', file.name);
-  let chars = 0;
   for (let i = 0; i < rows.length; i += 20) {
-    const batch = rows.slice(i, i + 20);
-    const { error } = await supabase.from('supplier_raw_pages').upsert(batch);
+    const { error } = await supabase.from('supplier_raw_pages').upsert(rows.slice(i, i + 20));
     if (error) throw error;
-    chars += batch.reduce((a, r) => a + r.content.length, 0);
-    onPage?.(Math.min(i + 20, rows.length), rows.length);
+    onInfo?.(`${Math.min(i + 20, rows.length)}/${rows.length} sayfa kaydedildi`);
   }
-  return { pages: rows.length, chars };
+  return { pages: rows.length, chars, ocr };
 }
 
 /** Daha önce yüklenmiş PDF dosyaları (ad → sayfa sayısı) */

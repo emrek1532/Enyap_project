@@ -178,7 +178,12 @@ export async function pdfPages(data: ArrayBuffer): Promise<string[][]> {
   if (typeof window !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerSrc) {
     pdfjs.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
   }
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
+  const doc = await pdfjs.getDocument({
+    data: new Uint8Array(data),
+    cMapUrl: '/pdfjs/cmaps/', cMapPacked: true,
+    standardFontDataUrl: '/pdfjs/standard_fonts/',
+    wasmUrl: '/pdfjs/wasm/',
+  }).promise;
   const pages: string[][] = [];
   try {
     for (let p = 1; p <= doc.numPages; p++) {
