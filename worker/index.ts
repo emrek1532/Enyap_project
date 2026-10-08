@@ -333,6 +333,8 @@ export default {
     if (url.pathname === '/api/ai/parse' && req.method === 'POST') return handleParse(req, env);
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/rates') return handleRates();
+    // Paylaş menüsü normalde uygulamanın service worker'ında karşılanır; o henüz yoksa uygulamaya yönlendir
+    if (url.pathname === '/share-target') return Response.redirect(new URL('/?shared-pdf=0', url).toString(), 303);
     if (url.pathname === '/api/ai/status') return json({ ready: !!(env.ANTHROPIC_API_KEY || env.AI), voice: !!env.AI });
     if (url.pathname.startsWith('/api/')) return json({ error: 'not_found' }, 404);
     return env.ASSETS.fetch(req);

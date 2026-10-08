@@ -54,6 +54,7 @@ import { VoiceAssistant } from './components/VoiceAssistant';
 import { AiResult, collectionDraftFrom, expenseDraftFrom, quoteDraftFrom } from './lib/ai';
 import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './components/LedgerPanel';
 import { CustomersPanel } from './components/CustomersPanel';
+import { readQuotePdf } from './lib/pdfQuote';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -150,6 +151,9 @@ function Portal({ session }: { session: Session }) {
   const [ledgerDraft, setLedgerDraft] = useState<Partial<Collection & Expense> | null>(null);
   const [printableQuote, setPrintableQuote] = useState<Quote | null>(null);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+  // WhatsApp vb. uygulamadan "Paylaş" ile gelen teklif PDF'i: forma otomatik doldurulur
+  const [sharedPdf, setSharedPdf] = useState<File | null>(null);
+  const [shareError, setShareError] = useState('');
 
   // Apply a local (optimistic) change and cache it
   const mutate = useCallback((fn: (prev: AppData) => AppData) => {
@@ -356,6 +360,33 @@ function Portal({ session }: { session: Session }) {
       setActiveTab('expenses');
     }
   };
+
+  // Paylaş menüsünden açıldıysa (/?shared-pdf=1) PDF'i al: teklif no sistemde varsa o teklifi, yoksa yeni teklifi aç
+  const quotesRef = useRef(data.quotes);
+  quotesRef.current = data.quotes;
+  useEffect(() => {
+    const flag = new URLSearchParams(window.location.search).get('shared-pdf');
+    if (flag === null) return;
+    window.history.replaceState(window.history.state, '', '/');
+    if (flag !== '1') { setShareError('Paylaşılan dosya alınamadı.'); return; }
+    (async () => {
+      try {
+        const cache = await caches.open('enyap-share');
+        const res = await cache.match('/shared-pdf');
+        if (!res) { setShareError('Paylaşılan dosya bulunamadı.'); return; }
+        await cache.delete('/shared-pdf');
+        const name = decodeURIComponent(res.headers.get('x-file-name') || 'teklif.pdf');
+        const file = new File([await res.blob()], name, { type: 'application/pdf' });
+        const pdf = await readQuotePdf(file).catch(() => null);
+        const existing = pdf?.quoteNumber ? quotesRef.current.find(q => (q.quoteNumber || '').trim() === pdf.quoteNumber) : undefined;
+        setSharedPdf(file);
+        if (existing) setEditingQuote(existing);
+        else setIsNewQuoteOpen(true);
+      } catch {
+        setShareError('Paylaşılan PDF açılamadı.');
+      }
+    })();
+  }, []);
 
   const handleSaveQuote = (newQuote: Quote) => {
     const activity = logActivity(
@@ -647,13 +678,22 @@ function Portal({ session }: { session: Session }) {
           quotes={data.quotes}
           initialCustomer={quoteCustomer}
           draft={quoteDraft}
+          initialPdf={sharedPdf}
           onSaveQuote={handleSaveQuote}
           onClose={() => {
             setIsNewQuoteOpen(false);
+            setSharedPdf(null);
             setQuoteCustomer(null);
             setQuoteDraft(null);
           }}
         />
+      )}
+
+      {shareError && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-rose-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-3">
+          {shareError}
+          <button onClick={() => setShareError('')} className="font-black" aria-label="Kapat">✕</button>
+        </div>
       )}
 
       {/* Teklif düzenleme / revize */}
@@ -664,8 +704,9 @@ function Portal({ session }: { session: Session }) {
           customers={data.customers || []}
           editQuote={editingQuote}
           quotes={data.quotes}
+          initialPdf={sharedPdf}
           onSaveQuote={handleUpdateQuote}
-          onClose={() => setEditingQuote(null)}
+          onClose={() => { setEditingQuote(null); setSharedPdf(null); }}
         />
       )}
 

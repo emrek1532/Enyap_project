@@ -23,6 +23,8 @@ interface NewQuoteModalProps {
   quotes?: Quote[];
   /** Sesli asistanın hazırladığı taslak: form bununla dolu açılır, kullanıcı kontrol edip kaydeder */
   draft?: Partial<Quote> | null;
+  /** Paylaş menüsünden gelen PDF: açılınca form bununla doldurulur */
+  initialPdf?: File | null;
 }
 
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
@@ -36,6 +38,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   editQuote = null,
   quotes = [],
   draft = null,
+  initialPdf = null,
 }) => {
   // Düzenlemede mevcut teklif, sesli taslakta taslak; ikisi de yoksa boş form
   const init: Partial<Quote> | null = editQuote || draft;
@@ -336,6 +339,15 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       setPdfBusy(false);
     }
   };
+
+  // Paylaş menüsünden (WhatsApp) gelen PDF'i açılır açılmaz oku
+  const sharedDone = useRef(false);
+  useEffect(() => {
+    if (!initialPdf || sharedDone.current) return;
+    sharedDone.current = true;
+    fillFromPdf(initialPdf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPdf]);
 
   // Genel toplamlar (Mikro'daki gibi: ara toplam, iskonto, KDV, genel toplam — para birimi başına)
   const summary = (['TRY', 'USD', 'EUR'] as Currency[]).map(c => {
