@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, FileUp, ImagePlus, Link2, Loader2, Plus, Search, X, XCircle } from 'lucide-react';
+import { CheckCircle2, FileUp, ImagePlus, Link2, Pencil, Loader2, Plus, Search, X, XCircle } from 'lucide-react';
 import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, importListFromText, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -24,7 +24,7 @@ type UpState = { name: string; status: 'wait' | 'run' | 'ok' | 'err' | 'skip'; i
  * Fiyat listesi PDF'lerini toplu yükleme: PDF cihazda okunur, sadece yazısı sisteme gider
  * (543 MB'lık klasör bile birkaç MB yazı eder). Kalemlere ayrıştırma sonra yapılır.
  */
-const SupplierUploader: React.FC = () => {
+const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<UpState[]>([]);
   const [busy, setBusy] = useState(false);
@@ -54,12 +54,20 @@ const SupplierUploader: React.FC = () => {
       try {
         const res = await uploadSupplierPdf(f, info =>
           setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
+        if (res.chars <= 200) {
+          setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'err', info: `${res.pages} sayfa ama yazı okunamadı` } : x)));
+          continue;
+        }
+        // Yazı okundu: listeye dönüştür ve bizim kodlarla eşleştir (kendiliğinden)
+        const imp = await importListFromText(f.name, res.text, info =>
+          setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
         setRows(r => r.map(x => (x.name === f.name ? {
-          ...x, status: res.chars > 200 ? 'ok' : 'err',
-          info: res.chars > 200 ? `${res.pages} sayfa${res.ocr ? ' (resimden okundu)' : ''}` : `${res.pages} sayfa ama yazı okunamadı`,
+          ...x, status: 'ok',
+          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${res.ocr ? ' (resimden okundu)' : ''}`,
         } : x)));
+        onImported?.();
       } catch (e) {
-        setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'err', info: `okunamadı / kaydedilemedi${e instanceof Error ? ': ' + e.message : ''}` } : x)));
+        setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'err', info: `okunamadı${e instanceof Error ? ': ' + e.message : ''}` } : x)));
       }
     }
     setBusy(false);
@@ -77,7 +85,7 @@ const SupplierUploader: React.FC = () => {
         <div className="min-w-0 flex-1">
           <div className="font-bold text-sm text-slate-900">Fiyat listesi PDF'lerini yükle</div>
           <div className="text-xs text-slate-500">
-            Klasördeki tüm PDF'leri birlikte seçebilirsiniz. PDF'ler cihazınızda okunur, sadece yazısı gönderilir.
+            Klasördeki tüm PDF'leri birlikte seçebilirsiniz. Her PDF okunur, firma listesine dönüştürülür ve bizim kodlarla kendiliğinden eşleştirilir.
             {uploaded !== null && uploaded > 0 && <> · Şu ana kadar <b>{uploaded}</b> dosya yüklendi.</>}
           </div>
           {busy && (
@@ -112,7 +120,7 @@ const SupplierUploader: React.FC = () => {
       )}
       {!busy && total > 0 && done === total && (
         <div className="text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-md px-2 py-1.5">
-          {done} PDF yüklendi. Claude'a "yükledim" yazın; listeler firma firma ayrıştırılıp buraya eklenecek.
+          {done} liste eklendi. Firmaların adını, tarihini ve iskontosunu listeye girip kontrol edebilirsiniz.
         </div>
       )}
     </div>
@@ -164,9 +172,27 @@ export const SupplierListsPanel: React.FC = () => {
   };
   const reqId = useRef(0);
 
-  useEffect(() => {
-    fetchSupplierLists().then(setLists).catch(() => { setLists([]); setError('Fiyat listeleri yüklenemedi.'); });
-  }, []);
+  const reloadLists = () => fetchSupplierLists().then(setLists).catch(() => { setLists(l => l || []); setError('Fiyat listeleri yüklenemedi.'); });
+  useEffect(() => { reloadLists(); }, []);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editInfo, setEditInfo] = useState<{ name: string; listDate: string; currency: SupplierList['currency'] } | null>(null);
+  const saveInfo = async () => {
+    if (!current || !editInfo || !editInfo.name.trim()) return;
+    try {
+      await updateSupplierListInfo(current.id, { ...editInfo, name: editInfo.name.trim() });
+      setEditInfo(null);
+      reloadLists();
+      if (active) load(0, false);
+    } catch { setError('Liste bilgisi kaydedilemedi.'); }
+  };
+  const removeList = async () => {
+    if (!current) return;
+    try {
+      await deleteSupplierList(current.id);
+      setActive(null); setConfirmDelete(false);
+      reloadLists();
+    } catch { setError('Liste silinemedi.'); }
+  };
 
   const current = useMemo(() => lists?.find(l => l.id === active) || null, [lists, active]);
   useEffect(() => { setDiscountDraft(current ? String(current.discount || '') : ''); }, [current]);
@@ -238,7 +264,7 @@ export const SupplierListsPanel: React.FC = () => {
         </button>
       </div>
       {/* Yükleyici kapatılsa da yükleme sürer (bileşen yerinde kalır, sadece gizlenir) */}
-      <div className={showUploader ? '' : 'hidden'}><SupplierUploader /></div>
+      <div className={showUploader ? '' : 'hidden'}><SupplierUploader onImported={reloadLists} /></div>
 
       {!lists.length ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center text-sm text-slate-500">
@@ -254,7 +280,7 @@ export const SupplierListsPanel: React.FC = () => {
               return (
                 <button
                   key={c.id ?? 'all'}
-                  onClick={() => { setActive(c.id); setOnlyUnlinked(false); }}
+                  onClick={() => { setActive(c.id); setOnlyUnlinked(false); setConfirmDelete(false); setEditInfo(null); }}
                   className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-extrabold whitespace-nowrap transition-colors ${on ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-brand-300'}`}
                 >
                   {c.name}
@@ -283,10 +309,33 @@ export const SupplierListsPanel: React.FC = () => {
                 }} />
               </label>
               <div className="min-w-0 flex-1">
-                <div className="font-black text-slate-900 leading-tight">{current.name} Fiyat Listesi</div>
-                <div className="text-xs text-slate-500 mt-0.5">
-                  {current.listDate || 'tarih yok'} · {CURRENCY_LABEL[current.currency]} · liste fiyatı
-                </div>
+                {editInfo ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <input value={editInfo.name} onChange={e => setEditInfo({ ...editInfo, name: e.target.value })} placeholder="Firma adı"
+                      className="w-32 px-2 py-1 border border-slate-300 rounded-lg text-sm font-bold" />
+                    <input value={editInfo.listDate} onChange={e => setEditInfo({ ...editInfo, listDate: e.target.value })} placeholder="Ocak 2026"
+                      className="w-24 px-2 py-1 border border-slate-300 rounded-lg text-sm" />
+                    <select value={editInfo.currency} onChange={e => setEditInfo({ ...editInfo, currency: e.target.value as SupplierList['currency'] })}
+                      className="px-1.5 py-1 border border-slate-300 rounded-lg text-sm">
+                      <option value="TRY">TL</option><option value="EUR">EUR</option><option value="USD">USD</option>
+                    </select>
+                    <button type="button" onClick={saveInfo} className="px-2 py-1 rounded-lg bg-brand-600 text-white text-xs font-bold">Kaydet</button>
+                    <button type="button" onClick={() => setEditInfo(null)} className="px-2 py-1 text-xs font-semibold text-slate-500">Vazgeç</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="font-black text-slate-900 leading-tight">
+                      {current.name} Fiyat Listesi
+                      <button type="button" onClick={() => setEditInfo({ name: current.name, listDate: current.listDate, currency: current.currency })}
+                        className="ml-1.5 align-middle text-slate-400 hover:text-brand-700" title="Firma adı, tarih, para birimi">
+                        <Pencil className="w-3.5 h-3.5 inline" />
+                      </button>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {current.listDate || 'tarih yok'} · {CURRENCY_LABEL[current.currency]} · liste fiyatı
+                    </div>
+                  </>
+                )}
                 <label className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-700">
                   İskonto %
                   <input
@@ -300,7 +349,17 @@ export const SupplierListsPanel: React.FC = () => {
                   />
                 </label>
               </div>
-              <div className="shrink-0 self-start">{ageBadge(current.listDate)}</div>
+              <div className="shrink-0 self-stretch flex flex-col items-end justify-between gap-2">
+                {ageBadge(current.listDate)}
+                {confirmDelete ? (
+                  <span className="flex items-center gap-1.5 text-xs">
+                    <button type="button" onClick={removeList} className="px-2 py-1 rounded-lg bg-rose-600 text-white font-bold">Sil</button>
+                    <button type="button" onClick={() => setConfirmDelete(false)} className="px-2 py-1 rounded-lg border border-slate-200 text-slate-600 font-semibold">Vazgeç</button>
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-slate-400 hover:text-rose-600">Listeyi sil</button>
+                )}
+              </div>
             </div>
           ) : !query.trim() && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

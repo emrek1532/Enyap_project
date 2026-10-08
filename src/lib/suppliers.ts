@@ -47,6 +47,77 @@ export async function setSupplierDiscount(id: string, discount: number) {
   if (error) throw error;
 }
 
+/**
+ * Okunan PDF yazısından firma listesini kendiliğinden oluşturur: kalemlere ayırır, kaydeder
+ * (aynı liste tekrar yüklenirse üzerine yazar, eski "bizim kod" bağlantıları korunur) ve bizim kodlarla eşleştirir.
+ */
+export async function importListFromText(
+  fileName: string, pages: string[][], onInfo?: (info: string) => void,
+): Promise<{ listId: string; name: string; items: number; matched: number }> {
+  const { parsePriceLines, detectCurrency, guessListInfo, listIdFor } = await import('./priceParse');
+  const lines = pages.flat().filter(l => l !== '#OCR');
+  const parsed = parsePriceLines(lines);
+  if (parsed.length < 3) throw new Error('kalem bulunamadı (liste düzeni okunamadı)');
+  const { name, listDate } = guessListInfo(fileName);
+  const listId = listIdFor(name, listDate);
+  const currency = detectCurrency(lines.join('\n'));
+
+  // Eski bağlantılar (kod ya da ad aynıysa) yeni kalemlere taşınır
+  const keep = new Map<string, string>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('supplier_items').select('code,name,our_code')
+      .eq('list_id', listId).not('our_code', 'is', null).range(from, from + 999);
+    if (error || !data?.length) break;
+    data.forEach((r: any) => { keep.set(`c:${r.code}`, r.our_code); keep.set(`n:${r.name}`, r.our_code); });
+    if (data.length < 1000) break;
+  }
+  const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
+  const listRow: any = { id: listId, name, list_date: listDate, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString() };
+  if (!existing) listRow.title = '';
+  const { error: le } = await supabase.from('supplier_lists').upsert(listRow);
+  if (le) throw le;
+  await supabase.from('supplier_items').delete().eq('list_id', listId);
+  for (let i = 0; i < parsed.length; i += 500) {
+    onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
+    const rows = parsed.slice(i, i + 500).map(p => ({
+      list_id: listId, code: p.code, name: p.name, price: p.price, currency, unit: p.unit,
+      our_code: (p.code && keep.get(`c:${p.code}`)) || keep.get(`n:${p.name}`) || null,
+    }));
+    const { error } = await supabase.from('supplier_items').insert(rows);
+    if (error) throw error;
+  }
+  const matched = await autoMatchList(listId, parsed.length, onInfo);
+  return { listId, name, items: parsed.length, matched };
+}
+
+/** Listedeki kalemleri bizim malzeme kodlarıyla otomatik eşleştirir (sunucuda, parça parça) */
+export async function autoMatchList(listId: string, total: number, onInfo?: (info: string) => void): Promise<number> {
+  for (let guard = 0; guard < 400; guard++) {
+    const { data, error } = await supabase.rpc('auto_match_supplier_items', { p_list: listId, lim: 120 });
+    if (error) throw error;
+    const left = Number(data) || 0;
+    onInfo?.(`bizim kodlarla eşleştiriliyor ${total - left}/${total}`);
+    if (left <= 0) break;
+  }
+  const { count } = await supabase.from('supplier_items').select('id', { count: 'exact', head: true })
+    .eq('list_id', listId).not('our_code', 'is', null);
+  return count || 0;
+}
+
+/** Liste bilgilerini düzeltir (firma adı, tarih, para birimi) */
+export async function updateSupplierListInfo(id: string, info: { name: string; listDate: string; currency: Currency }) {
+  const { error } = await supabase.from('supplier_lists')
+    .update({ name: info.name, list_date: info.listDate, currency: info.currency, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+  await supabase.from('supplier_items').update({ currency: info.currency }).eq('list_id', id);
+}
+
+/** Firma listesini tamamen siler */
+export async function deleteSupplierList(id: string) {
+  const { error } = await supabase.from('supplier_lists').delete().eq('id', id);
+  if (error) throw error;
+}
+
 /** Firma logosunu kaydeder (null: kaldırır) */
 export async function setSupplierLogo(id: string, logo: string | null) {
   const { error } = await supabase.from('supplier_lists').update({ logo }).eq('id', id);
@@ -135,7 +206,7 @@ async function ocrPdfPages(data: ArrayBuffer, onInfo?: (info: string) => void): 
   return pages;
 }
 
-export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => void): Promise<{ pages: number; chars: number; ocr: boolean }> {
+export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => void): Promise<{ pages: number; chars: number; ocr: boolean; text: string[][] }> {
   const { pdfPages } = await import('./pdfQuote');
   const data = await file.arrayBuffer();
   let pages = await pdfPages(data.slice(0));
@@ -147,7 +218,7 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
     ocr = true;
   }
   const chars = textLen(pages);
-  if (!chars) return { pages: pages.length, chars, ocr };
+  if (!chars) return { pages: pages.length, chars, ocr, text: pages };
   const now = new Date().toISOString();
   const rows = pages.map((lines, i) => ({ file_name: file.name, page: i + 1, content: (ocr ? '#OCR\n' : '') + lines.join('\n'), uploaded_at: now }));
   // Önce bu dosyanın eski kaydı silinir (tekrar yüklemede fazladan sayfa kalmasın)
@@ -157,17 +228,14 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
     if (error) throw error;
     onInfo?.(`${Math.min(i + 20, rows.length)}/${rows.length} sayfa kaydedildi`);
   }
-  return { pages: rows.length, chars, ocr };
+  return { pages: rows.length, chars, ocr, text: pages };
 }
 
-/** Daha önce yüklenmiş PDF dosyaları (ad → sayfa sayısı) */
+/** Listeye dönüştürülmüş PDF dosyaları (dosya adı → 1); bunlar tekrar seçilince atlanır */
 export async function uploadedSupplierFiles(): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from('supplier_raw_pages').select('file_name').eq('page', 1).neq('content', '').range(from, from + 999);
-    if (error || !data?.length) break;
-    data.forEach((r: any) => { out[r.file_name] = 1; });
-    if (data.length < 1000) break;
-  }
+  const { data, error } = await supabase.from('supplier_lists').select('source_file').not('source_file', 'is', null);
+  if (error) throw error;
+  (data || []).forEach((r: any) => { out[r.source_file] = 1; });
   return out;
 }
