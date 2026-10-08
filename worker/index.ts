@@ -332,14 +332,25 @@ async function handleRates(): Promise<Response> {
  * o yoksa / eskiyse dosya buraya gelir: küçük bir sayfa dosyayı tarayıcının önbelleğine koyup uygulamayı açar.
  */
 async function handleShare(req: Request, url: URL): Promise<Response> {
-  const back = (ok: boolean) => Response.redirect(new URL(`/?shared-pdf=${ok ? 1 : 0}`, url).toString(), 303);
-  if (req.method !== 'POST') return back(false);
+  const back = (ok: boolean, why = '') =>
+    Response.redirect(new URL(`/?shared-pdf=${ok ? 1 : 0}${why ? `&why=${encodeURIComponent(why.slice(0, 300))}` : ''}`, url).toString(), 303);
+  if (req.method !== 'POST') return back(false, `srv:${req.method}`);
   let file = null as File | null;
+  const seen: string[] = [];
   try {
     const form = await req.formData();
-    form.forEach(v => { if (!file && typeof v !== 'string' && (v as File).size > 0) file = v as File; });
-  } catch { /* form okunamadı */ }
-  if (!file || file.size > 15_000_000) return back(false);
+    form.forEach((v, k) => {
+      if (typeof v === 'string') seen.push(`${k}=txt(${v.slice(0, 40)})`);
+      else {
+        seen.push(`${k}=file(${(v as File).type || '?'},${(v as File).size})`);
+        if (!file && (v as File).size > 0) file = v as File;
+      }
+    });
+  } catch (e) {
+    return back(false, `srv:form-hata ${(req.headers.get('content-type') || '').slice(0, 60)} ${String((e as Error)?.message || e)}`);
+  }
+  if (!file) return back(false, `srv:dosya-yok [${seen.join(' ') || 'bos'}] ${(req.headers.get('content-type') || '').slice(0, 50)}`);
+  if (file.size > 15_000_000) return back(false, 'srv:cok-buyuk');
   const bytes = new Uint8Array(await file.arrayBuffer());
   let bin = '';
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

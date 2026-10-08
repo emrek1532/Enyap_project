@@ -1,6 +1,6 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v6';
+const CACHE = 'enyap-shell-v7';
 // WhatsApp vb. uygulamalardan "Paylaş" ile gelen PDF burada bekletilir, uygulama açılınca okunur
 const SHARE_CACHE = 'enyap-share';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
@@ -36,6 +36,7 @@ self.addEventListener('fetch', (event) => {
           return Response.redirect('/?shared-pdf=1', 303);
         }
       } catch (e) { /* okunamadı: sunucu denesin */ }
+      // Dosya bulunamadı: sunucu da denesin (o da bulamazsa nedenini yazar)
       return fetch(req);
     })());
     return;
