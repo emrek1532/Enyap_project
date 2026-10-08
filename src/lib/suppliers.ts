@@ -133,7 +133,7 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
 export async function uploadedSupplierFiles(): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from('supplier_raw_pages').select('file_name').eq('page', 1).range(from, from + 999);
+    const { data, error } = await supabase.from('supplier_raw_pages').select('file_name').eq('page', 1).neq('content', '').range(from, from + 999);
     if (error || !data?.length) break;
     data.forEach((r: any) => { out[r.file_name] = 1; });
     if (data.length < 1000) break;
