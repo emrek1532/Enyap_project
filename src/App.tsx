@@ -370,6 +370,12 @@ function Portal({ session }: { session: Session }) {
     const why = new URLSearchParams(window.location.search).get('why');
     window.history.replaceState(window.history.state, '', '/');
     if (flag !== '1') {
+      // Tanı: paylaşım neden alınamadı (Claude kayıtlardan bakıp düzeltir)
+      supabase.from('activities').insert({
+        id: `diag-share-${Date.now()}`, action: 'Paylaşım alınamadı (tanı)',
+        description: `${why || 'neden yok (eski service worker?)'}\n${navigator.userAgent}`.slice(0, 2000),
+        author: currentRole, timestamp: new Date().toISOString(), badge_color: 'slate',
+      }).then(() => undefined, () => undefined);
       setShareError(`Paylaşılan dosya alınamadı.${why ? ` (${why})` : ''}`);
       return;
     }
