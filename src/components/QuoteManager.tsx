@@ -38,7 +38,16 @@ const fold = (s: string) =>
 
 const fmt = (n: number) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
-type QuoteSortKey = 'number' | 'customer' | 'amount' | 'status' | 'date';
+type QuoteSortKey = 'number' | 'customer' | 'amount' | 'status' | 'date' | 'added';
+
+/** Sisteme eklenme sırası: kimlikteki zaman damgası (qt-1791…); Excel'den aktarılanlar (imp-0001…) en eskiler */
+const addedKey = (q: Quote) => {
+  const ts = /(\d{13})/.exec(q.id)?.[1];
+  if (ts) return Number(ts);
+  const imp = /^imp-(\d+)/.exec(q.id)?.[1];
+  return imp ? Number(imp) : 0;
+};
+const SORT_KEY = 'enyap-quote-sort';
 /** Durum sırası: Beklemede → Onaylandı → İptal */
 const STATUS_RANK: Record<string, number> = { yeni_talep: 0, hazirlaniyor: 0, gonderildi: 0, revizyon: 0, onaylandi: 1, siparis: 1, iptal: 2 };
 
@@ -81,7 +90,17 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     return m;
   }, [quotes, rates]);
   // Sütun başlığına tıklayarak sıralama (varsayılan: tarih, yeniden eskiye)
-  const [sort, setSort] = useState<SortState<QuoteSortKey>>({ key: 'date', dir: 'desc' });
+  // Varsayılan: son eklenen en üstte (teklif tarihi eski olsa bile); seçilen sıralama hatırlanır
+  const [sort, setSortState] = useState<SortState<QuoteSortKey>>(() => {
+    try { const v = JSON.parse(localStorage.getItem(SORT_KEY) || 'null'); if (v?.key && v?.dir) return v; } catch { /* */ }
+    return { key: 'added', dir: 'desc' };
+  });
+  const setSort = (u: SortState<QuoteSortKey> | ((s: SortState<QuoteSortKey>) => SortState<QuoteSortKey>)) =>
+    setSortState(prev => {
+      const next = typeof u === 'function' ? u(prev) : u;
+      try { localStorage.setItem(SORT_KEY, JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
   const sortBy = (key: QuoteSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setListLimit(LIST_PAGE); };
 
   // Filtered quotes (newest first). Memoized: there can be thousands of quotes.
@@ -116,6 +135,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           case 'number': r = compareText(a.quoteNumber, b.quoteNumber); break;
           case 'customer': r = compareText(a.customerName, b.customerName) || compareText(a.city, b.city); break;
           case 'amount': r = (netTry.get(a.id) || 0) - (netTry.get(b.id) || 0); break;
+          case 'added': r = addedKey(a) - addedKey(b); break;
           case 'status': r = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9); break;
           default: r = (a.createdAt || '').localeCompare(b.createdAt || '');
         }
@@ -255,7 +275,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
       <div className="flex items-center justify-between gap-2 px-1">
         <p className="text-xs text-slate-500">{filteredQuotes.length} teklif</p>
-        <MobileSortSelect sort={sort} onChange={(s) => { setSort(s); setListLimit(LIST_PAGE); }} options={[
+        <MobileSortSelect always sort={sort} onChange={(s) => { setSort(s); setListLimit(LIST_PAGE); }} options={[
+          { key: 'added', dir: 'desc', label: 'Son eklenen en üstte' },
           { key: 'date', dir: 'desc', label: 'Tarih: yeniden eskiye' },
           { key: 'date', dir: 'asc', label: 'Tarih: eskiden yeniye' },
           { key: 'customer', dir: 'asc', label: 'Müşteri: A → Z' },

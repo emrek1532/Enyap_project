@@ -41,11 +41,13 @@ const collator = new Intl.Collator('tr', { numeric: true, sensitivity: 'base' })
 export const compareText = (a: string, b: string) => collator.compare(a || '', b || '');
 
 /** Telefonda sütun başlıkları görünmediği için aynı sıralamayı açılır listeyle sunar */
-export function MobileSortSelect<K extends string>({ sort, onChange, options, className = '' }: {
+export function MobileSortSelect<K extends string>({ sort, onChange, options, className = '', always = false }: {
   sort: SortState<K>;
   onChange: (s: SortState<K>) => void;
   options: { key: K; dir: SortDir; label: string }[];
   className?: string;
+  /** Geniş ekranda da göster */
+  always?: boolean;
 }) {
   const value = `${sort.key}:${sort.dir}`;
   return (
@@ -55,7 +57,7 @@ export function MobileSortSelect<K extends string>({ sort, onChange, options, cl
         const [key, dir] = e.target.value.split(':') as [K, SortDir];
         onChange({ key, dir });
       }}
-      className={`md:hidden px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium bg-white ${className}`}
+      className={`${always ? '' : 'md:hidden '}px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium bg-white ${className}`}
       aria-label="Sıralama"
     >
       {!options.some(o => `${o.key}:${o.dir}` === value) && <option value={value}>Sıralama</option>}
