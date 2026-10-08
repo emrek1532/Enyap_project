@@ -327,14 +327,42 @@ async function handleRates(): Promise<Response> {
   }
 }
 
+/**
+ * Paylaş menüsünden (WhatsApp vb.) gelen PDF. Normalde telefondaki service worker karşılar;
+ * o yoksa / eskiyse dosya buraya gelir: küçük bir sayfa dosyayı tarayıcının önbelleğine koyup uygulamayı açar.
+ */
+async function handleShare(req: Request, url: URL): Promise<Response> {
+  const back = (ok: boolean) => Response.redirect(new URL(`/?shared-pdf=${ok ? 1 : 0}`, url).toString(), 303);
+  if (req.method !== 'POST') return back(false);
+  let file = null as File | null;
+  try {
+    const form = await req.formData();
+    form.forEach(v => { if (!file && typeof v !== 'string' && (v as File).size > 0) file = v as File; });
+  } catch { /* form okunamadı */ }
+  if (!file || file.size > 15_000_000) return back(false);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  const data = JSON.stringify({ b64: btoa(bin), name: file.name || 'teklif.pdf', type: file.type || 'application/pdf' });
+  const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Enyap Isı</title><body style="font-family:sans-serif;padding:24px">PDF açılıyor…
+<script>
+const d=${data.replace(/</g, '\\u003c')};
+const u=Uint8Array.from(atob(d.b64),c=>c.charCodeAt(0));
+caches.open('enyap-share')
+  .then(c=>c.put('/shared-pdf',new Response(new Blob([u],{type:d.type}),{headers:{'content-type':d.type,'x-file-name':encodeURIComponent(d.name)}})))
+  .then(()=>location.replace('/?shared-pdf=1'),()=>location.replace('/?shared-pdf=0'));
+</script>`;
+  return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/api/ai/parse' && req.method === 'POST') return handleParse(req, env);
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/rates') return handleRates();
-    // Paylaş menüsü normalde uygulamanın service worker'ında karşılanır; o henüz yoksa uygulamaya yönlendir
-    if (url.pathname === '/share-target') return Response.redirect(new URL('/?shared-pdf=0', url).toString(), 303);
+    if (url.pathname === '/share-target') return handleShare(req, url);
     if (url.pathname === '/api/ai/status') return json({ ready: !!(env.ANTHROPIC_API_KEY || env.AI), voice: !!env.AI });
     if (url.pathname.startsWith('/api/')) return json({ error: 'not_found' }, 404);
     return env.ASSETS.fetch(req);
