@@ -424,6 +424,9 @@ function Portal({ session }: { session: Session }) {
       { kind: 'upsert', entity: 'quotes', record: newQuote },
       { kind: 'upsert', entity: 'activities', record: activity },
     ]);
+    // Kaydettikten sonra Teklifler sayfasına geç: yeni teklif en üstte görünsün
+    setQuoteFilter('all');
+    setActiveTab('quotes');
   };
 
   // Mevcut teklifi düzenle / revize et
