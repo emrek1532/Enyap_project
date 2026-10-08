@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, FileUp, Link2, Loader2, Plus, Search, X, XCircle } from 'lucide-react';
+import { CheckCircle2, FileUp, ImagePlus, Link2, Loader2, Plus, Search, X, XCircle } from 'lucide-react';
 import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, setSupplierDiscount, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -119,6 +119,25 @@ const SupplierUploader: React.FC = () => {
   );
 };
 
+/** Firma logosu; yoksa (ya da yüklenemezse) renkli baş harf */
+const SupplierLogo: React.FC<{ list: SupplierList; size?: 'md' | 'lg' }> = ({ list, size = 'lg' }) => {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [list.logo]);
+  const box = size === 'lg' ? 'w-12 h-12 rounded-2xl text-lg' : 'w-9 h-9 rounded-xl text-sm';
+  if (list.logo && !broken) {
+    return (
+      <span className={`${box} bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0`}>
+        <img src={list.logo} alt={list.name} onError={() => setBroken(true)} className="max-w-full max-h-full object-contain p-1" />
+      </span>
+    );
+  }
+  return (
+    <span className={`${box} flex items-center justify-center text-white font-black shrink-0`} style={{ background: supplierColor(list.name) }}>
+      {list.name.slice(0, 1).toLocaleUpperCase('tr')}
+    </span>
+  );
+};
+
 /** Malzemeler → Firma Fiyat Listeleri: her firma ayrı klasör; kalemleri bizim katalogla karışmaz */
 export const SupplierListsPanel: React.FC = () => {
   const [lists, setLists] = useState<SupplierList[] | null>(null);
@@ -194,7 +213,6 @@ export const SupplierListsPanel: React.FC = () => {
   }
 
   const net = (it: SupplierItem) => it.price * (1 - (it.discount || 0) / 100);
-  const initial = (name: string) => name.slice(0, 1).toLocaleUpperCase('tr');
   const ageBadge = (listDate: string) => {
     const age = ageMonths(listDate);
     if (age === null) return null;
@@ -249,9 +267,21 @@ export const SupplierListsPanel: React.FC = () => {
           {/* Seçili firmanın bilgi kartı veya firma kartları */}
           {current ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-3.5 flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black shrink-0" style={{ background: supplierColor(current.name) }}>
-                {initial(current.name)}
-              </div>
+              <label className="relative cursor-pointer shrink-0" title="Logoyu değiştir">
+                <SupplierLogo list={current} />
+                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-500">
+                  <ImagePlus className="w-3 h-3" />
+                </span>
+                <input type="file" accept="image/*" hidden onChange={async e => {
+                  const f = e.target.files?.[0]; e.target.value = '';
+                  if (!f) return;
+                  try {
+                    const logo = await logoFromFile(f);
+                    await setSupplierLogo(current.id, logo);
+                    setLists(prev => prev?.map(l => (l.id === current.id ? { ...l, logo } : l)) || prev);
+                  } catch { setError('Logo kaydedilemedi.'); }
+                }} />
+              </label>
               <div className="min-w-0 flex-1">
                 <div className="font-black text-slate-900 leading-tight">{current.name} Fiyat Listesi</div>
                 <div className="text-xs text-slate-500 mt-0.5">
@@ -277,9 +307,7 @@ export const SupplierListsPanel: React.FC = () => {
               {lists.map(l => (
                 <button key={l.id} onClick={() => setActive(l.id)}
                   className="text-left bg-white rounded-2xl border border-slate-200 hover:border-brand-300 hover:shadow-sm p-3.5 flex flex-col gap-1.5 transition">
-                  <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black" style={{ background: supplierColor(l.name) }}>
-                    {initial(l.name)}
-                  </span>
+                  <SupplierLogo list={l} />
                   <span className="font-black text-slate-900 text-base leading-tight truncate mt-0.5">{l.name}</span>
                   <span className="text-xs text-slate-500">{l.itemCount.toLocaleString('tr-TR')} kalem · {CURRENCY_LABEL[l.currency]}</span>
                   <span className="text-xs text-slate-500">{l.listDate || 'tarih yok'}{l.discount ? ` · %${l.discount}` : ''}</span>
