@@ -281,10 +281,12 @@ export const SupplierListsPanel: React.FC = () => {
                 <button
                   key={c.id ?? 'all'}
                   onClick={() => { setActive(c.id); setOnlyUnlinked(false); setConfirmDelete(false); setEditInfo(null); }}
-                  className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-extrabold whitespace-nowrap transition-colors ${on ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-brand-300'}`}
+                  className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-extrabold whitespace-nowrap transition-colors ${on ? 'text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-brand-300'}`}
+                  style={on ? { background: c.id ? supplierColor(c.name) : '#006ec6', borderColor: c.id ? supplierColor(c.name) : '#006ec6' } : undefined}
                 >
+                  {!on && c.id && <span className="w-2 h-2 rounded-full" style={{ background: supplierColor(c.name) }} />}
                   {c.name}
-                  <span className={`text-[11px] font-bold tabular-nums ${on ? 'text-brand-100' : 'text-slate-400'}`}>{c.count.toLocaleString('tr-TR')}</span>
+                  <span className={`text-[11px] font-bold tabular-nums ${on ? 'text-white/75' : 'text-slate-400'}`}>{c.count.toLocaleString('tr-TR')}</span>
                 </button>
               );
             })}
@@ -292,7 +294,7 @@ export const SupplierListsPanel: React.FC = () => {
 
           {/* Seçili firmanın bilgi kartı veya firma kartları */}
           {current ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-3.5 flex items-center gap-3.5">
+            <div className="bg-white rounded-2xl border border-slate-200 border-t-4 p-3.5 flex items-center gap-3.5" style={{ borderTopColor: supplierColor(current.name) }}>
               <label className="relative cursor-pointer shrink-0" title="Logoyu değiştir">
                 <SupplierLogo list={current} />
                 <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-500">
@@ -408,7 +410,9 @@ export const SupplierListsPanel: React.FC = () => {
                   {items.filter(it => !onlyUnlinked || !it.ourCode).map((it, idx, arr) => (
                     <React.Fragment key={it.id}>
                     {it.grp && (idx === 0 || arr[idx - 1].grp !== it.grp || arr[idx - 1].listId !== it.listId) && (
-                      <div className="px-3.5 py-2 bg-amber-50 border-y border-amber-200 text-[12px] font-black text-amber-900 uppercase tracking-wide">
+                      <div className="px-3.5 py-2 border-y text-[12px] font-black uppercase tracking-wide flex items-center gap-2"
+                        style={{ background: `${supplierColor(it.grp)}14`, borderColor: `${supplierColor(it.grp)}40`, color: supplierColor(it.grp) }}>
+                        <span className="w-1.5 h-4 rounded-full shrink-0" style={{ background: supplierColor(it.grp) }} />
                         {it.grp}
                       </div>
                     )}
