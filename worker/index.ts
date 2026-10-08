@@ -349,6 +349,54 @@ async function handlePdf(req: Request, env: Env): Promise<Response> {
   }
 }
 
+const PRICELIST_SCHEMA = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' }, name: { type: 'string' }, price: { type: 'number' },
+          currency: { type: 'string' }, group: { type: 'string' },
+        },
+        required: ['code', 'name', 'price', 'currency', 'group'],
+      },
+    },
+  },
+  required: ['items'],
+};
+
+const PRICELIST_PROMPT = `Sana bir tesisat/vana/ısıtma tedarikçisinin FİYAT LİSTESİ veya KATALOĞUNUN tek bir sayfasının metnini veriyorum (taranmış sayfadan okunduysa yazım hataları olabilir).
+Görevin sayfadaki fiyatı olan TÜM ürünleri çıkarmak. Katalog sayfalarında genelde üstte ürün ailesi (model no + ürün adı, ör. "FAF 2300 ÇEKVALF - ÇALPARA - WAFER - KOMPLE PASLANMAZ") ve altında ölçü (DN, inç) - fiyat tablosu olur; her tablo satırı ayrı bir üründür.
+Her ürün için:
+- code: firmanın ürün/stok kodu (varsa; yoksa "")
+- name: anlaşılır, tam ürün adı = ürün ailesi + ölçü/özellik (ör. "FAF 2300 Çekvalf Çalpara Wafer Komple Paslanmaz DN40 1 1/2\""). Açıklama cümlelerini (sızdırmazlık, sıcaklık, gövde malzemesi vb.) ada KOYMA.
+- price: liste fiyatı (sayı; "1.250,50" → 1250.5, "78" → 78)
+- currency: o fiyatın para birimi: "TRY", "USD" veya "EUR". Fiyat sütunu başlığına ya da fiyatın yanındaki işarete bak ($ → USD, € → EUR, TL/₺ → TRY). Aynı sayfada farklı para birimleri olabilir; ÇEVİRME, yazıldığı gibi bırak.
+- group: ürünün bölüm/aile başlığı (ör. "FAF 2300 Çekvalf Çalpara Wafer Komple Paslanmaz")
+Fiyatı olmayan satırları, sertifika/belge listelerini, adres/telefon/açıklama satırlarını ALMA. Uydurma ürün ekleme. Sadece JSON döndür.`;
+
+async function handlePriceList(req: Request, env: Env): Promise<Response> {
+  if (!env.AI) return json({ error: 'no_ai', items: [] }, 503);
+  if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
+  const body = await readBody(req);
+  const text = String(body?.text || '').slice(0, 12000);
+  if (!text.trim()) return json({ items: [] });
+  try {
+    const r = await env.AI.run(LLAMA, {
+      messages: [{ role: 'system', content: PRICELIST_PROMPT }, { role: 'user', content: text }],
+      response_format: { type: 'json_schema', json_schema: PRICELIST_SCHEMA },
+      max_tokens: 6000,
+      temperature: 0,
+    });
+    const out = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
+    return json({ items: Array.isArray(out?.items) ? out.items : [] });
+  } catch (err) {
+    return json({ error: 'ai', message: String((err as Error)?.message || err).slice(0, 200), items: [] }, 502);
+  }
+}
+
 /** TCMB günlük döviz satış kurları (1 saat önbellekli) */
 async function handleRates(): Promise<Response> {
   const cache = (caches as any).default as Cache;
@@ -422,6 +470,7 @@ export default {
     if (url.pathname === '/api/ai/parse' && req.method === 'POST') return handleParse(req, env);
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
+    if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env);
     if (url.pathname === '/api/rates') return handleRates();
     if (url.pathname === '/share-target') return handleShare(req, url);
     if (url.pathname === '/api/ai/status') return json({ ready: !!(env.ANTHROPIC_API_KEY || env.AI), voice: !!env.AI });

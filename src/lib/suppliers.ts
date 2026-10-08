@@ -59,11 +59,24 @@ export async function importListFromText(
 ): Promise<{ listId: string; name: string; items: number; matched: number }> {
   const { parsePriceLines, detectCurrency, guessListInfo, listIdFor } = await import('./priceParse');
   const lines = pages.flat().filter(l => l !== '#OCR');
-  const parsed = parsePriceLines(lines);
+  const currency = detectCurrency(lines.join('\n'));
+  // Her sayfa yapay zekayla okunur (katalog düzenindeki listeler için); olmazsa genel kurallarla
+  type Item = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency };
+  const parsed: Item[] = [];
+  let aiOk = 0;
+  const textPages = pages.map(p => p.filter(l => l !== '#OCR')).filter(p => p.join('').replace(/\s/g, '').length > 40);
+  for (let i = 0; i < textPages.length; i += 3) {
+    onInfo?.(`sayfalar okunuyor ${Math.min(i + 3, textPages.length)}/${textPages.length}`);
+    const batch = await Promise.all(textPages.slice(i, i + 3).map(async pg => {
+      const ai = await aiPriceListPage(pg.join('\n')).catch(() => null);
+      if (ai) { aiOk++; return ai; }
+      return parsePriceLines(pg).map(x => ({ ...x, currency }));
+    }));
+    batch.forEach(b => parsed.push(...b));
+  }
   if (parsed.length < 3) throw new Error('kalem bulunamadı (liste düzeni okunamadı)');
   const { name, listDate } = guessListInfo(fileName);
   const listId = listIdFor(name, listDate);
-  const currency = detectCurrency(lines.join('\n'));
 
   // Eski bağlantılar (kod ya da ad aynıysa) yeni kalemlere taşınır
   const keep = new Map<string, string>();
@@ -83,7 +96,7 @@ export async function importListFromText(
   for (let i = 0; i < parsed.length; i += 500) {
     onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
     const rows = parsed.slice(i, i + 500).map(p => ({
-      list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency, unit: p.unit,
+      list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency: p.currency, unit: p.unit,
       our_code: (p.code && keep.get(`c:${p.code}`)) || keep.get(`n:${p.name}`) || null,
     }));
     const { error } = await supabase.from('supplier_items').insert(rows);
@@ -91,6 +104,40 @@ export async function importListFromText(
   }
   const matched = await autoMatchList(listId, parsed.length, onInfo);
   return { listId, name, items: parsed.length, matched };
+}
+
+/** Fiyat listesinin bir sayfasını sunucudaki yapay zekayla kalemlere ayırır (null: okunamadı) */
+async function aiPriceListPage(text: string): Promise<{ code: string; name: string; price: number; unit: string; grp?: string; currency: Currency }[] | null> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch('/api/ai/pricelist', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ text: text.slice(0, 12000) }),
+  });
+  if (!res.ok) return null;
+  const out = await res.json();
+  if (!Array.isArray(out?.items)) return null;
+  const cur = (c: string): Currency => (/usd|\$/i.test(c) ? 'USD' : /eur|€/i.test(c) ? 'EUR' : 'TRY');
+  return out.items
+    .map((x: any) => ({
+      code: String(x.code || '').trim().slice(0, 40),
+      name: String(x.name || '').trim().slice(0, 200),
+      price: Math.round(Number(x.price) * 10000) / 10000,
+      unit: 'Adet',
+      grp: String(x.group || '').trim().slice(0, 120) || undefined,
+      currency: cur(String(x.currency || '')),
+    }))
+    .filter((x: any) => x.name.length >= 3 && x.price > 0 && x.price < 10_000_000);
+}
+
+/** Daha önce yüklenmiş PDF'in kayıtlı yazısından listeyi yeniden oluşturur (PDF'i tekrar seçmeden) */
+export async function reimportList(sourceFile: string, onInfo?: (info: string) => void) {
+  const { data, error } = await supabase.from('supplier_raw_pages').select('page,content')
+    .eq('file_name', sourceFile).order('page');
+  if (error) throw error;
+  if (!data?.length) throw new Error('bu listenin PDF yazısı kayıtlı değil, PDF\'i tekrar yükleyin');
+  return importListFromText(sourceFile, data.map((r: any) => String(r.content || '').split('\n')), onInfo);
 }
 
 /** Listedeki kalemleri bizim malzeme kodlarıyla otomatik eşleştirir (sunucuda, parça parça) */
