@@ -30,10 +30,40 @@ const CUR: Record<string, Currency> = { TL: 'TRY', TRY: 'TRY', USD: 'USD', EUR: 
 
 const NUM = String.raw`\d[\d.]*,\d+`;
 // 1 ) ÜRÜN ADI   500,00 ADET   23,00   28 0,00   16,56 TL   8.280,00 TL
-const ROW = new RegExp(
-  String.raw`^\s*(\d+)\s*\)\s*(.+?)\s+(${NUM})\s+([A-Za-zÇĞİÖŞÜçğıöşü.]+)\s+(${NUM})\s+(\d+(?:,\d+)?)(?:\s+(\d+(?:,\d+)?))?\s+(${NUM})\s+(TL|TRY|USD|EUR|EURO)\s+(${NUM})\s+(TL|TRY|USD|EUR|EURO)\s*$`,
-);
+const CURS = String.raw`(TL|TRY|USD|EUR|EURO)`;
+interface Row { no: number; name: string; qty: number; unit: string; price: number; netUnit: number | null; total: number | null; cur: string; disc: number | null }
 
+/**
+ * Kalem satırını sağdan sola okur (sütun düzeni farklı PDF'lere dayanıklı):
+ * "1 ) ÜRÜN ADI  500,00 ADET  23,00  28 0,00  16,56 TL  8.280,00 TL" — iskonto sütunu boş da olabilir.
+ */
+function parseRow(raw: string): Row | null {
+  const line = raw.replace(/\s+/g, ' ').trim();
+  const head = /^(\d+)\s*\)\s*(.*)$/.exec(line);
+  if (!head) return null;
+  let rest = head[2];
+  const tail = new RegExp(String.raw`\s(${NUM})\s*${CURS}\s*$`);
+  const t1 = tail.exec(rest);
+  if (!t1) return null;
+  rest = rest.slice(0, t1.index);
+  const t2 = tail.exec(rest);
+  if (t2) rest = rest.slice(0, t2.index);
+  // Miktar + birim + birim fiyat (+ iskontolar)
+  const mid = new RegExp(String.raw`^(.+?)\s(${NUM})\s+([A-Za-zÇĞİÖŞÜçğıöşü.]{1,8})\s+(${NUM})((?:\s+\d+(?:,\d+)?)*)\s*$`).exec(rest);
+  if (!mid) return null;
+  const discs = mid[5].trim().split(/\s+/).filter(Boolean).map(trNum);
+  return {
+    no: Number(head[1]),
+    name: mid[1].trim(),
+    qty: trNum(mid[2]),
+    unit: mid[3],
+    price: trNum(mid[4]),
+    netUnit: t2 ? trNum(t2[1]) : null,
+    total: trNum(t1[1]),
+    cur: (t2 ? t2[2] : t1[2]).toUpperCase(),
+    disc: discs.length ? 100 * (1 - discs.reduce((k, d) => k * (1 - d / 100), 1)) : null,
+  };
+}
 
 /** PDF satırlarından teklifi çıkarır (satırlar soldan sağa birleştirilmiş metinlerdir) */
 export function parseQuoteLines(lines: string[], fileName = ''): PdfQuote {
@@ -64,25 +94,26 @@ export function parseQuoteLines(lines: string[], fileName = ''): PdfQuote {
 
   const items: QuoteItem[] = [];
   const seen = new Set<number>();
-  for (const line of lines) {
-    const m = ROW.exec(line.replace(/\s+/g, ' '));
-    if (!m) continue;
-    const no = Number(m[1]);
+  for (let li = 0; li < lines.length; li++) {
+    // Uzun ürün adı iki satıra bölünmüşse sonraki satırla birlikte dene
+    const r = parseRow(lines[li]) || (/^\s*\d+\s*\)/.test(lines[li]) && lines[li + 1] ? parseRow(`${lines[li]} ${lines[li + 1]}`) : null);
+    if (!r) continue;
+    const no = r.no;
     if (seen.has(no)) continue;
     seen.add(no);
-    const quantity = trNum(m[3]);
-    const unitPrice = trNum(m[5]);
-    const netUnit = trNum(m[8]);
-    const currency = CUR[m[9].toUpperCase()] || 'TRY';
-    // İskonto: iki iskonto sütunu olabilir; en sağlamı net fiyattan hesaplamak
-    let discount = unitPrice > 0 ? Math.round((1 - netUnit / unitPrice) * 10000) / 100 : trNum(m[6]);
-    if (!(discount >= 0 && discount <= 100)) discount = trNum(m[6]) || 0;
+    const quantity = r.qty;
+    const unitPrice = r.price;
+    const netUnit = r.netUnit ?? (r.total !== null && quantity > 0 ? r.total / quantity : null);
+    const currency = CUR[r.cur] || 'TRY';
+    // İskonto: en sağlamı net fiyattan hesaplamak; yoksa iskonto sütunlarından
+    let discount = unitPrice > 0 && netUnit !== null ? Math.round((1 - netUnit / unitPrice) * 10000) / 100 : (r.disc ?? 0);
+    if (!(discount >= 0 && discount <= 100)) discount = Math.round((r.disc ?? 0) * 100) / 100;
     const net = quantity * unitPrice * (1 - discount / 100);
     items.push({
       id: `it-pdf-${Date.now()}-${no}`,
-      productName: m[2].trim(),
+      productName: r.name,
       quantity,
-      unit: UNIT[m[4].toLocaleUpperCase('tr').replace(/\.$/, '')] || 'Adet',
+      unit: UNIT[r.unit.toLocaleUpperCase('tr').replace(/\.$/, '')] || 'Adet',
       unitPrice,
       discount,
       vatRate: 20,
