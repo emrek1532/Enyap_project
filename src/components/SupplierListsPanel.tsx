@@ -3,7 +3,7 @@ import { CheckCircle2, FileUp, ImagePlus, Link2, Pencil, Loader2, Plus, Search, 
 import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, importListFromText, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -175,6 +175,21 @@ export const SupplierListsPanel: React.FC = () => {
   const reloadLists = () => fetchSupplierLists().then(setLists).catch(() => { setLists(l => l || []); setError('Fiyat listeleri yüklenemedi.'); });
   useEffect(() => { reloadLists(); }, []);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [reading, setReading] = useState<string | null>(null);
+  const reread = async () => {
+    if (!current?.sourceFile) return;
+    setReading('başlıyor…');
+    try {
+      const r = await reimportList(current.sourceFile, setReading);
+      setReading(null);
+      await reloadLists();
+      setActive(r.listId);
+      load(0, false);
+    } catch (e) {
+      setReading(null);
+      setError(`Yeniden okunamadı: ${e instanceof Error ? e.message : ''}`);
+    }
+  };
   const [editInfo, setEditInfo] = useState<{ name: string; listDate: string; currency: SupplierList['currency'] } | null>(null);
   const saveInfo = async () => {
     if (!current || !editInfo || !editInfo.name.trim()) return;
@@ -359,7 +374,14 @@ export const SupplierListsPanel: React.FC = () => {
                     <button type="button" onClick={() => setConfirmDelete(false)} className="px-2 py-1 rounded-lg border border-slate-200 text-slate-600 font-semibold">Vazgeç</button>
                   </span>
                 ) : (
-                  <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-slate-400 hover:text-rose-600">Listeyi sil</button>
+                  <span className="flex flex-col items-end gap-1">
+                    {current.sourceFile && (
+                      <button type="button" onClick={reread} disabled={!!reading} className="text-xs font-semibold text-brand-700 hover:underline disabled:opacity-60">
+                        {reading ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{reading}</span> : 'Yeniden oku'}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-slate-400 hover:text-rose-600">Listeyi sil</button>
+                  </span>
                 )}
               </div>
             </div>
