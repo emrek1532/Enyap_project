@@ -367,8 +367,12 @@ function Portal({ session }: { session: Session }) {
   useEffect(() => {
     const flag = new URLSearchParams(window.location.search).get('shared-pdf');
     if (flag === null) return;
+    const why = new URLSearchParams(window.location.search).get('why');
     window.history.replaceState(window.history.state, '', '/');
-    if (flag !== '1') { setShareError('Paylaşılan dosya alınamadı.'); return; }
+    if (flag !== '1') {
+      setShareError(`Paylaşılan dosya alınamadı.${why ? ` (${why})` : ''}`);
+      return;
+    }
     (async () => {
       try {
         const cache = await caches.open('enyap-share');
