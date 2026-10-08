@@ -31,6 +31,8 @@ export interface SupplierItem {
   unit: string;
   ourCode?: string | null;
   ourName?: string;
+  /** PDF'teki bölüm başlığı */
+  grp?: string;
 }
 
 export async function fetchSupplierLists(): Promise<SupplierList[]> {
@@ -81,7 +83,7 @@ export async function importListFromText(
   for (let i = 0; i < parsed.length; i += 500) {
     onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
     const rows = parsed.slice(i, i + 500).map(p => ({
-      list_id: listId, code: p.code, name: p.name, price: p.price, currency, unit: p.unit,
+      list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency, unit: p.unit,
       our_code: (p.code && keep.get(`c:${p.code}`)) || keep.get(`n:${p.name}`) || null,
     }));
     const { error } = await supabase.from('supplier_items').insert(rows);
@@ -149,7 +151,7 @@ export async function setSupplierOurCode(id: number, ourCode: string | null) {
 }
 
 export async function searchSupplierItems(q: string, opts: { list?: string | null; limit?: number; offset?: number } = {}) {
-  const { data, error } = await supabase.rpc('search_supplier_items_v2', {
+  const { data, error } = await supabase.rpc('search_supplier_items_v3', {
     q, list: opts.list ?? null, lim: opts.limit ?? 30, off: opts.offset ?? 0,
   });
   if (error) throw error;
@@ -158,7 +160,7 @@ export async function searchSupplierItems(q: string, opts: { list?: string | nul
     items: rows.map((r): SupplierItem => ({
       id: Number(r.id), listId: r.list_id, listName: r.list_name, discount: Number(r.discount || 0),
       code: r.code || '', name: r.name || '', price: Number(r.price || 0), currency: (r.currency || 'TRY') as Currency,
-      unit: r.unit || 'Adet', ourCode: r.our_code, ourName: r.our_name || undefined,
+      unit: r.unit || 'Adet', ourCode: r.our_code, ourName: r.our_name || undefined, grp: r.grp || undefined,
     })),
     total: rows.length ? Number(rows[0].total) : 0,
   };

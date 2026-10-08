@@ -405,8 +405,14 @@ export const SupplierListsPanel: React.FC = () => {
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 {items.length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-400">Sonuç yok.</p>}
                 <div className="divide-y divide-slate-100">
-                  {items.filter(it => !onlyUnlinked || !it.ourCode).map(it => (
-                    <div key={it.id} className="px-3.5 py-3">
+                  {items.filter(it => !onlyUnlinked || !it.ourCode).map((it, idx, arr) => (
+                    <React.Fragment key={it.id}>
+                    {it.grp && (idx === 0 || arr[idx - 1].grp !== it.grp || arr[idx - 1].listId !== it.listId) && (
+                      <div className="px-3.5 py-2 bg-amber-50 border-y border-amber-200 text-[12px] font-black text-amber-900 uppercase tracking-wide">
+                        {it.grp}
+                      </div>
+                    )}
+                    <div className="px-3.5 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-sm font-extrabold text-slate-900 leading-snug break-words">
@@ -465,6 +471,7 @@ export const SupplierListsPanel: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    </React.Fragment>
                   ))}
                 </div>
                 {items.length < total && (
