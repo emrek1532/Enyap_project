@@ -337,7 +337,7 @@ export async function fetchAllData(): Promise<AppData> {
     fetchAllRows('orders', 'created_at', false),
     fetchAllRows('events', 'date', true),
     fetchAllRows('notes', 'created_at', false),
-    supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(50),
+    supabase.from('activities').select('*').not('id', 'like', 'diag-%').order('timestamp', { ascending: false }).limit(50),
     fetchAllRows('collections', 'date', false),
     fetchAllRows('expenses', 'date', false),
   ]);

@@ -381,7 +381,7 @@ function Portal({ session }: { session: Session }) {
         await cache.delete('/shared-pdf');
         const name = decodeURIComponent(res.headers.get('x-file-name') || 'teklif.pdf');
         const file = new File([await res.blob()], name, { type: 'application/pdf' });
-        const pdf = await readQuotePdf(file).catch(() => null);
+        const pdf = await readQuotePdf(file, { ai: false }).catch(() => null);
         const existing = pdf?.quoteNumber ? quotesRef.current.find(q => (q.quoteNumber || '').trim() === pdf.quoteNumber) : undefined;
         setSharedPdf(file);
         if (existing) setEditingQuote(existing);
