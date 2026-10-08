@@ -25,6 +25,8 @@ interface NewQuoteModalProps {
   draft?: Partial<Quote> | null;
   /** Paylaş menüsünden gelen PDF: açılınca form bununla doldurulur */
   initialPdf?: File | null;
+  /** PDF'in elle seçilmesi gerektiğinde gösterilecek yol tarifi */
+  pdfNotice?: string;
 }
 
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
@@ -39,6 +41,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   quotes = [],
   draft = null,
   initialPdf = null,
+  pdfNotice = '',
 }) => {
   // Düzenlemede mevcut teklif, sesli taslakta taslak; ikisi de yoksa boş form
   const init: Partial<Quote> | null = editQuote || draft;
@@ -460,6 +463,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         <div className="overflow-y-auto flex-1 bg-slate-100/60">
           <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-2.5 sm:p-3 space-y-2.5">
 
+            {pdfNotice && !pdfMsg && (
+              <div className="text-xs rounded-md px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200">{pdfNotice}</div>
+            )}
             {pdfMsg && (
               <div className={`text-xs rounded-md px-3 py-2 ${pdfMsg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
                 {pdfMsg.text}
