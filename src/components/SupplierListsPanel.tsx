@@ -164,7 +164,7 @@ export const SupplierListsPanel: React.FC = () => {
   const linkItem = async (it: SupplierItem, code: string | null) => {
     try {
       await setSupplierOurCode(it.id, code);
-      setItems(prev => prev.map(x => (x.id === it.id ? { ...x, ourCode: code } : x)));
+      setItems(prev => prev.map(x => (x.id === it.id ? { ...x, ourCode: code, ourName: undefined } : x)));
       setLinking(null); setLinkText('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Kaydedilemedi');
@@ -429,6 +429,7 @@ export const SupplierListsPanel: React.FC = () => {
                                   {it.ourCode}
                                 </button>
                                 <button type="button" onClick={() => linkItem(it, null)} className="text-slate-300 hover:text-rose-600" title="Bağı kaldır"><X className="w-3.5 h-3.5" /></button>
+                                {it.ourName && <span className="basis-full text-[11px] text-slate-400 leading-snug">{it.ourName}</span>}
                               </>
                             ) : (
                               <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }}

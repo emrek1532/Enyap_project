@@ -30,6 +30,7 @@ export interface SupplierItem {
   currency: Currency;
   unit: string;
   ourCode?: string | null;
+  ourName?: string;
 }
 
 export async function fetchSupplierLists(): Promise<SupplierList[]> {
@@ -148,7 +149,7 @@ export async function setSupplierOurCode(id: number, ourCode: string | null) {
 }
 
 export async function searchSupplierItems(q: string, opts: { list?: string | null; limit?: number; offset?: number } = {}) {
-  const { data, error } = await supabase.rpc('search_supplier_items', {
+  const { data, error } = await supabase.rpc('search_supplier_items_v2', {
     q, list: opts.list ?? null, lim: opts.limit ?? 30, off: opts.offset ?? 0,
   });
   if (error) throw error;
@@ -157,7 +158,7 @@ export async function searchSupplierItems(q: string, opts: { list?: string | nul
     items: rows.map((r): SupplierItem => ({
       id: Number(r.id), listId: r.list_id, listName: r.list_name, discount: Number(r.discount || 0),
       code: r.code || '', name: r.name || '', price: Number(r.price || 0), currency: (r.currency || 'TRY') as Currency,
-      unit: r.unit || 'Adet', ourCode: r.our_code,
+      unit: r.unit || 'Adet', ourCode: r.our_code, ourName: r.our_name || undefined,
     })),
     total: rows.length ? Number(rows[0].total) : 0,
   };

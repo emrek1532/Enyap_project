@@ -46,11 +46,17 @@ function splitCodeName(text: string): { code: string; name: string } | null {
 export function parsePriceLines(lines: string[]): ParsedItem[] {
   const out: ParsedItem[] = [];
   const seen = new Set<string>();
+  // Bölüm başlığı (ör. "OCAK FLEXLERİ"): fiyatsız, kısa, büyük harfli satır; altındaki kalemlerin adına eklenir
+  let heading = '';
   for (const raw of lines) {
     const line = raw.replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
     if (line.length < 6 || !/[A-Za-zÇĞİÖŞÜçğıöşü]{3}/.test(line) || HEADER.test(line)) continue;
     const prices = [...line.matchAll(PRICE)];
-    if (!prices.length) continue;
+    if (!prices.length) {
+      const letters = line.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '');
+      if (letters.length >= 5 && line.split(' ').length <= 6 && letters === letters.toLocaleUpperCase('tr') && !/\d{3,}/.test(line)) heading = line;
+      continue;
+    }
     const unit = /\b(mt|metre|m\/tül|mtül)\b/i.test(line) ? 'Metre' : 'Adet';
     // Satır fiyatlardan bölünür: her fiyatın önündeki metin bir kalemdir. İki fiyat arasında yazı yoksa
     // ikinci fiyat aynı kalemin başka sütunudur (iskontolu/KDV'li) ve atlanır. İki sütunlu listeler de böyle okunur.
@@ -65,7 +71,9 @@ export function parsePriceLines(lines: string[]): ParsedItem[] {
       const key = `${cn.code}|${cn.name}|${price}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ ...cn, price: Math.round(price * 10000) / 10000, unit });
+      const fold = (x: string) => x.toLocaleLowerCase('tr');
+      const head = heading && !fold(cn.name).includes(fold(heading).split(' ')[0]) ? ` · ${heading}` : '';
+      out.push({ ...cn, name: (cn.name + head).slice(0, 200), price: Math.round(price * 10000) / 10000, unit });
     }
   }
   return out;
