@@ -32,14 +32,21 @@ const SupplierUploader: React.FC = () => {
   useEffect(() => { uploadedSupplierFiles().then(m => setUploaded(Object.keys(m).length), () => setUploaded(null)); }, []);
 
   const run = async (files: File[]) => {
-    const pdfs = files.filter(f => /\.pdf$/i.test(f.name));
+    // Daha önce yazısıyla yüklenmiş dosyalar atlanır: yarıda kalan yükleme kaldığı yerden sürer
+    const done = await uploadedSupplierFiles().catch(() => ({} as Record<string, number>));
+    const already = files.filter(f => /\.pdf$/i.test(f.name) && done[f.name]);
+    const pdfs = files.filter(f => /\.pdf$/i.test(f.name) && !done[f.name]);
     const others = files.filter(f => !/\.pdf$/i.test(f.name));
     const list: UpState[] = [
       ...pdfs.map(f => ({ name: f.name, status: 'wait' as const })),
       ...others.map(f => ({ name: f.name, status: 'skip' as const, info: 'PDF değil — bu dosyayı sohbete ayrıca gönderin' })),
+      ...already.map(f => ({ name: f.name, status: 'ok' as const, info: 'zaten yüklü, atlandı' })),
     ];
     setRows(list);
     setBusy(true);
+    // Yükleme sürerken ekran kararmasın (kararırsa telefon sayfayı durdurabilir)
+    let lock: any = null;
+    try { lock = await (navigator as any).wakeLock?.request('screen'); } catch { /* desteklenmiyor */ }
     for (let i = 0; i < pdfs.length; i++) {
       const f = pdfs[i];
       setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'run', info: 'okunuyor…' } : x)));
@@ -55,6 +62,7 @@ const SupplierUploader: React.FC = () => {
       }
     }
     setBusy(false);
+    try { await lock?.release(); } catch { /* yok */ }
     uploadedSupplierFiles().then(m => setUploaded(Object.keys(m).length), () => undefined);
   };
 
@@ -71,6 +79,11 @@ const SupplierUploader: React.FC = () => {
             Klasördeki tüm PDF'leri birlikte seçebilirsiniz. PDF'ler cihazınızda okunur, sadece yazısı gönderilir.
             {uploaded !== null && uploaded > 0 && <> · Şu ana kadar <b>{uploaded}</b> dosya yüklendi.</>}
           </div>
+          {busy && (
+            <div className="mt-1 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+              Yükleme bitene kadar bu sayfayı açık tutun. Kapanırsa aynı dosyaları tekrar seçin; yüklenmiş olanlar atlanır.
+            </div>
+          )}
         </div>
         <button
           onClick={() => inputRef.current?.click()}
