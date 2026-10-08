@@ -39,7 +39,10 @@
           "name": "file",
           "accept": [
             "application/pdf",
-            ".pdf"
+            ".pdf",
+            "application/octet-stream",
+            "application/*",
+            "*/*"
           ]
         }
       ]
