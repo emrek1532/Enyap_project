@@ -1,6 +1,8 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v4';
+const CACHE = 'enyap-shell-v5';
+// WhatsApp vb. uygulamalardan "Paylaş" ile gelen PDF burada bekletilir, uygulama açılınca okunur
+const SHARE_CACHE = 'enyap-share';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
 
 self.addEventListener('install', (event) => {
@@ -10,13 +12,32 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== SHARE_CACHE).map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  const shareUrl = new URL(req.url);
+  // Paylaş menüsünden gelen PDF: sakla, uygulamayı "yeni teklif" ile aç
+  if (req.method === 'POST' && shareUrl.origin === self.location.origin && shareUrl.pathname === '/share-target') {
+    event.respondWith((async () => {
+      try {
+        const form = await req.formData();
+        const file = form.getAll('file').find((f) => f && typeof f !== 'string');
+        if (file) {
+          const cache = await caches.open(SHARE_CACHE);
+          await cache.put('/shared-pdf', new Response(file, {
+            headers: { 'content-type': file.type || 'application/pdf', 'x-file-name': encodeURIComponent(file.name || 'teklif.pdf') },
+          }));
+          return Response.redirect('/?shared-pdf=1', 303);
+        }
+      } catch (e) { /* paylaşım okunamadı */ }
+      return Response.redirect('/?shared-pdf=0', 303);
+    })());
+    return;
+  }
   if (req.method !== 'GET') return;
   // Sürüm kontrolü gibi "önbellek kullanma" denen istekler doğrudan ağa gider
   if (req.cache === 'no-store') return;
