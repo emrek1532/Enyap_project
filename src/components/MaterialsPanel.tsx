@@ -4,6 +4,7 @@ import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
 import { MobileSortSelect, SortHeader, SortState, nextSort } from './SortHeader';
+import { SupplierListsPanel } from './SupplierListsPanel';
 
 const PAGE = 50;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
@@ -13,7 +14,7 @@ const selectCls = 'w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('tr-TR') : '-');
 const fmtStock = (v?: number | null) => (v == null ? '-' : v.toLocaleString('tr-TR', { maximumFractionDigits: 2 }));
 
-export const MaterialsPanel: React.FC = () => {
+const OwnMaterials: React.FC = () => {
   const [query, setQuery] = useState('');
   const [codeQuery, setCodeQuery] = useState('');
   const [filters, setFilters] = useState<MaterialFilters>({ currency: '', unit: '', price: '', stock: '' });
@@ -331,6 +332,25 @@ const MaterialForm: React.FC<{
           </button>
         </div>
       </form>
+    </div>
+  );
+};
+
+/** Malzemeler: bizim kataloğumuz ve firma fiyat listeleri ayrı sekmelerde (birbirine karışmaz) */
+export const MaterialsPanel: React.FC = () => {
+  const [tab, setTab] = useState<'own' | 'suppliers'>(() => {
+    try { return localStorage.getItem('enyap-materials-tab') === 'suppliers' ? 'suppliers' : 'own'; } catch { return 'own'; }
+  });
+  const choose = (t: 'own' | 'suppliers') => { setTab(t); try { localStorage.setItem('enyap-materials-tab', t); } catch { /* */ } };
+  const tabCls = (on: boolean) =>
+    `flex-1 px-3 py-2 rounded-lg text-sm font-bold transition-colors ${on ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`;
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70" role="tablist">
+        <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>Bizim Malzemeler</button>
+        <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>Firma Fiyat Listeleri</button>
+      </div>
+      {tab === 'own' ? <OwnMaterials /> : <SupplierListsPanel />}
     </div>
   );
 };

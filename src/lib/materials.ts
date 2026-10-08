@@ -11,6 +11,9 @@ export interface Material {
   vatRate: number;
   stock?: number | null;
   updatedAt?: string;
+  /** Firma fiyat listesinden geliyorsa: firma adı ve standart iskontosu (bizim katalogla karışmaz) */
+  supplier?: string;
+  supplierDiscount?: number;
 }
 
 /** Arama hangi alanda: ad+kod birlikte, ya da sadece kod */

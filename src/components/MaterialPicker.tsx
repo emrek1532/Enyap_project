@@ -3,6 +3,11 @@ import { Package } from 'lucide-react';
 import { CURRENCY_LABEL } from '../lib/money';
 import { Material, MaterialField, foldTr, formatPrice, searchMaterials, searchRecent } from '../lib/materials';
 import { SuggestInput } from './SuggestInput';
+import { fetchSupplierLists, searchSupplierItems, supplierColor, supplierToMaterial } from '../lib/suppliers';
+
+// Firma fiyat listesi var mı (yoksa her harfte boşuna sorgu atılmaz)
+let hasSuppliers: Promise<boolean> | null = null;
+const suppliersExist = () => (hasSuppliers ||= fetchSupplierLists().then(l => l.length > 0, () => false));
 
 // Aynı aramayı tekrar sunucuya sormamak için küçük bellek içi önbellek
 const CACHE_MAX = 300;
@@ -37,6 +42,8 @@ export const MaterialPicker: React.FC<{
   const [loading, setLoading] = useState(false);
   const [offline, setOffline] = useState(false);
   const [focused, setFocused] = useState(false);
+  // Firma fiyat listelerinden sonuçlar: bizim sonuçların ALTINDA ayrı başlıkla gösterilir
+  const [supplierResults, setSupplierResults] = useState<Material[]>([]);
   const reqId = useRef(0);
   const last = useRef<{ q: string; items: Material[]; total: number } | null>(null);
   const minChars = field === 'code' ? 1 : 2;
@@ -93,14 +100,32 @@ export const MaterialPicker: React.FC<{
     return () => window.clearTimeout(timer);
   }, [value, field, minChars, focused]);
 
+  useEffect(() => {
+    if (!focused) return;
+    const q = value.trim();
+    if (q.length < 3) { setSupplierResults([]); return; }
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      if (!(await suppliersExist())) return;
+      try {
+        const r = await searchSupplierItems(q, { limit: 8 });
+        if (!cancelled) setSupplierResults(r.items.map(supplierToMaterial));
+      } catch { if (!cancelled) setSupplierResults([]); }
+    }, 300);
+    return () => { cancelled = true; window.clearTimeout(t); };
+  }, [value, focused]);
+
+  const suggestions = supplierResults.length ? [...results, ...supplierResults] : results;
+  const firstSupplier = results.length;
+
   return (
     <div className={className} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
     <SuggestInput<Material>
       value={value}
       onChange={onChange}
       onPick={onPick}
-      suggestions={results}
-      getKey={m => m.code}
+      suggestions={suggestions}
+      getKey={m => (m.supplier ? `s:${m.supplier}:${m.code}:${m.name}` : m.code)}
       loading={loading}
       minChars={minChars}
       required={required}
@@ -117,18 +142,40 @@ export const MaterialPicker: React.FC<{
           {total.toLocaleString('tr-TR')} sonuçtan ilk {results.length} gösteriliyor — daha fazla yazarak daraltın
         </div>
       ) : undefined}
-      renderItem={m => (
-        <span className="flex items-start gap-2">
-          <Package className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold text-slate-800 leading-snug break-words">{m.name || m.code}</span>
-            <span className="block text-[10px] text-slate-500 font-mono">{m.code}</span>
-          </span>
-          <span className={`shrink-0 text-right text-xs font-bold tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
-            {m.price > 0 ? `${formatPrice(m.price)} ${CURRENCY_LABEL[m.currency]}` : 'fiyat yok'}
-          </span>
-        </span>
-      )}
+      renderItem={m => {
+        const idx = suggestions.indexOf(m);
+        return (
+          <>
+            {m.supplier && idx === firstSupplier && (
+              <span className="block -mx-2.5 -mt-1.5 mb-1.5 px-2.5 py-1 bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                Firma fiyat listeleri
+              </span>
+            )}
+            <span className="flex items-start gap-2">
+              <Package className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold text-slate-800 leading-snug break-words">
+                  {m.supplier && (
+                    <span className="text-[9px] font-black text-white rounded px-1 py-px mr-1 align-[1px]" style={{ background: supplierColor(m.supplier) }}>
+                      {m.supplier.toLocaleUpperCase('tr')}
+                    </span>
+                  )}
+                  {m.name || m.code}
+                </span>
+                <span className="block text-[10px] text-slate-500 font-mono">
+                  {m.code}{m.supplier && m.supplierDiscount ? ` · %${m.supplierDiscount} iskonto` : ''}
+                </span>
+              </span>
+              <span className={`shrink-0 text-right text-xs font-bold tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
+                {m.price > 0 ? `${formatPrice(m.price)} ${CURRENCY_LABEL[m.currency]}` : 'fiyat yok'}
+                {m.supplier && m.price > 0 && m.supplierDiscount ? (
+                  <span className="block text-[10px] font-semibold text-slate-500">net {formatPrice(m.price * (1 - m.supplierDiscount / 100))}</span>
+                ) : null}
+              </span>
+            </span>
+          </>
+        );
+      }}
     />
     </div>
   );
