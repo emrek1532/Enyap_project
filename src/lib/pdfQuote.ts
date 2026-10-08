@@ -5,6 +5,7 @@
 import { Currency } from './money';
 import { QuoteItem } from '../types';
 import { foldTr, searchMaterials } from './materials';
+import { supabase } from './supabase';
 
 export interface PdfQuote {
   fileName: string;
@@ -17,6 +18,8 @@ export interface PdfQuote {
   items: QuoteItem[];
   totals: { USD: number; EUR: number; TRY: number } | null;
   warnings: string[];
+  /** Kalemler yapay zekayla mı okundu */
+  viaAi?: boolean;
 }
 
 /** "1.234,56" → 1234.56 */
@@ -178,8 +181,62 @@ export async function pdfLines(data: ArrayBuffer): Promise<string[]> {
   return out;
 }
 
-export async function readQuotePdf(file: File): Promise<PdfQuote> {
-  return parseQuoteLines(await pdfLines(await file.arrayBuffer()), file.name);
+/**
+ * PDF'i okur. Kalem satırları kurallı okunamazsa (farklı PDF düzeni) metin sunucudaki
+ * yapay zekaya gönderilir; o da kalemleri çıkarır. Okunamayan PDF metni tanı için kaydedilir.
+ */
+export async function readQuotePdf(file: File, opts: { ai?: boolean } = {}): Promise<PdfQuote> {
+  const lines = await pdfLines(await file.arrayBuffer());
+  const q = parseQuoteLines(lines, file.name);
+  if (q.items.length || opts.ai === false || !lines.length) return q;
+
+  logUnreadPdf(file.name, lines);
+  try {
+    const ai = await aiPdfItems(lines);
+    if (ai.length) {
+      q.items = ai;
+      q.viaAi = true;
+      q.warnings = q.warnings.filter(w => w !== 'Kalem bulunamadı');
+      q.warnings.push('kalemler yapay zekayla okundu, lütfen kontrol edin');
+    }
+  } catch { /* yapay zeka yoksa kalemsiz döner */ }
+  return q;
+}
+
+/** Okunamayan PDF'in metnini tanı için kaydeder (okuyucuyu bu formata göre düzeltebilmek için) */
+function logUnreadPdf(name: string, lines: string[]) {
+  const id = `diag-pdf-${Date.now()}`;
+  supabase.from('activities').insert({
+    id, action: 'PDF okunamadı (tanı)', description: `${name}\n${lines.join('\n')}`.slice(0, 20000),
+    author: 'isparta', timestamp: new Date().toISOString(), badge_color: 'slate',
+  }).then(() => undefined, () => undefined);
+}
+
+async function aiPdfItems(lines: string[]): Promise<QuoteItem[]> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch('/api/ai/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ text: lines.join('\n').slice(0, 30000) }),
+  });
+  if (!res.ok) return [];
+  const body = await res.json().catch(() => null);
+  const rows: any[] = Array.isArray(body?.items) ? body.items : [];
+  const num = (v: unknown) => { const x = typeof v === 'string' ? trNum(v) : Number(v); return Number.isFinite(x) ? x : 0; };
+  return rows.filter(r => r && String(r.name || '').trim()).map((r, i) => {
+    const quantity = num(r.quantity) || 1;
+    const unitPrice = num(r.unitPrice);
+    const discount = Math.min(100, Math.max(0, num(r.discount)));
+    const cur = String(r.currency || '').toUpperCase();
+    const currency: Currency = cur === 'USD' ? 'USD' : cur === 'EUR' || cur === 'EURO' ? 'EUR' : 'TRY';
+    const unit = UNIT[String(r.unit || '').toLocaleUpperCase('tr').replace(/\.$/, '')] || 'Adet';
+    const net = quantity * unitPrice * (1 - discount / 100);
+    return {
+      id: `it-ai-${Date.now()}-${i}`, productName: String(r.name).trim(), quantity, unit, unitPrice, discount,
+      vatRate: 20, totalPrice: Math.round(net * 1.2 * 100) / 100, currency,
+    };
+  });
 }
 
 const GENERIC = new Set(['ltd', 'sti', 'san', 'tic', 'ins', 'insaat', 'taah', 'muh', 've', 'as', 'sirketi', 'limited', 'sanayi', 'ticaret',

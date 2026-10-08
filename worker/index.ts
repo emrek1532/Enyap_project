@@ -300,6 +300,55 @@ async function handleVoice(req: Request, env: Env): Promise<Response> {
   }
 }
 
+const PDF_SCHEMA = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' }, quantity: { type: 'number' }, unit: { type: 'string' },
+          unitPrice: { type: 'number' }, discount: { type: 'number' }, currency: { type: 'string' },
+        },
+        required: ['name', 'quantity', 'unit', 'unitPrice', 'discount', 'currency'],
+      },
+    },
+  },
+  required: ['items'],
+};
+
+const PDF_PROMPT = `Sana bir ısıtma/tesisat firmasının "Fiyat Teklifi" PDF'inden çıkarılmış düz metin veriyorum.
+Görevin TÜM malzeme kalemlerini sırasıyla çıkarmak. Her kalem için:
+- name: ürün adı (PDF'teki gibi, büyük harf korunur)
+- quantity: miktar (sayı; "1.250,50" → 1250.5)
+- unit: birim (ADET, MT, KG, TAKIM, PAKET, SET)
+- unitPrice: iskontosuz birim fiyat (B.Fiyat)
+- discount: toplam iskonto yüzdesi (yoksa 0; net birim fiyat verilmişse 100*(1-net/birim) ile hesapla)
+- currency: TL, USD veya EUR
+Başlık, toplam, KDV, açıklama satırlarını kalem sayma. Sayfa başlıkları tekrar ediyorsa yok say. Kalemleri tekrarlama.
+Sadece JSON döndür.`;
+
+async function handlePdf(req: Request, env: Env): Promise<Response> {
+  if (!env.AI) return json({ error: 'no_ai', items: [] }, 503);
+  if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
+  const body = await readBody(req);
+  const text = String(body?.text || '').slice(0, 30000);
+  if (!text.trim()) return json({ items: [] });
+  try {
+    const r = await env.AI.run(LLAMA, {
+      messages: [{ role: 'system', content: PDF_PROMPT }, { role: 'user', content: text }],
+      response_format: { type: 'json_schema', json_schema: PDF_SCHEMA },
+      max_tokens: 6000,
+      temperature: 0,
+    });
+    const out = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
+    return json({ items: Array.isArray(out?.items) ? out.items : [] });
+  } catch (err) {
+    return json({ error: 'ai', message: String((err as Error)?.message || err).slice(0, 200), items: [] }, 502);
+  }
+}
+
 /** TCMB günlük döviz satış kurları (1 saat önbellekli) */
 async function handleRates(): Promise<Response> {
   const cache = (caches as any).default as Cache;
@@ -372,6 +421,7 @@ export default {
     const url = new URL(req.url);
     if (url.pathname === '/api/ai/parse' && req.method === 'POST') return handleParse(req, env);
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
+    if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
     if (url.pathname === '/api/rates') return handleRates();
     if (url.pathname === '/share-target') return handleShare(req, url);
     if (url.pathname === '/api/ai/status') return json({ ready: !!(env.ANTHROPIC_API_KEY || env.AI), voice: !!env.AI });
