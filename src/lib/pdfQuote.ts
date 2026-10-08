@@ -52,12 +52,13 @@ function parseRow(raw: string): Row | null {
   const t2 = tail.exec(rest);
   if (t2) rest = rest.slice(0, t2.index);
   // Miktar + birim + birim fiyat (+ iskontolar)
-  const mid = new RegExp(String.raw`^(.+?)\s(${NUM})\s+([A-Za-zÇĞİÖŞÜçğıöşü.]{1,8})\s+(${NUM})((?:\s+\d+(?:,\d+)?)*)\s*$`).exec(rest);
+  // Ürün adı bazı PDF'lerde rakamların bir alt satırında yazılır: ad boş olabilir
+  const mid = new RegExp(String.raw`^(?:(.+?)\s)?(${NUM})\s+([A-Za-zÇĞİÖŞÜçğıöşü.]{1,8})\s+(${NUM})((?:\s+\d+(?:,\d+)?)*)\s*$`).exec(rest.trim());
   if (!mid) return null;
   const discs = mid[5].trim().split(/\s+/).filter(Boolean).map(trNum);
   return {
     no: Number(head[1]),
-    name: mid[1].trim(),
+    name: (mid[1] || '').trim(),
     qty: trNum(mid[2]),
     unit: mid[3],
     price: trNum(mid[4]),
@@ -97,10 +98,25 @@ export function parseQuoteLines(lines: string[], fileName = ''): PdfQuote {
 
   const items: QuoteItem[] = [];
   const seen = new Set<number>();
+  const isRowStart = (l?: string) => !!l && /^\s*\d+\s*\)/.test(l);
+  // Kalem dışı satırlar (başlık, toplam, dipnot): ad satırı sanılmasın
+  const isOther = (l?: string) => !l || /(S\.\s*No|Ürün\s*Tanımı|TOPLAM|Toplam|KDV|FİRMA|ONAY|Teklif\s*Veren|GEÇERLİDİR|Sayfa\s+\d|FİYAT TEKLİFİ)/.test(l);
+  const used = new Set<number>();
   for (let li = 0; li < lines.length; li++) {
+    if (used.has(li)) continue;
     // Uzun ürün adı iki satıra bölünmüşse sonraki satırla birlikte dene
-    const r = parseRow(lines[li]) || (/^\s*\d+\s*\)/.test(lines[li]) && lines[li + 1] ? parseRow(`${lines[li]} ${lines[li + 1]}`) : null);
+    let r = parseRow(lines[li]);
+    if (!r && isRowStart(lines[li]) && lines[li + 1] && !isRowStart(lines[li + 1])) {
+      r = parseRow(`${lines[li]} ${lines[li + 1]}`);
+      if (r) used.add(li + 1);
+    }
     if (!r) continue;
+    if (!r.name) {
+      // Ad rakamların altındaki (ya da üstündeki) satırda
+      if (!isRowStart(lines[li + 1]) && !isOther(lines[li + 1])) { r.name = lines[li + 1].replace(/\s+/g, ' ').trim(); used.add(li + 1); }
+      else if (li > 0 && !used.has(li - 1) && !isRowStart(lines[li - 1]) && !isOther(lines[li - 1])) r.name = lines[li - 1].replace(/\s+/g, ' ').trim();
+      if (!r.name) r.name = `Kalem ${r.no}`;
+    }
     const no = r.no;
     if (seen.has(no)) continue;
     seen.add(no);
@@ -199,7 +215,9 @@ export async function readQuotePdf(file: File, opts: { ai?: boolean } = {}): Pro
       q.warnings = q.warnings.filter(w => w !== 'Kalem bulunamadı');
       q.warnings.push('kalemler yapay zekayla okundu, lütfen kontrol edin');
     }
-  } catch { /* yapay zeka yoksa kalemsiz döner */ }
+  } catch (e) {
+    q.warnings.push(`yapay zeka okuyamadı: ${String((e as Error)?.message || e).slice(0, 120)}`);
+  }
   return q;
 }
 
@@ -220,8 +238,8 @@ async function aiPdfItems(lines: string[]): Promise<QuoteItem[]> {
     headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ text: lines.join('\n').slice(0, 30000) }),
   });
-  if (!res.ok) return [];
   const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || body?.error || `HTTP ${res.status}`);
   const rows: any[] = Array.isArray(body?.items) ? body.items : [];
   const num = (v: unknown) => { const x = typeof v === 'string' ? trNum(v) : Number(v); return Number.isFinite(x) ? x : 0; };
   return rows.filter(r => r && String(r.name || '').trim()).map((r, i) => {
