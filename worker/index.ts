@@ -21,6 +21,8 @@ const SUPABASE_KEY = 'sb_publishable_r-RVHM4n_fEKQ5pX-L_kvQ_Cg2CDu5r';
 const MODEL = 'claude-opus-5-5';
 const WHISPER = '@cf/openai/whisper-large-v3-turbo';
 const LLAMA = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+// Fiyat listesi sayfaları için küçük ve ucuz model (68 sayfalık katalog günlük ücretsiz kotaya sığsın)
+const LLAMA_SMALL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
 // Whisper'a sektör kelimelerini önceden söyler: "kollektör", "PPR", "yarım parmak" gibi kelimeler doğru yazılsın
 const VOCAB = 'Teklif, tahsilat, harcama. Radyatör vanası, köşe vana, düz vana, termostatik vana, kollektör, PPR boru, ' +
@@ -385,7 +387,7 @@ async function handlePriceList(req: Request, env: Env): Promise<Response> {
   const text = String(body?.text || '').slice(0, 12000);
   if (!text.trim()) return json({ items: [] });
   try {
-    const r = await env.AI.run(LLAMA, {
+    const r = await env.AI.run(LLAMA_SMALL, {
       messages: [{ role: 'system', content: PRICELIST_PROMPT }, { role: 'user', content: text }],
       response_format: { type: 'json_schema', json_schema: PRICELIST_SCHEMA },
       max_tokens: 6000,
@@ -394,7 +396,9 @@ async function handlePriceList(req: Request, env: Env): Promise<Response> {
     const out = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
     return json({ items: Array.isArray(out?.items) ? out.items : [] });
   } catch (err) {
-    return json({ error: 'ai', message: String((err as Error)?.message || err).slice(0, 200), items: [] }, 502);
+    const msg = String((err as Error)?.message || err);
+    if (/neuron|quota|limit|4006|429/i.test(msg)) return json({ error: 'quota', message: msg.slice(0, 200), items: [] }, 429);
+    return json({ error: 'ai', message: msg.slice(0, 200), items: [] }, 502);
   }
 }
 

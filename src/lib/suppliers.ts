@@ -66,11 +66,12 @@ export async function importListFromText(
   let failed = 0;
   const textPages = pages.map(p => p.filter(l => l !== '#OCR')).filter(p => p.join('').replace(/\s/g, '').length > 40);
   // Sayfalar ikişer ikişer okunur; yapay zeka hata verirse 2 kez daha denenir (yoğunlukta kısa bekleyerek)
+  let quota = false;
   const readPage = async (pg: string[]) => {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const ai = await aiPriceListPage(pg.join('\n')).catch(() => null);
+    for (let attempt = 0; attempt < 3 && !quota; attempt++) {
+      const ai = await aiPriceListPage(pg.join('\n')).catch(e => { if (String(e?.message) === 'quota') quota = true; return null; });
       if (ai) return ai;
-      await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+      if (!quota) await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
     }
     const rule = parsePriceLines(pg).map(x => ({ ...x, currency }));
     if (!rule.length) failed++;
@@ -81,7 +82,11 @@ export async function importListFromText(
     const batch = await Promise.all(textPages.slice(i, i + 2).map(readPage));
     batch.forEach(b => parsed.push(...b));
   }
-  if (parsed.length < 3) throw new Error('kalem bulunamadı (liste düzeni okunamadı)');
+  if (parsed.length < 3) throw new Error(quota ? 'yapay zekanın günlük ücretsiz kotası doldu, yarın tekrar deneyin' : 'kalem bulunamadı (liste düzeni okunamadı)');
+  // Sayfaların çoğu okunamadıysa eksik liste kaydedilmez (mevcut liste korunur)
+  if (failed > Math.max(2, textPages.length * 0.25)) {
+    throw new Error(`${failed}/${textPages.length} sayfa okunamadı${quota ? ' (yapay zekanın günlük ücretsiz kotası doldu, yarın tekrar deneyin)' : ''}; mevcut liste korundu`);
+  }
   const { name, listDate } = guessListInfo(fileName);
   const listId = listIdFor(name, listDate);
 
@@ -122,6 +127,7 @@ async function aiPriceListPage(text: string): Promise<{ code: string; name: stri
     headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ text: text.slice(0, 12000) }),
   });
+  if (res.status === 429) throw new Error('quota');
   if (!res.ok) return null;
   const out = await res.json().catch(() => null);
   if (!Array.isArray(out?.items)) return null;
