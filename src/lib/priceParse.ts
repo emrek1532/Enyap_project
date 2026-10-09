@@ -5,7 +5,7 @@
  */
 import { Currency } from './money';
 
-export interface ParsedItem { code: string; name: string; price: number; unit: string; grp?: string }
+export interface ParsedItem { code: string; name: string; price: number; unit: string; grp?: string; currency?: Currency }
 
 // 1.234,56 · 1234,56 · 1,234.56 · 1234.56 (en az 2 ondalık hane)
 const PRICE = /(\d{1,3}(?:[.\s]\d{3})+,\d{2,4}|\d+,\d{2,4}|\d{1,3}(?:,\d{3})+\.\d{2,4}|\d+\.\d{2,4})/g;
@@ -37,7 +37,7 @@ function splitCodeName(text: string): { code: string; name: string } | null {
   if (words.length > 1 && isCode(words[0])) code = words.shift()!;
   else if (words.length > 1 && isCode(words[words.length - 1])) code = words.pop()!;
   // Adın sonundaki tek başına sayılar (koli adedi vb.) ve işaretler atılır
-  while (words.length > 1 && /^(\d+|[*&©#%+\-–—]|[a-z]{1,2})$/i.test(words[words.length - 1]) && !/[a-z]{2}/i.test(words[words.length - 1].replace(/^(cm|mm)$/i, 'xx'))) words.pop();
+  while (words.length > 1 && /^(\d+|[*&©#%+\-–—])$/.test(words[words.length - 1]) && !/^[x*×]$/i.test(words[words.length - 2] || '')) words.pop();
   const name = words.join(' ').replace(/^[\s\-–—:.,;*]+|[\s\-–—:.,;*]+$/g, '');
   if (name.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '').length < 3) return null;
   return { code, name: name.slice(0, 200) };
@@ -71,7 +71,12 @@ export function parsePriceLines(lines: string[]): ParsedItem[] {
       const key = `${cn.code}|${cn.name}|${price}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ ...cn, grp: heading || undefined, price: Math.round(price * 10000) / 10000, unit });
+      // Fiyatın hemen yanındaki para birimi işareti (aynı listede $, €, TL karışık olabilir)
+      const after = line.slice((pm.index || 0) + pm[1].length, (pm.index || 0) + pm[1].length + 6);
+      const before = line.slice(Math.max(0, (pm.index || 0) - 3), pm.index);
+      const sym = `${before} ${after}`;
+      const currency: Currency | undefined = /\$|USD/i.test(sym) ? 'USD' : /€|EUR/i.test(sym) ? 'EUR' : /₺|TL|TRY/i.test(sym) ? 'TRY' : undefined;
+      out.push({ ...cn, grp: heading || undefined, price: Math.round(price * 10000) / 10000, unit, currency });
     }
   }
   return out;

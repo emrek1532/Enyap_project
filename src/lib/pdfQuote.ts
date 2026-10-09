@@ -70,7 +70,10 @@ function parseRow(raw: string): Row | null {
 }
 
 /** PDF satırlarından teklifi çıkarır (satırlar soldan sağa birleştirilmiş metinlerdir) */
-export function parseQuoteLines(lines: string[], fileName = ''): PdfQuote {
+export function parseQuoteLines(rawLines: string[], fileName = ''): PdfQuote {
+  // Mikro bazen sıra numarasının ")" işaretini ayrı satıra koyar: ")" + "14 21/2\" KEP..." → "14 ) 21/2\" KEP..."
+  const lines = rawLines.map((l, i) => (/^\s*\d+\s+\S/.test(l) && !/^\s*\d+\s*\)/.test(l) && /^\s*\)\s*$/.test(rawLines[i - 1] || '')
+    ? l.replace(/^(\s*\d+)/, '$1 )') : l)).filter(l => !/^\s*\)\s*$/.test(l));
   const warnings: string[] = [];
   const all = lines.join('\n');
   const pick = (re: RegExp) => re.exec(all)?.[1]?.replace(/^[\s:]+/, '').trim() || null;
@@ -125,15 +128,36 @@ export function parseQuoteLines(lines: string[], fileName = ''): PdfQuote {
     const netUnit = r.netUnit ?? (r.total !== null && quantity > 0 ? r.total / quantity : null);
     const currency = CUR[r.cur] || 'TRY';
     // İskonto: en sağlamı net fiyattan hesaplamak; yoksa iskonto sütunlarından
-    let discount = unitPrice > 0 && netUnit !== null ? Math.round((1 - netUnit / unitPrice) * 10000) / 100 : (r.disc ?? 0);
-    if (!(discount >= 0 && discount <= 100)) discount = Math.round((r.disc ?? 0) * 100) / 100;
-    const net = quantity * unitPrice * (1 - discount / 100);
+    // İskonto: PDF'teki İsk.% sütunu esas alınır (Mikro net tutarı bununla hesaplar). Net birim fiyattan
+    // geri hesaplamak yuvarlama yüzünden %45 yerine %45,03 gibi sonuç verip toplamı kaydırıyordu.
+    const fromNet = unitPrice > 0 && netUnit !== null ? (1 - netUnit / unitPrice) * 100 : null;
+    const colDisc = r.disc !== null && r.disc >= 0 && r.disc <= 100 ? Math.round(r.disc * 100) / 100 : null;
+    let discount: number;
+    if (colDisc !== null && (fromNet === null || Math.abs(colDisc - fromNet) < 0.5
+      || (r.total !== null && Math.abs(quantity * unitPrice * (1 - colDisc / 100) - r.total) < Math.max(0.05, r.total * 0.0005)))) {
+      discount = colDisc;
+    } else if (fromNet !== null) {
+      // Sütun yoksa: tam sayıya çok yakınsa tam sayı kabul edilir
+      discount = Math.abs(fromNet - Math.round(fromNet)) < 0.1 ? Math.round(fromNet) : Math.round(fromNet * 100) / 100;
+    } else discount = 0;
+    if (!(discount >= 0 && discount <= 100)) discount = 0;
+    // Mikro birim fiyatı ekranda 2 haneli gösterir ama hesapta daha çok hane kullanır (304,80 → 304,8019).
+    // Net tutar PDF'te varsa birim fiyat ondan geri hesaplanır ki satır ve teklif toplamı kuruşu kuruşuna tutsun.
+    let unitPriceExact = unitPrice;
+    if (r.total !== null && quantity > 0 && discount < 100) {
+      const back = r.total / (quantity * (1 - discount / 100));
+      if (Math.abs(back - unitPrice) < Math.max(0.01, unitPrice * 0.001)
+        && Math.abs(Math.round(quantity * unitPrice * (1 - discount / 100) * 100) / 100 - r.total) >= 0.005) {
+        unitPriceExact = Math.round(back * 10000) / 10000;
+      }
+    }
+    const net = quantity * unitPriceExact * (1 - discount / 100);
     items.push({
       id: `it-pdf-${Date.now()}-${no}`,
       productName: r.name,
       quantity,
       unit: UNIT[r.unit.toLocaleUpperCase('tr').replace(/\.$/, '')] || 'Adet',
-      unitPrice,
+      unitPrice: unitPriceExact,
       discount,
       vatRate: 20,
       totalPrice: Math.round(net * 1.2 * 100) / 100,

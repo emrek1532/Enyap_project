@@ -67,13 +67,20 @@ export async function importListFromText(
   const textPages = pages.map(p => p.filter(l => l !== '#OCR')).filter(p => p.join('').replace(/\s/g, '').length > 40);
   // Sayfalar ikişer ikişer okunur; yapay zeka hata verirse 2 kez daha denenir (yoğunlukta kısa bekleyerek)
   let quota = false;
+  const isOcr = pages.some(p => p[0] === '#OCR');
   const readPage = async (pg: string[]) => {
+    // Yazılı (taranmamış) PDF'te önce kurallarla okunur: rakamlar PDF'ten birebir alınır (0,16 $ → 0,16).
+    // Yapay zeka sadece kuralların okuyamadığı (katalog düzenli / taranmış) sayfalarda devreye girer.
+    if (!isOcr) {
+      const rule = parsePriceLines(pg).map(x => ({ ...x, currency: x.currency || currency }));
+      if (rule.length >= 3) return rule;
+    }
     for (let attempt = 0; attempt < 3 && !quota; attempt++) {
       const ai = await aiPriceListPage(pg.join('\n')).catch(e => { if (String(e?.message) === 'quota') quota = true; return null; });
       if (ai) return ai;
       if (!quota) await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
     }
-    const rule = parsePriceLines(pg).map(x => ({ ...x, currency }));
+    const rule = parsePriceLines(pg).map(x => ({ ...x, currency: x.currency || currency }));
     if (!rule.length) failed++;
     return rule;
   };
