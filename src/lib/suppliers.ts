@@ -87,35 +87,8 @@ export async function importListFromText(
   if (failed > Math.max(2, textPages.length * 0.25)) {
     throw new Error(`${failed}/${textPages.length} sayfa okunamadı${quota ? ' (yapay zekanın günlük ücretsiz kotası doldu, yarın tekrar deneyin)' : ''}; mevcut liste korundu`);
   }
-  const { name, listDate } = guessListInfo(fileName);
-  const listId = listIdFor(name, listDate);
-
-  // Eski bağlantılar (kod ya da ad aynıysa) yeni kalemlere taşınır
-  const keep = new Map<string, string>();
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from('supplier_items').select('code,name,our_code')
-      .eq('list_id', listId).not('our_code', 'is', null).range(from, from + 999);
-    if (error || !data?.length) break;
-    data.forEach((r: any) => { keep.set(`c:${r.code}`, r.our_code); keep.set(`n:${r.name}`, r.our_code); });
-    if (data.length < 1000) break;
-  }
-  const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
-  const listRow: any = { id: listId, name, list_date: listDate, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString() };
-  if (!existing) listRow.title = '';
-  const { error: le } = await supabase.from('supplier_lists').upsert(listRow);
-  if (le) throw le;
-  await supabase.from('supplier_items').delete().eq('list_id', listId);
-  for (let i = 0; i < parsed.length; i += 500) {
-    onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
-    const rows = parsed.slice(i, i + 500).map(p => ({
-      list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency: p.currency, unit: p.unit,
-      our_code: (p.code && keep.get(`c:${p.code}`)) || keep.get(`n:${p.name}`) || null,
-    }));
-    const { error } = await supabase.from('supplier_items').insert(rows);
-    if (error) throw error;
-  }
-  const matched = await autoMatchList(listId, parsed.length, onInfo);
-  return { listId, name, items: parsed.length, matched, failedPages: failed };
+  const r = await saveSupplierList(fileName, parsed, currency, onInfo);
+  return { ...r, failedPages: failed };
 }
 
 /** Fiyat listesinin bir sayfasını sunucudaki yapay zekayla kalemlere ayırır (null: okunamadı) */
@@ -151,6 +124,97 @@ export async function reimportList(sourceFile: string, onInfo?: (info: string) =
   if (error) throw error;
   if (!data?.length) throw new Error('bu listenin PDF yazısı kayıtlı değil, PDF\'i tekrar yükleyin');
   return importListFromText(sourceFile, data.map((r: any) => String(r.content || '').split('\n')), onInfo);
+}
+
+
+type ListItem = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency };
+
+/** Kalemleri firma listesi olarak kaydeder (aynı liste varsa üzerine yazar, eski bağlantılar korunur) ve eşleştirir */
+async function saveSupplierList(fileName: string, parsed: ListItem[], currency: Currency, onInfo?: (info: string) => void) {
+  const { guessListInfo, listIdFor } = await import('./priceParse');
+  const { name, listDate } = guessListInfo(fileName);
+  const listId = listIdFor(name, listDate);
+
+  // Eski bağlantılar (kod ya da ad aynıysa) yeni kalemlere taşınır
+  const keep = new Map<string, string>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('supplier_items').select('code,name,our_code')
+      .eq('list_id', listId).not('our_code', 'is', null).range(from, from + 999);
+    if (error || !data?.length) break;
+    data.forEach((r: any) => { keep.set(`c:${r.code}`, r.our_code); keep.set(`n:${r.name}`, r.our_code); });
+    if (data.length < 1000) break;
+  }
+  const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
+  const listRow: any = { id: listId, name, list_date: listDate, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString() };
+  if (!existing) listRow.title = '';
+  const { error: le } = await supabase.from('supplier_lists').upsert(listRow);
+  if (le) throw le;
+  await supabase.from('supplier_items').delete().eq('list_id', listId);
+  for (let i = 0; i < parsed.length; i += 500) {
+    onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
+    const rows = parsed.slice(i, i + 500).map(p => ({
+      list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency: p.currency, unit: p.unit,
+      our_code: (p.code && keep.get(`c:${p.code}`)) || keep.get(`n:${p.name}`) || null,
+    }));
+    const { error } = await supabase.from('supplier_items').insert(rows);
+    if (error) throw error;
+  }
+  const matched = await autoMatchList(listId, parsed.length, onInfo);
+  return { listId, name, items: parsed.length, matched };
+}
+
+/**
+ * Excel (.xlsx) ya da CSV fiyat listesi: başlık satırındaki sütun adlarından kod, ürün adı, fiyat,
+ * para birimi, grup ve birim bulunur. Firma adı ve tarih dosya adından alınır.
+ */
+export async function importListFromSheet(file: File, onInfo?: (info: string) => void) {
+  onInfo?.('dosya okunuyor…');
+  let rows: unknown[][];
+  if (/\.csv$/i.test(file.name)) {
+    const text = await file.text();
+    const sep = (text.split('\n')[0].match(/;/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
+    rows = text.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(sep).map(c => c.replace(/^"|"$/g, '').trim()));
+  } else {
+    const readXlsx = (await import('read-excel-file')).default;
+    rows = await readXlsx(file) as unknown[][];
+  }
+  const fold = (v: unknown) => String(v ?? '').toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').trim();
+  // Başlık satırı: "fiyat" geçen ilk satır
+  const hi = rows.findIndex(r => r.some(c => /fiyat|price|tutar/.test(fold(c))));
+  if (hi < 0) throw new Error('Excel\'de "Fiyat" sütunu bulunamadı');
+  const head = rows[hi].map(fold);
+  const col = (...keys: RegExp[]) => head.findIndex(h => keys.some(k => k.test(h)));
+  const cPrice = col(/fiyat|price|tutar/), cName = col(/urun ad|urun|aciklama|malzeme|description|^ad$/), cCode = col(/kod|code|stok/);
+  const cCur = col(/para|doviz|currency|birim fiyat cinsi/), cGrp = col(/grup|kategori|seri|group/), cUnit = col(/^birim$|unit/);
+  const cDn = col(/^dn|dn \(mm\)|^mm$|cap/);
+  if (cName < 0) throw new Error('Excel\'de ürün adı sütunu bulunamadı');
+  const { parseNumber } = await import('./priceParse');
+  const cur = (v: unknown, fallback: Currency): Currency => {
+    const f = fold(v);
+    return /usd|\$|dolar/.test(f) ? 'USD' : /eur|€|avro/.test(f) ? 'EUR' : /tl|try|₺/.test(f) ? 'TRY' : fallback;
+  };
+  const headCur = cur(rows[hi][cPrice], 'TRY');
+  const items: ListItem[] = [];
+  for (const r of rows.slice(hi + 1)) {
+    const name = String(r[cName] ?? '').trim();
+    const pv = r[cPrice];
+    const price = typeof pv === 'number' ? pv : parseNumber(String(pv ?? '').replace(/[^\d.,]/g, ''));
+    if (!name || !(price > 0)) continue;
+    const dn = cDn >= 0 && r[cDn] != null && String(r[cDn]).trim() ? String(r[cDn]).trim() : '';
+    items.push({
+      code: cCode >= 0 ? String(r[cCode] ?? '').trim().slice(0, 40) : '',
+      name: (dn && !new RegExp(`DN\\s?${dn}\\b`, 'i').test(name) ? `${name} DN${dn}` : name).slice(0, 200),
+      price: Math.round(price * 10000) / 10000,
+      unit: cUnit >= 0 && String(r[cUnit] ?? '').trim() ? String(r[cUnit]).trim() : 'Adet',
+      grp: cGrp >= 0 ? String(r[cGrp] ?? '').trim().slice(0, 120) || undefined : undefined,
+      currency: cCur >= 0 ? cur(r[cCur], headCur) : headCur,
+    });
+  }
+  if (!items.length) throw new Error('Excel\'de fiyatlı satır bulunamadı');
+  const counts = items.reduce((m, i) => m.set(i.currency, (m.get(i.currency) || 0) + 1), new Map<Currency, number>());
+  const main = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  return saveSupplierList(file.name, items, main, onInfo);
 }
 
 /** Listedeki kalemleri bizim malzeme kodlarıyla otomatik eşleştirir (sunucuda, parça parça) */
