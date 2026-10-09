@@ -1,0 +1,3 @@
+-- Uygulandı (Supabase MCP: push_reminders): push_subscriptions, quote_reminders, push_config (VAPID, RLS ile kapalı),
+-- send_quote_reminders() ve pg_cron görevi 'quote-reminders' (her gün 06:05 ve 12:05 UTC).
+-- VAPID özel anahtarı bu dosyada tutulmaz; sadece veritabanındaki push_config tablosunda.

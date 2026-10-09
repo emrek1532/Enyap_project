@@ -397,6 +397,75 @@ async function handlePriceList(req: Request, env: Env): Promise<Response> {
   }
 }
 
+// ---- Web Push (bildirim): teklif hatırlatmaları. Veritabanındaki zamanlanmış görev çağırır. ----
+const b64u = (buf: ArrayBuffer | Uint8Array) => {
+  const b = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let s = ''; b.forEach(c => { s += String.fromCharCode(c); });
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+const unb64u = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+const concat = (...parts: Uint8Array[]) => {
+  const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
+  let o = 0; parts.forEach(p => { out.set(p, o); o += p.length; });
+  return out;
+};
+const enc = (t: string) => new TextEncoder().encode(t);
+async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, len: number) {
+  const key = await crypto.subtle.importKey('raw', ikm as BufferSource, 'HKDF', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: salt as BufferSource, info: info as BufferSource }, key, len * 8));
+}
+
+/** RFC 8291 (aes128gcm) ile bildirim içeriğini şifreler */
+async function encryptPush(payload: Uint8Array, p256dh: string, authSecret: string) {
+  const uaPublic = unb64u(p256dh), auth = unb64u(authSecret);
+  const local = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']) as CryptoKeyPair;
+  const asPublic = new Uint8Array(await crypto.subtle.exportKey('raw', local.publicKey) as ArrayBuffer);
+  const uaKey = await crypto.subtle.importKey('raw', uaPublic, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey } as any, local.privateKey, 256));
+  const ikm = await hkdf(auth, shared, concat(enc('WebPush: info\0'), uaPublic, asPublic), 32);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(salt, ikm, enc('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = await hkdf(salt, ikm, enc('Content-Encoding: nonce\0'), 12);
+  const key = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, concat(payload, new Uint8Array([2]))));
+  const header = new Uint8Array(21);
+  header.set(salt, 0);
+  new DataView(header.buffer).setUint32(16, 4096);
+  header[20] = asPublic.length;
+  return concat(header, asPublic, cipher);
+}
+
+/** VAPID imzası (ES256 JWT) */
+async function vapidAuth(endpoint: string, vapid: { public: string; private: JsonWebKey; subject: string }) {
+  const aud = new URL(endpoint).origin;
+  const head = b64u(enc(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const body = b64u(enc(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: vapid.subject })));
+  const key = await crypto.subtle.importKey('jwk', { ...vapid.private, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, enc(`${head}.${body}`));
+  return `vapid t=${head}.${body}.${b64u(sig)}, k=${vapid.public}`;
+}
+
+async function handlePushSend(req: Request): Promise<Response> {
+  try {
+    const b = await req.json() as any;
+    const sub = b?.subscription, vapid = b?.vapid;
+    if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth || !vapid?.private || !vapid?.public) return json({ error: 'bad_request' }, 400);
+    if (!/^https:\/\//.test(sub.endpoint)) return json({ error: 'bad_endpoint' }, 400);
+    const body = await encryptPush(enc(JSON.stringify(b.payload || {})), sub.keys.p256dh, sub.keys.auth);
+    const res = await fetch(sub.endpoint, {
+      method: 'POST',
+      headers: {
+        authorization: await vapidAuth(sub.endpoint, vapid),
+        'content-encoding': 'aes128gcm', 'content-type': 'application/octet-stream', ttl: '86400', urgency: 'normal',
+      },
+      body,
+    });
+    return json({ status: res.status }, res.ok ? 200 : 502);
+  } catch (err) {
+    return json({ error: String((err as Error)?.message || err).slice(0, 200) }, 500);
+  }
+}
+
 /** TCMB günlük döviz satış kurları (1 saat önbellekli) */
 async function handleRates(): Promise<Response> {
   const cache = (caches as any).default as Cache;
@@ -471,6 +540,7 @@ export default {
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
     if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env);
+    if (url.pathname === '/api/push/send' && req.method === 'POST') return handlePushSend(req);
     if (url.pathname === '/api/rates') return handleRates();
     if (url.pathname === '/share-target') return handleShare(req, url);
     if (url.pathname === '/api/ai/status') return json({ ready: !!(env.ANTHROPIC_API_KEY || env.AI), voice: !!env.AI });

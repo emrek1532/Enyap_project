@@ -362,6 +362,18 @@ function Portal({ session }: { session: Session }) {
     }
   };
 
+  // Bildirime dokunulduysa (/?open-quote=ID) o teklifi aç
+  const [openQuoteId, setOpenQuoteId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('open-quote'));
+  useEffect(() => {
+    if (!openQuoteId) return;
+    const q = data.quotes.find(x => x.id === openQuoteId);
+    if (!q) return;
+    window.history.replaceState(window.history.state, '', '/');
+    setActiveTab('quotes');
+    setEditingQuote(q);
+    setOpenQuoteId(null);
+  }, [openQuoteId, data.quotes]);
+
   // Paylaş menüsünden açıldıysa (/?shared-pdf=1) PDF'i al: teklif no sistemde varsa o teklifi, yoksa yeni teklifi aç
   const quotesRef = useRef(data.quotes);
   quotesRef.current = data.quotes;
