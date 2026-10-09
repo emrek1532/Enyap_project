@@ -1,6 +1,6 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v8';
+const CACHE = 'enyap-shell-v9';
 // WhatsApp vb. uygulamalardan "Paylaş" ile gelen PDF burada bekletilir, uygulama açılınca okunur
 const SHARE_CACHE = 'enyap-share';
 const SHELL = ['/', '/index.html', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
@@ -78,4 +78,26 @@ self.addEventListener('fetch', (event) => {
       return cached || network;
     })
   );
+});
+
+// Bildirim (teklif hatırlatma): sunucudan gelir, uygulama kapalıyken de gösterilir
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { title: 'Enyap', body: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(d.title || 'Enyap', {
+    body: d.body || '', tag: d.tag, data: { url: d.url || '/' },
+    icon: '/icon-192.png', badge: '/icon-192.png', vibrate: [120, 60, 120],
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const w of wins) {
+      if ('focus' in w) { await w.navigate(url).catch(() => undefined); return w.focus(); }
+    }
+    return self.clients.openWindow(url);
+  })());
 });

@@ -1,5 +1,6 @@
-import React from 'react';
-import { RefreshCw, Plus, LogOut } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { RefreshCw, Plus, LogOut, Bell, BellOff } from 'lucide-react';
+import { disablePush, enablePush, pushEnabled, pushSupported } from '../lib/push';
 import { BrandLogo } from './BrandLogo';
 import { SyncStatus } from '../types';
 
@@ -22,6 +23,15 @@ export const Header: React.FC<HeaderProps> = ({
   urgentCount,
   onHome,
 }) => {
+  // Bildirim (teklif hatırlatma) aç/kapat
+  const [push, setPush] = useState<boolean | null>(null);
+  useEffect(() => { if (pushSupported()) pushEnabled().then(setPush, () => setPush(false)); }, []);
+  const togglePush = async () => {
+    try {
+      if (push) { await disablePush(); setPush(false); alert('Bu cihazda bildirimler kapatıldı.'); }
+      else { await enablePush(userEmail); setPush(true); alert('Bildirimler açıldı. Bekleyen teklifler 2 gün sonra size hatırlatılacak.'); }
+    } catch (e) { alert(e instanceof Error ? e.message : 'Bildirim açılamadı.'); }
+  };
   return (
     <header className="bg-white text-slate-900 shadow-sm border-b border-slate-200 pt-safe">
       {/* Top Notification Bar if there are urgent items */}
@@ -75,6 +85,17 @@ export const Header: React.FC<HeaderProps> = ({
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">+ Teklif Gir</span>
             </button>
+
+            {/* Bildirimler */}
+            {push !== null && (
+              <button
+                onClick={togglePush}
+                className={`p-1.5 rounded-lg border ${push ? 'bg-brand-50 border-brand-200 text-brand-600' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                title={push ? 'Bildirimler açık (kapatmak için dokunun)' : 'Teklif hatırlatma bildirimlerini aç'}
+              >
+                {push ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
+              </button>
+            )}
 
             {/* Sign out */}
             <button
