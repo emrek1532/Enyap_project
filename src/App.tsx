@@ -56,6 +56,8 @@ import { AiResult, collectionDraftFrom, expenseDraftFrom, quoteDraftFrom } from 
 import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './components/LedgerPanel';
 import { CustomersPanel } from './components/CustomersPanel';
 import { readQuotePdf } from './lib/pdfQuote';
+import { AccessContext, Module, Profile, can, fetchMyProfile } from './lib/access';
+import { AdminPanel, PendingScreen } from './components/AdminPanel';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -80,10 +82,61 @@ export default function App() {
 
   if (!session) return <AuthScreen />;
 
-  return <Portal key={session.user.id} session={session} />;
+  return <Gate key={session.user.id} session={session} />;
 }
 
-function Portal({ session }: { session: Session }) {
+/** Profili yükler: onaylanmamış / askıdaki kullanıcı veriye ulaşamaz */
+function Gate({ session }: { session: Session }) {
+  const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
+  const load = useCallback(() => { fetchMyProfile(session.user.id).then(setProfile); }, [session.user.id]);
+  useEffect(() => {
+    load();
+    // Yönetici yetkiyi değiştirince sayfa yenilemeden uygulanır
+    const ch = supabase.channel('my-profile')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [load, session.user.id]);
+
+  if (profile === undefined) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+      </div>
+    );
+  }
+  if (!profile || profile.status !== 'active') {
+    return (
+      <PendingScreen
+        status={profile?.status || 'missing'}
+        email={session.user.email || ''}
+        onRefresh={load}
+        onSignOut={async () => { clearLocalCache(); await supabase.auth.signOut(); }}
+      />
+    );
+  }
+  return (
+    <AccessContext.Provider value={profile}>
+      <Portal session={session} profile={profile} />
+    </AccessContext.Provider>
+  );
+}
+
+// Kayıt türü → yetki bölümü (müşteriler ve hareketler tüm aktif kullanıcılara açık)
+const ENTITY_MODULE: Record<string, Module | undefined> = {
+  quotes: 'quotes', orders: 'orders', collections: 'collections', expenses: 'expenses', events: 'calendar', notes: 'notes',
+};
+
+function Portal({ session, profile }: { session: Session; profile: Profile }) {
+  const tabAllowed = (tab: ActiveTab): boolean => {
+    switch (tab) {
+      case 'home': case 'customers': return true;
+      case 'quotes': case 'reports': return can(profile, 'quotes');
+      case 'materials': return can(profile, 'materials') || can(profile, 'suppliers');
+      case 'admin': return profile.isAdmin;
+      default: return can(profile, tab as Module);
+    }
+  };
   // Kullanıcının ekibi kayıt sırasında seçilir; kayıtlarda kimin eklediğini göstermek için kullanılır
   const currentRole: UserRole = session.user.user_metadata?.role === 'istanbul' ? 'istanbul' : 'isparta';
   const [activeTab, setActiveTabState] = useState<ActiveTab>('home');
@@ -100,7 +153,7 @@ function Portal({ session }: { session: Session }) {
   const activeTabRef = useRef<ActiveTab>('home');
   activeTabRef.current = activeTab;
   const setActiveTab = useCallback((tab: ActiveTab) => {
-    if (activeTabRef.current === tab) return;
+    if (activeTabRef.current === tab || !tabAllowed(tab)) return;
     activeTabRef.current = tab;
     window.history.pushState({ tab }, '');
     setActiveTabState(tab);
@@ -231,11 +284,17 @@ function Portal({ session }: { session: Session }) {
   }, []);
 
   // Queue changes for Supabase and push them right away
-  const persist = useCallback((ops: PendingOp[]) => {
+  const persist = useCallback((all: PendingOp[]) => {
+    const ops = all.filter(op => { const m = ENTITY_MODULE[op.entity]; return !m || can(profile, m, 'edit'); });
+    if (ops.length < all.length) {
+      setShareError('Bu bölümde düzenleme yetkiniz yok.');
+      performSync();
+      if (!ops.length) return;
+    }
     saveOutbox([...loadOutbox(), ...ops]);
     setSyncStatus(prev => ({ ...prev, pendingSync: true }));
     performSync();
-  }, [performSync]);
+  }, [performSync, profile]);
 
   const logActivity = (action: string, description: string, badgeColor: string): ActivityLog => ({
     id: 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
@@ -592,6 +651,8 @@ function Portal({ session }: { session: Session }) {
             expenses={data.expenses || []}
             notes={data.notes}
             onOpen={setActiveTab}
+            allowed={tabAllowed}
+            canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
             onNewQuote={() => setIsNewQuoteOpen(true)}
             onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
             onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
@@ -698,6 +759,8 @@ function Portal({ session }: { session: Session }) {
 
         {/* Malzemeler (fiyat kataloğu) */}
         {activeTab === 'materials' && <MaterialsPanel />}
+
+        {activeTab === 'admin' && profile.isAdmin && <AdminPanel meId={profile.id} activities={data.activities} />}
 
         {/* Rapor */}
         {activeTab === 'reports' && (
