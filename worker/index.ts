@@ -461,6 +461,14 @@ async function handlePushSend(req: Request): Promise<Response> {
       },
       body,
     });
+    // Cihaz bildirimi kapattıysa / uygulama silindiyse abonelik silinir
+    if (res.status === 404 || res.status === 410) {
+      await fetch(`${SUPABASE_URL}/rest/v1/rpc/drop_push_subscription`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ p_endpoint: sub.endpoint }),
+      }).catch(() => undefined);
+    }
     return json({ status: res.status }, res.ok ? 200 : 502);
   } catch (err) {
     return json({ error: String((err as Error)?.message || err).slice(0, 200) }, 500);
