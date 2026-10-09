@@ -3,7 +3,7 @@ import { CheckCircle2, FileUp, ImagePlus, Link2, Pencil, Loader2, Plus, Search, 
 import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -36,11 +36,12 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
     // Daha önce yazısıyla yüklenmiş dosyalar atlanır: yarıda kalan yükleme kaldığı yerden sürer
     const done = await uploadedSupplierFiles().catch(() => ({} as Record<string, number>));
     const already = files.filter(f => /\.pdf$/i.test(f.name) && done[f.name]);
-    const pdfs = files.filter(f => /\.pdf$/i.test(f.name) && !done[f.name]);
-    const others = files.filter(f => !/\.pdf$/i.test(f.name));
+    const isSheet = (f: File) => /\.(xlsx|csv)$/i.test(f.name);
+    const pdfs = files.filter(f => (/\.pdf$/i.test(f.name) && !done[f.name]) || isSheet(f));
+    const others = files.filter(f => !/\.pdf$/i.test(f.name) && !isSheet(f));
     const list: UpState[] = [
       ...pdfs.map(f => ({ name: f.name, status: 'wait' as const })),
-      ...others.map(f => ({ name: f.name, status: 'skip' as const, info: 'PDF değil — bu dosyayı sohbete ayrıca gönderin' })),
+      ...others.map(f => ({ name: f.name, status: 'skip' as const, info: 'desteklenmeyen dosya (PDF, Excel .xlsx ya da CSV yükleyin)' })),
       ...already.map(f => ({ name: f.name, status: 'ok' as const, info: 'zaten yüklü, atlandı' })),
     ];
     setRows(list);
@@ -52,6 +53,16 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
       const f = pdfs[i];
       setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'run', info: 'okunuyor…' } : x)));
       try {
+        // Excel / CSV: doğrudan listeye
+        if (isSheet(f)) {
+          const imp = await importListFromSheet(f, info => setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
+          setRows(r => r.map(x => (x.name === f.name ? {
+            ...x, status: 'ok',
+            info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı`,
+          } : x)));
+          onImported?.();
+          continue;
+        }
         const res = await uploadSupplierPdf(f, info =>
           setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
         if (res.chars <= 200) {
@@ -83,9 +94,9 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
       <div className="flex items-center gap-3">
         <FileUp className="w-6 h-6 text-brand-600 shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="font-bold text-sm text-slate-900">Fiyat listesi PDF'lerini yükle</div>
+          <div className="font-bold text-sm text-slate-900">Fiyat listesi yükle (PDF, Excel)</div>
           <div className="text-xs text-slate-500">
-            Klasördeki tüm PDF'leri birlikte seçebilirsiniz. Her PDF okunur, firma listesine dönüştürülür ve bizim kodlarla kendiliğinden eşleştirilir.
+            PDF ya da Excel (.xlsx, CSV) seçin; birden fazla dosya seçebilirsiniz. Excel'de başlık satırında "Ürün adı" ve "Fiyat" sütunları olmalı (isteğe bağlı: Kod, Grup, DN, Para birimi). Firma adı ve tarih dosya adından alınır, ör. "FAF Nisan 2026.xlsx". Liste bizim kodlarla kendiliğinden eşleştirilir.
             {uploaded !== null && uploaded > 0 && <> · Şu ana kadar <b>{uploaded}</b> dosya yüklendi.</>}
           </div>
           {busy && (
@@ -99,9 +110,9 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           disabled={busy}
           className="shrink-0 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold disabled:opacity-60"
         >
-          {busy ? `Yükleniyor ${done}/${total}` : 'PDF Seç'}
+          {busy ? `Yükleniyor ${done}/${total}` : 'Dosya Seç'}
         </button>
-        <input ref={inputRef} type="file" accept="application/pdf,.pdf" multiple hidden
+        <input ref={inputRef} type="file" accept="application/pdf,.pdf,.xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" multiple hidden
           onChange={e => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (fs.length) run(fs); }} />
       </div>
       {rows.length > 0 && (
