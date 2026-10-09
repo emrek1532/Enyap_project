@@ -3,7 +3,7 @@ import { CheckCircle2, FileUp, ImagePlus, Link2, Pencil, Loader2, Plus, Search, 
 import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -387,6 +387,8 @@ export const SupplierListsPanel: React.FC = () => {
                   </span>
                 ) : (
                   <span className="flex flex-col items-end gap-1">
+                    <button type="button" onClick={() => exportListToExcel(current).catch(() => setError('Excel oluşturulamadı.'))}
+                      className="text-xs font-semibold text-emerald-700 hover:underline">Excel olarak indir</button>
                     {current.sourceFile && (
                       <button type="button" onClick={reread} disabled={!!reading} className="text-xs font-semibold text-brand-700 hover:underline disabled:opacity-60">
                         {reading ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{reading}</span> : 'Yeniden oku'}
