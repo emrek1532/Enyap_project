@@ -130,6 +130,11 @@ export interface QuickNote {
   pinned: boolean;
   createdAt: string;
   updatedAt?: string;
+  /** Hatırlatma zamanı (ISO); bu saatte telefona bildirim gider */
+  remindAt?: string | null;
+  /** Bildirim gönderildi mi (zaman değişince sıfırlanır) */
+  remindedAt?: string | null;
+  done?: boolean;
 }
 
 export interface ActivityLog {

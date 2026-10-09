@@ -1,16 +1,8 @@
-import React, { useState } from 'react';
-import { 
-  StickyNote, 
-  Plus, 
-  Pin, 
-  Trash2, 
-  Clock, 
-  Activity, 
-  User, 
-  Send,
-  Sparkles
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Activity, Bell, Check, ChevronDown, Pin, Trash2 } from 'lucide-react';
 import { QuickNote, ActivityLog, UserRole } from '../types';
+import { NoteComposer } from './NoteComposer';
+import { formatReminder } from '../lib/noteTime';
 
 interface QuickNotesPanelProps {
   notes: QuickNote[];
@@ -18,185 +10,108 @@ interface QuickNotesPanelProps {
   currentRole: UserRole;
   onSaveNote: (note: QuickNote) => void;
   onDeleteNote: (id: string) => void;
+  highlightId?: string | null;
 }
 
-export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({
-  notes,
-  activities,
-  currentRole,
-  onSaveNote,
-  onDeleteNote,
-}) => {
-  const [newNoteContent, setNewNoteContent] = useState('');
-  const [selectedColor, setSelectedColor] = useState<QuickNote['color']>('amber');
+type Filter = 'open' | 'remind' | 'done';
 
-  const colorClasses = {
-    amber: 'bg-amber-50 border-amber-200 text-amber-900',
-    sky: 'bg-sky-50 border-sky-200 text-sky-900',
-    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-    rose: 'bg-rose-50 border-rose-200 text-rose-900',
-    purple: 'bg-purple-50 border-purple-200 text-purple-900',
+/** Notlar: üstte yazma kutusu (ses + hatırlatma), altında sade liste */
+export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({ notes, activities, currentRole, onSaveNote, onDeleteNote, highlightId }) => {
+  const [filter, setFilter] = useState<Filter>('open');
+  const [editing, setEditing] = useState<QuickNote | null>(null);
+  const [showActivity, setShowActivity] = useState(false);
+
+  const list = useMemo(() => {
+    const f = notes.filter(n => (filter === 'done' ? n.done : !n.done) && (filter !== 'remind' || !!n.remindAt));
+    return f.sort((a, b) => {
+      if (filter === 'remind') return (a.remindAt || '').localeCompare(b.remindAt || '');
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+  }, [notes, filter]);
+
+  const counts = {
+    open: notes.filter(n => !n.done).length,
+    remind: notes.filter(n => !n.done && n.remindAt).length,
+    done: notes.filter(n => n.done).length,
   };
-
-  const handleCreateNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNoteContent.trim()) return;
-
-    const note: QuickNote = {
-      id: 'nt-' + Date.now(),
-      content: newNoteContent.trim(),
-      author: currentRole,
-      color: selectedColor,
-      pinned: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    onSaveNote(note);
-    setNewNoteContent('');
-  };
+  const now = Date.now();
+  const tab = (f: Filter, label: string) => (
+    <button onClick={() => setFilter(f)}
+      className={`px-3 py-1.5 rounded-lg text-xs font-extrabold ${filter === f ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
+      {label} <span className="font-semibold opacity-60">{counts[f]}</span>
+    </button>
+  );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-      
-      {/* Sticky Notes Section (2 cols on lg) */}
-      <div className="lg:col-span-2 space-y-4">
-        
-        {/* Create Note Input */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 mb-2">
-            <StickyNote className="w-4 h-4 text-brand-500" />
-            <span>Ortak Hızlı Not / Ofis & Saha Mesajı Ekle</span>
-          </h3>
+    <div className="max-w-3xl mx-auto space-y-3">
+      <NoteComposer
+        currentRole={currentRole}
+        editing={editing}
+        onSave={n => { onSaveNote(n); setEditing(null); }}
+        onCancelEdit={() => setEditing(null)}
+      />
 
-          <form onSubmit={handleCreateNote} className="space-y-3">
-            <textarea
-              rows={2}
-              required
-              placeholder="Örn: Bucak mermer fabrikası kaskad kazan stokları teyit edildi. Ambar saat 17:00'ye kadar yükleme alıyor..."
-              value={newNoteContent}
-              onChange={(e) => setNewNoteContent(e.target.value)}
-              className="w-full p-2.5 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-            />
+      <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70 w-fit">
+        {tab('open', 'Notlar')}
+        {tab('remind', 'Hatırlatmalı')}
+        {tab('done', 'Tamamlanan')}
+      </div>
 
-            <div className="flex items-center justify-between">
-              {/* Color options */}
-              <div className="flex items-center gap-1.5">
-                {(['amber', 'sky', 'emerald', 'rose', 'purple'] as QuickNote['color'][]).map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setSelectedColor(c)}
-                    className={`w-5 h-5 rounded-full border-2 transition-transform ${
-                      c === 'amber' ? 'bg-amber-400' :
-                      c === 'sky' ? 'bg-sky-400' :
-                      c === 'emerald' ? 'bg-emerald-400' :
-                      c === 'rose' ? 'bg-rose-400' : 'bg-purple-400'
-                    } ${selectedColor === c ? 'scale-125 border-slate-900' : 'border-transparent'}`}
-                  />
-                ))}
-              </div>
-
-              <button
-                type="submit"
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs shadow-xs"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Notu Paylaş</span>
+      <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+        {list.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Not yok.</p>}
+        {list.map(n => {
+          const overdue = n.remindAt && !n.done && new Date(n.remindAt).getTime() < now;
+          return (
+            <div key={n.id} className={`flex items-start gap-2.5 px-3 py-2.5 ${highlightId === n.id ? 'bg-amber-50' : ''} ${editing?.id === n.id ? 'bg-brand-50' : ''}`}>
+              <button onClick={() => onSaveNote({ ...n, done: !n.done })} title={n.done ? 'Geri al' : 'Tamamlandı'}
+                className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${n.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-500'}`}>
+                {n.done && <Check className="w-3 h-3" />}
               </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Notes Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {notes.length === 0 ? (
-            <div className="col-span-full bg-white p-6 rounded-xl border border-slate-200 text-center text-xs text-slate-400">
-              Henüz paylaşılmış bir not bulunmuyor.
-            </div>
-          ) : (
-            notes.map((note) => (
-              <div
-                key={note.id}
-                className={`p-3.5 rounded-xl border shadow-2xs space-y-2.5 relative flex flex-col justify-between ${
-                  colorClasses[note.color] || colorClasses.amber
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between text-[11px] font-bold opacity-80 border-b border-black/10 pb-1 mb-2">
-                    <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {note.author === 'isparta' ? 'Şakir Emre (Isparta)' : 'İstanbul Ofis'}
+              <button onClick={() => setEditing(n)} className="min-w-0 flex-1 text-left">
+                <div className={`text-sm leading-snug whitespace-pre-wrap break-words ${n.done ? 'line-through text-slate-400' : 'text-slate-900'}`}>{n.content}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400">
+                  {n.remindAt && (
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-bold ${overdue ? 'bg-rose-50 text-rose-700' : n.remindedAt ? 'bg-slate-100 text-slate-500' : 'bg-amber-50 text-amber-800'}`}>
+                      <Bell className="w-3 h-3" /> {formatReminder(n.remindAt)}{n.remindedAt ? ' · bildirildi' : ''}
                     </span>
-                    <button
-                      onClick={() => onSaveNote({ ...note, pinned: !note.pinned })}
-                      className="hover:scale-110 transition-transform"
-                      title={note.pinned ? 'Sabitlendi' : 'Sabitle'}
-                    >
-                      <Pin className={`w-3.5 h-3.5 ${note.pinned ? 'fill-current' : 'opacity-50'}`} />
-                    </button>
-                  </div>
-                  <p className="text-xs sm:text-sm font-medium whitespace-pre-wrap leading-relaxed">
-                    {note.content}
-                  </p>
+                  )}
+                  <span>{new Date(n.createdAt).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>{n.author === 'istanbul' ? 'İstanbul' : n.author === 'isparta' ? 'Isparta' : n.author}</span>
                 </div>
-
-                <div className="flex items-center justify-between text-[10px] opacity-70 pt-2 border-t border-black/10">
-                  <span>{new Date(note.createdAt).toLocaleDateString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <button
-                    onClick={() => onDeleteNote(note.id)}
-                    className="hover:text-rose-700 transition-colors"
-                    title="Notu Sil"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => onSaveNote({ ...n, pinned: !n.pinned })} title="Sabitle"
+                  className={`p-1.5 rounded-lg ${n.pinned ? 'text-brand-600' : 'text-slate-300 hover:text-slate-500'}`}>
+                  <Pin className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => onDeleteNote(n.id)} title="Sil" className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
-            ))
-          )}
-        </div>
-
+            </div>
+          );
+        })}
       </div>
 
-      {/* Real-time Activity Timeline (1 col on lg) */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4 space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-            <Activity className="w-4 h-4 text-sky-500" />
-            <span>Saha & Ofis Canlı Akışı</span>
-          </h3>
-          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
-            Son İşlemler
-          </span>
-        </div>
-
-        <div className="space-y-3 max-h-[500px] overflow-y-auto">
-          {activities.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-6">Kayıtlı işlem akışı yok.</p>
-          ) : (
-            activities.map((act) => (
-              <div key={act.id} className="flex items-start gap-2.5 text-xs pb-2 border-b border-slate-100 last:border-0">
-                <div className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-bold text-slate-800 truncate">{act.action}</span>
-                    <span className="text-[10px] text-slate-400 shrink-0">
-                      {new Date(act.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <p className="text-slate-600 text-[11px] mt-0.5 leading-snug">
-                    {act.description}
-                  </p>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    {act.author === 'isparta' ? 'Şakir Emre' : 'İstanbul Ofis'}
-                  </span>
-                </div>
+      {/* Son hareketler (kapalı başlar) */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <button onClick={() => setShowActivity(s => !s)} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-700">
+          <Activity className="w-4 h-4 text-slate-400" /> Son hareketler
+          <ChevronDown className={`w-4 h-4 ml-auto text-slate-400 transition ${showActivity ? 'rotate-180' : ''}`} />
+        </button>
+        {showActivity && (
+          <div className="divide-y divide-slate-100 border-t border-slate-100 max-h-96 overflow-y-auto">
+            {activities.slice(0, 40).map(a => (
+              <div key={a.id} className="px-3 py-2 text-xs">
+                <div className="font-bold text-slate-800">{a.action}</div>
+                <div className="text-slate-500 break-words">{a.description}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">{new Date(a.timestamp).toLocaleString('tr-TR')}</div>
               </div>
-            ))
-          )}
-        </div>
-
+            ))}
+          </div>
+        )}
       </div>
-
     </div>
   );
 };

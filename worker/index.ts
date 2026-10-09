@@ -114,7 +114,7 @@ Kurallar:
 
 type Body = {
   text?: string; audio?: string; today?: string; customers?: string[]; expenseCategories?: string[];
-  expenseMethods?: string[]; regions?: string[]; banks?: string[];
+  expenseMethods?: string[]; regions?: string[]; banks?: string[]; textOnly?: boolean;
 };
 
 class ParseError extends Error {
@@ -292,6 +292,7 @@ async function handleVoice(req: Request, env: Env): Promise<Response> {
     return json({ error: 'stt', message: 'Ses yazıya çevrilemedi, tekrar deneyin.' }, 502);
   }
   if (!text) return json({ error: 'no_speech', message: 'Ses anlaşılamadı, biraz daha yüksek sesle tekrar deneyin.' }, 422);
+  if (body.textOnly) return json({ text });
 
   try {
     return json({ text, result: await parseText(text, body, env) });

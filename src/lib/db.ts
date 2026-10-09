@@ -191,6 +191,9 @@ const noteToRow = (n: QuickNote): Row => ({
   pinned: !!n.pinned,
   created_at: n.createdAt,
   updated_at: n.updatedAt || n.createdAt,
+  remind_at: n.remindAt || null,
+  reminded_at: n.remindedAt || null,
+  done: !!n.done,
 });
 
 const rowToNote = (r: Row): QuickNote => ({
@@ -201,6 +204,9 @@ const rowToNote = (r: Row): QuickNote => ({
   pinned: r.pinned,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  remindAt: r.remind_at,
+  remindedAt: r.reminded_at,
+  done: !!r.done,
 });
 
 const activityToRow = (a: ActivityLog): Row => ({
