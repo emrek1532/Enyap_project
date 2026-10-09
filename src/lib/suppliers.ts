@@ -127,7 +127,7 @@ export async function reimportList(sourceFile: string, onInfo?: (info: string) =
 }
 
 
-type ListItem = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency };
+type ListItem = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency; ourCode?: string };
 
 /** Kalemleri firma listesi olarak kaydeder (aynı liste varsa üzerine yazar, eski bağlantılar korunur) ve eşleştirir */
 async function saveSupplierList(fileName: string, parsed: ListItem[], currency: Currency, onInfo?: (info: string) => void) {
@@ -154,7 +154,7 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
     const rows = parsed.slice(i, i + 500).map(p => ({
       list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency: p.currency, unit: p.unit,
-      our_code: (p.code && keep.get(`c:${p.code}`)) || keep.get(`n:${p.name}`) || null,
+      our_code: p.ourCode || (p.code && keep.get(`c:${p.code}`)) || keep.get(`n:${p.name}`) || null,
     }));
     const { error } = await supabase.from('supplier_items').insert(rows);
     if (error) throw error;
@@ -185,9 +185,10 @@ export async function importListFromSheet(file: File, onInfo?: (info: string) =>
   if (hi < 0) throw new Error('Excel\'de "Fiyat" sütunu bulunamadı');
   const head = rows[hi].map(fold);
   const col = (...keys: RegExp[]) => head.findIndex(h => keys.some(k => k.test(h)));
-  const cPrice = col(/fiyat|price|tutar/), cName = col(/urun ad|urun|aciklama|malzeme|description|^ad$/), cCode = col(/kod|code|stok/);
+  const cPrice = col(/fiyat|price|tutar/), cName = col(/urun ad|urun|aciklama|malzeme|description|^ad$/), cCode = head.findIndex(h => /kod|code|stok/.test(h) && !/bizim/.test(h));
   const cCur = col(/para|doviz|currency|birim fiyat cinsi/), cGrp = col(/grup|kategori|seri|group/), cUnit = col(/^birim$|unit/);
   const cDn = col(/^dn|dn \(mm\)|^mm$|cap/);
+  const cOur = col(/bizim kod/);
   if (cName < 0) throw new Error('Excel\'de ürün adı sütunu bulunamadı');
   const { parseNumber } = await import('./priceParse');
   const cur = (v: unknown, fallback: Currency): Currency => {
@@ -209,12 +210,39 @@ export async function importListFromSheet(file: File, onInfo?: (info: string) =>
       unit: cUnit >= 0 && String(r[cUnit] ?? '').trim() ? String(r[cUnit]).trim() : 'Adet',
       grp: cGrp >= 0 ? String(r[cGrp] ?? '').trim().slice(0, 120) || undefined : undefined,
       currency: cCur >= 0 ? cur(r[cCur], headCur) : headCur,
+      ourCode: cOur >= 0 && String(r[cOur] ?? '').trim() ? String(r[cOur]).trim() : undefined,
     });
   }
   if (!items.length) throw new Error('Excel\'de fiyatlı satır bulunamadı');
   const counts = items.reduce((m, i) => m.set(i.currency, (m.get(i.currency) || 0) + 1), new Map<Currency, number>());
   const main = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
   return saveSupplierList(file.name, items, main, onInfo);
+}
+
+/** Firma listesini Excel olarak indirir (düzeltip aynı adla tekrar yüklenebilir) */
+export async function exportListToExcel(list: SupplierList) {
+  const all: any[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('supplier_items').select('code,name,grp,price,currency,unit,our_code')
+      .eq('list_id', list.id).order('id').range(from, from + 999);
+    if (error) throw error;
+    all.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  const writeXlsx = (await import('write-excel-file')).default;
+  const head = ['Grup', 'Kod', 'Ürün adı', 'Fiyat', 'Para birimi', 'Birim', 'Bizim kod']
+    .map(value => ({ value, fontWeight: 'bold' as const, backgroundColor: '#DCE8F5' }));
+  const rows = all.map(r => [
+    { type: String, value: r.grp || '' }, { type: String, value: r.code || '' }, { type: String, value: r.name || '' },
+    { type: Number, value: Number(r.price) || 0 }, { type: String, value: r.currency || 'TRY' },
+    { type: String, value: r.unit || 'Adet' }, { type: String, value: r.our_code || '' },
+  ]);
+  // Dosya adı tekrar yüklemede aynı listeye denk gelsin: "FAF Nisan 2026.xlsx"
+  const fileName = `${[list.name, list.listDate].filter(Boolean).join(' ')}.xlsx`;
+  await writeXlsx([head, ...rows] as any, {
+    fileName,
+    columns: [{ width: 40 }, { width: 14 }, { width: 60 }, { width: 10 }, { width: 10 }, { width: 8 }, { width: 16 }],
+  });
 }
 
 /** Listedeki kalemleri bizim malzeme kodlarıyla otomatik eşleştirir (sunucuda, parça parça) */
