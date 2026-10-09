@@ -295,9 +295,13 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Para birimine göre KDV dahil toplamlar
-  const totalsByCurrency = items.reduce<Record<Currency, number>>((acc, it) => {
-    acc[it.currency || 'TRY'] += it.totalPrice || 0;
+  // Para birimine göre KDV dahil toplamlar — Mikro gibi: satır net tutarları kuruşa yuvarlanır,
+  // KDV satır satır değil ara toplam üzerinden hesaplanır (yuvarlama farkı çıkmasın)
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const lineNet = (it: QuoteItem) => r2((it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100));
+  const totalsByCurrency = (['TRY', 'USD', 'EUR'] as Currency[]).reduce<Record<Currency, number>>((acc, c) => {
+    const net = r2(items.filter(it => (it.currency || 'TRY') === c).reduce((a, it) => a + lineNet(it), 0));
+    acc[c] = r2(net + r2(net * 0.2));
     return acc;
   }, { TRY: 0, USD: 0, EUR: 0 });
   const usedCurrencies = (Object.keys(totalsByCurrency) as Currency[]).filter(c => totalsByCurrency[c] > 0);
@@ -357,9 +361,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   // Genel toplamlar (Mikro'daki gibi: ara toplam, iskonto, KDV, genel toplam — para birimi başına)
   const summary = (['TRY', 'USD', 'EUR'] as Currency[]).map(c => {
     const rows = items.filter(it => (it.currency || 'TRY') === c);
-    const gross = rows.reduce((a, it) => a + (it.quantity || 0) * (it.unitPrice || 0), 0);
-    const net = rows.reduce((a, it) => a + (it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100), 0);
-    return { c, gross, disc: gross - net, net, vat: net * 0.2, total: net * 1.2 };
+    const gross = r2(rows.reduce((a, it) => a + r2((it.quantity || 0) * (it.unitPrice || 0)), 0));
+    const net = r2(rows.reduce((a, it) => a + lineNet(it), 0));
+    const vat = r2(net * 0.2);
+    return { c, gross, disc: r2(gross - net), net, vat, total: r2(net + vat) };
   }).filter(r => r.gross > 0);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -436,7 +441,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   };
 
   const fmt2 = (n: number) => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const lineNet = (it: QuoteItem) => (it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4">
