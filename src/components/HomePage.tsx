@@ -65,7 +65,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [materialCount, setMaterialCount] = useState<number | null>(null);
   useEffect(() => {
     let alive = true;
-    supabase.from('materials').select('code', { count: 'estimated', head: true })
+    supabase.from('materials').select('code', { count: 'exact', head: true })
       .then(({ count }) => { if (alive && count != null) setMaterialCount(count); });
     return () => { alive = false; };
   }, []);
