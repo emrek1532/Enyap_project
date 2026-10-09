@@ -144,6 +144,7 @@ export interface ActivityLog {
   author: UserRole | string;
   timestamp: string;
   badgeColor?: string;
+  actor?: string | null;
 }
 
 export interface Customer {

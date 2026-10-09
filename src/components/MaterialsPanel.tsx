@@ -7,6 +7,7 @@ import { MobileSortSelect, SortHeader, SortState, nextSort } from './SortHeader'
 import { SupplierListsPanel } from './SupplierListsPanel';
 import { supabase } from '../lib/supabase';
 import { fetchSupplierLists } from '../lib/suppliers';
+import { can, useAccess } from '../lib/access';
 
 const PAGE = 50;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
@@ -340,7 +341,11 @@ const MaterialForm: React.FC<{
 
 /** Malzemeler: bizim kataloğumuz ve firma fiyat listeleri ayrı sekmelerde (birbirine karışmaz) */
 export const MaterialsPanel: React.FC = () => {
+  const me = useAccess();
+  const showOwn = can(me, 'materials'), showSup = can(me, 'suppliers');
   const [tab, setTab] = useState<'own' | 'suppliers'>(() => {
+    if (!showOwn) return 'suppliers';
+    if (!showSup) return 'own';
     try { return localStorage.getItem('enyap-materials-tab') === 'suppliers' ? 'suppliers' : 'own'; } catch { return 'own'; }
   });
   const choose = (t: 'own' | 'suppliers') => { setTab(t); try { localStorage.setItem('enyap-materials-tab', t); } catch { /* */ } };
@@ -359,7 +364,7 @@ export const MaterialsPanel: React.FC = () => {
   const sub = 'block text-[11px] font-semibold text-slate-400 mt-0.5';
   return (
     <div className="space-y-3">
-      <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70" role="tablist">
+      {showOwn && showSup && <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70" role="tablist">
         <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
           Bizim Malzemeler
           <span className={sub}>{ownCount !== null ? `${tr(ownCount)} kalem` : '\u00a0'}</span>
@@ -368,7 +373,7 @@ export const MaterialsPanel: React.FC = () => {
           Firma Fiyat Listeleri
           <span className={sub}>{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '\u00a0'}</span>
         </button>
-      </div>
+      </div>}
       {tab === 'own' ? <OwnMaterials /> : <SupplierListsPanel />}
     </div>
   );

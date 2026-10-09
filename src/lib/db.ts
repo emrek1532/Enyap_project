@@ -225,6 +225,7 @@ const rowToActivity = (r: Row): ActivityLog => ({
   author: r.author,
   timestamp: r.timestamp,
   badgeColor: r.badge_color ?? undefined,
+  actor: r.actor ?? null,
 });
 
 const collectionToRow = (c: Collection): Row => ({

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileText, Users, Wallet, Receipt, BarChart3, StickyNote, Package, ChevronRight, Plus } from 'lucide-react';
+import { FileText, Users, Wallet, Receipt, BarChart3, StickyNote, Package, ChevronRight, Plus, ShieldCheck } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { supabase } from '../lib/supabase';
@@ -12,6 +12,8 @@ interface HomePageProps {
   expenses: Expense[];
   notes: QuickNote[];
   onOpen: (tab: Exclude<ActiveTab, 'home'>) => void;
+  allowed: (tab: ActiveTab) => boolean;
+  canAdd: { quote: boolean; collection: boolean; expense: boolean };
   onNewQuote: () => void;
   onNewCollection: () => void;
   onNewExpense: () => void;
@@ -29,7 +31,7 @@ const greeting = () => {
 };
 
 export const HomePage: React.FC<HomePageProps> = ({
-  quotes, customers, collections, expenses, notes, onOpen, onNewQuote, onNewCollection, onNewExpense,
+  quotes, customers, collections, expenses, notes, onOpen, allowed, canAdd, onNewQuote, onNewCollection, onNewExpense,
 }) => {
   const s = useMemo(() => {
     const now = new Date();
@@ -68,10 +70,11 @@ export const HomePage: React.FC<HomePageProps> = ({
     return () => { alive = false; };
   }, []);
 
-  const tiles: {
+  type Tile = {
     tab: Exclude<ActiveTab, 'home'>; title: string; desc: string; Icon: React.ElementType;
     tone: string; ring: string; stat: string; statLabel: string;
-  }[] = [
+  };
+  const tiles = ([
     { tab: 'quotes', title: 'Teklifler', desc: 'Teklif listesi, onay ve revize', Icon: FileText,
       tone: 'bg-brand-50 text-brand-600', ring: 'hover:border-brand-300',
       stat: s.pending.toLocaleString('tr-TR'), statLabel: `bekleyen · ${tl(s.pendingAmt)}` },
@@ -93,7 +96,9 @@ export const HomePage: React.FC<HomePageProps> = ({
     { tab: 'notes', title: 'Notlar', desc: 'Ofis / saha notları ve akış', Icon: StickyNote,
       tone: 'bg-amber-50 text-amber-600', ring: 'hover:border-amber-300',
       stat: s.notes.toLocaleString('tr-TR'), statLabel: s.pinned ? `not · ${s.pinned} sabitlenmiş` : 'not' },
-  ];
+    { tab: 'admin', title: 'Yönetim', desc: 'Personel, yetkiler ve hareketler', Icon: ShieldCheck,
+      tone: 'bg-slate-100 text-slate-700', ring: 'hover:border-slate-400', stat: '', statLabel: 'sadece sizde görünür' },
+  ] as Tile[]).filter(t => allowed(t.tab));
 
   const dateText = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -111,10 +116,10 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
           <div className="grid grid-cols-3 gap-2 lg:flex">
             {[
-              { label: 'Yeni Teklif', onClick: onNewQuote },
-              { label: 'Tahsilat Ekle', onClick: onNewCollection },
-              { label: 'Harcama Ekle', onClick: onNewExpense },
-            ].map(a => (
+              { label: 'Yeni Teklif', onClick: onNewQuote, ok: canAdd.quote },
+              { label: 'Tahsilat Ekle', onClick: onNewCollection, ok: canAdd.collection },
+              { label: 'Harcama Ekle', onClick: onNewExpense, ok: canAdd.expense },
+            ].filter(a => a.ok).map(a => (
               <button
                 key={a.label}
                 onClick={a.onClick}
@@ -198,4 +203,5 @@ export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; i
   materials: { title: 'Malzemeler', icon: Package, tone: 'bg-teal-50 text-teal-600' },
   reports: { title: 'Rapor', icon: BarChart3, tone: 'bg-indigo-50 text-indigo-600' },
   notes: { title: 'Notlar', icon: StickyNote, tone: 'bg-amber-50 text-amber-600' },
+  admin: { title: 'Yönetim', icon: ShieldCheck, tone: 'bg-slate-100 text-slate-700' },
 };
