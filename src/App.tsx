@@ -43,6 +43,7 @@ import { Header } from './components/Header';
 import type { ActiveTab } from './components/Navigation';
 import { DashboardStats } from './components/DashboardStats';
 import { QuoteManager } from './components/QuoteManager';
+import { QuickNoteFab } from './components/QuickNoteFab';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
@@ -362,6 +363,16 @@ function Portal({ session }: { session: Session }) {
     }
   };
 
+  // Not bildirimine dokunulduysa (/?open-note=ID) notlar açılır ve not vurgulanır
+  const [highlightNote, setHighlightNote] = useState<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('open-note');
+    if (!id) return;
+    window.history.replaceState(window.history.state, '', '/');
+    setActiveTab('notes');
+    setHighlightNote(id);
+  }, []);
+
   // Bildirime dokunulduysa (/?open-quote=ID) o teklifi aç
   const [openQuoteId, setOpenQuoteId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('open-quote'));
   useEffect(() => {
@@ -652,6 +663,7 @@ function Portal({ session }: { session: Session }) {
             currentRole={currentRole}
             onSaveNote={handleSaveNote}
             onDeleteNote={handleDeleteNote}
+            highlightId={highlightNote}
           />
         )}
 
@@ -700,6 +712,7 @@ function Portal({ session }: { session: Session }) {
       </main>
 
       {/* Sesli asistan: konuşarak teklif / tahsilat / harcama formu doldurur */}
+      <QuickNoteFab currentRole={currentRole} onSave={handleSaveNote} />
       <VoiceAssistant context={aiContext} onResult={handleAiResult} />
 
       {/* MODALS */}
