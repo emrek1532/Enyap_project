@@ -714,6 +714,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         {activeTab === 'customers' && (
           <CustomersPanel
             customers={data.customers || []}
+            collections={data.collections || []}
+            showCollections={can(profile, 'collections')}
+            onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined}
             quotes={data.quotes}
             onSaveCustomer={handleSaveCustomer}
             onDeleteCustomer={handleDeleteCustomer}
