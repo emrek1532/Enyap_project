@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
 import { Customer, Quote, QuoteStatus } from '../types';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
+import { quoteTry, useRates } from '../lib/rates';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
 interface CustomersPanelProps {
@@ -50,6 +51,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   onDeleteCustomer,
   onCreateQuoteForCustomer,
 }) => {
+  const rates = useRates(quotes);
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
   const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
@@ -92,7 +94,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       approved: approved.length,
       pending: list.filter(q => PENDING_STATUSES.includes(q.status)).length,
       followUp: list.some(needsFollowUp),
-      approvedTotal: approved.reduce((sum, q) => sum + (q.totalAmount || 0), 0),
+      approvedTotal: approved.reduce((sum, q) => sum + quoteTry(q, rates), 0),
       lastDate: list[0]?.createdAt || '',
     };
   };
@@ -124,7 +126,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         return (sort.dir === 'asc' ? r : -r) || trCompare(a.c.name, b.c.name);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, sort]);
+  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, sort, rates]);
 
   const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || sort.key !== 'name' || sort.dir !== 'asc';
   const resetFilters = () => {
@@ -375,7 +377,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         const cancelled = list.filter(q => q.status === 'iptal');
         const archived = list.filter(q => q.status === 'arsiv');
         const shown = onlyApproved ? approved : list;
-        const approvedTotal = approved.reduce((s, q) => s + (q.totalAmount || 0), 0);
+        const approvedTotal = approved.reduce((s, q) => s + quoteTry(q, rates), 0);
         return (
           <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setViewing(null)}>
             <div
@@ -444,7 +446,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                           {q.notes && <div className="text-slate-600 break-words">{q.notes}</div>}
                         </div>
                         <div className="text-right shrink-0 space-y-1">
-                          <div className="font-bold text-slate-900 whitespace-nowrap">{q.totalAmount > 0 ? tl(q.totalAmount) : '-'}</div>
+                          <div className="font-bold text-slate-900 whitespace-nowrap">{q.totalAmount > 0 ? tl(quoteTry(q, rates)) : '-'}</div>
                           {q.imported && q.totalAmount > 0 && <div className="text-[10px] text-slate-400">KDV hariç</div>}
                           <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-bold border ${STATUS_LABEL[q.status].cls}`}>
                             {STATUS_LABEL[q.status].label}

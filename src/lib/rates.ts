@@ -60,4 +60,17 @@ export function quoteNetTry(q: Quote, r: Rates): number {
   return (broken > 0 ? broken : toTry(q.totalAmount || 0, q.currency)) / 1.2;
 }
 
+/**
+ * Teklifin TL karşılığı, Google Sheet'teki "Genel Toplam TL" ile aynı formül:
+ * TL + USD × güncel kur + EUR × güncel kur (kırılım yoksa toplam tutar kendi para biriminden çevrilir).
+ */
+export function quoteTry(q: Quote, r: Rates): number {
+  let usd = q.amountUsd || 0, eur = q.amountEur || 0, tr = q.amountTry || 0;
+  if (!usd && !eur && !tr) {
+    const t = q.totalAmount || 0;
+    if (q.currency === 'USD') usd = t; else if (q.currency === 'EUR') eur = t; else tr = t;
+  }
+  return tr + usd * r.USD + eur * r.EUR;
+}
+
 export const formatTl = (v: number) => `${Math.round(v).toLocaleString('tr-TR')} TL`;
