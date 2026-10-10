@@ -283,8 +283,8 @@ export const HomePage: React.FC<HomePageProps> = ({
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-3 items-start">
-        <div className="lg:col-span-2 grid gap-3 min-w-0">
+      <div className="grid lg:grid-cols-3 gap-3 items-stretch">
+        <div className="lg:col-span-2 flex flex-col gap-3 min-w-0">
           {(seeQuotes || seeMoney) && (
             <Panel title="Son 6 ay" action={
               seeQuotes && (seeMoney || seeExp)
@@ -298,7 +298,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             </Panel>
           )}
           {seeQuotes && (
-            <Panel title={`Takip edilecek teklifler · ${s.follow.length}`} action={more('quotes')}>
+            <Panel title={`Takip edilecek teklifler · ${s.follow.length}`} action={more('quotes')} className="flex-1">
               {s.follow.length === 0 ? empty('Bekleyen teklif yok.') : (
                 <ul className="divide-y divide-slate-100 -mx-1">
                   {s.follow.slice(0, 5).map(q => {
@@ -322,7 +322,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           )}
         </div>
 
-        <div className="grid gap-3 min-w-0">
+        <div className="flex flex-col gap-3 min-w-0">
           {seeMoney && (
             <Panel title="Yaklaşan vadeler · 30 gün" action={more('collections')}>
               {s.dues.length === 0 ? empty('30 gün içinde vadesi gelen çek/senet yok.') : (
@@ -342,7 +342,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             </Panel>
           )}
           {allowed('notes') && (
-            <Panel title="Hatırlatmalar" action={more('notes')}>
+            <Panel title="Hatırlatmalar" action={more('notes')} className="flex-1">
               {s.reminders.length === 0 ? empty('Hatırlatmalı not yok.') : (
                 <ul className="divide-y divide-slate-100">
                   {s.reminders.slice(0, 4).map(n => {
@@ -364,7 +364,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       </div>
 
       {/* Firmalar, harcamalar, son hareketler */}
-      <div className="-mx-3 px-3 md:mx-0 md:px-0 flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-3 items-start overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start [&>*]:shrink-0 [&>*]:w-[86%] md:[&>*]:w-auto">
+      <div className="-mx-3 px-3 md:mx-0 md:px-0 flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start [&>*]:shrink-0 [&>*]:w-[86%] md:[&>*]:w-auto">
         {seeQuotes && (
           <Panel title={`${s.year} en çok çalışılan firmalar`} action={more('customers')}>
             {s.topFirms.length === 0 ? empty('Bu yıl onaylanan teklif yok.') : s.topFirms.map(f => (
@@ -380,7 +380,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             ))}
           </Panel>
         )}
-        <Panel title="Son hareketler" action={allowed('notes') ? more('notes') : undefined} className="md:col-span-2 lg:col-span-1 self-stretch md:self-start">
+        <Panel title="Son hareketler" action={allowed('notes') ? more('notes') : undefined} className="md:col-span-2 lg:col-span-1">
           {feed.length === 0 ? empty('Henüz hareket yok.') : (
             <ul className="divide-y divide-slate-100">
               {feed.map(a => (
