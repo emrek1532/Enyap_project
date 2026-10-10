@@ -189,8 +189,14 @@ export async function importListFromSheet(file: File, onInfo?: (info: string) =>
     const sep = (text.split('\n')[0].match(/;/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
     rows = text.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(sep).map(c => c.replace(/^"|"$/g, '').trim()));
   } else {
-    const readXlsx = (await import('read-excel-file')).default;
-    rows = await readXlsx(file) as unknown[][];
+    try {
+      const readXlsx = (await import('read-excel-file')).default;
+      rows = await readXlsx(file) as unknown[][];
+    } catch {
+      // Bazı programların yazdığı dosyalar (boş "inline string" hücreleri vb.) için yedek okuyucu
+      const { readXlsxRows } = await import('./xlsxRead');
+      rows = readXlsxRows(await file.arrayBuffer());
+    }
   }
   const fold = (v: unknown) => String(v ?? '').toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
     .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').trim();

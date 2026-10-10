@@ -1,0 +1,2 @@
+-- SECURITY DEFINER fonksiyonlar sadece giriş yapmış kullanıcılara açık (anon/public execute kaldırıldı);
+-- supplier_* yardımcı fonksiyonlara sabit search_path. Uygulanan migration: harden_function_grants.
