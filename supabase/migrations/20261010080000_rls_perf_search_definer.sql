@@ -1,0 +1,6 @@
+-- Yetki kuralları sorgu başına bir kez değerlendirilir: (select public.can(...)).
+-- Arama/eşleştirme fonksiyonları SECURITY DEFINER oldu (RLS açıkken trigram/LIKE index kullanılamıyordu);
+-- her birinin başında yetki kontrolü var:
+--   auto_match_supplier_items → can('suppliers','edit'), search_supplier_items* → can('suppliers','view'),
+--   search_materials / list_materials → can('materials','view') or can('quotes','edit').
+-- Uygulanan migration'lar: rls_policies_initplan, search_functions_definer_guard (Supabase MCP ile).
