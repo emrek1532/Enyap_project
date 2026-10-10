@@ -142,13 +142,17 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
   const { name, listDate } = guessListInfo(fileName);
   const listId = listIdFor(name, listDate);
 
-  // Eski bağlantılar (kod ya da ad aynıysa) yeni kalemlere taşınır
-  const keep = new Map<string, string>();
+  // Eski bağlantılar (aynı ürün adı) yeni kalemlere taşınır; elle kaldırılan bağlar da kaldırılmış kalır
+  const keep = new Map<string, { code: string | null; manual: boolean }>();
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from('supplier_items').select('code,name,our_code')
-      .eq('list_id', listId).not('our_code', 'is', null).range(from, from + 999);
+    const { data, error } = await supabase.from('supplier_items').select('code,name,our_code,match_manual')
+      .eq('list_id', listId).or('our_code.not.is.null,match_manual.eq.true').range(from, from + 999);
     if (error || !data?.length) break;
-    data.forEach((r: any) => { keep.set(`c:${r.code}`, r.our_code); keep.set(`n:${r.name}`, r.our_code); });
+    data.forEach((r: any) => {
+      const v = { code: r.our_code, manual: !!r.match_manual };
+      keep.set(`${r.code}|${r.name}`, v);
+      if (!keep.has(`n:${r.name}`)) keep.set(`n:${r.name}`, v);
+    });
     if (data.length < 1000) break;
   }
   const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
@@ -159,10 +163,13 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
   await supabase.from('supplier_items').delete().eq('list_id', listId);
   for (let i = 0; i < parsed.length; i += 500) {
     onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
-    const rows = parsed.slice(i, i + 500).map(p => ({
-      list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency: p.currency, unit: p.unit,
-      our_code: p.ourCode || (p.code && keep.get(`c:${p.code}`)) || keep.get(`n:${p.name}`) || null,
-    }));
+    const rows = parsed.slice(i, i + 500).map(p => {
+      const k = p.ourCode ? { code: p.ourCode, manual: true } : keep.get(`${p.code}|${p.name}`) || keep.get(`n:${p.name}`);
+      return {
+        list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency: p.currency, unit: p.unit,
+        our_code: k?.code || null, match_manual: !!k?.manual, match_tried: !!k,
+      };
+    });
     const { error } = await supabase.from('supplier_items').insert(rows);
     if (error) throw error;
   }
@@ -263,7 +270,7 @@ export async function autoMatchList(listId: string, total: number, onInfo?: (inf
     const { data, error } = await supabase.rpc('auto_match_supplier_items', { p_list: listId, lim: 120 });
     if (error) throw error;
     const left = Number(data) || 0;
-    onInfo?.(`bizim kodlarla eşleştiriliyor ${total - left}/${total}`);
+    onInfo?.(total ? `bizim kodlarla eşleştiriliyor ${total - left}/${total}` : `bizim kodlarla eşleştiriliyor · ${left} kalem kaldı`);
     if (left <= 0) break;
   }
   const { count } = await supabase.from('supplier_items').select('id', { count: 'exact', head: true })
@@ -309,9 +316,27 @@ export async function logoFromFile(file: File): Promise<string> {
 }
 
 /** Firma kalemini bizim malzeme koduna bağlar (null: bağı kaldırır) */
+/** Elle bağlama / bağı kaldırma: otomatik eşleştirme bu kaleme bir daha dokunmaz */
 export async function setSupplierOurCode(id: number, ourCode: string | null) {
-  const { error } = await supabase.from('supplier_items').update({ our_code: ourCode }).eq('id', id);
+  const { error } = await supabase.from('supplier_items').update({ our_code: ourCode, match_manual: true, match_tried: true }).eq('id', id);
   if (error) throw error;
+}
+
+/** Bir gruptaki (grp boşsa tüm listedeki) bağları toplu kaldırır */
+export async function clearSupplierMatches(listId: string, grp: string | null) {
+  let q = supabase.from('supplier_items').update({ our_code: null, match_manual: true, match_tried: true }).eq('list_id', listId);
+  if (grp) q = q.eq('grp', grp);
+  const { error } = await q;
+  if (error) throw error;
+}
+
+/** Bir grubu (grp boşsa tüm listeyi) sıfırlayıp otomatik eşleştirmeyi yeniden çalıştırır */
+export async function rematchSupplierItems(listId: string, grp: string | null, onInfo?: (info: string) => void) {
+  let q = supabase.from('supplier_items').update({ our_code: null, match_manual: false, match_tried: false }).eq('list_id', listId);
+  if (grp) q = q.eq('grp', grp);
+  const { error } = await q;
+  if (error) throw error;
+  return autoMatchList(listId, 0, onInfo);
 }
 
 export async function searchSupplierItems(q: string, opts: { list?: string | null; limit?: number; offset?: number } = {}) {

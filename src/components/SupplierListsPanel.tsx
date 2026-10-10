@@ -3,7 +3,7 @@ import { CheckCircle2, FileUp, ImagePlus, Link2, Pencil, Loader2, Plus, Search, 
 import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -182,6 +182,41 @@ export const SupplierListsPanel: React.FC = () => {
     }
   };
   const reqId = useRef(0);
+  // Toplu eşleşme işlemleri (grup ya da tüm liste)
+  const [bulk, setBulk] = useState<{ key: string; ask?: 'clear' | 'rematch'; info?: string } | null>(null);
+  const runBulk = async (kind: 'clear' | 'rematch', grp: string | null) => {
+    if (!active) return;
+    const key = grp ?? '*';
+    setBulk({ key, info: kind === 'clear' ? 'bağlar kaldırılıyor…' : 'eşleştiriliyor…' });
+    try {
+      if (kind === 'clear') await clearSupplierMatches(active, grp);
+      else await rematchSupplierItems(active, grp, info => setBulk({ key, info }));
+      setBulk(null);
+      load(0, false);
+    } catch (e) {
+      setBulk(null);
+      setError(e instanceof Error ? e.message : 'İşlem yapılamadı');
+    }
+  };
+  const bulkActions = (grp: string | null, tone: string) => {
+    const key = grp ?? '*';
+    const b = bulk?.key === key ? bulk : null;
+    const btn = 'px-2 py-0.5 rounded-md border text-[11px] font-bold normal-case tracking-normal bg-white/70 hover:bg-white';
+    if (b?.info) return <span className="ml-auto text-[11px] font-semibold normal-case tracking-normal inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{b.info}</span>;
+    if (b?.ask) return (
+      <span className="ml-auto inline-flex items-center gap-1 normal-case tracking-normal">
+        <span className="text-[11px] font-semibold">{b.ask === 'clear' ? 'Bağlar kaldırılsın mı?' : 'Bağlar silinip yeniden eşleştirilsin mi?'}</span>
+        <button type="button" onClick={() => runBulk(b.ask!, grp)} className="px-2 py-0.5 rounded-md bg-rose-600 text-white text-[11px] font-bold">Evet</button>
+        <button type="button" onClick={() => setBulk(null)} className="px-1.5 text-[11px] font-semibold">Vazgeç</button>
+      </span>
+    );
+    return (
+      <span className="ml-auto inline-flex items-center gap-1">
+        <button type="button" disabled={!!bulk} onClick={() => setBulk({ key, ask: 'clear' })} className={btn} style={{ borderColor: tone }}>Bağları kaldır</button>
+        <button type="button" disabled={!!bulk} onClick={() => setBulk({ key, ask: 'rematch' })} className={btn} style={{ borderColor: tone }}>Yeniden eşleştir</button>
+      </span>
+    );
+  };
 
   const reloadLists = () => fetchSupplierLists().then(setLists).catch(() => { setLists(l => l || []); setError('Fiyat listeleri yüklenemedi.'); });
   useEffect(() => { reloadLists(); }, []);
@@ -449,7 +484,8 @@ export const SupplierListsPanel: React.FC = () => {
                       <div className="px-3.5 py-2 border-y text-[12px] font-black uppercase tracking-wide flex items-center gap-2"
                         style={{ background: `${supplierColor(it.grp)}14`, borderColor: `${supplierColor(it.grp)}40`, color: supplierColor(it.grp) }}>
                         <span className="w-1.5 h-4 rounded-full shrink-0" style={{ background: supplierColor(it.grp) }} />
-                        {it.grp}
+                        <span className="min-w-0 truncate">{it.grp}</span>
+                        {active && bulkActions(it.grp, `${supplierColor(it.grp)}60`)}
                       </div>
                     )}
                     <div className="px-3.5 py-3">
@@ -521,7 +557,13 @@ export const SupplierListsPanel: React.FC = () => {
                   </button>
                 )}
               </div>
-              <p className="px-1 text-xs text-slate-400">Firma kodları bizim kodlarla karışmaz; aynı ürünse "Bizim kod" bağlantısı gösterilir.</p>
+              {active && (
+                <div className="flex flex-wrap items-center gap-2 px-1 text-xs text-slate-500">
+                  <span className="font-semibold">Tüm liste:</span>
+                  {bulkActions(null, '#cbd5e1')}
+                </div>
+              )}
+              <p className="px-1 text-xs text-slate-400">Firma kodları bizim kodlarla karışmaz; aynı ürünse "Bizim kod" bağlantısı gösterilir. Elle bağladığınız ya da kaldırdığınız kalemlere otomatik eşleştirme dokunmaz; liste yeniden yüklense de korunur.</p>
             </>
           )}
         </>
