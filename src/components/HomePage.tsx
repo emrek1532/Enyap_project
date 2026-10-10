@@ -271,10 +271,11 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* Özet rakamlar: tüm bölümlerden */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+      {/* Telefonda yana kaydırılır, bilgisayarda 4 sütun */}
+      <div className="-mx-3 px-3 md:mx-0 md:px-0 flex md:grid md:grid-cols-4 gap-2.5 sm:gap-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {kpis.map(k => (
           <button key={k.label} onClick={() => onOpen(k.tab)}
-            className="text-left bg-white rounded-2xl border border-slate-200 shadow-xs px-3.5 py-3 min-w-0 hover:border-brand-300 transition-colors">
+            className="snap-start shrink-0 w-[44%] md:w-auto text-left bg-white rounded-2xl border border-slate-200 shadow-xs px-3.5 py-3 min-w-0 hover:border-brand-300 transition-colors">
             <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-slate-500 truncate">{k.label}</div>
             <div className={`mt-0.5 text-lg sm:text-xl font-black tabular-nums truncate ${k.tone}`}>{k.value}</div>
             <div className="text-[11px] text-slate-500 tabular-nums truncate">{k.sub}</div>
@@ -363,7 +364,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       </div>
 
       {/* Firmalar, harcamalar, son hareketler */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+      <div className="-mx-3 px-3 md:mx-0 md:px-0 flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-3 items-start overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start [&>*]:shrink-0 [&>*]:w-[86%] md:[&>*]:w-auto">
         {seeQuotes && (
           <Panel title={`${s.year} en çok çalışılan firmalar`} action={more('customers')}>
             {s.topFirms.length === 0 ? empty('Bu yıl onaylanan teklif yok.') : s.topFirms.map(f => (
@@ -379,7 +380,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             ))}
           </Panel>
         )}
-        <Panel title="Son hareketler" action={allowed('notes') ? more('notes') : undefined} className="md:col-span-2 lg:col-span-1">
+        <Panel title="Son hareketler" action={allowed('notes') ? more('notes') : undefined} className="md:col-span-2 lg:col-span-1 self-stretch md:self-start">
           {feed.length === 0 ? empty('Henüz hareket yok.') : (
             <ul className="divide-y divide-slate-100">
               {feed.map(a => (
