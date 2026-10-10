@@ -194,7 +194,9 @@ export async function importListFromSheet(file: File, onInfo?: (info: string) =>
   const col = (...keys: RegExp[]) => head.findIndex(h => keys.some(k => k.test(h)));
   const cPrice = col(/fiyat|price|tutar/), cName = col(/urun ad|urun|aciklama|malzeme|description|^ad$/), cCode = head.findIndex(h => /kod|code|stok/.test(h) && !/bizim/.test(h));
   const cCur = col(/para|doviz|currency|birim fiyat cinsi/), cGrp = col(/grup|kategori|seri|group/), cUnit = col(/^birim$|unit/);
-  const cDn = col(/^dn|dn \(mm\)|^mm$|cap/);
+  const cDn = col(/^dn|dn \(mm\)|^mm$/);
+  // Ölçü sütunu (1/2", 3/4", 25x20…): ürün adına eklenir, ürün adı da grup başlığı olur
+  const cSize = col(/olcu|ebat|boyut|size|cap|inc/);
   const cOur = col(/bizim kod/);
   if (cName < 0) throw new Error('Excel\'de ürün adı sütunu bulunamadı');
   const { parseNumber } = await import('./priceParse');
@@ -210,12 +212,15 @@ export async function importListFromSheet(file: File, onInfo?: (info: string) =>
     const price = typeof pv === 'number' ? pv : parseNumber(String(pv ?? '').replace(/[^\d.,]/g, ''));
     if (!name || !(price > 0)) continue;
     const dn = cDn >= 0 && r[cDn] != null && String(r[cDn]).trim() ? String(r[cDn]).trim() : '';
+    const size = cSize >= 0 && cSize !== cDn && r[cSize] != null ? String(r[cSize]).trim() : '';
+    let full = dn && !new RegExp(`DN\\s?${dn}\\b`, 'i').test(name) ? `${name} DN${dn}` : name;
+    if (size && !full.includes(size)) full = `${full} ${size}`;
     items.push({
       code: cCode >= 0 ? String(r[cCode] ?? '').trim().slice(0, 40) : '',
-      name: (dn && !new RegExp(`DN\\s?${dn}\\b`, 'i').test(name) ? `${name} DN${dn}` : name).slice(0, 200),
+      name: full.slice(0, 200),
       price: Math.round(price * 10000) / 10000,
       unit: cUnit >= 0 && String(r[cUnit] ?? '').trim() ? String(r[cUnit]).trim() : 'Adet',
-      grp: cGrp >= 0 ? String(r[cGrp] ?? '').trim().slice(0, 120) || undefined : undefined,
+      grp: cGrp >= 0 ? String(r[cGrp] ?? '').trim().slice(0, 120) || undefined : size ? name.slice(0, 120) : undefined,
       currency: cCur >= 0 ? cur(r[cCur], headCur) : headCur,
       ourCode: cOur >= 0 && String(r[cOur] ?? '').trim() ? String(r[cOur]).trim() : undefined,
     });
