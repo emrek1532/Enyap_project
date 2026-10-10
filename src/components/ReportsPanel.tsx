@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, HandCoins, Printer, X, ChevronRight } from 'lucide-react';
 import { Collection, Expense, Quote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
+import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
 import { PrintDoc, PrintSection, ReportPrint, printReport } from './ReportPrint';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
@@ -258,6 +259,8 @@ const DetailModal: React.FC<{ section: PrintSection; period: string; onPrint: ()
 type CustKey = 'name' | 'city' | 'total' | 'totalAmt' | 'approved' | 'approvedAmt' | 'rate' | 'collected';
 
 export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections, expenses }) => {
+  const rates = useRates(quotes);
+  const qTry = (q: Quote) => quoteTry(q, rates);
   const [period, setPeriod] = useState<Period>('year');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -281,7 +284,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   const pExpenses = useMemo(() => expenses.filter(e => inRange(e.date)), [expenses, from, to]);
 
   const stats = useMemo(() => {
-    const amount = (list: Quote[]) => list.reduce((s, q) => s + (q.totalAmount || 0), 0);
+    const amount = (list: Quote[]) => list.reduce((s, q) => s + qTry(q), 0);
     const approved = pQuotes.filter(isApproved);
     const pending = pQuotes.filter(isPending);
     const cancelled = pQuotes.filter(q => q.status === 'iptal');
@@ -311,8 +314,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     };
     pQuotes.forEach(q => {
       const m = get(quoteDay(q).slice(0, 7));
-      m.quoteCount++; m.quoteAmt += q.totalAmount || 0;
-      if (isApproved(q)) { m.apprCount++; m.apprAmt += q.totalAmount || 0; }
+      m.quoteCount++; m.quoteAmt += qTry(q);
+      if (isApproved(q)) { m.apprCount++; m.apprAmt += qTry(q); }
     });
     pCollections.forEach(c => { const m = get(c.date.slice(0, 7)); if (c.currency === 'TRY') m.col += c.amount; });
     pExpenses.forEach(e => { const m = get(e.date.slice(0, 7)); if (e.currency === 'TRY') m.exp += e.amount; });
@@ -326,8 +329,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     pQuotes.forEach(q => {
       const k = keyOf(q).trim() || 'Belirtilmemiş';
       const g = map.get(k) || { total: 0, totalAmt: 0, approved: 0, approvedAmt: 0, city: q.city || '' };
-      g.total++; g.totalAmt += q.totalAmount || 0;
-      if (isApproved(q)) { g.approved++; g.approvedAmt += q.totalAmount || 0; }
+      g.total++; g.totalAmt += qTry(q);
+      if (isApproved(q)) { g.approved++; g.approvedAmt += qTry(q); }
       map.set(k, g);
     });
     return [...map.entries()].sort((a, b) => b[1].approvedAmt - a[1].approvedAmt || b[1].total - a[1].total);
@@ -408,7 +411,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     note: "Excel'den aktarılan tekliflerin tutarı KDV hariç, sistemde hazırlananlarınki KDV dahildir.",
     columns: [{ label: 'Tarih' }, { label: 'Firma' }, { label: 'Teklif No' }, { label: 'Şehir' }, { label: 'Durum' }, amountCol],
     rows: byDateDesc(list, quoteDay).map(q => [trD(quoteDay(q)), q.customerName, q.quoteNumber, q.city || '-', STATUS_TR[q.status] || q.status, formatQuoteAmount(q)]),
-    foot: ['Toplam', `${list.length} teklif`, '', '', '', tl(list.reduce((t, q) => t + (q.totalAmount || 0), 0))],
+    foot: ['Toplam', `${list.length} teklif`, '', '', '', tl(list.reduce((t, q) => t + qTry(q), 0))],
   });
   const portfolioList = useMemo(() => {
     const todayStr = ymd(new Date());

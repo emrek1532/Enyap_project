@@ -3,6 +3,7 @@ import { FileText, Users, Wallet, Receipt, BarChart3, StickyNote, Package, Chevr
 import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
 import { FOLLOW_UP_START, PENDING_STATUSES } from '../lib/quoteRules';
 import { formatReminder } from '../lib/noteTime';
+import { quoteTry, useRates } from '../lib/rates';
 import type { ActiveTab } from './Navigation';
 
 interface HomePageProps {
@@ -114,6 +115,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const now = new Date();
   const today = ymd(now);
+  const rates = useRates(quotes);
   const s = useMemo(() => {
     const month = today.slice(0, 7);
     const year = today.slice(0, 4);
@@ -122,7 +124,9 @@ export const HomePage: React.FC<HomePageProps> = ({
     const yearQuotes = quotes.filter(q => (q.createdAt || '').startsWith(year));
     const sum = (list: { totalAmount?: number; amount?: number }[]) => list.reduce((t, x) => t + (x.totalAmount ?? x.amount ?? 0), 0);
     const tryOnly = <T extends { currency: string }>(list: T[]) => list.filter(x => x.currency === 'TRY');
-    const yearAmt = sum(yearQuotes);
+    // Teklif tutarları Google Sheet ile aynı: TL + döviz × güncel kur
+    const qSum = (list: Quote[]) => list.reduce((t, q) => t + quoteTry(q, rates), 0);
+    const yearAmt = qSum(yearQuotes);
     const monthQuotes = quotes.filter(q => (q.createdAt || '').startsWith(month));
     // Son 6 ay
     const months = Array.from({ length: 6 }, (_, i) => {
@@ -140,16 +144,16 @@ export const HomePage: React.FC<HomePageProps> = ({
       .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
     const reminders = notes.filter(n => !n.done && n.remindAt).sort((a, b) => (a.remindAt || '').localeCompare(b.remindAt || ''));
     return {
-      pending: pending.length, pendingAmt: sum(tryOnly(pending)),
-      monthCount: monthQuotes.length, monthAmt: sum(tryOnly(monthQuotes)),
-      rate: yearAmt > 0 ? sum(yearQuotes.filter(won)) / yearAmt : 0,
+      pending: pending.length, pendingAmt: qSum(pending),
+      monthCount: monthQuotes.length, monthAmt: qSum(monthQuotes),
+      rate: yearAmt > 0 ? qSum(yearQuotes.filter(won)) / yearAmt : 0,
       wonYear: yearQuotes.filter(won).length,
       colMonth: sum(tryOnly(collections.filter(c => c.date.startsWith(month)))),
       expMonth: sum(tryOnly(expenses.filter(e => e.date.startsWith(month)))),
       months, follow, dues, dueSum: sum(tryOnly(dues)), reminders, year,
       customers: customers.length, notes: notes.filter(n => !n.done).length,
     };
-  }, [quotes, customers, collections, expenses, notes, today]);
+  }, [quotes, customers, collections, expenses, notes, today, rates]);
 
   const seeQuotes = allowed('quotes');
   const seeMoney = allowed('collections');

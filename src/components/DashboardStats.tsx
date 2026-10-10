@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Quote, Order, OrderStatus, CalendarEvent, UserRole } from '../types';
 import { needsFollowUp, PENDING_STATUSES } from '../lib/quoteRules';
+import { quoteTry, useRates } from '../lib/rates';
 
 interface DashboardStatsProps {
   quotes: Quote[];
@@ -34,6 +35,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   onNavigateTab,
   onShowQuotes,
 }) => {
+  const rates = useRates(quotes);
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
 
@@ -49,16 +51,16 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   const pendingQuotes = quotes.filter((q) => PENDING_STATUSES.includes(q.status));
   const approvedQuotes = quotes.filter((q) => q.status === 'onaylandi');
   const cancelledQuotes = quotes.filter((q) => q.status === 'iptal');
-  const approvedTotal = approvedQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0);
+  const approvedTotal = approvedQuotes.reduce((sum, q) => sum + quoteTry(q, rates), 0);
   const followUpQuotes = quotes.filter(needsFollowUp);
-  const pendingTotal = pendingQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0);
+  const pendingTotal = pendingQuotes.reduce((sum, q) => sum + quoteTry(q, rates), 0);
   const tl = (v: number) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`;
   const todayEvents = events.filter((e) => e.date === todayStr);
 
   // Total active pipeline value
   const totalPipeline = quotes
     .filter((q) => q.status !== 'iptal')
-    .reduce((sum, q) => sum + (q.totalAmount || 0), 0);
+    .reduce((sum, q) => sum + quoteTry(q, rates), 0);
 
   return (
     <div className="space-y-3.5 mb-6">
