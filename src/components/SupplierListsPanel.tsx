@@ -178,7 +178,7 @@ export const SupplierListsPanel: React.FC = () => {
       setItems(prev => prev.map(x => (x.id === it.id ? { ...x, ourCode: code, ourName: undefined } : x)));
       setLinking(null); setLinkText('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Kaydedilemedi');
+      setError((e as { message?: string })?.message || 'Kaydedilemedi');
     }
   };
   const reqId = useRef(0);
@@ -195,7 +195,7 @@ export const SupplierListsPanel: React.FC = () => {
       load(0, false);
     } catch (e) {
       setBulk(null);
-      setError(e instanceof Error ? e.message : 'İşlem yapılamadı');
+      setError((e as { message?: string })?.message || 'İşlem yapılamadı');
     }
   };
   const bulkActions = (grp: string | null, tone: string) => {
@@ -234,7 +234,7 @@ export const SupplierListsPanel: React.FC = () => {
       load(0, false);
     } catch (e) {
       setReading(null);
-      setError(`Yeniden okunamadı: ${e instanceof Error ? e.message : ''}`);
+      setError(`Yeniden okunamadı: ${(e as { message?: string })?.message || ''}`);
     }
   };
   const [editInfo, setEditInfo] = useState<{ name: string; listDate: string; currency: SupplierList['currency'] } | null>(null);
