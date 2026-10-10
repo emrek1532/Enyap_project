@@ -1,0 +1,4 @@
+-- Eşleştirme: DN / Q / Ø / inç ölçüleri aynı ölçü sayılır (supplier_dn: 1/2" = DN15 = Q 15).
+-- auto_match_supplier_items önce firma model numarasına bakar (FAF1100 → bizdeki "FAF 1100") + aynı DN.
+-- supplier_same_spec: iki tarafta da DN varsa DN eşitliği aranır.
+-- Uygulanan migration: supplier_match_dn_model (Supabase MCP ile).
