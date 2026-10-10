@@ -3,7 +3,6 @@ import { FileText, Users, Wallet, Receipt, BarChart3, StickyNote, Package, Chevr
 import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
 import { FOLLOW_UP_START, PENDING_STATUSES } from '../lib/quoteRules';
 import { formatReminder } from '../lib/noteTime';
-import { supabase } from '../lib/supabase';
 import type { ActiveTab } from './Navigation';
 
 interface HomePageProps {
@@ -152,15 +151,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     };
   }, [quotes, customers, collections, expenses, notes, today]);
 
-  // Katalog sunucuda; sadece toplam sayıyı soruyoruz
-  const [materialCount, setMaterialCount] = useState<number | null>(null);
-  useEffect(() => {
-    let alive = true;
-    supabase.from('materials').select('code', { count: 'exact', head: true })
-      .then(({ count }) => { if (alive && count != null) setMaterialCount(count); });
-    return () => { alive = false; };
-  }, []);
-
   const seeQuotes = allowed('quotes');
   const seeMoney = allowed('collections');
   const kpis = [
@@ -169,17 +159,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     seeQuotes && { label: `${s.year} satış oranı`, value: `%${(s.rate * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}`, sub: `${s.wonYear} teklif onaylandı`, tab: 'reports' as const, tone: 'text-accent-700' },
     seeMoney && { label: 'Bu ay tahsilat', value: tl(s.colMonth), sub: allowed('expenses') ? `harcama ${tl(s.expMonth)}` : '', tab: 'collections' as const, tone: 'text-slate-900' },
   ].filter(Boolean) as { label: string; value: string; sub: string; tab: Exclude<ActiveTab, 'home'>; tone: string }[];
-
-  const shortcuts = ([
-    { tab: 'quotes', title: 'Teklifler', Icon: FileText, tone: 'bg-brand-50 text-brand-600', stat: `${s.pending} bekleyen` },
-    { tab: 'materials', title: 'Malzemeler', Icon: Package, tone: 'bg-teal-50 text-teal-600', stat: materialCount == null ? 'katalog' : `${materialCount.toLocaleString('tr-TR')} kalem` },
-    { tab: 'customers', title: 'Müşteriler', Icon: Users, tone: 'bg-sky-50 text-sky-600', stat: `${s.customers.toLocaleString('tr-TR')} firma` },
-    { tab: 'collections', title: 'Tahsilat', Icon: Wallet, tone: 'bg-accent-50 text-accent-700', stat: `${s.dues.length} yaklaşan vade` },
-    { tab: 'expenses', title: 'Harcama', Icon: Receipt, tone: 'bg-orange-50 text-orange-600', stat: `bu ay ${tl(s.expMonth)}` },
-    { tab: 'notes', title: 'Notlar', Icon: StickyNote, tone: 'bg-amber-50 text-amber-600', stat: `${s.notes} açık not` },
-    { tab: 'reports', title: 'Rapor', Icon: BarChart3, tone: 'bg-indigo-50 text-indigo-600', stat: 'aylık özet' },
-    { tab: 'admin', title: 'Yönetim', Icon: ShieldCheck, tone: 'bg-slate-100 text-slate-700', stat: 'personel, yetki' },
-  ] as { tab: Exclude<ActiveTab, 'home'>; title: string; Icon: React.ElementType; tone: string; stat: string }[]).filter(t => allowed(t.tab));
 
   const dateText = now.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const more = (tab: Exclude<ActiveTab, 'home'>) => (
@@ -211,19 +190,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </section>
 
-      {/* Bölümler */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {shortcuts.map(t => (
-          <button key={t.tab} onClick={() => onOpen(t.tab)}
-            className="group flex items-center gap-3 bg-white rounded-xl border border-slate-200 px-3 py-2.5 text-left min-w-0 hover:border-brand-300 hover:shadow-sm transition-all">
-            <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${t.tone}`}><t.Icon className="w-4.5 h-4.5" /></span>
-            <span className="min-w-0">
-              <span className="block text-sm font-black text-slate-900 truncate">{t.title}</span>
-              <span className="block text-[11px] text-slate-500 truncate">{t.stat}</span>
-            </span>
-          </button>
-        ))}
-      </div>
       {/* Özet rakamlar */}
       {kpis.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
