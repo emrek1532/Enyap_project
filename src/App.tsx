@@ -652,6 +652,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             notes={data.notes}
             onOpen={setActiveTab}
             allowed={tabAllowed}
+            onOpenQuote={setEditingQuote}
             canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
             onNewQuote={() => setIsNewQuoteOpen(true)}
             onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
