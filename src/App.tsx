@@ -55,6 +55,7 @@ import { VoiceAssistant } from './components/VoiceAssistant';
 import { AiResult, collectionDraftFrom, expenseDraftFrom, quoteDraftFrom } from './lib/ai';
 import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './components/LedgerPanel';
 import { CustomersPanel } from './components/CustomersPanel';
+import { BulkQuoteImport } from './components/BulkQuoteImport';
 import { readQuotePdf } from './lib/pdfQuote';
 import { AccessContext, Module, Profile, can, fetchMyProfile } from './lib/access';
 import { AdminPanel, PendingScreen } from './components/AdminPanel';
@@ -536,6 +537,31 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     ]);
   };
 
+  // Toplu PDF yükleme: mevcut tekliflerin kalemleri + onaylanan yeni teklifler tek seferde
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const handleBulkApply = (updates: Quote[], creates: Quote[]) => {
+    const newCustomers: Customer[] = [];
+    for (const q of creates) {
+      if (newCustomers.some(c => c.name.toLocaleLowerCase('tr') === q.customerName.toLocaleLowerCase('tr'))) continue;
+      const c = newCustomerFor(q.customerName, q.city);
+      if (c) newCustomers.push(c);
+    }
+    const activity = logActivity('Toplu Teklif Yükleme',
+      `${updates.length} teklifin kalemleri PDF'ten dolduruldu, ${creates.length} yeni teklif eklendi.`, 'sky');
+    const upd = new Map(updates.map(q => [q.id, q]));
+    mutate(d => ({
+      ...d,
+      customers: [...(d.customers || []), ...newCustomers],
+      quotes: [...creates, ...d.quotes.map(q => upd.get(q.id) || q)],
+      activities: [activity, ...(d.activities || [])],
+    }));
+    persist([
+      ...newCustomers.map(c => ({ kind: 'upsert', entity: 'customers', record: c }) as PendingOp),
+      ...[...updates, ...creates].map(q => ({ kind: 'upsert', entity: 'quotes', record: q }) as PendingOp),
+      { kind: 'upsert', entity: 'activities', record: activity },
+    ]);
+  };
+
   // Update Quote Status
   const handleUpdateQuoteStatus = (id: string, status: QuoteStatus) => {
     const target = data.quotes.find(q => q.id === id);
@@ -695,6 +721,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           />
         )}
 
+        {activeTab === 'quotes' && can(profile, 'quotes', 'edit') && (
+          <div className="flex justify-end mb-3">
+            <button onClick={() => setIsBulkOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:border-brand-300">
+              📦 Toplu PDF yükle
+            </button>
+          </div>
+        )}
+
         {/* Tab 1: Teklifler (Kanban & List) */}
         {activeTab === 'quotes' && (
           <QuoteManager
@@ -829,6 +864,16 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           initialPdf={sharedPdf}
           onSaveQuote={handleUpdateQuote}
           onClose={() => { setEditingQuote(null); setSharedPdf(null); }}
+        />
+      )}
+
+      {isBulkOpen && (
+        <BulkQuoteImport
+          quotes={data.quotes}
+          customerNames={[...new Set([...(data.customers || []).map(c => c.name), ...data.quotes.map(q => q.customerName)].filter(Boolean))]}
+          currentRole={currentRole}
+          onApply={handleBulkApply}
+          onClose={() => setIsBulkOpen(false)}
         />
       )}
 
