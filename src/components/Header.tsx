@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { RefreshCw, Plus, LogOut, Bell, BellOff } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { RefreshCw, Plus, LogOut, Bell, BellOff, LayoutGrid, ChevronDown } from 'lucide-react';
 import { disablePush, enablePush, pushEnabled, pushSupported } from '../lib/push';
 import { BrandLogo } from './BrandLogo';
 import { SyncStatus } from '../types';
@@ -12,6 +12,10 @@ interface HeaderProps {
   userEmail: string;
   urgentCount: number;
   onHome: () => void;
+  /** Açılır menüdeki bölümler (yetkiye göre süzülmüş) */
+  sections?: { id: string; title: string; icon: React.ElementType; tone: string }[];
+  activeSection?: string;
+  onOpenSection?: (id: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,7 +26,22 @@ export const Header: React.FC<HeaderProps> = ({
   userEmail,
   urgentCount,
   onHome,
+  sections = [],
+  activeSection,
+  onOpenSection,
 }) => {
+  // Bölümler menüsü: dışarı tıklayınca / Esc ile kapanır
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menuRef.current?.contains(e.target as Node)) setMenu(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
+  }, [menu]);
   // Bildirim (teklif hatırlatma) aç/kapat
   const [push, setPush] = useState<boolean | null>(null);
   useEffect(() => { if (pushSupported()) pushEnabled().then(setPush, () => setPush(false)); }, []);
@@ -61,8 +80,49 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Actions: Sync, New Quote, Sign out */}
+          {/* Actions: Menü, Sync, New Quote, Sign out */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap">
+            {sections.length > 0 && onOpenSection && (
+              <div ref={menuRef} className="relative">
+                <button
+                  onClick={() => setMenu(m => !m)}
+                  aria-expanded={menu}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-xs sm:text-sm font-bold transition-colors ${menu ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  <span>Menü</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menu ? 'rotate-180' : ''}`} />
+                </button>
+                {menu && (
+                  <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-full sm:mt-2 sm:w-80 z-50 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 grid grid-cols-2 gap-1">
+                    {sections.map(sec => (
+                      <button
+                        key={sec.id}
+                        onClick={() => { setMenu(false); onOpenSection(sec.id); }}
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left text-sm font-bold whitespace-normal ${activeSection === sec.id ? 'bg-brand-50 text-brand-800' : 'text-slate-800 hover:bg-slate-50'}`}
+                      >
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${sec.tone}`}><sec.icon className="w-4 h-4" /></span>
+                        <span className="min-w-0 leading-tight">{sec.title}</span>
+                      </button>
+                    ))}
+                    {/* Telefonda üst çubuğa sığmayanlar */}
+                    <div className="sm:hidden col-span-2 mt-1 pt-2 border-t border-slate-100 grid grid-cols-2 gap-1">
+                      {push !== null && (
+                        <button onClick={() => { setMenu(false); togglePush(); }}
+                          className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                          {push ? <Bell className="w-4 h-4 text-brand-600" /> : <BellOff className="w-4 h-4 text-slate-400" />}
+                          {push ? 'Bildirim açık' : 'Bildirimi aç'}
+                        </button>
+                      )}
+                      <button onClick={() => { setMenu(false); onSignOut(); }}
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50">
+                        <LogOut className="w-4 h-4" /> Çıkış yap
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Cloud Sync Button */}
             <button
               onClick={onTriggerSync}
@@ -90,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
             {push !== null && (
               <button
                 onClick={togglePush}
-                className={`p-1.5 rounded-lg border ${push ? 'bg-brand-50 border-brand-200 text-brand-600' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                className={`${sections.length ? 'hidden sm:block ' : ''}p-1.5 rounded-lg border ${push ? 'bg-brand-50 border-brand-200 text-brand-600' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
                 title={push ? 'Bildirimler açık (kapatmak için dokunun)' : 'Teklif hatırlatma bildirimlerini aç'}
               >
                 {push ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
@@ -100,7 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Sign out */}
             <button
               onClick={onSignOut}
-              className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200"
+              className={`${sections.length ? 'hidden sm:block ' : ''}p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200`}
               title={`Çıkış Yap (${userEmail})`}
             >
               <LogOut className="w-3.5 h-3.5" />

@@ -122,6 +122,10 @@ function Gate({ session }: { session: Session }) {
   );
 }
 
+// Üstteki "Menü" sırası
+const MENU_ORDER: Exclude<ActiveTab, 'home'>[] = ['quotes', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'];
+const MENU_TITLE: Partial<Record<ActiveTab, string>> = { collections: 'Tahsilat', expenses: 'Harcama' };
+
 // Kayıt türü → yetki bölümü (müşteriler ve hareketler tüm aktif kullanıcılara açık)
 const ENTITY_MODULE: Record<string, Module | undefined> = {
   quotes: 'quotes', orders: 'orders', collections: 'collections', expenses: 'expenses', events: 'calendar', notes: 'notes',
@@ -635,6 +639,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         userEmail={session.user.email || ''}
         urgentCount={urgentCount}
         onHome={goHome}
+        sections={MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title }))}
+        activeSection={activeTab}
+        onOpenSection={id => setActiveTab(id as ActiveTab)}
       />
 
       </div>
@@ -652,6 +659,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             notes={data.notes}
             onOpen={setActiveTab}
             allowed={tabAllowed}
+            onOpenQuote={setEditingQuote}
             canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
             onNewQuote={() => setIsNewQuoteOpen(true)}
             onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
