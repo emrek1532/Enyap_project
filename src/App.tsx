@@ -683,6 +683,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             collections={data.collections || []}
             expenses={data.expenses || []}
             notes={data.notes}
+            activities={data.activities}
             onOpen={setActiveTab}
             allowed={tabAllowed}
             onOpenQuote={setEditingQuote}
