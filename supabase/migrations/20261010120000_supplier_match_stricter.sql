@@ -1,0 +1,5 @@
+-- Eşleştirme sıkılaştırıldı:
+--  * supplier_inch_all: inç ölçüleri adet adet karşılaştırılır (8"x4"x8" ≠ 4"; 1"x3/4"x3/4" ≠ 1"x1"x3/4").
+--  * supplier_kw: 'dikisli', 'ayarl', 'agirlik' ayırt edici kelime.
+--  * auto_match_supplier_items: marka adı bizde yoksa ilk 3 harf kelime olarak aranır (Aravalf → "ARA").
+-- Uygulanan migration'lar: supplier_same_spec_strict_inch, supplier_inch_multiset (+ fonksiyon güncellemeleri).
