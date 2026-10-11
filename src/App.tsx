@@ -48,6 +48,7 @@ import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
 import { HomePage, PageHeader, SECTION_META } from './components/HomePage';
+import { SalesDashboard } from './components/SalesDashboard';
 import { MaterialsPanel } from './components/MaterialsPanel';
 import { ReportsPanel } from './components/ReportsPanel';
 import { NewQuoteModal } from './components/NewQuoteModal';
@@ -133,6 +134,15 @@ const ENTITY_MODULE: Record<string, Module | undefined> = {
 };
 
 function Portal({ session, profile }: { session: Session; profile: Profile }) {
+  // Yeni ana sayfa önizlemesi: ?onizleme=1 ile bu cihazda açılır, ?onizleme=0 ile kapanır
+  const [newHome, setNewHome] = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('onizleme');
+      if (q === '1') localStorage.setItem('enyap-new-home', '1');
+      if (q === '0') localStorage.removeItem('enyap-new-home');
+      return localStorage.getItem('enyap-new-home') === '1';
+    } catch { return false; }
+  });
   const tabAllowed = (tab: ActiveTab): boolean => {
     switch (tab) {
       case 'home': case 'customers': return true;
@@ -677,21 +687,47 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
         {/* Ana sayfa */}
         {activeTab === 'home' && (
-          <HomePage
-            quotes={data.quotes}
-            customers={data.customers || []}
-            collections={data.collections || []}
-            expenses={data.expenses || []}
-            notes={data.notes}
-            activities={data.activities}
-            onOpen={setActiveTab}
-            allowed={tabAllowed}
-            onOpenQuote={setEditingQuote}
-            canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
-            onNewQuote={() => setIsNewQuoteOpen(true)}
-            onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
-            onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
+          <>
+            {newHome && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                <span><b>Önizleme:</b> yeni ana sayfa (sadece bu cihazda görünüyor)</span>
+                <button onClick={() => { try { localStorage.removeItem('enyap-new-home'); } catch { /* */ } setNewHome(false); }} className="font-bold underline">Eski görünüme dön</button>
+              </div>
+            )}
+            {newHome ? (
+              <SalesDashboard
+                quotes={data.quotes}
+                customers={data.customers || []}
+                collections={data.collections || []}
+                expenses={data.expenses || []}
+                notes={data.notes}
+                activities={data.activities}
+                onOpen={setActiveTab}
+                allowed={tabAllowed}
+                onOpenQuote={setEditingQuote}
+                canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
+                onNewQuote={() => setIsNewQuoteOpen(true)}
+                onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
+                onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
           />
+            ) : (
+              <HomePage
+                quotes={data.quotes}
+                customers={data.customers || []}
+                collections={data.collections || []}
+                expenses={data.expenses || []}
+                notes={data.notes}
+                activities={data.activities}
+                onOpen={setActiveTab}
+                allowed={tabAllowed}
+                onOpenQuote={setEditingQuote}
+                canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
+                onNewQuote={() => setIsNewQuoteOpen(true)}
+                onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
+                onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
+          />
+            )}
+          </>
         )}
 
         {/* Bölüm başlığı: geri / ana sayfa */}

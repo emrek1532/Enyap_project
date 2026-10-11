@@ -53,10 +53,13 @@ const Panel: React.FC<{ title: string; action?: React.ReactNode; className?: str
 );
 
 const short = (v: number) => (v >= 1e6 ? `${(v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} Mn` : v >= 1e3 ? `${Math.round(v / 1e3).toLocaleString('tr-TR')} B` : `${Math.round(v)}`);
-const TurkeyMap = React.lazy(() => import('./TurkeyMap'));
 
-/** Tek serili sütun grafiği; her sütunun üstünde değeri yazar (Power BI'daki gibi), genişliğe göre çizilir */
-const ColumnChart: React.FC<{ data: { label: string; sub?: string; value: number; extra?: string }[]; barCls: string }> = ({ data, barCls }) => {
+/** Aylık sütun grafiği: iki seri, tek eksen; genişliğe göre çizilir, üzerine gelince değer çıkar */
+const MonthlyChart: React.FC<{
+  data: { label: string; a: number; b: number }[];
+  series: [{ label: string; cls: string; dot: string }, { label: string; cls: string; dot: string }];
+  fmt?: (v: number) => string;
+}> = ({ data, series, fmt = v => v.toLocaleString('tr-TR') }) => {
   const [hover, setHover] = useState<number | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(560);
@@ -67,37 +70,50 @@ const ColumnChart: React.FC<{ data: { label: string; sub?: string; value: number
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const max = Math.max(1, ...data.map(d => d.value));
-  const H = W < 500 ? 180 : 250, B = 30, T = 18;
-  const plotH = H - B - T;
-  const slot = W / data.length;
-  const bw = Math.min(34, slot * 0.62);
-  const y = (v: number) => T + plotH - (v / max) * plotH;
-  const small = slot < 40;
+  const max = Math.max(1, ...data.map(d => Math.max(d.a, d.b)));
+  const mag = 10 ** Math.floor(Math.log10(max / 4));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => max / s <= 4) || mag * 10;
+  const top = Math.ceil(max / step) * step;
+  const ticks = Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step);
+  const H = 160, L = 40, B = 22, T = 8;
+  const plotW = W - L - 4, plotH = H - B - T;
+  const slot = plotW / data.length;
+  const bw = Math.min(20, slot / 3.2);
+  const y = (v: number) => T + plotH - (v / top) * plotH;
+  const axis = (v: number) => (top >= 1e4 ? short(v) : String(v));
   return (
     <div className="relative" ref={box}>
+      <div className="flex items-center gap-4 text-[11px] text-slate-500 mb-1">
+        {series.map(s => <span key={s.label} className="inline-flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-sm ${s.dot}`} />{s.label}</span>)}
+      </div>
       <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="block" role="img">
-        <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="#cbd5e1" strokeWidth={1} />
+        {ticks.map(t => (
+          <g key={t}>
+            <line x1={L} x2={W - 4} y1={y(t)} y2={y(t)} stroke="#e2e8f0" strokeWidth={1} />
+            <text x={L - 6} y={y(t) + 3.5} textAnchor="end" fontSize={10} fill="#94a3b8">{axis(t)}</text>
+          </g>
+        ))}
         {data.map((d, i) => {
-          const cx = slot * i + slot / 2;
-          const top = Math.min(y(d.value), y(0) - 2);
+          const cx = L + slot * i + slot / 2;
+          const bar = (v: number, x: number, cls: string) => v > 0 && (
+            <path className={cls} d={`M${x},${y(0)} V${Math.min(y(v) + 4, y(0))} q0,-4 4,-4 h${bw - 8} q4,0 4,4 V${y(0)} Z`} />
+          );
           return (
-            <g key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(i)}>
-              <rect x={cx - slot / 2} y={0} width={slot} height={H} fill={hover === i ? '#f1f5f9' : 'transparent'} />
-              {d.value > 0 && <path className={barCls} d={`M${cx - bw / 2},${y(0)} V${top + 3} q0,-3 3,-3 h${bw - 6} q3,0 3,3 V${y(0)} Z`} />}
-              {d.value > 0 && !small && <text x={cx} y={top - 5} textAnchor="middle" fontSize={10} fontWeight={700} fill="#334155">{short(d.value)}</text>}
-              <text x={cx} y={H - 15} textAnchor="middle" fontSize={small ? 9 : 11} fill="#64748b">{d.label}</text>
-              {d.sub && <text x={cx} y={H - 3} textAnchor="middle" fontSize={9} fill="#94a3b8">{d.sub}</text>}
+            <g key={d.label} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(i)}>
+              <rect x={cx - slot / 2} y={T} width={slot} height={plotH + B} fill={hover === i ? '#f1f5f9' : 'transparent'} />
+              {bar(d.a, cx - bw - 1, series[0].cls)}
+              {bar(d.b, cx + 1, series[1].cls)}
+              <text x={cx} y={H - 6} textAnchor="middle" fontSize={11} fill="#64748b">{d.label}</text>
             </g>
           );
         })}
       </svg>
       {hover !== null && (
-        <div className="pointer-events-none absolute top-0 bg-slate-900 text-white text-[11px] rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap"
-          style={{ left: `${Math.min(68, Math.max(0, ((hover + 0.5) / data.length) * 100 - 14))}%` }}>
-          <div className="font-bold">{data[hover].label} {data[hover].sub || ''}</div>
-          <div>{tl(data[hover].value)}</div>
-          {data[hover].extra && <div className="text-slate-300">{data[hover].extra}</div>}
+        <div className="pointer-events-none absolute top-6 bg-slate-900 text-white text-[11px] rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap"
+          style={{ left: `${Math.min(70, Math.max(2, ((hover + 0.5) / data.length) * 100 - 12))}%` }}>
+          <div className="font-bold">{data[hover].label}</div>
+          <div>{series[0].label}: {fmt(data[hover].a)}</div>
+          <div>{series[1].label}: {fmt(data[hover].b)}</div>
         </div>
       )}
     </div>
@@ -105,106 +121,116 @@ const ColumnChart: React.FC<{ data: { label: string; sub?: string; value: number
 };
 
 /** Yatay oran çubuğu (sıralı listeler için) */
-const BarRow: React.FC<{ label: string; value: string; sub?: string; pct: number; cls: string; onClick?: () => void }> = ({ label, value, sub, pct, cls, onClick }) => (
+const BarRow: React.FC<{ label: string; value: string; pct: number; cls: string; onClick?: () => void }> = ({ label, value, pct, cls, onClick }) => (
   <button type="button" onClick={onClick} className={`w-full text-left py-1.5 ${onClick ? 'hover:bg-slate-50 rounded-lg' : 'cursor-default'}`}>
     <div className="flex items-baseline justify-between gap-2 text-xs">
-      <span className="font-semibold text-slate-800 truncate">{label}{sub && <span className="font-normal text-slate-400"> · {sub}</span>}</span>
+      <span className="font-semibold text-slate-800 truncate">{label}</span>
       <span className="font-black text-slate-900 tabular-nums whitespace-nowrap">{value}</span>
     </div>
     <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${cls}`} style={{ width: `${Math.max(2, pct)}%` }} /></div>
   </button>
 );
 
-type Period = 'month' | 'year' | '12m' | 'all';
-const PERIODS: { k: Period; label: string }[] = [{ k: 'month', label: 'Bu ay' }, { k: 'year', label: 'Bu yıl' }, { k: '12m', label: 'Son 12 ay' }, { k: 'all', label: 'Tümü' }];
-
 export const HomePage: React.FC<HomePageProps> = ({
-  quotes, customers, collections, expenses, notes, onOpen, allowed, canAdd, onOpenQuote, onNewQuote, onNewCollection, onNewExpense,
+  quotes, customers, collections, expenses, notes, activities = [], onOpen, allowed, canAdd, onOpenQuote, onOpenCustomer, onNewQuote, onNewCollection, onNewExpense,
 }) => {
   const now = new Date();
   const today = ymd(now);
   const rates = useRates(quotes);
-  const [period, setPeriod] = useState<Period>(() => {
-    try { return (localStorage.getItem('enyap-home-period') as Period) || 'year'; } catch { return 'year'; }
-  });
-  const choosePeriod = (p: Period) => { setPeriod(p); try { localStorage.setItem('enyap-home-period', p); } catch { /* */ } };
+  const [chart, setChart] = useState<'quotes' | 'money'>('quotes');
 
   const s = useMemo(() => {
+    const month = today.slice(0, 7);
+    const year = today.slice(0, 4);
     const won = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
-    const from = period === 'month' ? today.slice(0, 7) : period === 'year' ? today.slice(0, 4)
-      : period === '12m' ? ymd(new Date(now.getFullYear(), now.getMonth() - 11, 1)) : '';
-    const inP = (d: string) => !from || (period === '12m' ? d >= from : d.startsWith(from));
-    const pq = quotes.filter(q => q.status !== 'arsiv' && inP((q.createdAt || '').slice(0, 10)));
-    const qv = (q: Quote) => quoteTry(q, rates);
-    const sum = (l: Quote[]) => l.reduce((t, q) => t + qv(q), 0);
-    const tr = (v: number, c: string) => v * (c === 'USD' ? rates.USD : c === 'EUR' ? rates.EUR : 1);
-    const wonQ = pq.filter(won);
-    const givenAmt = sum(pq), wonAmt = sum(wonQ);
     const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status));
-    // Aylık satış (son 12 ay, onaylanan tutar)
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+    const yearQuotes = quotes.filter(q => (q.createdAt || '').startsWith(year));
+    const monthQuotes = quotes.filter(q => (q.createdAt || '').startsWith(month));
+    const qSum = (list: Quote[]) => list.reduce((t, q) => t + quoteTry(q, rates), 0);
+    const tr = (v: number, c: string) => v * (c === 'USD' ? rates.USD : c === 'EUR' ? rates.EUR : 1);
+    const mSum = (list: { amount: number; currency: string }[]) => list.reduce((t, x) => t + tr(x.amount, x.currency), 0);
+    const yearAmt = qSum(yearQuotes);
+    // Son 6 ay
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
       const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
       const list = quotes.filter(q => (q.createdAt || '').startsWith(key));
-      const w = list.filter(won);
-      return { label: MONTHS[d.getMonth()], sub: d.getMonth() === 0 || i === 0 ? String(d.getFullYear()) : undefined, value: sum(w), extra: `${w.length} sipariş · ${list.length} teklif` };
+      return {
+        label: MONTHS[d.getMonth()],
+        q: { a: list.length, b: list.filter(won).length },
+        m: { a: mSum(collections.filter(c => c.date.startsWith(key))), b: mSum(expenses.filter(e => e.date.startsWith(key))) },
+      };
     });
-    // Şehir ve firma kırılımı (seçilen dönem, onaylanan)
-    const group = (key: (q: Quote) => string) => {
-      const m = new Map<string, { name: string; amt: number; n: number; given: number; givenN: number }>();
-      pq.forEach(q => {
-        const name = key(q) || '—';
-        const k = name.toLocaleLowerCase('tr');
-        const g = m.get(k) || { name, amt: 0, n: 0, given: 0, givenN: 0 };
-        g.given += qv(q); g.givenN++;
-        if (won(q)) { g.amt += qv(q); g.n++; }
-        m.set(k, g);
-      });
-      return [...m.values()].sort((a, b) => b.amt - a.amt || b.given - a.given);
-    };
-    const cities = group(q => (q.city || '').trim());
-    const firms = group(q => q.customerName.trim());
-    const reps = group(q => (q.preparedBy || '').trim()).filter(r => r.name !== '—');
-    // Takip / vade / hatırlatma
+    // Takip: takip başlangıcından sonra girilen bekleyenler (acil önce, sonra en eski)
     const recent = pending.filter(q => new Date(q.createdAt).getTime() >= FOLLOW_UP_START);
     const follow = [...(recent.length ? recent : pending)].sort((a, b) =>
       (a.urgency === 'acil' ? 0 : 1) - (b.urgency === 'acil' ? 0 : 1) || (a.createdAt || '').localeCompare(b.createdAt || ''));
     const in30 = ymd(new Date(now.getTime() + 30 * 86400e3));
     const dues = collections.filter(c => c.dueDate && c.dueDate >= today && c.dueDate <= in30).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
     const portfolio = collections.filter(c => c.dueDate && c.dueDate >= today);
-    const pc = collections.filter(c => inP(c.date));
     const reminders = notes.filter(n => !n.done && n.remindAt).sort((a, b) => (a.remindAt || '').localeCompare(b.remindAt || ''));
+    // Bu yıl en çok onaylanan firmalar
+    const firmMap = new Map<string, { name: string; amt: number; n: number }>();
+    yearQuotes.filter(won).forEach(q => {
+      const k = q.customerName.trim().toLocaleLowerCase('tr');
+      const f = firmMap.get(k) || { name: q.customerName.trim(), amt: 0, n: 0 };
+      f.amt += quoteTry(q, rates); f.n++;
+      firmMap.set(k, f);
+    });
+    const topFirms = [...firmMap.values()].sort((a, b) => b.amt - a.amt).slice(0, 5);
+    // Bu ay harcama dağılımı
+    const catMap = new Map<string, number>();
+    expenses.filter(e => e.date.startsWith(month)).forEach(e => catMap.set(e.category || 'Diğer', (catMap.get(e.category || 'Diğer') || 0) + tr(e.amount, e.currency)));
+    const cats = [...catMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    // Bu ay ilk kez teklif verilen firmalar
+    const firstQuote = new Map<string, string>();
+    quotes.forEach(q => {
+      const k = q.customerName.trim().toLocaleLowerCase('tr');
+      const d = q.createdAt || '';
+      if (!firstQuote.has(k) || d < firstQuote.get(k)!) firstQuote.set(k, d);
+    });
+    const newCustomers = [...firstQuote.values()].filter(d => d.startsWith(month)).length;
     return {
-      givenAmt, givenN: pq.length, wonAmt, wonN: wonQ.length,
-      rate: givenAmt > 0 ? wonAmt / givenAmt : 0,
-      pendingN: pending.length, pendingAmt: sum(pending),
-      colAmt: pc.reduce((t, c) => t + tr(c.amount, c.currency), 0), colN: pc.length,
-      portfolioAmt: portfolio.reduce((t, c) => t + tr(c.amount, c.currency), 0), portfolioN: portfolio.length,
-      expAmt: expenses.filter(e => inP(e.date)).reduce((t, e) => t + tr(e.amount, e.currency), 0),
-      months, cities, firms, reps, follow, dues, dueSum: dues.reduce((t, c) => t + tr(c.amount, c.currency), 0), reminders,
-      activeFirms: firms.filter(f => f.n > 0).length,
-      status: [
-        { label: 'Sipariş', cls: 'bg-accent-500', list: wonQ },
-        { label: 'Beklemede', cls: 'bg-purple-400', list: pq.filter(q => PENDING_STATUSES.includes(q.status)) },
-        { label: 'İptal', cls: 'bg-slate-300', list: pq.filter(q => q.status === 'iptal') },
-      ].map(x => ({ label: x.label, cls: x.cls, n: x.list.length, amt: sum(x.list) })),
+      year, pending: pending.length, pendingAmt: qSum(pending),
+      monthCount: monthQuotes.length, monthAmt: qSum(monthQuotes),
+      monthWon: monthQuotes.filter(won).length, monthWonAmt: qSum(monthQuotes.filter(won)),
+      rate: yearAmt > 0 ? qSum(yearQuotes.filter(won)) / yearAmt : 0,
+      colMonth: mSum(collections.filter(c => c.date.startsWith(month))),
+      colCount: collections.filter(c => c.date.startsWith(month)).length,
+      expMonth: mSum(expenses.filter(e => e.date.startsWith(month))),
+      portfolio: portfolio.length, portfolioAmt: mSum(portfolio),
+      months, follow, dues, dueSum: mSum(dues), reminders, topFirms, cats,
+      customers: customers.length, newCustomers,
     };
-  }, [quotes, collections, expenses, notes, today, rates, period]);
+  }, [quotes, customers, collections, expenses, notes, today, rates]);
 
-  const mapValues = useMemo(() => new Map(s.cities.filter(c => c.amt > 0 || c.given > 0)
-    .map(c => [c.name, { value: c.amt, label: `${tl(c.amt)} sipariş · ${c.givenN} teklif` }])), [s.cities]);
+  // Malzeme kataloğu ve firma fiyat listeleri (sunucuda; sadece sayılar)
+  const [mat, setMat] = useState<{ count: number | null; lists: number | null; latest: string }>({ count: null, lists: null, latest: '' });
+  useEffect(() => {
+    let alive = true;
+    if (allowed('materials')) {
+      supabase.from('materials').select('code', { count: 'exact', head: true })
+        .then(({ count }) => { if (alive) setMat(m => ({ ...m, count: count ?? null })); });
+      supabase.from('supplier_lists').select('name,list_date,updated_at').order('updated_at', { ascending: false })
+        .then(({ data }) => { if (alive && data) setMat(m => ({ ...m, lists: data.length, latest: data[0] ? `${data[0].name} ${data[0].list_date || ''}`.trim() : '' })); });
+    }
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const seeQuotes = allowed('quotes');
   const seeMoney = allowed('collections');
-  const periodLabel = PERIODS.find(p => p.k === period)!.label.toLocaleLowerCase('tr');
+  const seeExp = allowed('expenses');
   const kpis = [
-    seeQuotes && { label: 'Verilen teklifler', value: tl(s.givenAmt), sub: `${s.givenN} teklif · ${periodLabel}`, tab: 'quotes' as const, tone: 'text-slate-900', bar: 'bg-brand-500' },
-    seeQuotes && { label: 'Siparişler', value: tl(s.wonAmt), sub: `${s.wonN} sipariş · ${s.activeFirms} firma`, tab: 'quotes' as const, tone: 'text-accent-700', bar: 'bg-accent-500' },
-    seeQuotes && { label: 'Satış oranı', value: `%${(s.rate * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}`, sub: 'sipariş / verilen tutar', tab: 'reports' as const, tone: 'text-indigo-700', bar: 'bg-indigo-500', pct: s.rate },
-    seeQuotes && { label: 'Bekleyen teklifler', value: tl(s.pendingAmt), sub: `${s.pendingN} teklif (tüm zamanlar)`, tab: 'quotes' as const, tone: 'text-purple-700', bar: 'bg-purple-500' },
-    seeMoney && { label: 'Tahsilat', value: tl(s.colAmt), sub: `${s.colN} kayıt · ${periodLabel}`, tab: 'collections' as const, tone: 'text-brand-700', bar: 'bg-brand-700' },
-    seeMoney && { label: 'Portföy çek/senet', value: tl(s.portfolioAmt), sub: `${s.portfolioN} adet vadesi gelmemiş`, tab: 'collections' as const, tone: 'text-slate-900', bar: 'bg-slate-500' },
-  ].filter(Boolean) as { label: string; value: string; sub: string; tab: Exclude<ActiveTab, 'home'>; tone: string; bar: string; pct?: number }[];
+    seeQuotes && { label: 'Bekleyen teklif', value: s.pending.toLocaleString('tr-TR'), sub: tl(s.pendingAmt), tab: 'quotes' as const, tone: 'text-purple-700' },
+    seeQuotes && { label: 'Bu ay onaylanan', value: tl(s.monthWonAmt), sub: `${s.monthWon} / ${s.monthCount} teklif`, tab: 'quotes' as const, tone: 'text-accent-700' },
+    seeMoney && { label: 'Bu ay tahsilat', value: tl(s.colMonth), sub: `${s.colCount} kayıt`, tab: 'collections' as const, tone: 'text-brand-700' },
+    seeExp && { label: 'Bu ay harcama', value: tl(s.expMonth), sub: s.cats[0] ? `en çok ${s.cats[0][0]}` : 'kayıt yok', tab: 'expenses' as const, tone: 'text-orange-700' },
+    seeMoney && { label: 'Portföy çek/senet', value: tl(s.portfolioAmt), sub: `${s.portfolio} adet vadesi gelmemiş`, tab: 'collections' as const, tone: 'text-slate-900' },
+    { label: 'Müşteriler', value: s.customers.toLocaleString('tr-TR'), sub: s.newCustomers ? `bu ay ${s.newCustomers} firmaya ilk teklif` : 'kayıtlı firma', tab: 'customers' as const, tone: 'text-sky-700' },
+    allowed('materials') && { label: 'Malzeme kataloğu', value: mat.count == null ? '—' : mat.count.toLocaleString('tr-TR'), sub: mat.lists == null ? 'kalem' : `${mat.lists} firma fiyat listesi`, tab: 'materials' as const, tone: 'text-teal-700' },
+    seeQuotes && { label: `${s.year} satış oranı`, value: `%${(s.rate * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}`, sub: 'onaylanan / verilen tutar', tab: 'reports' as const, tone: 'text-indigo-700' },
+  ].filter(Boolean) as { label: string; value: string; sub: string; tab: Exclude<ActiveTab, 'home'>; tone: string }[];
 
   const dateText = now.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const more = (tab: Exclude<ActiveTab, 'home'>) => (
@@ -213,191 +239,162 @@ export const HomePage: React.FC<HomePageProps> = ({
     </button>
   );
   const empty = (t: string) => <p className="py-6 text-center text-xs text-slate-400">{t}</p>;
-  const topCities = s.cities.filter(c => c.amt > 0).slice(0, 8);
-  const topFirms = s.firms.filter(f => f.amt > 0).slice(0, 8);
-  const reps = s.reps.slice(0, 6);
-  const swipe = '-mx-3 px-3 md:mx-0 md:px-0 flex md:grid gap-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+  const ago = (iso: string) => {
+    const m = Math.round((now.getTime() - new Date(iso).getTime()) / 60000);
+    return m < 60 ? `${Math.max(1, m)} dk önce` : m < 1440 ? `${Math.round(m / 60)} sa önce` : shortDate(iso);
+  };
+  const feed = activities.filter(a => !/tanı\)/.test(a.action)).slice(0, 7);
+  const chartTab = (k: 'quotes' | 'money', label: string) => (
+    <button onClick={() => setChart(k)} className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold ${chart === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
+  );
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      {/* Başlık bandı: rapor adı, dönem seçimi, hızlı işlemler */}
-      <section className="rounded-2xl bg-gradient-to-r from-brand-700 to-brand-500 text-white px-4 sm:px-5 py-3.5 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-brand-100 text-[11px]">{greeting()} · <span className="capitalize">{dateText}</span></p>
-            <h1 className="text-base sm:text-xl font-black tracking-tight uppercase">Enyap Isı Sistemleri // Satış Raporu</h1>
-          </div>
-          {seeQuotes && (
-            <div className="flex gap-1 p-1 rounded-xl bg-white/10 w-fit">
-              {PERIODS.map(p => (
-                <button key={p.k} onClick={() => choosePeriod(p.k)}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-extrabold whitespace-nowrap ${period === p.k ? 'bg-white text-brand-700' : 'text-white/85 hover:bg-white/10'}`}>{p.label}</button>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            {[
-              { label: 'Teklif', onClick: onNewQuote, ok: canAdd.quote },
-              { label: 'Tahsilat', onClick: onNewCollection, ok: canAdd.collection },
-              { label: 'Harcama', onClick: onNewExpense, ok: canAdd.expense },
-            ].filter(a => a.ok).map(a => (
-              <button key={a.label} onClick={a.onClick}
-                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-[11px] sm:text-xs font-bold whitespace-nowrap">
-                <Plus className="w-3.5 h-3.5" /> {a.label}
-              </button>
-            ))}
-          </div>
+    <div className="space-y-4">
+      {/* Karşılama + hızlı işlemler */}
+      <section className="rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 text-white px-5 py-4 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <p className="text-brand-100 text-xs">{greeting()} · <span className="capitalize">{dateText}</span></p>
+          <h1 className="text-lg sm:text-xl font-black tracking-tight">Enyap Isı Teklif & Takip</h1>
         </div>
-      </section>
-
-      {/* Toplam kartları */}
-      {kpis.length > 0 && (
-        <div className={`${swipe} md:grid-cols-3 xl:grid-cols-6`}>
-          {kpis.map(k => (
-            <button key={k.label} onClick={() => onOpen(k.tab)}
-              className="snap-start shrink-0 w-[46%] md:w-auto text-left bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden hover:border-brand-300 transition-colors flex flex-col">
-              <div className={`h-1 ${k.bar}`} />
-              <div className="px-3.5 py-2.5 flex-1">
-                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-wide text-slate-500 truncate">{k.label}</div>
-                <div className={`mt-0.5 text-base sm:text-lg xl:text-xl font-black tabular-nums truncate ${k.tone}`}>{k.value}</div>
-                <div className="text-[11px] text-slate-500 truncate">{k.sub}</div>
-                {k.pct !== undefined && <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.min(100, k.pct * 100)}%` }} /></div>}
-              </div>
+        <div className="grid grid-cols-3 md:flex gap-2">
+          {[
+            { label: 'Yeni Teklif', onClick: onNewQuote, ok: canAdd.quote },
+            { label: 'Tahsilat Ekle', onClick: onNewCollection, ok: canAdd.collection },
+            { label: 'Harcama Ekle', onClick: onNewExpense, ok: canAdd.expense },
+          ].filter(a => a.ok).map(a => (
+            <button key={a.label} onClick={a.onClick}
+              className="inline-flex items-center justify-center gap-1 md:gap-1.5 px-2 md:px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-[11px] sm:text-sm font-bold whitespace-nowrap">
+              <Plus className="w-4 h-4" /> {a.label}
             </button>
           ))}
         </div>
-      )}
+      </section>
 
-      {seeQuotes && (
-        <>
-          {/* Aylık satış + şehir bazlı satış */}
-          <div className="grid lg:grid-cols-5 gap-3 items-stretch">
-            <Panel title="Aylık satış grafiği" action={<span className="text-[11px] text-slate-400">son 12 ay · sipariş tutarı</span>} className="lg:col-span-3">
-              <ColumnChart data={s.months} barCls="fill-brand-500" />
-            </Panel>
-            <Panel title="Şehir bazlı satış" action={<span className="text-[11px] text-slate-400">{periodLabel}</span>} className="lg:col-span-2">
-              {topCities.length === 0 ? empty('Bu dönemde sipariş yok.') : topCities.map(c => (
-                <BarRow key={c.name} label={c.name} sub={`${c.n} sipariş`} value={tl(c.amt)} pct={(c.amt / topCities[0].amt) * 100} cls="bg-brand-500" />
-              ))}
-            </Panel>
-          </div>
+      {/* Özet rakamlar: tüm bölümlerden */}
+      {/* Telefonda yana kaydırılır, bilgisayarda 4 sütun */}
+      <div className="-mx-3 px-3 md:mx-0 md:px-0 flex md:grid md:grid-cols-4 gap-2.5 sm:gap-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {kpis.map(k => (
+          <button key={k.label} onClick={() => onOpen(k.tab)}
+            className="snap-start shrink-0 w-[44%] md:w-auto text-left bg-white rounded-2xl border border-slate-200 shadow-xs px-3.5 py-3 min-w-0 hover:border-brand-300 transition-colors">
+            <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-slate-500 truncate">{k.label}</div>
+            <div className={`mt-0.5 text-lg sm:text-xl font-black tabular-nums truncate ${k.tone}`}>{k.value}</div>
+            <div className="text-[11px] text-slate-500 tabular-nums truncate">{k.sub}</div>
+          </button>
+        ))}
+      </div>
 
-          {/* Harita + satış temsilcileri */}
-          <div className="grid lg:grid-cols-5 gap-3 items-stretch">
-            <Panel title="Ülke geneli satış yapılan şehirler" action={<span className="text-[11px] text-slate-400">{periodLabel} · {s.cities.filter(c => c.amt > 0).length} il</span>} className="lg:col-span-3">
-              <React.Suspense fallback={<div className="h-48 flex items-center justify-center text-xs text-slate-400">harita yükleniyor…</div>}>
-                <TurkeyMap values={mapValues} />
-              </React.Suspense>
+      <div className="grid lg:grid-cols-3 gap-3 items-stretch">
+        <div className="lg:col-span-2 flex flex-col gap-3 min-w-0">
+          {(seeQuotes || seeMoney) && (
+            <Panel title="Son 6 ay" action={
+              seeQuotes && (seeMoney || seeExp)
+                ? <div className="flex gap-0.5 p-0.5 rounded-lg bg-slate-100">{chartTab('quotes', 'Teklif')}{chartTab('money', 'Tahsilat / Harcama')}</div>
+                : more('reports')}>
+              {chart === 'quotes' && seeQuotes
+                ? <MonthlyChart data={s.months.map(m => ({ label: m.label, ...m.q }))}
+                    series={[{ label: 'Verilen teklif', cls: 'fill-brand-400', dot: 'bg-brand-400' }, { label: 'Onaylanan', cls: 'fill-accent-600', dot: 'bg-accent-600' }]} />
+                : <MonthlyChart data={s.months.map(m => ({ label: m.label, ...m.m }))} fmt={tl}
+                    series={[{ label: 'Tahsilat', cls: 'fill-accent-600', dot: 'bg-accent-600' }, { label: 'Harcama', cls: 'fill-orange-400', dot: 'bg-orange-400' }]} />}
             </Panel>
-            <Panel title="Satış temsilcileri" action={<span className="text-[11px] text-slate-400">{periodLabel}</span>} className="lg:col-span-2">
-              {reps.length === 0 ? empty('Teklifi veren bilgisi yok.') : (
-                <div className="divide-y divide-slate-100">
-                  {reps.map(r => {
-                    const rate = r.given > 0 ? r.amt / r.given : 0;
+          )}
+          {seeQuotes && (
+            <Panel title={`Takip edilecek teklifler · ${s.follow.length}`} action={more('quotes')} className="flex-1">
+              {s.follow.length === 0 ? empty('Bekleyen teklif yok.') : (
+                <ul className="divide-y divide-slate-100 -mx-1">
+                  {s.follow.slice(0, 5).map(q => {
+                    const age = Math.floor((now.getTime() - new Date(q.createdAt).getTime()) / 86400e3);
                     return (
-                      <div key={r.name} className="py-2">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-sm font-bold text-slate-900 truncate">{r.name}</span>
-                          <span className="text-sm font-black text-accent-700 tabular-nums whitespace-nowrap">{tl(r.amt)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-accent-500 rounded-full" style={{ width: `${Math.min(100, rate * 100)}%` }} /></div>
-                          <span className="text-[11px] text-slate-500 tabular-nums whitespace-nowrap">{r.givenN} teklif · {r.n} sipariş · %{Math.round(rate * 100)}</span>
-                        </div>
-                      </div>
+                      <li key={q.id}>
+                        <button onClick={() => onOpenQuote(q)} className="w-full flex items-center gap-3 px-1 py-2 text-left hover:bg-slate-50 rounded-lg">
+                          <span className={`w-1.5 self-stretch rounded-full ${q.urgency === 'acil' ? 'bg-rose-500' : age >= 3 ? 'bg-amber-400' : 'bg-slate-200'}`} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-bold text-slate-900 truncate">{q.customerName}</span>
+                            <span className="block text-[11px] text-slate-500 truncate">{q.quoteNumber} · {age === 0 ? 'bugün' : `${age} gündür bekliyor`}{q.urgency === 'acil' ? ' · ACİL' : ''}</span>
+                          </span>
+                          <span className="text-sm font-black text-slate-800 tabular-nums whitespace-nowrap">{tl(quoteTry(q, rates))}</span>
+                        </button>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               )}
-              <div className="mt-3 pt-3 border-t border-slate-100">
-                <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Teklif durumları · {periodLabel}</div>
-                <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
-                  {s.status.map(x => x.n > 0 && <div key={x.label} className={x.cls} style={{ width: `${(x.n / Math.max(1, s.givenN)) * 100}%` }} title={`${x.label}: ${x.n}`} />)}
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {s.status.map(x => (
-                    <div key={x.label} className="min-w-0">
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500"><span className={`w-2 h-2 rounded-sm ${x.cls}`} />{x.label}</div>
-                      <div className="text-sm font-black text-slate-900 tabular-nums">{x.n.toLocaleString('tr-TR')}</div>
-                      <div className="text-[10px] text-slate-400 tabular-nums truncate">{short(x.amt)} TL</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </Panel>
-          </div>
-        </>
-      )}
+          )}
+        </div>
 
-      {/* Firmalar, takip, vadeler, hatırlatmalar */}
-      <div className={`${swipe} md:grid-cols-2 xl:grid-cols-4 items-stretch [&>*]:snap-start [&>*]:shrink-0 [&>*]:w-[86%] md:[&>*]:w-auto`}>
+        <div className="flex flex-col gap-3 min-w-0">
+          {seeMoney && (
+            <Panel title="Yaklaşan vadeler · 30 gün" action={more('collections')}>
+              {s.dues.length === 0 ? empty('30 gün içinde vadesi gelen çek/senet yok.') : (
+                <>
+                  <div className="text-[11px] text-slate-500 mb-1">Toplam <b className="text-slate-800 tabular-nums">{tl(s.dueSum)}</b></div>
+                  <ul className="divide-y divide-slate-100">
+                    {s.dues.slice(0, 5).map(c => (
+                      <li key={c.id} className="flex items-center gap-2 py-2">
+                        <span className="w-12 shrink-0 text-[11px] font-bold text-accent-700 tabular-nums">{shortDate(c.dueDate!)}</span>
+                        <span className="min-w-0 flex-1 text-xs font-semibold text-slate-800 truncate">{c.customerName}</span>
+                        <span className="text-xs font-black text-slate-800 tabular-nums whitespace-nowrap">{fmtAmt(c.amount, c.currency)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </Panel>
+          )}
+          {allowed('notes') && (
+            <Panel title="Hatırlatmalar" action={more('notes')} className="flex-1">
+              {s.reminders.length === 0 ? empty('Hatırlatmalı not yok.') : (
+                <ul className="divide-y divide-slate-100">
+                  {s.reminders.slice(0, 4).map(n => {
+                    const late = new Date(n.remindAt!).getTime() < now.getTime();
+                    return (
+                      <li key={n.id} className="py-2">
+                        <button onClick={() => onOpen('notes')} className="w-full text-left">
+                          <span className={`text-[11px] font-bold ${late ? 'text-rose-600' : 'text-amber-700'}`}>{formatReminder(n.remindAt!)}{late ? ' · geçti' : ''}</span>
+                          <span className="block text-xs text-slate-700 line-clamp-2">{n.content}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Panel>
+          )}
+        </div>
+      </div>
+
+      {/* Firmalar, harcamalar, son hareketler */}
+      <div className="-mx-3 px-3 md:mx-0 md:px-0 flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start [&>*]:shrink-0 [&>*]:w-[86%] md:[&>*]:w-auto">
         {seeQuotes && (
-          <Panel title="En çok sipariş veren firmalar" action={more('customers')}>
-            {topFirms.length === 0 ? empty('Bu dönemde sipariş yok.') : topFirms.map(f => (
-              <BarRow key={f.name} label={f.name} sub={`${f.n}`} value={short(f.amt)} pct={(f.amt / topFirms[0].amt) * 100} cls="bg-accent-500" />
+          <Panel title={`${s.year} en çok çalışılan firmalar`} action={more('customers')}>
+            {s.topFirms.length === 0 ? empty('Bu yıl onaylanan teklif yok.') : s.topFirms.map(f => (
+              <BarRow key={f.name} label={`${f.name} · ${f.n} sipariş`} value={tl(f.amt)} pct={(f.amt / s.topFirms[0].amt) * 100}
+                cls="bg-accent-500" onClick={onOpenCustomer ? () => onOpenCustomer(f.name) : undefined} />
             ))}
           </Panel>
         )}
-        {seeQuotes && (
-          <Panel title={`Takip edilecek · ${s.follow.length}`} action={more('quotes')}>
-            {s.follow.length === 0 ? empty('Bekleyen teklif yok.') : (
-              <ul className="divide-y divide-slate-100 -mx-1">
-                {s.follow.slice(0, 6).map(q => {
-                  const age = Math.floor((now.getTime() - new Date(q.createdAt).getTime()) / 86400e3);
-                  return (
-                    <li key={q.id}>
-                      <button onClick={() => onOpenQuote(q)} className="w-full flex items-center gap-2 px-1 py-1.5 text-left hover:bg-slate-50 rounded-lg">
-                        <span className={`w-1 self-stretch rounded-full ${q.urgency === 'acil' ? 'bg-rose-500' : age >= 3 ? 'bg-amber-400' : 'bg-slate-200'}`} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-xs font-bold text-slate-900 truncate">{q.customerName}</span>
-                          <span className="block text-[10px] text-slate-500 truncate">{q.quoteNumber} · {age === 0 ? 'bugün' : `${age} gün`}</span>
-                        </span>
-                        <span className="text-xs font-black text-slate-800 tabular-nums whitespace-nowrap">{short(quoteTry(q, rates))}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+        {seeExp && (
+          <Panel title="Bu ay harcamalar" action={more('expenses')}>
+            {s.cats.length === 0 ? empty('Bu ay harcama kaydı yok.') : s.cats.map(([c, v]) => (
+              <BarRow key={c} label={c} value={tl(v)} pct={(v / s.cats[0][1]) * 100} cls="bg-orange-400" />
+            ))}
           </Panel>
         )}
-        {seeMoney && (
-          <Panel title="Yaklaşan vadeler · 30 gün" action={more('collections')}>
-            {s.dues.length === 0 ? empty('30 gün içinde vade yok.') : (
-              <>
-                <div className="text-[11px] text-slate-500 mb-1">Toplam <b className="text-slate-800 tabular-nums">{tl(s.dueSum)}</b></div>
-                <ul className="divide-y divide-slate-100">
-                  {s.dues.slice(0, 5).map(c => (
-                    <li key={c.id} className="flex items-center gap-2 py-1.5">
-                      <span className="w-11 shrink-0 text-[11px] font-bold text-accent-700 tabular-nums">{shortDate(c.dueDate!)}</span>
-                      <span className="min-w-0 flex-1 text-xs font-semibold text-slate-800 truncate">{c.customerName}</span>
-                      <span className="text-xs font-black text-slate-800 tabular-nums whitespace-nowrap">{short(c.amount)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </Panel>
-        )}
-        {allowed('notes') && (
-          <Panel title="Hatırlatmalar" action={more('notes')}>
-            {s.reminders.length === 0 ? empty('Hatırlatmalı not yok.') : (
-              <ul className="divide-y divide-slate-100">
-                {s.reminders.slice(0, 5).map(n => {
-                  const late = new Date(n.remindAt!).getTime() < now.getTime();
-                  return (
-                    <li key={n.id} className="py-1.5">
-                      <button onClick={() => onOpen('notes')} className="w-full text-left">
-                        <span className={`text-[11px] font-bold ${late ? 'text-rose-600' : 'text-amber-700'}`}>{formatReminder(n.remindAt!)}{late ? ' · geçti' : ''}</span>
-                        <span className="block text-xs text-slate-700 line-clamp-2">{n.content}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Panel>
-        )}
+        <Panel title="Son hareketler" action={allowed('notes') ? more('notes') : undefined} className="md:col-span-2 lg:col-span-1">
+          {feed.length === 0 ? empty('Henüz hareket yok.') : (
+            <ul className="divide-y divide-slate-100">
+              {feed.map(a => (
+                <li key={a.id} className="py-1.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800 truncate">{a.action}</span>
+                    <span className="text-[10px] text-slate-400 whitespace-nowrap">{ago(a.timestamp)}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">{a.description}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
     </div>
   );
