@@ -40,12 +40,33 @@ export const CustomerAccount: React.FC<{
   onClose: () => void;
   onOpenQuote?: (q: Quote) => void;
   onNewQuote: () => void;
-}> = ({ customer, quotes, collections, rates, showCollections, onClose, onOpenQuote, onNewQuote }) => {
+}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote }) => {
   const [tab, setTab] = useState<Tab>('quotes');
   const [qFilter, setQFilter] = useState<QFilter>('all');
   const [q, setQ] = useState('');
   const [onlyBought, setOnlyBought] = useState(true);
   const [limit, setLimit] = useState(60);
+
+  // Tarih filtresi: teklifler (teklif tarihi) ve tahsilatlar (tahsilat tarihi) birlikte süzülür
+  const [range, setRange] = useState<{ key: string; from: string; to: string }>({ key: 'all', from: '', to: '' });
+  const years = useMemo(() => {
+    const ys = new Set<string>();
+    allQuotes.forEach(x => x.createdAt && ys.add(x.createdAt.slice(0, 4)));
+    allCollections.forEach(c => c.date && ys.add(c.date.slice(0, 4)));
+    return [...ys].sort().reverse().slice(0, 4);
+  }, [allQuotes, allCollections]);
+  const inRange = (d?: string) => {
+    const x = (d || '').slice(0, 10);
+    return (!range.from || x >= range.from) && (!range.to || x <= range.to);
+  };
+  const quotes = range.key === 'all' ? allQuotes : allQuotes.filter(x => inRange(x.createdAt));
+  const collections = range.key === 'all' ? allCollections : allCollections.filter(c => inRange(c.date));
+  const pickYear = (y: string) => setRange({ key: y, from: `${y}-01-01`, to: `${y}-12-31` });
+  const pickMonth = () => {
+    const n = new Date(); const ym = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
+    setRange({ key: 'month', from: `${ym}-01`, to: `${ym}-31` });
+  };
+  const rangeLabel = range.key === 'all' ? 'tüm zamanlar' : range.key === 'month' ? 'bu ay' : range.key === 'custom' ? `${day(range.from)} – ${day(range.to)}` : range.key;
 
   const approved = quotes.filter(isApproved);
   const pending = quotes.filter(isPending);
@@ -107,12 +128,29 @@ export const CustomerAccount: React.FC<{
         </div>
 
         <div className="p-3 sm:p-5 space-y-3 overflow-y-auto flex-1">
+          {/* Tarih filtresi */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[{ k: 'all', label: 'Tümü', on: () => setRange({ key: 'all', from: '', to: '' }) },
+              { k: 'month', label: 'Bu ay', on: pickMonth },
+              ...years.map(y => ({ k: y, label: y, on: () => pickYear(y) }))].map(o => (
+              <button key={o.k} onClick={() => { o.on(); setLimit(60); }}
+                className={`px-3 py-1.5 rounded-full border text-xs font-bold ${range.key === o.k ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>{o.label}</button>
+            ))}
+            <span className="inline-flex items-center gap-1 text-xs">
+              <input type="date" value={range.key === 'custom' ? range.from : ''} onChange={e => setRange(r => ({ key: 'custom', from: e.target.value, to: r.key === 'custom' ? r.to : '' }))}
+                className={`px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} aria-label="Başlangıç tarihi" />
+              <span className="text-slate-400">–</span>
+              <input type="date" value={range.key === 'custom' ? range.to : ''} onChange={e => setRange(r => ({ key: 'custom', from: r.key === 'custom' ? r.from : '', to: e.target.value }))}
+                className={`px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} aria-label="Bitiş tarihi" />
+            </span>
+          </div>
+
           {/* Özet */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
             {tile('Onaylanan', `${approved.length} teklif`, tl(sumTry(approved)), 'bg-emerald-50 border-emerald-200 text-emerald-800', () => { setTab('quotes'); setQFilter('approved'); })}
             {tile('Bekleyen', `${pending.length} teklif`, tl(sumTry(pending)), 'bg-purple-50 border-purple-200 text-purple-800', () => { setTab('quotes'); setQFilter('pending'); })}
             {showCollections
-              ? tile('Tahsilat', tl(colTry), `${collections.length} kayıt`, 'bg-white border-slate-200 text-slate-800', () => setTab('collections'))
+              ? tile('Tahsilat', tl(colTry), `${collections.length} kayıt · ${rangeLabel}`, 'bg-white border-slate-200 text-slate-800', () => setTab('collections'))
               : tile('Toplam teklif', `${quotes.length}`, `${cancelled.length} iptal/arşiv`, 'bg-white border-slate-200 text-slate-800')}
             {tile('Son alım', lastBuy ? day(lastBuy) : '—', quotes[0] ? `son teklif ${day(quotes[0].createdAt)}` : 'teklif yok', 'bg-white border-slate-200 text-slate-800')}
           </div>
