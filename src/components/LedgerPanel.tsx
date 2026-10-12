@@ -205,6 +205,157 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
     if (confirm(`${fmtDate(r.date)} tarihli ${money(r.amount, r.currency)} ${t.one.toLocaleLowerCase('tr')} kaydı silinsin mi?`)) onDelete(r.id);
   };
 
+
+  // Aynı firmadan aynı gün alınan tahsilatlar (ör. 4 çek) tek satırda toplanır; dokununca parçalar açılır
+  const [merge, setMerge] = useState(() => { try { return localStorage.getItem('enyap-ledger-merge') !== '0'; } catch { return true; } });
+  const toggleMerge = () => setMerge(m => { try { localStorage.setItem('enyap-ledger-merge', m ? '0' : '1'); } catch { /* */ } return !m; });
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const groups = useMemo(() => {
+    const out: { key: string; items: LedgerRecord[] }[] = [];
+    const idx = new Map<string, number>();
+    for (const r of filtered.slice(0, limit)) {
+      const key = isCollection ? `${fold(partyOf(r) || '')}|${r.date}|${r.currency}` : r.id;
+      const at = idx.get(key);
+      if (at === undefined) { idx.set(key, out.length); out.push({ key, items: [r] }); }
+      else out[at].items.push(r);
+    }
+    return out;
+  }, [filtered, limit, isCollection]);
+  const toggleGroup = (k: string) => setOpenGroups(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const groupInfo = (g: { items: LedgerRecord[] }) => {
+    const first = g.items[0] as Collection;
+    const total = g.items.reduce((t, r) => t + r.amount, 0);
+    const methods = [...new Set(g.items.map(r => r.method).filter(Boolean))].join(', ');
+    const dues = g.items.map(r => (r as Collection).dueDate).filter(Boolean).sort() as string[];
+    return { first, total, methods, dues };
+  };
+  const mobileItem = (r: LedgerRecord) => {
+            const c = isCollectionRec(r) ? r : null;
+            const e = c ? null : (r as Expense);
+            const overdue = !!c?.dueDate && c.dueDate < todayStr;
+            const detail = c
+              ? [c.method, c.bankName, c.checkNo ? `No ${c.checkNo}` : ''].filter(Boolean).join(' · ')
+              : [e?.region, r.method].filter(Boolean).join(' · ');
+            return (
+              <div key={r.id} className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 text-sm leading-snug">{partyOf(r) || '-'}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{fmtDate(r.date)}{c?.city ? ` · ${c.city}` : ''}</div>
+                  </div>
+                  <div className="font-black text-slate-900 text-sm tabular-nums whitespace-nowrap">{money(r.amount, r.currency)}</div>
+                </div>
+                {detail && <div className="text-xs text-slate-600 mt-1">{detail}</div>}
+                {r.description && <div className="text-xs text-slate-500 mt-0.5 line-clamp-2">{r.description}</div>}
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div>
+                    {c?.dueDate && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${overdue ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'}`}>
+                        Vade {fmtDate(c.dueDate)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setEditing(r)} title="Düzenle" className="p-1.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => handleDelete(r)} title="Sil" className="p-1.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              </div>
+            );
+          };
+  const tableRow = (r: LedgerRecord) => {
+                const c = isCollectionRec(r) ? r : null;
+                const e = c ? null : (r as Expense);
+                const overdue = !!c?.dueDate && c.dueDate < todayStr;
+                return (
+                  <tr key={r.id} className="hover:bg-slate-50 align-top">
+                    <td className="py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(r.date)}</td>
+                    <td className="py-2.5 px-3 min-w-[140px]">
+                      <div className="font-semibold text-slate-900">{partyOf(r) || '-'}</div>
+                      {c?.city && <div className="text-xs text-slate-500">{c.city}</div>}
+                    </td>
+                    {c ? (
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="text-slate-800">{c.method || '-'}</div>
+                        {(c.bankName || c.checkNo) && (
+                          <div className="text-xs text-slate-500">
+                            {[c.bankName, c.bankBranch].filter(Boolean).join(' · ')}{c.checkNo ? ` · No ${c.checkNo}` : ''}
+                          </div>
+                        )}
+                      </td>
+                    ) : (
+                      <td className="py-2.5 px-3 whitespace-nowrap text-slate-600">{e?.region || '-'}</td>
+                    )}
+                    {c ? (
+                      <td className="py-2.5 px-3 whitespace-nowrap tabular-nums">
+                        {c.dueDate ? (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${overdue ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'}`}>
+                            {fmtDate(c.dueDate)}
+                          </span>
+                        ) : <span className="text-slate-400">-</span>}
+                      </td>
+                    ) : (
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{r.method || '-'}</td>
+                    )}
+                    <td className="py-2.5 px-3 text-slate-600 max-w-[260px] truncate" title={r.description || ''}>{r.description || '-'}</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">{money(r.amount, r.currency)}</td>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setEditing(r)} title="Düzenle" className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(r)} title="Sil" className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              };
+  const mobileGroup = (g: { key: string; items: LedgerRecord[] }) => {
+    const { first, total, methods, dues } = groupInfo(g);
+    const open = openGroups.has(g.key);
+    return (
+      <div key={g.key} className={open ? 'bg-slate-50/60' : ''}>
+        <button onClick={() => toggleGroup(g.key)} className="w-full text-left p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-bold text-slate-900 text-sm leading-snug">{partyOf(first) || '-'}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">{fmtDate(first.date)}{first.city ? ` · ${first.city}` : ''}</div>
+            </div>
+            <div className="text-right">
+              <div className="font-black text-slate-900 text-sm tabular-nums whitespace-nowrap">{money(total, first.currency)}</div>
+              <div className="text-[10px] font-bold text-brand-700">{g.items.length} parça {open ? '▲' : '▼'}</div>
+            </div>
+          </div>
+          <div className="text-xs text-slate-600 mt-1">{methods}{dues.length ? ` · vade ${fmtDate(dues[0])}${dues.length > 1 ? ` – ${fmtDate(dues[dues.length - 1])}` : ''}` : ''}</div>
+        </button>
+        {open && <div className="border-t border-dashed border-slate-200 divide-y divide-slate-100 pl-3">{g.items.map(mobileItem)}</div>}
+      </div>
+    );
+  };
+  const tableGroup = (g: { key: string; items: LedgerRecord[] }) => {
+    const { first, total, methods, dues } = groupInfo(g);
+    const open = openGroups.has(g.key);
+    return (
+      <React.Fragment key={g.key}>
+        <tr onClick={() => toggleGroup(g.key)} className="hover:bg-slate-50 cursor-pointer align-top bg-white">
+          <td className="py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(first.date)}</td>
+          <td className="py-2.5 px-3 min-w-[140px]">
+            <div className="font-semibold text-slate-900">{partyOf(first) || '-'}</div>
+            {first.city && <div className="text-xs text-slate-500">{first.city}</div>}
+          </td>
+          <td className="py-2.5 px-3 whitespace-nowrap text-slate-800">{methods || '-'}</td>
+          <td className="py-2.5 px-3 whitespace-nowrap text-xs text-slate-600 tabular-nums">{dues.length ? `${fmtDate(dues[0])}${dues.length > 1 ? ` – ${fmtDate(dues[dues.length - 1])}` : ''}` : '-'}</td>
+          <td className="py-2.5 px-3 text-xs font-bold text-brand-700">{g.items.length} parça {open ? '▲' : '▼'}</td>
+          <td className="py-2.5 px-3 text-right font-black text-slate-900 whitespace-nowrap tabular-nums">{money(total, first.currency)}</td>
+          <td />
+        </tr>
+        {open && g.items.map(tableRow)}
+      </React.Fragment>
+    );
+  };
+
   const cards = [
     { label: 'Bu Ay', value: totalsText(monthTotals) },
     { label: `${monthPrefix.slice(0, 4)} Yılı`, value: totalsText(yearTotals) },
@@ -301,6 +452,20 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
         </div>
       </div>
 
+      {/* Liste üstü: listedeki kayıtların toplamı ve birleştirme seçeneği */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="text-sm text-slate-600">
+          {hasFilters ? 'Filtrelenen' : 'Toplam'}: <b className="text-slate-900 tabular-nums">{totalsText(filteredTotals)}</b>
+          <span className="text-slate-400"> · {filtered.length} kayıt</span>
+        </div>
+        {isCollection && (
+          <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+            <input type="checkbox" checked={merge} onChange={toggleMerge} />
+            Aynı gün aynı firmayı birleştir
+          </label>
+        )}
+      </div>
+
       {/* Liste */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         {/* Telefon: kart görünümü */}
@@ -310,40 +475,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
               {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok.` : 'Filtrelere uygun kayıt bulunamadı.'}
             </p>
           )}
-          {filtered.slice(0, limit).map(r => {
-            const c = isCollectionRec(r) ? r : null;
-            const e = c ? null : (r as Expense);
-            const overdue = !!c?.dueDate && c.dueDate < todayStr;
-            const detail = c
-              ? [c.method, c.bankName, c.checkNo ? `No ${c.checkNo}` : ''].filter(Boolean).join(' · ')
-              : [e?.region, r.method].filter(Boolean).join(' · ');
-            return (
-              <div key={r.id} className="p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-bold text-slate-900 text-sm leading-snug">{partyOf(r) || '-'}</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">{fmtDate(r.date)}{c?.city ? ` · ${c.city}` : ''}</div>
-                  </div>
-                  <div className="font-black text-slate-900 text-sm tabular-nums whitespace-nowrap">{money(r.amount, r.currency)}</div>
-                </div>
-                {detail && <div className="text-xs text-slate-600 mt-1">{detail}</div>}
-                {r.description && <div className="text-xs text-slate-500 mt-0.5 line-clamp-2">{r.description}</div>}
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <div>
-                    {c?.dueDate && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${overdue ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'}`}>
-                        Vade {fmtDate(c.dueDate)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setEditing(r)} title="Düzenle" className="p-1.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => handleDelete(r)} title="Sil" className="p-1.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {groups.map(g => (g.items.length === 1 || !merge ? g.items.map(mobileItem) : mobileGroup(g)))}
         </div>
         <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-left text-sm">
@@ -359,55 +491,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.slice(0, limit).map(r => {
-                const c = isCollectionRec(r) ? r : null;
-                const e = c ? null : (r as Expense);
-                const overdue = !!c?.dueDate && c.dueDate < todayStr;
-                return (
-                  <tr key={r.id} className="hover:bg-slate-50 align-top">
-                    <td className="py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(r.date)}</td>
-                    <td className="py-2.5 px-3 min-w-[140px]">
-                      <div className="font-semibold text-slate-900">{partyOf(r) || '-'}</div>
-                      {c?.city && <div className="text-xs text-slate-500">{c.city}</div>}
-                    </td>
-                    {c ? (
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <div className="text-slate-800">{c.method || '-'}</div>
-                        {(c.bankName || c.checkNo) && (
-                          <div className="text-xs text-slate-500">
-                            {[c.bankName, c.bankBranch].filter(Boolean).join(' · ')}{c.checkNo ? ` · No ${c.checkNo}` : ''}
-                          </div>
-                        )}
-                      </td>
-                    ) : (
-                      <td className="py-2.5 px-3 whitespace-nowrap text-slate-600">{e?.region || '-'}</td>
-                    )}
-                    {c ? (
-                      <td className="py-2.5 px-3 whitespace-nowrap tabular-nums">
-                        {c.dueDate ? (
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${overdue ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'}`}>
-                            {fmtDate(c.dueDate)}
-                          </span>
-                        ) : <span className="text-slate-400">-</span>}
-                      </td>
-                    ) : (
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{r.method || '-'}</td>
-                    )}
-                    <td className="py-2.5 px-3 text-slate-600 max-w-[260px] truncate" title={r.description || ''}>{r.description || '-'}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">{money(r.amount, r.currency)}</td>
-                    <td className="py-2.5 px-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setEditing(r)} title="Düzenle" className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(r)} title="Sil" className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {groups.map(g => (g.items.length === 1 || !merge ? g.items.map(tableRow) : tableGroup(g)))}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={colCount} className="py-10 text-center text-slate-500 text-sm">
