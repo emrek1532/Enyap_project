@@ -40,6 +40,24 @@ interface LedgerPanelProps {
 }
 
 const LIST_PAGE = 50;
+
+type Piece = Pick<Collection, 'method' | 'amount' | 'currency' | 'dueDate' | 'checkNo' | 'bankName' | 'bankBranch'>;
+/** Çek no "1962548" → "1962549" (baştaki sıfırlar korunur); sayı değilse aynen kalır */
+const nextNo = (v?: string) => {
+  const m = v?.trim().match(/^(.*?)(\d+)$/);
+  if (!m) return v;
+  const n = String(Number(m[2]) + 1).padStart(m[2].length, '0');
+  return m[1] + n;
+};
+/** Vade bir ay sonrası (ay sonu taşmasında ayın son günü) */
+const nextMonth = (d?: string) => {
+  if (!d) return d;
+  const [y, mo, da] = d.split('-').map(Number);
+  const last = new Date(y, mo + 1, 0).getDate();
+  const t = new Date(y, mo, Math.min(da, last));
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+};
+const alertMsg = (m: string) => { try { window.alert(m); } catch { /* */ } };
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
 
 const today = () => {
@@ -517,6 +535,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           kind={kind}
           record={editing}
           title={records.some(r => r.id === editing.id) ? `${t.one} Düzenle` : `Yeni ${t.one}`}
+          isNew={!records.some(r => r.id === editing.id)}
           partyLabel={t.party}
           methods={methods}
           categories={categories}
@@ -551,7 +570,8 @@ const LedgerForm: React.FC<{
   branches: { bank: string; branch: string }[];
   onCancel: () => void;
   onSave: (r: LedgerRecord) => void;
-}> = ({ kind, record, title, partyLabel, methods, categories, regions, customers, branches, onCancel, onSave }) => {
+  isNew?: boolean;
+}> = ({ kind, record, title, partyLabel, methods, categories, regions, customers, branches, onCancel, onSave, isNew = false }) => {
   const [form, setForm] = useState<LedgerRecord>(record);
   const isCollection = kind === 'collections';
   const col = form as Collection;
@@ -559,11 +579,38 @@ const LedgerForm: React.FC<{
   const set = (patch: Partial<Collection & Expense>) => setForm(f => ({ ...f, ...patch } as LedgerRecord));
   const hasDue = isCollection && HAS_DUE.includes(form.method);
   const trimOrUndef = (v?: string) => (v && v.trim() ? v.trim() : undefined);
+  // Yeni tahsilatta aynı gün alınan diğer parçalar (ör. 6 çek) satır satır girilir; her biri ayrı kayıt olur
+  const canMulti = isCollection && isNew;
+  const [extras, setExtras] = useState<Piece[]>([]);
+  const setExtra = (i: number, patch: Partial<Piece>) => setExtras(xs => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const addPiece = () => setExtras(xs => {
+    const last: Piece = xs.length ? xs[xs.length - 1]
+      : { method: col.method, amount: col.amount, currency: col.currency, dueDate: col.dueDate, checkNo: col.checkNo, bankName: col.bankName, bankBranch: col.bankBranch };
+    return [...xs, { ...last, checkNo: nextNo(last.checkNo), dueDate: nextMonth(last.dueDate) }];
+  });
+  const piecesTotal = [form as Piece, ...extras].reduce<Record<Currency, number>>((acc, x) => { acc[x.currency || 'TRY'] += x.amount || 0; return acc; }, { TRY: 0, USD: 0, EUR: 0 });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!(form.amount > 0)) return;
+    if (extras.some(x => !(x.amount > 0))) { alertMsg('Her parçanın tutarını girin.'); return; }
+    if (extras.some(x => HAS_DUE.includes(x.method) && !x.dueDate)) { alertMsg('Çek / senet parçalarında vade zorunlu.'); return; }
     const common = { description: trimOrUndef(form.description), updatedAt: new Date().toISOString() };
+    if (canMulti) extras.forEach((x, i) => {
+      const due = HAS_DUE.includes(x.method);
+      onSave({
+        ...col, ...common,
+        id: `thl-${Date.now()}-${i + 1}-${Math.random().toString(36).slice(2, 6)}`,
+        createdAt: new Date(Date.now() + i + 1).toISOString(),
+        customerName: col.customerName.trim(),
+        city: trimOrUndef(col.city),
+        method: x.method, amount: x.amount, currency: x.currency,
+        bankName: due ? trimOrUndef(x.bankName) : undefined,
+        bankBranch: due ? trimOrUndef(x.bankBranch) : undefined,
+        checkNo: due ? trimOrUndef(x.checkNo) : undefined,
+        dueDate: due ? trimOrUndef(x.dueDate) : undefined,
+      } as Collection);
+    });
     onSave(isCollection
       ? {
           ...col, ...common,
@@ -710,6 +757,54 @@ const LedgerForm: React.FC<{
             </div>
           )}
 
+          {canMulti && extras.map((x, i) => {
+            const due = HAS_DUE.includes(x.method);
+            return (
+              <div key={i} className="p-3 rounded-xl border border-brand-100 bg-brand-50/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-brand-700">{i + 2}. parça</span>
+                  <button type="button" onClick={() => setExtras(xs => xs.filter((_, j) => j !== i))} className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50" title="Parçayı sil"><Trash2 className="w-4 h-4" /></button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <select value={x.method} onChange={e => setExtra(i, { method: e.target.value })} className={`${inputCls} bg-white`}>
+                    {methods.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <DecimalInput placeholder="Tutar" value={x.amount || 0} onValueChange={v => setExtra(i, { amount: v })} className={`${inputCls} bg-white tabular-nums`} />
+                  <select value={x.currency} onChange={e => setExtra(i, { currency: e.target.value as Currency })} className={`${inputCls} bg-white`}>
+                    {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
+                  </select>
+                  {due && (
+                    <>
+                      <Field label="Vade *"><input type="date" value={x.dueDate || ''} onChange={e => setExtra(i, { dueDate: e.target.value })} className={`${inputCls} bg-white`} /></Field>
+                      <Field label={`${x.method} No`} className="col-span-2"><input value={x.checkNo || ''} onChange={e => setExtra(i, { checkNo: e.target.value })} className={`${inputCls} bg-white`} /></Field>
+                      {x.method === 'Çek' && (
+                        <>
+                          <Field label="Banka" className="col-span-2"><input list="ledger-banks" value={x.bankName || ''} onChange={e => setExtra(i, { bankName: e.target.value })} className={`${inputCls} bg-white`} /></Field>
+                          <Field label="Şube"><input list="ledger-branches" value={x.bankBranch || ''} onChange={e => setExtra(i, { bankBranch: e.target.value })} className={`${inputCls} bg-white`} /></Field>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {canMulti && (
+            <>
+              <datalist id="ledger-banks">{BANKS.map(b => <option key={b} value={b} />)}</datalist>
+              <datalist id="ledger-branches">{[...new Set(branches.map(b => b.branch))].map(b => <option key={b} value={b} />)}</datalist>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button type="button" onClick={addPiece} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-brand-300 text-brand-700 font-bold text-xs hover:bg-brand-50">
+                  <Plus className="w-4 h-4" /> Aynı güne parça ekle
+                </button>
+                {extras.length > 0 && (
+                  <span className="text-xs text-slate-600">{extras.length + 1} parça · <b className="text-slate-900 tabular-nums">{totalsText(piecesTotal)}</b></span>
+                )}
+              </div>
+              {extras.length === 0 && <p className="text-[11px] text-slate-400 -mt-1">Birden fazla çek / ödeme aldıysanız ekleyin; sonraki parça bir önceki çekin numarası +1 ve vadesi +1 ay olarak gelir.</p>}
+            </>
+          )}
+
           <Field label="Açıklama">
             <textarea rows={2} value={form.description || ''} onChange={e => set({ description: e.target.value })}
               placeholder={isCollection ? 'Örn: 68551 nolu teklif ödemesi' : 'Örn: Akşam yemeği, fiş yok'}
@@ -758,7 +853,7 @@ export const CollectionQuickForm: React.FC<{
     } as Collection;
   });
   return (
-    <LedgerForm kind="collections" record={record} title="Yeni Tahsilat" partyLabel="Müşteri / Firma"
+    <LedgerForm kind="collections" isNew record={record} title="Yeni Tahsilat" partyLabel="Müşteri / Firma"
       methods={methods} categories={[]} regions={[]} customers={customers} branches={branches}
       onCancel={onCancel} onSave={r => onSave(r as Collection)} />
   );
