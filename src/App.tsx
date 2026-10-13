@@ -789,6 +789,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             collections={data.collections || []}
             showCollections={can(profile, 'collections')}
             onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined}
+            onSaveCollection={can(profile, 'collections', 'edit') ? handleSaveCollection : undefined}
+            currentRole={currentRole}
             quotes={data.quotes}
             onSaveCustomer={handleSaveCustomer}
             onDeleteCustomer={handleDeleteCustomer}

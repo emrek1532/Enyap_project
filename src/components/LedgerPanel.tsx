@@ -724,3 +724,42 @@ const LedgerForm: React.FC<{
     </div>
   );
 };
+
+/** Cari hesap gibi başka ekranlardan, firması dolu yeni tahsilat formu */
+export const CollectionQuickForm: React.FC<{
+  customerName: string;
+  city?: string;
+  records: Collection[];
+  customers: Customer[];
+  currentRole: UserRole;
+  onCancel: () => void;
+  onSave: (c: Collection) => void;
+}> = ({ customerName, city, records, customers, currentRole, onCancel, onSave }) => {
+  const methods = useMemo(() => withExisting(COLLECTION_METHODS, records.map(r => r.method)), [records]);
+  const branches = useMemo(() => {
+    const out: { bank: string; branch: string }[] = [];
+    const seen = new Set<string>();
+    records.forEach(r => {
+      if (!r.bankBranch?.trim()) return;
+      const k = fold(`${r.bankName || ''}|${r.bankBranch}`);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ bank: r.bankName || '', branch: r.bankBranch.trim() });
+    });
+    return out;
+  }, [records]);
+  const [record] = useState<Collection>(() => {
+    const now = new Date().toISOString();
+    return {
+      id: `thl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      date: today(), amount: 0, currency: 'TRY' as Currency, method: methods[0], description: '',
+      customerName, ...(city ? { city } : {}),
+      createdBy: currentRole, createdAt: now, updatedAt: now,
+    } as Collection;
+  });
+  return (
+    <LedgerForm kind="collections" record={record} title="Yeni Tahsilat" partyLabel="Müşteri / Firma"
+      methods={methods} categories={[]} regions={[]} customers={customers} branches={branches}
+      onCancel={onCancel} onSave={r => onSave(r as Collection)} />
+  );
+};
