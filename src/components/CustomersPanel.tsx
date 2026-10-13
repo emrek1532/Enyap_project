@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
-import { Collection, Customer, Quote } from '../types';
+import { Collection, Customer, Quote, UserRole } from '../types';
 import { CustomerAccount, STATUS_LABEL } from './CustomerAccount';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
@@ -15,6 +15,8 @@ interface CustomersPanelProps {
   collections?: Collection[];
   showCollections?: boolean;
   onOpenQuote?: (q: Quote) => void;
+  onSaveCollection?: (c: Collection) => void;
+  currentRole?: UserRole;
 }
 
 const emptyForm = { name: '', city: 'Isparta' };
@@ -47,6 +49,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   collections = [],
   showCollections = false,
   onOpenQuote,
+  onSaveCollection,
+  currentRole,
 }) => {
   const rates = useRates(quotes);
   const [search, setSearch] = useState('');
@@ -379,6 +383,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           onClose={() => setViewing(null)}
           onOpenQuote={onOpenQuote}
           onNewQuote={() => { const c = viewing; setViewing(null); onCreateQuoteForCustomer(c); }}
+          onSaveCollection={onSaveCollection}
+          allCollectionRecords={collections}
+          customers={customers}
+          currentRole={currentRole}
         />
       )}
 

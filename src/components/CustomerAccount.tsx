@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, FilePlus2, MapPin, Search, X } from 'lucide-react';
-import { Collection, Customer, Quote, QuoteStatus } from '../types';
+import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
+import { CollectionQuickForm } from './LedgerPanel';
+import { Collection, Customer, Quote, QuoteStatus, UserRole } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
 
@@ -40,7 +41,13 @@ export const CustomerAccount: React.FC<{
   onClose: () => void;
   onOpenQuote?: (q: Quote) => void;
   onNewQuote: () => void;
-}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote }) => {
+  /** Tahsilat düzenleme yetkisi varsa: cari içinden yeni tahsilat */
+  onSaveCollection?: (c: Collection) => void;
+  allCollectionRecords?: Collection[];
+  customers?: Customer[];
+  currentRole?: UserRole;
+}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta' }) => {
+  const [addingCol, setAddingCol] = useState(false);
   const [tab, setTab] = useState<Tab>('quotes');
   const [qFilter, setQFilter] = useState<QFilter>('all');
   const [q, setQ] = useState('');
@@ -135,6 +142,11 @@ export const CustomerAccount: React.FC<{
             <h3 className="font-black text-base sm:text-lg leading-tight break-words">{customer.name}</h3>
             <p className="text-xs text-brand-100 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
           </div>
+          {onSaveCollection && (
+            <button onClick={() => setAddingCol(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-bold">
+              <Wallet className="w-4 h-4" /> Tahsilat ekle
+            </button>
+          )}
           <button onClick={onNewQuote} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-bold">
             <FilePlus2 className="w-4 h-4" /> Yeni teklif
           </button>
@@ -307,11 +319,27 @@ export const CustomerAccount: React.FC<{
             <button onClick={() => setLimit(l => l + 60)} className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-brand-700">Daha fazla göster</button>
           )}
 
+          {onSaveCollection && (
+            <button onClick={() => setAddingCol(true)} className="sm:hidden w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white border border-brand-200 text-brand-700 text-sm font-bold">
+              <Wallet className="w-4 h-4" /> Bu firmaya tahsilat ekle
+            </button>
+          )}
           <button onClick={onNewQuote} className="sm:hidden w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-bold">
             <FilePlus2 className="w-4 h-4" /> Bu firmaya yeni teklif
           </button>
         </div>
       </div>
+      {addingCol && onSaveCollection && (
+        <CollectionQuickForm
+          customerName={customer.name}
+          city={customer.city}
+          records={allCollectionRecords}
+          customers={customers}
+          currentRole={currentRole}
+          onCancel={() => setAddingCol(false)}
+          onSave={c => { onSaveCollection(c); setAddingCol(false); setTab('collections'); }}
+        />
+      )}
     </div>
   );
 };
