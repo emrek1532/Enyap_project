@@ -91,6 +91,20 @@ export const CustomerAccount: React.FC<{
     && (!nq || nq.split(/\s+/).every(w => fold(`${l.it.productName} ${l.it.code || ''} ${l.quote.quoteNumber}`).includes(w))));
   const shownCols = collections.filter(c => !nq || fold(`${c.method} ${c.description || ''} ${c.checkNo || ''} ${c.bankName || ''}`).includes(nq));
 
+  // Aynı gün alınan tahsilatlar (ör. aynı gün verilen çekler) tek satırda toplanır; dokununca parçalar açılır
+  const colGroups = useMemo(() => {
+    const out: { key: string; items: Collection[] }[] = [];
+    const idx = new Map<string, number>();
+    for (const c of shownCols) {
+      const key = `${c.date}|${c.currency}`;
+      const at = idx.get(key);
+      if (at === undefined) { idx.set(key, out.length); out.push({ key, items: [c] }); } else out[at].items.push(c);
+    }
+    return out;
+  }, [shownCols]);
+  const [openCols, setOpenCols] = useState<Set<string>>(new Set());
+  const toggleCol = (k: string) => setOpenCols(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+
   const tile = (label: string, value: string, sub: string, cls: string, onClick?: () => void) => (
     <button type="button" onClick={onClick} className={`text-left p-3 rounded-xl border min-w-0 ${cls} ${onClick ? 'hover:brightness-95' : 'cursor-default'}`}>
       <div className="text-[11px] font-bold uppercase tracking-wide opacity-80 truncate">{label}</div>
@@ -250,22 +264,46 @@ export const CustomerAccount: React.FC<{
           {tab === 'collections' && showCollections && (
             <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
               {shownCols.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Tahsilat yok.</p>}
-              {shownCols.slice(0, limit).map(c => (
-                <div key={c.id} className="flex items-center gap-3 px-3 py-2.5">
-                  <div className="w-[4.5rem] shrink-0 text-[11px] font-bold text-slate-500 tabular-nums">{day(c.date)}</div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-bold text-slate-900">{c.method}</div>
-                    <div className="text-[11px] text-slate-500 truncate">
-                      {[c.dueDate && `vade ${day(c.dueDate)}`, c.bankName, c.checkNo, c.description].filter(Boolean).join(' · ') || '—'}
+              {colGroups.slice(0, limit).map(g => {
+                const c = g.items[0];
+                const many = g.items.length > 1;
+                const open = openCols.has(g.key);
+                const total = g.items.reduce((t, x) => t + x.amount, 0);
+                const dues = g.items.map(x => x.dueDate).filter(Boolean).sort() as string[];
+                const line = (x: Collection) => (
+                  <div key={x.id} className="flex items-center gap-3 px-3 py-2">
+                    <div className="w-[4.5rem] shrink-0" />
+                    <div className="min-w-0 flex-1 text-[11px] text-slate-500 truncate">
+                      {[x.method, x.dueDate && `vade ${day(x.dueDate)}`, x.bankName, x.checkNo, x.description].filter(Boolean).join(' · ')}
                     </div>
+                    <div className="text-xs font-bold text-slate-700 tabular-nums whitespace-nowrap">{money(x.amount, x.currency)}</div>
                   </div>
-                  <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{money(c.amount, c.currency)}</div>
-                </div>
-              ))}
+                );
+                return (
+                  <div key={g.key} className={open ? 'bg-slate-50/70' : ''}>
+                    <button type="button" disabled={!many} onClick={() => toggleCol(g.key)} className="w-full text-left flex items-center gap-3 px-3 py-2.5 disabled:cursor-default">
+                      <div className="w-[4.5rem] shrink-0 text-[11px] font-bold text-slate-500 tabular-nums">{day(c.date)}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-bold text-slate-900">
+                          {many ? [...new Set(g.items.map(x => x.method))].join(', ') : c.method}
+                          {many && <span className="ml-2 text-[11px] font-bold text-brand-700">{g.items.length} parça {open ? '▲' : '▼'}</span>}
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate">
+                          {many
+                            ? [dues.length && `vade ${day(dues[0])}${dues.length > 1 ? ` – ${day(dues[dues.length - 1])}` : ''}`, [...new Set(g.items.map(x => x.bankName).filter(Boolean))].join(', ')].filter(Boolean).join(' · ') || '—'
+                            : [c.dueDate && `vade ${day(c.dueDate)}`, c.bankName, c.checkNo, c.description].filter(Boolean).join(' · ') || '—'}
+                        </div>
+                      </div>
+                      <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{money(total, c.currency)}</div>
+                    </button>
+                    {many && open && <div className="border-t border-dashed border-slate-200 divide-y divide-slate-100">{g.items.map(line)}</div>}
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          {((tab === 'quotes' && shownQuotes.length > limit) || (tab === 'items' && shownLines.length > limit) || (tab === 'collections' && shownCols.length > limit)) && (
+          {((tab === 'quotes' && shownQuotes.length > limit) || (tab === 'items' && shownLines.length > limit) || (tab === 'collections' && colGroups.length > limit)) && (
             <button onClick={() => setLimit(l => l + 60)} className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-brand-700">Daha fazla göster</button>
           )}
 
