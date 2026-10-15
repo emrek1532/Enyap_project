@@ -257,10 +257,12 @@ export async function exportListToExcel(list: SupplierList) {
   const writeXlsx = (await import('write-excel-file')).default;
   const head = ['Grup', 'Kod', 'Ürün adı', 'Fiyat', 'Para birimi', 'Birim', 'Bizim kod']
     .map(value => ({ value, fontWeight: 'bold' as const, backgroundColor: '#DCE8F5' }));
+  // Excel'in kabul etmediği kontrol karakterleri temizlenir (bazı PDF'lerde "i" harfi U+001E olarak gelir)
+  const clean = (v: unknown) => String(v ?? '').replace(/\u001e/g, 'i').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffd]/g, '');
   const rows = all.map(r => [
-    { type: String, value: r.grp || '' }, { type: String, value: r.code || '' }, { type: String, value: r.name || '' },
+    { type: String, value: clean(r.grp) }, { type: String, value: clean(r.code) }, { type: String, value: clean(r.name) },
     { type: Number, value: Number(r.price) || 0 }, { type: String, value: r.currency || 'TRY' },
-    { type: String, value: r.unit || 'Adet' }, { type: String, value: r.our_code || '' },
+    { type: String, value: clean(r.unit || 'Adet') }, { type: String, value: clean(r.our_code) },
   ]);
   // Dosya adı tekrar yüklemede aynı listeye denk gelsin: "FAF Nisan 2026.xlsx"
   const fileName = `${[list.name, list.listDate].filter(Boolean).join(' ')}.xlsx`;

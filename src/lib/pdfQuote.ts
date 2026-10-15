@@ -197,6 +197,44 @@ export function parseQuoteLines(rawLines: string[], fileName = ''): PdfQuote {
 
 /** PDF dosyasını satırlara ayırır (aynı yükseklikteki metinler soldan sağa birleştirilir) */
 /** PDF'i sayfa sayfa satırlara ayırır (aynı yükseklikteki metinler soldan sağa birleştirilir) */
+/** Bazı PDF yazı tiplerinde "i" harfi kontrol karakteri (U+001E) olarak gelir: "l\u001eder" → "lider" */
+const fixGlyphs = (s: string) => s.replace(/\u001e/g, 'i').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffd]/g, '');
+
+type TItem = { s: string; x: number; y: number; h: number };
+
+/** Aynı satırdakileri (yakın y) birleştirir; yukarıdan aşağı, soldan sağa */
+function rowsOf(items: TItem[]): string[] {
+  const sorted = [...items].sort((a, b) => b.y - a.y);
+  const rows: { y: number; tol: number; parts: TItem[] }[] = [];
+  for (const it of sorted) {
+    const tol = Math.max(2.5, it.h * 0.45);
+    const row = rows.find(r => Math.abs(r.y - it.y) < Math.max(tol, r.tol));
+    if (row) row.parts.push(it);
+    else rows.push({ y: it.y, tol, parts: [it] });
+  }
+  return rows.map(r => r.parts.sort((a, b) => a.x - b.x).map(p => p.s.trim()).join('  '));
+}
+
+/**
+ * Sayfayı satırlara çevirir. Fiyat listelerindeki yan yana iki (veya daha çok) tablo sütunu ayrı okunur:
+ * "KOD" başlıklarının yatay konumlarından sütunlar bulunur, her sütun kendi içinde yukarıdan aşağı yazılır.
+ * Böylece sağ ve sol tablodaki kalemler / grup adları birbirine karışmaz.
+ */
+function layoutLines(items: TItem[], pageWidth: number): string[] {
+  const heads = items.filter(it => /^\s*KOD\b/i.test(it.s)).map(it => it.x).sort((a, b) => a - b);
+  const starts: number[] = [];
+  for (const x of heads) if (!starts.length || x - starts[starts.length - 1] > pageWidth * 0.25) starts.push(x);
+  if (starts.length < 2) return rowsOf(items);
+  const margin = Math.min(25, pageWidth * 0.04);
+  const cols: TItem[][] = starts.map(() => []);
+  for (const it of items) {
+    let c = 0;
+    for (let i = 0; i < starts.length; i++) if (it.x >= starts[i] - margin) c = i;
+    cols[c].push(it);
+  }
+  return cols.flatMap(rowsOf);
+}
+
 export async function pdfPages(data: ArrayBuffer): Promise<string[][]> {
   const pdfjs = await import('pdfjs-dist');
   if (typeof window !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerSrc) {
@@ -213,17 +251,10 @@ export async function pdfPages(data: ArrayBuffer): Promise<string[][]> {
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
       const content = await page.getTextContent();
-      const rows: { y: number; parts: { x: number; s: string }[] }[] = [];
-      for (const it of content.items as any[]) {
-        const s = String(it.str ?? '');
-        if (!s.trim()) continue;
-        const x = it.transform[4], y = it.transform[5];
-        let row = rows.find(r => Math.abs(r.y - y) < 2.5);
-        if (!row) { row = { y, parts: [] }; rows.push(row); }
-        row.parts.push({ x, s });
-      }
-      rows.sort((a, b) => b.y - a.y);
-      pages.push(rows.map(r => r.parts.sort((a, b) => a.x - b.x).map(p => p.s.trim()).join('  ')));
+      const items = (content.items as any[])
+        .map(it => ({ s: fixGlyphs(String(it.str ?? '')), x: it.transform[4] as number, y: it.transform[5] as number, h: Math.abs(it.transform[3] as number) || 8 }))
+        .filter(it => it.s.trim());
+      pages.push(layoutLines(items, page.view?.[2] ?? 595));
       page.cleanup();
     }
   } finally {
