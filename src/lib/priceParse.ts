@@ -43,7 +43,7 @@ function splitCodeName(text: string): { code: string; name: string } | null {
   return { code, name: name.slice(0, 200) };
 }
 
-export function parsePriceLines(lines: string[]): ParsedItem[] {
+function parseFreeLines(lines: string[]): ParsedItem[] {
   const out: ParsedItem[] = [];
   const seen = new Set<string>();
   // Bölüm başlığı (ör. "OCAK FLEXLERİ"): fiyatsız, kısa, büyük harfli satır; altındaki kalemlerin adına eklenir
@@ -80,6 +80,57 @@ export function parsePriceLines(lines: string[]): ParsedItem[] {
     }
   }
   return out;
+}
+
+/**
+ * "KOD · ÖLÇÜ · K.ADEDİ · FİYAT" başlıklı tablo düzeni (ör. Adasan): kalem satırında ürün adı yazmaz, ürün adı
+ * tablonun üstündeki grup başlığıdır. Kalem adı = grup başlığı + ölçü (+ özellik). Koli adedi atlanır.
+ */
+// Başlıkta ürün adı sütunu (Ürün / Açıklama / Adı) olan tablolar genel kurallarla okunur
+const KOD_HEADER = /^KOD\b(?!.*(ÜRÜN|ürün|Ürün|AÇIKLAMA|Açıklama|açıklama|ADI|Adı|CİNSİ|Cinsi|MALZEME|Malzeme)).*\bF[İIi]YAT/i;
+export function parseKodTables(lines: string[]): ParsedItem[] {
+  const out: ParsedItem[] = [];
+  let group = '', pendingGroup = '', inTable = false, hasQty = false;
+  for (const raw of lines) {
+    const line = raw.replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!line) continue;
+    if (KOD_HEADER.test(line)) {
+      inTable = true;
+      hasQty = /AD(ED[İI]|ET)/i.test(line);
+      if (pendingGroup) group = pendingGroup;
+      pendingGroup = '';
+      continue;
+    }
+    const toks = line.replace(CUR_TOKEN, ' ').trim().split(' ');
+    const priceTok = toks[toks.length - 1] || '';
+    const isItem = toks.length >= 2 && /^\d{3,6}[A-Z]?$/.test(toks[0]) && /^(\d{1,3}(\.\d{3})*|\d+),\d{2}$/.test(priceTok);
+    if (inTable && isItem) {
+      const mid = toks.slice(1, -1);
+      if (hasQty && mid.length > 1 && /^(\d+|-)$/.test(mid[mid.length - 1])) mid.pop();
+      const size = mid.join(' ');
+      const price = parseNumber(priceTok);
+      if (!(price > 0)) continue;
+      const name = [group, size].filter(Boolean).join(' ').trim();
+      if (name.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '').length < 3) continue;
+      out.push({ code: toks[0], name: name.slice(0, 200), grp: group || undefined, price, unit: 'Adet', currency: /\$|USD/.test(line) ? 'USD' : /€|EUR/.test(line) ? 'EUR' : /₺|TL/.test(line) ? 'TRY' : undefined });
+      continue;
+    }
+    // Fiyatsız, harfli satır: bir sonraki tablonun grup başlığı
+    if (!/\d+,\d{2}/.test(line) && /[A-Za-zÇĞİÖŞÜçğıöşü]{3}/.test(line) && line.length <= 80) {
+      pendingGroup = pendingGroup && !inTable ? `${pendingGroup} ${line}` : line;
+      inTable = false;
+    }
+  }
+  return out;
+}
+
+export function parsePriceLines(lines: string[]): ParsedItem[] {
+  // "KOD … FİYAT" başlıklı tablolar varsa önce o düzen denenir
+  if (lines.filter(l => KOD_HEADER.test(l.trim())).length >= 2) {
+    const t = parseKodTables(lines);
+    if (t.length >= 3) return t;
+  }
+  return parseFreeLines(lines);
 }
 
 /** Yazıda en çok geçen para birimi */
