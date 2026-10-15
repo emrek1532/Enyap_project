@@ -17,6 +17,8 @@ export interface PrintDoc {
   summary?: [string, string, string?][];
   sections: PrintSection[];
   fileName: string;
+  /** Alttaki "Enyap Isı Teklif & Takip" yazısını gizle */
+  hideFooter?: boolean;
 }
 
 const CSS = `
@@ -92,7 +94,7 @@ export const ReportPrint: React.FC<{ doc: PrintDoc }> = ({ doc }) => createPorta
         )}
       </div>
     ))}
-    <div className="rp-foot">Enyap Isı Teklif &amp; Takip</div>
+    {!doc.hideFooter && <div className="rp-foot">Enyap Isı Teklif &amp; Takip</div>}
   </div>,
   document.body,
 );
