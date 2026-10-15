@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
 import { CollectionQuickForm } from './LedgerPanel';
+import { DateInput } from './DateInput';
 import { Collection, Customer, Quote, QuoteStatus, UserRole } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
@@ -163,11 +164,11 @@ export const CustomerAccount: React.FC<{
                 className={`px-3 py-1.5 rounded-full border text-xs font-bold ${range.key === o.k ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>{o.label}</button>
             ))}
             <span className="inline-flex items-center gap-1 text-xs">
-              <input type="date" value={range.key === 'custom' ? range.from : ''} onChange={e => setRange(r => ({ key: 'custom', from: e.target.value, to: r.key === 'custom' ? r.to : '' }))}
-                className={`px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} aria-label="Başlangıç tarihi" />
+              <DateInput value={range.key === 'custom' ? range.from : ''} onChange={v => setRange(r => ({ key: 'custom', from: v, to: r.key === 'custom' ? r.to : '' }))}
+                className={`w-32 px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} title="Başlangıç tarihi" />
               <span className="text-slate-400">–</span>
-              <input type="date" value={range.key === 'custom' ? range.to : ''} onChange={e => setRange(r => ({ key: 'custom', from: r.key === 'custom' ? r.from : '', to: e.target.value }))}
-                className={`px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} aria-label="Bitiş tarihi" />
+              <DateInput value={range.key === 'custom' ? range.to : ''} onChange={v => setRange(r => ({ key: 'custom', from: r.key === 'custom' ? r.from : '', to: v }))}
+                className={`w-32 px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} title="Bitiş tarihi" />
             </span>
           </div>
 

@@ -4,6 +4,7 @@ import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { findCustomer } from '../lib/customers';
 import { DecimalInput } from './DecimalInput';
+import { DateInput } from './DateInput';
 import { PrintDoc, ReportPrint, printReport } from './ReportPrint';
 import { SuggestInput } from './SuggestInput';
 
@@ -105,9 +106,11 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   const [regionFilter, setRegionFilter] = useState('all');
   const [dueFilter, setDueFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   // Sıralama: varsayılan son eklenen en üstte (tarihi eski olsa bile); seçim cihazda hatırlanır
-  const sortStore = `enyap-ledger-sort-${kind}`;
+  // Tahsilatta varsayılan: alım tarihine göre (en yeni tarih üstte); harcamada son eklenen üstte
+  const sortStore = `enyap-ledger-sort2-${kind}`;
+  const defaultSort = isCollection ? 'date' : 'added';
   const [sortMode, setSortModeState] = useState<'added' | 'date'>(() => {
-    try { return localStorage.getItem(sortStore) === 'date' ? 'date' : 'added'; } catch { return 'added'; }
+    try { const v = localStorage.getItem(sortStore); return v === 'date' || v === 'added' ? v : defaultSort; } catch { return defaultSort; }
   });
   const setSortMode = (v: 'added' | 'date') => {
     setSortModeState(v);
@@ -480,16 +483,16 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           )}
           <select value={sortMode} onChange={e => setSortMode(e.target.value as 'added' | 'date')} className="p-2 border border-slate-200 rounded-lg text-sm bg-white" aria-label="Sıralama">
             <option value="added">Son eklenen en üstte</option>
-            <option value="date">Tarih: yeniden eskiye</option>
+            <option value="date">{isCollection ? 'Alım tarihi: yeni → eski' : 'Tarih: yeniden eskiye'}</option>
           </select>
           <select value={currencyFilter} onChange={e => changed(setCurrencyFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
             <option value="all">Tüm Para Birimleri</option>
             {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
           </select>
-          <div className="col-span-2 flex items-center gap-1 text-xs text-slate-500 [&>input]:flex-1 [&>input]:min-w-0 sm:[&>input]:flex-none">
-            <input type="date" value={dateFrom} onChange={e => changed(setDateFrom)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm" />
+          <div className="col-span-2 flex items-center gap-1 text-xs text-slate-500 [&>div]:flex-1 [&>div]:min-w-0 sm:[&>div]:flex-none sm:[&>div]:w-40">
+            <DateInput value={dateFrom} onChange={v => changed(setDateFrom)(v)} className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
             <span>-</span>
-            <input type="date" value={dateTo} onChange={e => changed(setDateTo)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm" />
+            <DateInput value={dateTo} onChange={v => changed(setDateTo)(v)} className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
           </div>
           <div className="col-span-2 sm:col-span-1 flex flex-wrap items-center gap-1">
             {presets.map(([label, fn]) => (
@@ -662,7 +665,7 @@ const LedgerForm: React.FC<{
         <div className="p-4 space-y-3 overflow-y-auto text-sm">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tarih *">
-              <input type="date" required value={form.date} onChange={e => set({ date: e.target.value })} className={inputCls} />
+              <DateInput required value={form.date} onChange={v => set({ date: v })} className={inputCls} />
             </Field>
             <Field label="Ödeme Şekli">
               <select value={form.method} onChange={e => set({ method: e.target.value })} className={`${inputCls} bg-white`}>
@@ -744,7 +747,7 @@ const LedgerForm: React.FC<{
           {hasDue && (
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-3">
               <Field label="Vade *">
-                <input type="date" required value={col.dueDate || ''} onChange={e => set({ dueDate: e.target.value })} className={`${inputCls} bg-white`} />
+                <DateInput required value={col.dueDate || ''} onChange={v => set({ dueDate: v })} className={`${inputCls} bg-white`} />
               </Field>
               <Field label={`${form.method} No`}>
                 <input value={col.checkNo || ''} onChange={e => set({ checkNo: e.target.value })} className={`${inputCls} bg-white`} />
@@ -896,7 +899,7 @@ const MultiCollectionForm: React.FC<{
         <div className="p-3 sm:p-4 space-y-3 overflow-y-auto text-sm">
           <div className="grid grid-cols-2 sm:grid-cols-[9.5rem_1fr_10rem] gap-2">
             <Field label="Tarih *">
-              <input type="date" required value={head.date} onChange={e => setHead(h => ({ ...h, date: e.target.value }))} className={inputCls} />
+              <DateInput required value={head.date} onChange={v => setHead(h => ({ ...h, date: v }))} className={inputCls} />
             </Field>
             <Field label="Müşteri / Firma *" className="col-span-2 sm:col-span-1 order-first sm:order-none">
               <SuggestInput<Customer>
@@ -940,7 +943,7 @@ const MultiCollectionForm: React.FC<{
                     <select value={r.currency} onChange={e => setRow(i, { currency: e.target.value as Currency })} className={`${c} !px-1`} title="Para birimi">
                       {CURRENCIES.map(cu => <option key={cu} value={cu}>{CURRENCY_LABEL[cu]}</option>)}
                     </select>
-                    <input type="date" disabled={!due} value={due ? r.dueDate || '' : ''} onChange={e => setRow(i, { dueDate: e.target.value })} className={c} title="Vade" />
+                    <DateInput disabled={!due} value={due ? r.dueDate || '' : ''} onChange={v => setRow(i, { dueDate: v })} className={c} title="Vade" />
                     <input disabled={!due} placeholder={due ? `${r.method} no` : '—'} value={due ? r.checkNo || '' : ''} onChange={e => setRow(i, { checkNo: e.target.value })} className={c} title="Çek / senet no" />
                     <input disabled={!cek} list="mc-banks" placeholder={cek ? 'Banka' : '—'} value={cek ? r.bankName || '' : ''} onChange={e => setRow(i, { bankName: e.target.value })} className={c} title="Banka" />
                     <input disabled={!cek} list="mc-branches" placeholder={cek ? 'Şube' : '—'} value={cek ? r.bankBranch || '' : ''} onChange={e => setRow(i, { bankBranch: e.target.value })} className={c} title="Şube" />
