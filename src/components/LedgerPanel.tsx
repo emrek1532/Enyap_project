@@ -459,22 +459,12 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           />
         </div>
         <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap [&>select]:w-full sm:[&>select]:w-auto [&>select]:min-w-0">
-          {!isCollection && (
-            <>
-              <select value={categoryFilter} onChange={e => changed(setCategoryFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
-                <option value="all">Tüm Kategoriler</option>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <select value={regionFilter} onChange={e => changed(setRegionFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
-                <option value="all">Tüm Şehirler</option>
-                {regions.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </>
+          {isCollection && (
+            <select value={methodFilter} onChange={e => changed(setMethodFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
+              <option value="all">Tüm Ödeme Şekilleri</option>
+              {methods.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
           )}
-          <select value={methodFilter} onChange={e => changed(setMethodFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
-            <option value="all">Tüm Ödeme Şekilleri</option>
-            {methods.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
           {isCollection && (
             <select value={dueFilter} onChange={e => changed(setDueFilter)(e.target.value as typeof dueFilter)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
               <option value="all">Tüm Vadeler</option>
@@ -482,14 +472,16 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
               <option value="past">Vadesi Geçmiş</option>
             </select>
           )}
-          <select value={sortMode} onChange={e => setSortMode(e.target.value as 'added' | 'date')} className="p-2 border border-slate-200 rounded-lg text-sm bg-white" aria-label="Sıralama">
+          <select value={sortMode} onChange={e => setSortMode(e.target.value as 'added' | 'date')} className={`${isCollection ? '' : 'col-span-2 '}p-2 border border-slate-200 rounded-lg text-sm bg-white`} aria-label="Sıralama">
             <option value="added">Son eklenen en üstte</option>
             <option value="date">{isCollection ? 'Alım tarihi: yeni → eski' : 'Tarih: yeniden eskiye'}</option>
           </select>
-          <select value={currencyFilter} onChange={e => changed(setCurrencyFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
-            <option value="all">Tüm Para Birimleri</option>
-            {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
-          </select>
+          {isCollection && (
+            <select value={currencyFilter} onChange={e => changed(setCurrencyFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
+              <option value="all">Tüm Para Birimleri</option>
+              {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
+            </select>
+          )}
           <div className="col-span-2 flex items-center gap-1 text-xs text-slate-500 [&>div]:flex-1 [&>div]:min-w-0 sm:[&>div]:flex-none sm:[&>div]:w-40">
             <DateInput value={dateFrom} onChange={v => changed(setDateFrom)(v)} className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
             <span>-</span>
