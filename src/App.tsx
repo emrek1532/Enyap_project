@@ -52,7 +52,6 @@ import { SalesDashboard } from './components/SalesDashboard';
 import { MaterialsPanel } from './components/MaterialsPanel';
 import { ReportsPanel } from './components/ReportsPanel';
 import { NewQuoteModal } from './components/NewQuoteModal';
-import { VoiceAssistant } from './components/VoiceAssistant';
 import { AiResult, collectionDraftFrom, expenseDraftFrom, quoteDraftFrom } from './lib/ai';
 import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './components/LedgerPanel';
 import { CustomersPanel } from './components/CustomersPanel';
@@ -859,9 +858,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
       </main>
 
-      {/* Sesli asistan: konuşarak teklif / tahsilat / harcama formu doldurur */}
       <QuickNoteFab currentRole={currentRole} onSave={handleSaveNote} />
-      <VoiceAssistant context={aiContext} onResult={handleAiResult} />
 
       {/* MODALS */}
       {/* 1. New Quote Modal */}
