@@ -418,35 +418,6 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
 
   return (
     <div className="space-y-4">
-      {/* Özet */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCollection ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3`}>
-        {cards.map(card => (
-          <div key={card.label} className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-              <span className={`p-1.5 rounded-lg ${t.tone}`}><t.Icon className="w-4 h-4" /></span>
-              {t.one} · {card.label}
-            </div>
-            <div className="mt-2 text-lg font-black text-slate-900 tabular-nums break-words">{card.value}</div>
-            {card.sub && <div className="text-xs text-slate-500">{card.sub}</div>}
-          </div>
-        ))}
-        {isCollection && (
-          <button
-            onClick={() => { setDueFilter(f => (f === 'upcoming' ? 'all' : 'upcoming')); setLimit(LIST_PAGE); }}
-            className={`text-left bg-white p-4 rounded-xl border shadow-xs min-w-0 hover:border-brand-300 ${dueFilter === 'upcoming' ? 'border-brand-500 ring-2 ring-brand-100' : 'border-slate-200'}`}
-          >
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-              <span className="p-1.5 rounded-lg text-brand-600 bg-brand-50"><CalendarClock className="w-4 h-4" /></span>
-              Portföy · Vadesi Gelmemiş
-            </div>
-            <div className="mt-2 text-lg font-black text-slate-900 tabular-nums break-words">{totalsText(portfolioTotals)}</div>
-            <div className="text-xs text-slate-500">
-              {portfolio.length} çek/senet{nextDue ? ` · ilk vade ${fmtDate(nextDue.dueDate)}` : ''}
-            </div>
-          </button>
-        )}
-      </div>
-
       {/* Filtreler */}
       <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col gap-3">
         <div className="relative flex-1 min-w-0">
@@ -512,11 +483,13 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       </div>
 
       {/* Liste üstü: listedeki kayıtların toplamı ve birleştirme seçeneği */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-        <div className="text-sm text-slate-600">
-          {hasFilters ? 'Filtrelenen' : 'Toplam'}: <b className="text-slate-900 tabular-nums">{totalsText(filteredTotals)}</b>
-          <span className="text-slate-400"> · {filtered.length} kayıt</span>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 empty:hidden">
+        {hasFilters && (
+          <div className="text-sm text-slate-600">
+            Filtrelenen: <b className="text-slate-900 tabular-nums">{totalsText(filteredTotals)}</b>
+            <span className="text-slate-400"> · {filtered.length} kayıt</span>
+          </div>
+        )}
         {isCollection && (
           <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
             <input type="checkbox" checked={merge} onChange={toggleMerge} />
