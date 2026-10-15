@@ -21,6 +21,7 @@ export function focusNextField(from: HTMLElement) {
 export function SuggestInput<T>({
   value, onChange, onPick, suggestions, getKey, renderItem, loading, header, footer,
   placeholder, required, className = '', inputClassName = '', minChars = 1, inputMode, focusAfterPick, autoFocus,
+  title, disabled, onBlur, dataAttrs,
 }: {
   value: string;
   onChange: (text: string) => void;
@@ -40,6 +41,12 @@ export function SuggestInput<T>({
   /** Seçimden sonra odağı özel bir alana taşımak için; true dönerse varsayılan "sonraki alan" atlanır */
   focusAfterPick?: (input: HTMLInputElement) => boolean;
   autoFocus?: boolean;
+  title?: string;
+  disabled?: boolean;
+  /** Alandan çıkınca (ör. yazılanı listedeki karşılığına çevirmek için) */
+  onBlur?: () => void;
+  /** Girişe eklenecek data-* nitelikleri */
+  dataAttrs?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -131,7 +138,10 @@ export function SuggestInput<T>({
           autoFocus={autoFocus}
           onChange={(e) => { onChange(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
+          onBlur={() => { setOpen(false); onBlur?.(); }}
+          title={title}
+          disabled={disabled}
+          {...dataAttrs}
           onKeyDown={onKeyDown}
           className={`${inputClassName} ${loading ? 'pr-7' : ''}`}
         />
