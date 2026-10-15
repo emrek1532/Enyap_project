@@ -164,3 +164,33 @@ html, body {
   }
 }
 }
+
+@layer components {
+/* Yeni harcama satırları: telefonda kart, md+ tek satır */
+.erow {
+  display: grid;
+  gap: 0.375rem;
+  align-items: center;
+  grid-template-columns: 1.5rem 1fr 1fr 4.5rem;
+  grid-template-areas:
+    "no tar tar del"
+    "kat kat seh seh"
+    "odm odm tut dvz"
+    "acik acik acik acik";
+}
+.erow > :nth-child(1) { grid-area: no; }
+.erow > :nth-child(2) { grid-area: tar; }
+.erow > :nth-child(3) { grid-area: kat; }
+.erow > :nth-child(4) { grid-area: seh; }
+.erow > :nth-child(5) { grid-area: odm; }
+.erow > :nth-child(6) { grid-area: tut; }
+.erow > :nth-child(7) { grid-area: dvz; }
+.erow > :nth-child(8) { grid-area: acik; }
+.erow > :nth-child(9) { grid-area: del; }
+@media (min-width: 768px) {
+  .erow {
+    grid-template-columns: 1.5rem 8.5rem minmax(7rem, 1fr) 7rem 9rem 7.5rem 4rem minmax(8rem, 1.3fr) 2rem;
+    grid-template-areas: "no tar kat seh odm tut dvz acik del";
+  }
+}
+}

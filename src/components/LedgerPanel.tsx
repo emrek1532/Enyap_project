@@ -589,7 +589,17 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           onSave={rec => { onSave(rec); setEditing(null); }}
         />
       )}
-      {editing && !(isCollection && !records.some(r => r.id === editing.id)) && (
+      {editing && !isCollection && !records.some(r => r.id === editing.id) && (
+        <MultiExpenseForm
+          record={editing as Expense}
+          methods={methods}
+          categories={categories}
+          regions={regions}
+          onCancel={() => setEditing(null)}
+          onSave={rec => { onSave(rec); setEditing(null); }}
+        />
+      )}
+      {editing && records.some(r => r.id === editing.id) && (
         <LedgerForm
           kind={kind}
           record={editing}
@@ -969,6 +979,128 @@ const MultiCollectionForm: React.FC<{
           <Field label="Açıklama">
             <input value={head.description} onChange={e => setHead(h => ({ ...h, description: e.target.value }))} placeholder="Örn: 68551 nolu teklif ödemesi" className={inputCls} />
           </Field>
+          {err && <p className="text-xs font-bold text-red-600">{err}</p>}
+        </div>
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs">Vazgeç</button>
+          <button type="submit" className="px-5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs sm:text-sm">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+type ExpRow = { key: string; date: string; category: string; region: string; method: string; amount: number; currency: Currency; description: string };
+
+/**
+ * Yeni harcama: teklif kalemi girer gibi satır satır (ör. seyahatte 4-5 fiş). Son satırın son kutusunda Tab → yeni satır
+ * (tarih, şehir, ödeme şekli bir öncekinden gelir). Her satır ayrı harcama kaydı olur.
+ */
+const MultiExpenseForm: React.FC<{
+  record: Expense;
+  methods: string[];
+  categories: string[];
+  regions: string[];
+  onCancel: () => void;
+  onSave: (r: Expense) => void;
+}> = ({ record, methods, categories, regions, onCancel, onSave }) => {
+  const [rows, setRows] = useState<ExpRow[]>([{ key: newKey(), date: record.date, category: record.category || '', region: record.region || '', method: record.method, amount: record.amount || 0, currency: record.currency, description: record.description || '' }]);
+  const [err, setErr] = useState('');
+  const focusRow = React.useRef<number | null>(null);
+  const tableRef = React.useRef<HTMLDivElement>(null);
+  const setRow = (i: number, patch: Partial<ExpRow>) => setRows(rs => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const addRow = () => setRows(rs => {
+    const l = rs[rs.length - 1];
+    focusRow.current = rs.length;
+    return [...rs, { key: newKey(), date: l.date, category: '', region: l.region, method: l.method, amount: 0, currency: l.currency, description: '' }];
+  });
+  useEffect(() => {
+    if (focusRow.current === null) return;
+    const el = tableRef.current?.querySelectorAll<HTMLElement>('[data-row]')[focusRow.current]?.querySelector<HTMLInputElement>('[data-cat]');
+    focusRow.current = null;
+    el?.focus();
+  }, [rows.length]);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab' || e.shiftKey) return;
+    const t = e.target as HTMLElement;
+    const rowEls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[data-row]'));
+    const ri = rowEls.findIndex(r => r.contains(t));
+    if (ri !== rows.length - 1) return;
+    const fields = Array.from(rowEls[ri].querySelectorAll<HTMLElement>('input:not(:disabled):not([tabindex="-1"]), select:not(:disabled)'));
+    if (fields[fields.length - 1] !== t || !(rows[ri].amount > 0)) return;
+    e.preventDefault();
+    addRow();
+  };
+
+  const filled = rows.filter(r => r.amount > 0);
+  const totals = filled.reduce<Record<Currency, number>>((a, r) => { a[r.currency || 'TRY'] += r.amount; return a; }, { TRY: 0, USD: 0, EUR: 0 });
+  const t = (v?: string) => (v && v.trim() ? v.trim() : undefined);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!filled.length) { setErr('En az bir satıra tutar girin.'); return; }
+    if (filled.some(r => !r.category.trim())) { setErr('Tutar girilen her satırda kategori olmalı.'); return; }
+    if (filled.some(r => !r.date)) { setErr('Her satırda tarih olmalı.'); return; }
+    const now = Date.now();
+    filled.forEach((r, i) => {
+      onSave({
+        ...record,
+        id: i === 0 ? record.id : `hrc-${now}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        date: r.date, category: r.category.trim(), region: t(r.region), method: r.method,
+        amount: r.amount, currency: r.currency, description: t(r.description),
+        createdAt: new Date(now + i).toISOString(), updatedAt: new Date(now + i).toISOString(),
+      });
+    });
+  };
+
+  const c = 'w-full px-2 py-1.5 border border-slate-200 rounded-md bg-white text-sm';
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
+      <form onSubmit={submit} onClick={e => e.stopPropagation()}
+        className="bg-white w-full sm:max-w-6xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+        <div className="p-4 bg-brand-600 text-white flex items-center justify-between">
+          <h3 className="font-black text-base">Yeni Harcama</h3>
+          <button type="button" onClick={onCancel} className="p-1 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-3 sm:p-4 space-y-3 overflow-y-auto text-sm">
+          <div className="rounded-xl border border-slate-200 overflow-hidden">
+            <div className="hidden md:grid erow px-2 py-1.5 bg-slate-100 text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+              <span>#</span><span>Tarih</span><span>Kategori</span><span>Şehir</span><span>Ödeme</span><span className="text-right">Tutar</span><span>Dvz</span><span>Açıklama</span><span />
+            </div>
+            <div ref={tableRef} className="divide-y divide-slate-200" onKeyDownCapture={onKeyDown}>
+              {rows.map((r, i) => (
+                <div key={r.key} data-row className={`erow px-2 py-1.5 ${i % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
+                  <span className="text-[11px] font-bold text-slate-400 tabular-nums self-center">{i + 1}.</span>
+                  <DateInput value={r.date} onChange={v => setRow(i, { date: v })} className={c} title="Tarih" />
+                  <input data-cat list="me-cats" placeholder="Kategori" value={r.category} onChange={e => setRow(i, { category: e.target.value })} className={c} title="Kategori" />
+                  <input list="me-regions" placeholder="Şehir" value={r.region} onChange={e => setRow(i, { region: e.target.value })} className={c} title="Şehir" />
+                  <select value={r.method} onChange={e => setRow(i, { method: e.target.value })} className={c} title="Ödeme şekli">
+                    {methods.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <DecimalInput placeholder="Tutar" value={r.amount || 0} onValueChange={v => setRow(i, { amount: v })}
+                    onFocus={e => e.target.select()} className={`${c} text-right tabular-nums`} title="Tutar" />
+                  <select value={r.currency} onChange={e => setRow(i, { currency: e.target.value as Currency })} className={`${c} !px-1`} title="Para birimi">
+                    {CURRENCIES.map(cu => <option key={cu} value={cu}>{CURRENCY_LABEL[cu]}</option>)}
+                  </select>
+                  <input placeholder="Açıklama" value={r.description} onChange={e => setRow(i, { description: e.target.value })} className={c} title="Açıklama" />
+                  <button type="button" tabIndex={-1} disabled={rows.length === 1} onClick={() => setRows(rs => rs.filter((_, j) => j !== i))}
+                    className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 self-center justify-self-end" title="Satırı sil">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <datalist id="me-cats">{categories.map(x => <option key={x} value={x} />)}</datalist>
+            <datalist id="me-regions">{regions.map(x => <option key={x} value={x} />)}</datalist>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-2 bg-slate-50 border-t border-slate-200">
+              <button type="button" onClick={addRow} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-brand-700 font-bold text-xs hover:bg-brand-50">
+                <Plus className="w-4 h-4" /> Satır ekle
+              </button>
+              <span className="text-xs text-slate-600">{filled.length} harcama · <b className="text-slate-900 tabular-nums">{totalsText(totals)}</b></span>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400 -mt-1">Son satırın açıklama kutusunda <b>Tab</b>'a basınca yeni satır açılır (tarih, şehir ve ödeme şekli aynen gelir). Her satır ayrı harcama olarak kaydedilir.</p>
           {err && <p className="text-xs font-bold text-red-600">{err}</p>}
         </div>
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
