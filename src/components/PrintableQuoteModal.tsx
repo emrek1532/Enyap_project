@@ -94,9 +94,9 @@ const sumLines = (lines: Line[]): Record<Cur, Totals> => {
   return t;
 };
 
-/** Excel'den aktarılan tekliflerin kalemi yok; tutarlar KDV hariç döviz kırılımından gelir */
+/** Excel'den aktarılan tekliflerin kalemi yok; tutarlar KDV dahil döviz kırılımından gelir */
 const importedTotals = (q: Quote): Record<Cur, Totals> => {
-  const mk = (net: number): Totals => ({ gross: net, discount: 0, net, vat: net * VAT_RATE, grand: net * (1 + VAT_RATE) });
+  const mk = (grand: number): Totals => { const net = grand / (1 + VAT_RATE); return { gross: net, discount: 0, net, vat: grand - net, grand }; };
   return {
     USD: mk(q.amountUsd || 0),
     EUR: mk(q.amountEur || 0),

@@ -54,8 +54,7 @@ export function quoteNetTry(q: Quote, r: Rates): number {
     return q.items.reduce((s, it) =>
       s + toTry((it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100), it.currency || q.currency), 0);
   }
-  // Excel'den gelen tekliflerde "Genel Toplam TL" zaten KDV hariç TL karşılığı
-  if (q.imported) return q.totalAmount || 0;
+  // Kalemsiz tekliflerde tutarlar KDV dahil tutulur (Excel'den gelenler de KDV dahile çevrildi)
   const broken = (q.amountTry || 0) + toTry(q.amountUsd || 0, 'USD') + toTry(q.amountEur || 0, 'EUR');
   return (broken > 0 ? broken : toTry(q.totalAmount || 0, q.currency)) / 1.2;
 }

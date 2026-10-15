@@ -408,7 +408,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
   const quoteSection = (heading: string, list: Quote[]): PrintSection => ({
     heading,
-    note: "Excel'den aktarılan tekliflerin tutarı KDV hariç, sistemde hazırlananlarınki KDV dahildir.",
+    note: 'Tutarlar KDV dahildir.',
     columns: [{ label: 'Tarih' }, { label: 'Firma' }, { label: 'Teklif No' }, { label: 'Şehir' }, { label: 'Durum' }, amountCol],
     rows: byDateDesc(list, quoteDay).map(q => [trD(quoteDay(q)), q.customerName, q.quoteNumber, q.city || '-', STATUS_TR[q.status] || q.status, formatQuoteAmount(q)]),
     foot: ['Toplam', `${list.length} teklif`, '', '', '', tl(list.reduce((t, q) => t + qTry(q), 0))],

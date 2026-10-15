@@ -27,7 +27,7 @@ import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
-import { formatTl, quoteNetTry, useRates } from '../lib/rates';
+import { formatTl, quoteTry, useRates } from '../lib/rates';
 
 const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
@@ -82,11 +82,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   // Müşteri kartı: o müşteriye verilen tüm teklifler
   const [customerView, setCustomerView] = useState<string | null>(null);
-  // Tutarlar KDV hariç TL karşılığı (döviz TCMB kuruyla çevrilir)
+  // Tutarlar KDV dahil TL karşılığı (döviz TCMB kuruyla çevrilir)
   const rates = useRates(quotes);
   const netTry = useMemo(() => {
     const m = new Map<string, number>();
-    quotes.forEach(q => m.set(q.id, quoteNetTry(q, rates)));
+    quotes.forEach(q => m.set(q.id, quoteTry(q, rates)));
     return m;
   }, [quotes, rates]);
   // Sütun başlığına tıklayarak sıralama (varsayılan: tarih, yeniden eskiye)
@@ -274,7 +274,12 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       )}
 
       <div className="flex items-center justify-between gap-2 px-1">
-        <p className="text-xs text-slate-500">{filteredQuotes.length} teklif</p>
+        <p className="text-xs text-slate-500">
+          {filteredQuotes.length} teklif
+          {(searchTerm.trim() || statusFilter !== 'all' || cityFilter !== 'all' || dateFrom || dateTo) && (
+            <> · <b className="text-slate-800 tabular-nums">{formatTl(filteredQuotes.reduce((t, q) => t + (netTry.get(q.id) || 0), 0))}</b> <span className="text-slate-400">KDV dahil</span></>
+          )}
+        </p>
         <MobileSortSelect always sort={sort} onChange={(s) => { setSort(s); setListLimit(LIST_PAGE); }} options={[
           { key: 'added', dir: 'desc', label: 'Son eklenen en üstte' },
           { key: 'date', dir: 'desc', label: 'Tarih: yeniden eskiye' },
@@ -310,7 +315,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     </div>
                     <button onClick={() => setSelectedQuote(quote)} className="text-right shrink-0">
                       <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</div>
-                      <div className="text-[10px] text-slate-400">KDV hariç</div>
+                      <div className="text-[10px] text-slate-400">KDV dahil</div>
                     </button>
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -343,7 +348,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
                   <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
                   <SortHeader label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
-                  <SortHeader label="Tutar (KDV hariç)" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
+                  <SortHeader label="Tutar (KDV dahil)" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
                   <th className="py-3 px-3 text-right">İşlemler</th>
                 </tr>
               </thead>
@@ -480,7 +485,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     {selectedQuote.quoteNumber}
                   </span>
                   <span className="text-xs font-bold text-slate-700">
-                    {formatTl(netTry.get(selectedQuote.id) ?? quoteNetTry(selectedQuote, rates))} <span className="font-normal text-slate-400">KDV hariç</span>
+                    {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-slate-400">KDV dahil</span>
                   </span>
                 </div>
                 <button onClick={() => setCustomerView(selectedQuote.customerName)} title="Müşterinin tüm teklifleri"
@@ -684,7 +689,7 @@ const CustomerQuotes: React.FC<{
                 <th className="px-3 py-2 text-left">Teklif No</th>
                 <th className="px-3 py-2 text-left">Tarih</th>
                 <th className="px-3 py-2 text-left">Durum</th>
-                <th className="px-3 py-2 text-right">Tutar (KDV hariç)</th>
+                <th className="px-3 py-2 text-right">Tutar (KDV dahil)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
