@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
 import { Collection, Customer, Quote, UserRole } from '../types';
 import { CustomerAccount, STATUS_LABEL } from './CustomerAccount';
+import { CityInput } from './TextSuggest';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
@@ -410,15 +411,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Şehir</label>
-              <input
-                list="customer-city-list"
-                value={form.city}
-                onChange={e => setForm({ ...form, city: e.target.value })}
-                className={inputCls}
-              />
-              <datalist id="customer-city-list">
-                {cityCounts.map(([city]) => <option key={city} value={city} />)}
-              </datalist>
+              <CityInput value={form.city} onChange={v => setForm({ ...form, city: v })} className={inputCls} />
             </div>
             {error && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">{error}</p>}
             <button type="submit" className="w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm">

@@ -5,6 +5,7 @@ import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { findCustomer } from '../lib/customers';
 import { DecimalInput } from './DecimalInput';
 import { DateInput } from './DateInput';
+import { CityInput, TextSuggest } from './TextSuggest';
 import { PrintDoc, ReportPrint, printReport } from './ReportPrint';
 import { SuggestInput } from './SuggestInput';
 
@@ -245,7 +246,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
     const clean = Object.fromEntries(Object.entries(draft || {}).filter(([, v]) => v !== null && v !== undefined && v !== ''));
     setEditing(isCollection
       ? { ...base, customerName: '', ...clean } as Collection
-      : { ...base, category: EXPENSE_CATEGORIES[0], ...clean } as Expense);
+      : { ...base, category: '', ...clean } as Expense);
   };
 
   useEffect(() => {
@@ -708,7 +709,7 @@ const LedgerForm: React.FC<{
                 />
               </Field>
               <Field label="Şehir">
-                <input value={col.city || ''} onChange={e => set({ city: e.target.value })} className={inputCls} />
+                <CityInput value={col.city || ''} onChange={v => set({ city: v })} className={inputCls} />
               </Field>
             </div>
           ) : (
@@ -727,16 +728,7 @@ const LedgerForm: React.FC<{
                 />
               </Field>
               <Field label="Şehir">
-                <SuggestInput<string>
-                  placeholder="Örn: Konya"
-                  value={exp.region || ''}
-                  onChange={text => set({ region: text })}
-                  onPick={r => set({ region: r })}
-                  suggestions={suggest(regions, exp.region || '', r => r)}
-                  getKey={r => r}
-                  inputClassName={inputCls}
-                  renderItem={r => <span className="text-sm text-slate-800">{r}</span>}
-                />
+                <CityInput value={exp.region || ''} onChange={v => set({ region: v })} className={inputCls} />
               </Field>
             </div>
           )}
@@ -856,7 +848,7 @@ const MultiCollectionForm: React.FC<{
     if (focusRow.current === null) return;
     const el = tableRef.current?.querySelectorAll<HTMLElement>('[data-row]')[focusRow.current]?.querySelector<HTMLInputElement>('[data-amt]');
     focusRow.current = null;
-    el?.focus(); el?.select?.();
+    window.setTimeout(() => { el?.focus(); el?.select?.(); }, 30);
   }, [rows.length]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -930,7 +922,7 @@ const MultiCollectionForm: React.FC<{
               />
             </Field>
             <Field label="Şehir">
-              <input value={head.city} onChange={e => setHead(h => ({ ...h, city: e.target.value }))} className={inputCls} />
+              <CityInput value={head.city} onChange={v => setHead(h => ({ ...h, city: v }))} className={inputCls} />
             </Field>
           </div>
 
@@ -955,8 +947,8 @@ const MultiCollectionForm: React.FC<{
                     </select>
                     <DateInput disabled={!due} value={due ? r.dueDate || '' : ''} onChange={v => setRow(i, { dueDate: v })} className={c} title="Vade" />
                     <input disabled={!due} placeholder={due ? `${r.method} no` : '—'} value={due ? r.checkNo || '' : ''} onChange={e => setRow(i, { checkNo: e.target.value })} className={c} title="Çek / senet no" />
-                    <input disabled={!cek} list="mc-banks" placeholder={cek ? 'Banka' : '—'} value={cek ? r.bankName || '' : ''} onChange={e => setRow(i, { bankName: e.target.value })} className={c} title="Banka" />
-                    <input disabled={!cek} list="mc-branches" placeholder={cek ? 'Şube' : '—'} value={cek ? r.bankBranch || '' : ''} onChange={e => setRow(i, { bankBranch: e.target.value })} className={c} title="Şube" />
+                    <TextSuggest disabled={!cek} options={BANKS} snap placeholder="Banka" value={cek ? r.bankName || '' : ''} onChange={v => setRow(i, { bankName: v })} className={c} title="Banka" />
+                    <TextSuggest disabled={!cek} options={branchList} placeholder="Şube" value={cek ? r.bankBranch || '' : ''} onChange={v => setRow(i, { bankBranch: v })} className={c} title="Şube" />
                     <button type="button" tabIndex={-1} disabled={rows.length === 1} onClick={() => setRows(rs => rs.filter((_, j) => j !== i))}
                       className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 self-center justify-self-end" title="Satırı sil">
                       <Trash2 className="w-4 h-4" />
@@ -965,8 +957,6 @@ const MultiCollectionForm: React.FC<{
                 );
               })}
             </div>
-            <datalist id="mc-banks">{BANKS.map(b => <option key={b} value={b} />)}</datalist>
-            <datalist id="mc-branches">{branchList.map(b => <option key={b} value={b} />)}</datalist>
             <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-2 bg-slate-50 border-t border-slate-200">
               <button type="button" onClick={addRow} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-brand-700 font-bold text-xs hover:bg-brand-50">
                 <Plus className="w-4 h-4" /> Satır ekle
@@ -1018,7 +1008,7 @@ const MultiExpenseForm: React.FC<{
     if (focusRow.current === null) return;
     const el = tableRef.current?.querySelectorAll<HTMLElement>('[data-row]')[focusRow.current]?.querySelector<HTMLInputElement>('[data-cat]');
     focusRow.current = null;
-    el?.focus();
+    window.setTimeout(() => el?.focus(), 30);
   }, [rows.length]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -1073,8 +1063,8 @@ const MultiExpenseForm: React.FC<{
                 <div key={r.key} data-row className={`erow px-2 py-1.5 ${i % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
                   <span className="text-[11px] font-bold text-slate-400 tabular-nums self-center">{i + 1}.</span>
                   <DateInput value={r.date} onChange={v => setRow(i, { date: v })} className={c} title="Tarih" />
-                  <input data-cat list="me-cats" placeholder="Kategori" value={r.category} onChange={e => setRow(i, { category: e.target.value })} className={c} title="Kategori" />
-                  <input list="me-regions" placeholder="Şehir" value={r.region} onChange={e => setRow(i, { region: e.target.value })} className={c} title="Şehir" />
+                  <TextSuggest dataAttrs={{ 'data-cat': '' }} options={categories} placeholder="Kategori" value={r.category} onChange={v => setRow(i, { category: v })} className={c} title="Kategori" />
+                  <CityInput value={r.region} onChange={v => setRow(i, { region: v })} className={c} title="Şehir" />
                   <select value={r.method} onChange={e => setRow(i, { method: e.target.value })} className={c} title="Ödeme şekli">
                     {methods.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
@@ -1091,8 +1081,6 @@ const MultiExpenseForm: React.FC<{
                 </div>
               ))}
             </div>
-            <datalist id="me-cats">{categories.map(x => <option key={x} value={x} />)}</datalist>
-            <datalist id="me-regions">{regions.map(x => <option key={x} value={x} />)}</datalist>
             <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-2 bg-slate-50 border-t border-slate-200">
               <button type="button" onClick={addRow} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-brand-700 font-bold text-xs hover:bg-brand-50">
                 <Plus className="w-4 h-4" /> Satır ekle

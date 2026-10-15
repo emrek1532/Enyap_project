@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, FileUp, ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
-import { TURKISH_CITIES } from '../lib/cities';
+import { CityInput } from './TextSuggest';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { Material, MATERIAL_UNITS, foldTr, rememberMaterial } from '../lib/materials';
 import { SuggestInput } from './SuggestInput';
@@ -55,12 +55,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const duplicateNo = !!typedNo && quotes.some(q => q.id !== editQuote?.id && (q.quoteNumber || '').trim().toLocaleUpperCase('tr') === typedNo.toLocaleUpperCase('tr'));
   const [customerName, setCustomerName] = useState(init?.customerName || initialCustomer?.name || '');
   const [city, setCity] = useState(init?.city || initialCustomer?.city || 'Isparta');
-  // Şehir önerileri: 81 il + müşteri kayıtlarındaki şehirler
-  const cityOptions = useMemo(() => {
-    const set = new Set<string>(TURKISH_CITIES);
-    customers.forEach(c => { if (c.city?.trim()) set.add(c.city.trim()); });
-    return [...set].sort((a, b) => a.localeCompare(b, 'tr'));
-  }, [customers]);
 
   // Kayıtlı bir müşteri seçilince şehir / yetkili / telefon otomatik dolsun
   const handleCustomerNameChange = (value: string) => {
@@ -512,19 +506,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
               <div className="col-span-1 sm:col-span-3">
                 <label className="ql">Şehir *</label>
-                <input
-                  type="text"
-                  required
-                  list="quote-city-list"
-                  autoComplete="off"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  className="qf"
-                />
-                <datalist id="quote-city-list">
-                  {cityOptions.map((c) => <option key={c} value={c} />)}
-                </datalist>
+                <CityInput required value={city} onChange={setCity} className="qf" />
               </div>
               <div className="col-span-1 sm:col-span-2 ">
                 <label className="ql">Vade{isEdit ? '' : ' *'}</label>
