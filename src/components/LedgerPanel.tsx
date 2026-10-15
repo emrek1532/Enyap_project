@@ -106,9 +106,9 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   const [regionFilter, setRegionFilter] = useState('all');
   const [dueFilter, setDueFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   // Sıralama: varsayılan son eklenen en üstte (tarihi eski olsa bile); seçim cihazda hatırlanır
-  // Tahsilatta varsayılan: alım tarihine göre (en yeni tarih üstte); harcamada son eklenen üstte
-  const sortStore = `enyap-ledger-sort2-${kind}`;
-  const defaultSort = isCollection ? 'date' : 'added';
+  // Varsayılan: tarihe göre (en yeni tarih üstte)
+  const sortStore = `enyap-ledger-sort3-${kind}`;
+  const defaultSort = 'date';
   const [sortMode, setSortModeState] = useState<'added' | 'date'>(() => {
     try { const v = localStorage.getItem(sortStore); return v === 'date' || v === 'added' ? v : defaultSort; } catch { return defaultSort; }
   });
