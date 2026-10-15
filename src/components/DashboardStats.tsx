@@ -1,66 +1,29 @@
 import React from 'react';
-import { 
-  AlertTriangle, 
-  Clock, 
-  FileCheck, 
-  Truck, 
-  Calendar, 
-  Send, 
-  PlusCircle, 
-  CheckCircle2, 
-  ArrowUpRight,
-  TrendingUp,
-  MapPin
-} from 'lucide-react';
-import { Quote, Order, OrderStatus, CalendarEvent, UserRole } from '../types';
-import { needsFollowUp, PENDING_STATUSES } from '../lib/quoteRules';
-import { quoteTry, useRates } from '../lib/rates';
+import { AlertTriangle, Clock } from 'lucide-react';
+import { Quote, Order, CalendarEvent, UserRole } from '../types';
+import { needsFollowUp } from '../lib/quoteRules';
 
 interface DashboardStatsProps {
   quotes: Quote[];
-  orders: Order[];
-  events: CalendarEvent[];
-  currentRole: UserRole;
-  onOpenNewQuote: () => void;
-  onNavigateTab: (tab: any) => void;
+  orders?: Order[];
+  events?: CalendarEvent[];
+  currentRole?: UserRole;
+  onOpenNewQuote?: () => void;
+  onNavigateTab?: (tab: any) => void;
   onShowQuotes: (filter: string) => void;
 }
 
-export const DashboardStats: React.FC<DashboardStatsProps> = ({
-  quotes,
-  orders,
-  events,
-  currentRole,
-  onOpenNewQuote,
-  onNavigateTab,
-  onShowQuotes,
-}) => {
-  const rates = useRates(quotes);
+/** Teklifler sayfasının üstündeki uyarı (geciken / takip bekleyen teklifler) */
+export const DashboardStats: React.FC<DashboardStatsProps> = ({ quotes, onShowQuotes }) => {
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
 
-  // Overdue quotes: in 'yeni_talep' status for more than 24 hours
+  // Overdue quotes: in 'yeni_talep' status for more than 12 hours
   const overdueQuotes = quotes.filter((q) => {
     if (q.status !== 'yeni_talep') return false;
-    const createdTime = new Date(q.createdAt).getTime();
-    const hoursElapsed = (now.getTime() - createdTime) / (1000 * 60 * 60);
-    return hoursElapsed >= 12; // warn if >= 12 hours waiting
+    const hoursElapsed = (now.getTime() - new Date(q.createdAt).getTime()) / (1000 * 60 * 60);
+    return hoursElapsed >= 12;
   });
-
-  // Counts
-  const pendingQuotes = quotes.filter((q) => PENDING_STATUSES.includes(q.status));
-  const approvedQuotes = quotes.filter((q) => q.status === 'onaylandi');
-  const cancelledQuotes = quotes.filter((q) => q.status === 'iptal');
-  const approvedTotal = approvedQuotes.reduce((sum, q) => sum + quoteTry(q, rates), 0);
   const followUpQuotes = quotes.filter(needsFollowUp);
-  const pendingTotal = pendingQuotes.reduce((sum, q) => sum + quoteTry(q, rates), 0);
-  const tl = (v: number) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`;
-  const todayEvents = events.filter((e) => e.date === todayStr);
-
-  // Total active pipeline value
-  const totalPipeline = quotes
-    .filter((q) => q.status !== 'iptal')
-    .reduce((sum, q) => sum + quoteTry(q, rates), 0);
 
   return (
     <div className="space-y-3.5 mb-6">

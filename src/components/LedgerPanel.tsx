@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, CalendarClock, FileDown } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, FileDown } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { findCustomer } from '../lib/customers';
@@ -167,14 +167,6 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   }, [records, search, dateFrom, dateTo, methodFilter, categoryFilter, regionFilter, currencyFilter, dueFilter, todayStr, sortMode]);
 
   const filteredTotals = useMemo(() => sumByCurrency(filtered), [filtered]);
-  const monthPrefix = todayStr.slice(0, 7);
-  const monthTotals = useMemo(() => sumByCurrency(records.filter(r => r.date?.startsWith(monthPrefix))), [records, monthPrefix]);
-  const yearTotals = useMemo(() => sumByCurrency(records.filter(r => r.date?.startsWith(monthPrefix.slice(0, 4)))), [records, monthPrefix]);
-  // Portföy: vadesi henüz gelmemiş çek / senetler
-  const portfolio = useMemo(() => records.filter(r => isCollectionRec(r) && r.dueDate && r.dueDate >= todayStr), [records, todayStr]);
-  const portfolioTotals = useMemo(() => sumByCurrency(portfolio), [portfolio]);
-  const nextDue = useMemo(() => [...portfolio].sort((a, b) => ((a as Collection).dueDate || '').localeCompare((b as Collection).dueDate || ''))[0] as Collection | undefined, [portfolio]);
-
   const hasFilters = !!(search || dateFrom || dateTo || methodFilter !== 'all' || categoryFilter !== 'all' || regionFilter !== 'all' || currencyFilter !== 'all' || dueFilter !== 'all');
   // Hızlı tarih aralığı (ör. seyahat dönüşü muhasebeye gönderilecek harcamalar)
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -409,11 +401,6 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
     );
   };
 
-  const cards = [
-    { label: 'Bu Ay', value: totalsText(monthTotals) },
-    { label: `${monthPrefix.slice(0, 4)} Yılı`, value: totalsText(yearTotals) },
-    { label: hasFilters ? 'Filtrelenen Toplam' : 'Tüm Kayıtlar', value: totalsText(filteredTotals), sub: `${filtered.length} kayıt` },
-  ];
   const colCount = isCollection ? 7 : 7;
 
   return (
