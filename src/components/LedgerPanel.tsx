@@ -182,16 +182,13 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
     ['Geçen ay', () => { const d = new Date(); setRange(iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)), iso(new Date(d.getFullYear(), d.getMonth(), 0))); }],
   ];
 
+  // PDF'te "Harcamayı yapan" (cihazda hatırlanır)
+  const [spender, setSpenderState] = useState(() => { try { return localStorage.getItem('enyap-expense-spender') ?? 'Emre KARAKAYA'; } catch { return 'Emre KARAKAYA'; } });
+  const setSpender = (v: string) => { setSpenderState(v); try { localStorage.setItem('enyap-expense-spender', v); } catch { /* */ } };
   // Listelenen kayıtların PDF dökümü (muhasebeye göndermek için): tarih sırasıyla, kategori/ödeme özetli
   const printDoc = useMemo<PrintDoc>(() => {
     const rows = [...filtered].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
     const period = dateFrom || dateTo ? `${dateFrom ? fmtDate(dateFrom) : '…'} – ${dateTo ? fmtDate(dateTo) : '…'}` : 'Tüm kayıtlar';
-    const group = (key: (r: LedgerRecord) => string) => {
-      const m = new Map<string, LedgerRecord[]>();
-      rows.forEach(r => { const k = key(r) || '-'; m.set(k, [...(m.get(k) || []), r]); });
-      return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], 'tr'))
-        .map(([k, list]) => [k, String(list.length), totalsText(sumByCurrency(list))]);
-    };
     const tot = totalsText(filteredTotals);
     const detail = isCollection
       ? {
@@ -202,27 +199,26 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
         }
       : {
           heading: 'Harcama Listesi',
-          columns: [{ label: 'Tarih' }, { label: 'Kategori' }, { label: 'Bölge' }, { label: 'Ödeme' }, { label: 'Açıklama' }, { label: 'Tutar', align: 'right' as const }],
+          columns: [{ label: 'Tarih' }, { label: 'Kategori' }, { label: 'Şehir' }, { label: 'Ödeme' }, { label: 'Açıklama' }, { label: 'Tutar', align: 'right' as const }],
           rows: rows.map(r => { const e = r as Expense; return [fmtDate(e.date), e.category, e.region || '', e.method, e.description || '', money(e.amount, e.currency)]; }),
           foot: ['Toplam', '', '', '', `${rows.length} kayıt`, tot],
         };
-    const cols = [{ label: '' }, { label: 'Adet', align: 'right' as const }, { label: 'Tutar', align: 'right' as const }];
     return {
       title: isCollection ? 'Tahsilat Dökümü' : 'Harcama Dökümü',
       period,
       fileName: `${isCollection ? 'Tahsilatlar' : 'Harcamalar'} ${period.replace(/[^\d.–… a-zA-ZçğıöşüÇĞİÖŞÜ]/g, '').trim()}`,
+      hideFooter: true,
       summary: [
         ['Toplam', tot, `${rows.length} kayıt`],
         ['Dönem', period],
+        ...(!isCollection && spender.trim() ? [['Harcamayı Yapan', spender.trim()] as [string, string]] : []),
         ...(search ? [['Arama', search] as [string, string]] : []),
       ],
       sections: [
         detail,
-        { heading: isCollection ? 'Firmaya Göre' : 'Kategoriye Göre', columns: [{ ...cols[0], label: isCollection ? 'Firma' : 'Kategori' }, cols[1], cols[2]], rows: group(partyOf) },
-        { heading: 'Ödeme Şekline Göre', columns: [{ ...cols[0], label: 'Ödeme' }, cols[1], cols[2]], rows: group(r => r.method) },
       ],
     };
-  }, [filtered, filteredTotals, dateFrom, dateTo, search, isCollection]);
+  }, [filtered, filteredTotals, dateFrom, dateTo, search, isCollection, spender]);
 
   const resetFilters = () => {
     setSearch(''); setDateFrom(''); setDateTo(''); setMethodFilter('all'); setCategoryFilter('all');
@@ -454,7 +450,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           <input
             value={search}
             onChange={e => changed(setSearch)(e.target.value)}
-            placeholder={isCollection ? 'Müşteri, banka, çek no ara...' : 'Kategori, bölge, açıklama ara...'}
+            placeholder={isCollection ? 'Müşteri, banka, çek no ara...' : 'Kategori, şehir, açıklama ara...'}
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm"
           />
         </div>
@@ -466,7 +462,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <select value={regionFilter} onChange={e => changed(setRegionFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
-                <option value="all">Tüm Bölgeler</option>
+                <option value="all">Tüm Şehirler</option>
                 {regions.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </>
@@ -500,6 +496,10 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
               <button key={label} type="button" onClick={fn} className="px-2.5 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700">{label}</button>
             ))}
           </div>
+          {!isCollection && (
+            <input value={spender} onChange={e => setSpender(e.target.value)} placeholder="Harcamayı yapan (PDF'te yazar)"
+              title="PDF'te 'Harcamayı Yapan' olarak yazılır" className="p-2 border border-slate-200 rounded-lg text-sm" />
+          )}
           <button type="button" onClick={() => printReport(printDoc.fileName)} disabled={!filtered.length}
             title="Listelenen kayıtları PDF olarak kaydet / yazdır"
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand-200 bg-white text-brand-700 text-xs sm:text-sm font-bold hover:bg-brand-50 disabled:opacity-40">
@@ -546,7 +546,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
               <tr>
                 <th className="py-3 px-3 whitespace-nowrap">Tarih</th>
                 <th className="py-3 px-3">{t.party}</th>
-                <th className="py-3 px-3 whitespace-nowrap">{isCollection ? 'Ödeme Şekli / Banka' : 'Bölge'}</th>
+                <th className="py-3 px-3 whitespace-nowrap">{isCollection ? 'Ödeme Şekli / Banka' : 'Şehir'}</th>
                 {isCollection ? <th className="py-3 px-3 whitespace-nowrap">Vade</th> : <th className="py-3 px-3 whitespace-nowrap">Ödeme Şekli</th>}
                 <th className="py-3 px-3">Açıklama</th>
                 <th className="py-3 px-3 text-right">Tutar</th>
@@ -713,9 +713,9 @@ const LedgerForm: React.FC<{
                   renderItem={c => <span className="text-sm text-slate-800">{c}</span>}
                 />
               </Field>
-              <Field label="Bölge">
+              <Field label="Şehir">
                 <SuggestInput<string>
-                  placeholder="Örn: KONYA BÖLGE"
+                  placeholder="Örn: Konya"
                   value={exp.region || ''}
                   onChange={text => set({ region: text })}
                   onPick={r => set({ region: r })}
