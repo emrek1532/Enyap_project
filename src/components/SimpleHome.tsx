@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown } from 'lucide-react';
+import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
@@ -68,6 +68,7 @@ export const SimpleHome: React.FC<{
     const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status));
     return { months, cur: months[5], prev: months[4], prevSame: calc(keys[4], `${keys[4]}-${pad(day)}`), pendingCount: pending.length, pendingAmt: pending.reduce((t, q) => t + quoteTry(q, rates), 0) };
   }, [quotes, collections, expenses, rates]);
+  const tips = useMemo(() => buildTips({ quotes, rates, t, canQuotes }), [quotes, rates, t, canQuotes]);
   const reminders = useMemo(() => {
     const end = `${t}T23:59:59`;
     return notes.filter(n => !n.done && n.remindAt && n.remindAt <= end).sort((a, b) => a.remindAt!.localeCompare(b.remindAt!)).slice(0, 4);
@@ -107,6 +108,25 @@ export const SimpleHome: React.FC<{
 
       {/* Bu ay: özet ve son 6 ay grafiği */}
       {(canQuotes || canMoney) && <MonthPanel stats={stats} canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} onOpen={onOpen} />}
+
+      {/* Öneriler */}
+      {tips.length > 0 && (
+        <section>
+          <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5 mb-2 px-1"><Sparkles className="w-4 h-4 text-brand-600" /> Öneriler</h2>
+          <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0 pb-1 [scrollbar-width:none]">
+            {tips.map(tip => (
+              <button key={tip.id} onClick={() => tip.quote ? onOpenQuote(tip.quote) : onOpen(tip.tab)}
+                className="snap-start shrink-0 w-[78%] sm:w-72 text-left bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 hover:border-brand-300 active:bg-slate-50 transition flex gap-3">
+                <span className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${tip.tone}`}><tip.icon className="w-4.5 h-4.5" /></span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-black text-slate-900 leading-snug">{tip.title}</span>
+                  <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{tip.text}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Bugünün hatırlatmaları */}
       {reminders.length > 0 && (
@@ -275,3 +295,58 @@ const MonthPanel: React.FC<{
     </section>
   );
 };
+
+type Tip = { id: string; icon: React.ElementType; tone: string; title: string; text: string; tab: Tab; quote?: Quote };
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / 864e5);
+
+/** Verilerden kısa, işe yarar öneriler üretir (en fazla 6) */
+function buildTips({ quotes, rates, t, canQuotes }: {
+  quotes: Quote[]; rates: ReturnType<typeof useRates>; t: string; canQuotes: boolean;
+}): Tip[] {
+  const tips: Tip[] = [];
+  const won = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
+
+  if (canQuotes) {
+    // Son 60 günün en büyük bekleyen teklifi
+    const big = quotes.filter(q => PENDING_STATUSES.includes(q.status) && daysBetween(q.createdAt, t) <= 60)
+      .map(q => ({ q, v: quoteTry(q, rates) })).sort((a, b) => b.v - a.v)[0];
+    if (big && big.v > 0) tips.push({ id: 'big', icon: Target, tone: 'bg-brand-50 text-brand-700', tab: 'quotes', quote: big.q,
+      title: `En büyük fırsat: ${big.q.customerName}`, text: `${tl(big.v)} teklif ${daysBetween(big.q.createdAt, t)} gündür kararda.` });
+
+    // Daha önce iş yapılmış ama 120+ gündür teklif verilmeyen firmalar
+    const last = new Map<string, { at: string; won: number; name: string }>();
+    for (const q of quotes) {
+      const k = q.customerName.trim().toLocaleLowerCase('tr');
+      const r = last.get(k) || { at: '', won: 0, name: q.customerName };
+      if ((q.createdAt || '') > r.at) r.at = q.createdAt || '';
+      if (won(q)) r.won += quoteTry(q, rates);
+      last.set(k, r);
+    }
+    const sleeping = [...last.values()].filter(r => r.won > 0 && r.at && daysBetween(r.at, t) >= 120).sort((a, b) => b.won - a.won);
+    if (sleeping.length) tips.push({ id: 'sleep', icon: UserRoundCheck, tone: 'bg-sky-50 text-sky-700', tab: 'customers',
+      title: `${sleeping[0].name} uzun süredir sessiz`, text: `${Math.floor(daysBetween(sleeping[0].at, t) / 30)} aydır teklif yok; geçmişte ${tl(sleeping[0].won)} iş yapıldı.${sleeping.length > 1 ? ` (+${sleeping.length - 1} firma daha)` : ''}` });
+
+    // Son 12 ayın en iyi müşterisi
+    const y = new Date(); y.setFullYear(y.getFullYear() - 1);
+    const ys = y.toISOString().slice(0, 10);
+    const by = new Map<string, number>();
+    for (const q of quotes) if (won(q) && (q.createdAt || '') >= ys) by.set(q.customerName, (by.get(q.customerName) || 0) + quoteTry(q, rates));
+    const top = [...by.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (top) tips.push({ id: 'top', icon: Trophy, tone: 'bg-violet-50 text-violet-600', tab: 'customers',
+      title: `Yılın müşterisi: ${top[0]}`, text: `Son 12 ayda ${tl(top[1])} onaylı iş.` });
+
+    // Onay oranı: son 90 gün vs önceki 90 gün
+    const rateOf = (from: number, to: number) => {
+      const qs = quotes.filter(q => { const d = daysBetween(q.createdAt, t); return d >= from && d < to && q.status !== 'iptal'; });
+      const tot = qs.reduce((s, q) => s + quoteTry(q, rates), 0);
+      return tot ? qs.filter(won).reduce((s, q) => s + quoteTry(q, rates), 0) / tot : null;
+    };
+    const r1 = rateOf(0, 90), r0 = rateOf(90, 180);
+    if (r1 != null && r0 != null && Math.abs(r1 - r0) >= 0.03) {
+      const up = r1 > r0;
+      tips.push({ id: 'rate', icon: up ? TrendingUp : TrendingDown, tone: up ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600', tab: 'reports',
+        title: `Onay oranı %${Math.round(r1 * 100)} (${up ? 'yükseliyor' : 'düşüyor'})`, text: `Son 3 ay, önceki 3 aya göre (%${Math.round(r0 * 100)}).` });
+    }
+  }
+  return tips.slice(0, 6);
+}
