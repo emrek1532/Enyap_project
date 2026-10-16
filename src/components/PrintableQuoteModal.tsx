@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, Printer, Send, X } from 'lucide-react';
+import { Loader2, Printer, Share2, X } from 'lucide-react';
 import { Quote } from '../types';
 
 interface PrintableQuoteModalProps {
@@ -208,8 +208,8 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
     return () => { document.title = prev; };
   }, [quote]);
 
-  // WhatsApp ile gönderim: açılışta sayfalar arka planda PDF dosyasına çevrilir; düğmeye basınca
-  // telefonun paylaş menüsü açılır (WhatsApp seçilir). Paylaşım desteklenmiyorsa PDF indirilir.
+  // Gönder: açılışta sayfalar arka planda PDF dosyasına çevrilir; düğmeye basınca telefonun paylaş menüsü
+  // açılır (WhatsApp, WhatsApp Business, Gmail…). Paylaşım desteklenmiyorsa PDF indirilir.
   const capRef = useRef<HTMLDivElement>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfState, setPdfState] = useState<'idle' | 'busy' | 'ready' | 'error'>('idle');
@@ -242,25 +242,24 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
     return () => { cancelled = true; };
   }, [quote]);
 
-  const sendWhatsApp = async () => {
+  const sendPdf = async () => {
     if (!pdfFile || !quote) return;
-    const text = `Enyap Isı · ${quote.quoteNumber} nolu fiyat teklifi`;
     setShareMsg('');
     try {
+      // Yalnızca dosya paylaşılır: yanına yazı eklenince WhatsApp dosya adını "DOC-…-WA0001" yapıyor
       if (navigator.canShare?.({ files: [pdfFile] })) {
-        await navigator.share({ files: [pdfFile], title: pdfFile.name, text });
+        await navigator.share({ files: [pdfFile] });
         return;
       }
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') return; // paylaşım penceresi kapatıldı
     }
-    // Paylaşım yoksa (ör. bilgisayar): PDF indirilir, WhatsApp açılır; dosya sohbete sürüklenir
+    // Paylaşım yoksa (ör. bazı bilgisayarlar): PDF indirilir
     const url = URL.createObjectURL(pdfFile);
     const a = document.createElement('a');
     a.href = url; a.download = pdfFile.name; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
-    setShareMsg('PDF indirildi; açılan WhatsApp sohbetine dosyayı sürükleyip bırakın.');
+    setShareMsg(`PDF indirildi (${pdfFile.name}); WhatsApp ya da e-postaya ek olarak ekleyebilirsiniz.`);
   };
 
   if (!quote) return null;
@@ -401,13 +400,13 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
         <span className="font-bold text-sm sm:text-base truncate">Fiyat Teklifi · {quote.quoteNumber}</span>
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={sendWhatsApp}
+            onClick={sendPdf}
             disabled={pdfState !== 'ready'}
-            title={pdfState === 'error' ? 'PDF hazırlanamadı' : 'PDF olarak WhatsApp ile gönder'}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#1ebe5b] text-white font-bold text-xs sm:text-sm shadow-sm disabled:opacity-60"
+            title={pdfState === 'error' ? 'PDF hazırlanamadı' : 'PDF olarak gönder (WhatsApp, e-posta…)'}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-bold text-xs sm:text-sm shadow-sm disabled:opacity-60"
           >
-            {pdfState === 'busy' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            <span>{pdfState === 'busy' ? 'PDF hazırlanıyor' : pdfState === 'error' ? 'PDF hatası' : 'WhatsApp'}</span>
+            {pdfState === 'busy' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            <span>{pdfState === 'busy' ? 'PDF hazırlanıyor' : pdfState === 'error' ? 'PDF hatası' : 'Gönder'}</span>
           </button>
           <button
             onClick={() => window.print()}
