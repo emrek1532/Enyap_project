@@ -228,6 +228,8 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
         await Promise.all(Array.from(root.querySelectorAll('img')).map(img => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined))));
         const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas-pro'), import('jspdf')]);
         const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+        // PDF'in kendi başlığı: bazı görüntüleyiciler (WhatsApp'tan açılınca) dosya adı yerine bunu gösterir
+        pdf.setProperties({ title: fileNameFor(quote), subject: `Fiyat Teklifi ${quote.quoteNumber}`, author: 'Enyap Isı Sistemleri', creator: 'Enyap Isı Teklif & Takip' });
         const els = Array.from(root.querySelectorAll<HTMLElement>('.rq-page'));
         for (let i = 0; i < els.length; i++) {
           // Sadece teklif sayfası kopyalanır (uygulamanın geri kalanı atlanır: büyük listelerde çok hızlandırır)
