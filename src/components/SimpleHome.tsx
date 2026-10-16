@@ -1,7 +1,10 @@
 import React, { useMemo } from 'react';
-import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target, Lightbulb, FileText, Phone, CirclePause, Ban } from 'lucide-react';
+import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target, Lightbulb, FileText, Phone, CirclePause, Ban, FileUp } from 'lucide-react';
 import { Collection, Customer, CustomerStatus, Expense, Quote, QuickNote } from '../types';
 import { foldName, statusOf } from '../lib/customerInsights';
+import { estimatedBalance } from '../lib/mikroBalance';
+import { usePriceChanges } from '../lib/priceWatch';
+import { WhatsAppMenu } from './WhatsAppMenu';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { STATUS_LABEL } from './CustomerAccount';
@@ -38,7 +41,8 @@ export const SimpleHome: React.FC<{
   onNewNote: () => void;
   onOpenCustomer?: (name: string) => void;
   onSaveCustomer?: (c: Customer) => void;
-}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onNewNote, onOpenCustomer, onSaveCustomer }) => {
+  onOpenMikro?: () => void;
+}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onNewNote, onOpenCustomer, onSaveCustomer, onOpenMikro }) => {
   const rates = useRates(quotes);
   const t = today();
   const month = t.slice(0, 7);
@@ -71,7 +75,35 @@ export const SimpleHome: React.FC<{
     const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status));
     return { months, cur: months[5], prev: months[4], prevSame: calc(keys[4], `${keys[4]}-${pad(day)}`), pendingCount: pending.length, pendingAmt: pending.reduce((t, q) => t + quoteTry(q, rates), 0) };
   }, [quotes, collections, expenses, rates]);
-  const tips = useMemo(() => buildTips({ quotes, customers, rates, t, canQuotes }), [quotes, customers, rates, t, canQuotes]);
+  const priceChanges = usePriceChanges(quotes, canQuotes);
+  const tips = useMemo(() => {
+    const list = buildTips({ quotes, customers, rates, t, canQuotes });
+    const extra: Tip[] = [];
+    if (canMoney) {
+      // Mikro bakiyeleri: en çok alacak + güncellik hatırlatması
+      const bal = customers.map(c => ({ c, b: estimatedBalance(c, collections) })).filter(x => x.b && x.b.estimate > 0)
+        .sort((a, b) => b.b!.estimate - a.b!.estimate);
+      if (bal.length) {
+        const top = bal[0];
+        extra.push({ id: 'alacak', icon: Wallet, tone: 'bg-accent-50 text-accent-700', tab: 'customers', customer: top.c.name, phone: top.c.phone,
+          balance: top.b!.estimate,
+          title: `En çok alacak: ${top.c.name}`, text: `${tl(top.b!.estimate)} açık bakiye.${bal.length > 1 ? ` Sonra: ${bal.slice(1, 3).map(x => `${x.c.name} ${short(x.b!.estimate)}`).join(', ')}.` : ''}`,
+          advice: 'Ödeme planını sorun; WhatsApp\'tan hazır ödeme hatırlatması gönderebilirsiniz.' });
+      }
+      const last = customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), '');
+      const age = last ? Math.floor((Date.now() - Date.parse(last)) / 864e5) : null;
+      if (onOpenMikro && (age == null || age > 15)) extra.push({ id: 'mikro', icon: FileUp, tone: 'bg-slate-100 text-slate-700', tab: 'customers',
+        title: age == null ? 'Mikro bakiyelerini yükleyin' : `Mikro bakiyeleri ${age} gün önce yüklendi`,
+        text: 'Cari bakiyelerin güncel görünmesi için Mikro\'dan aldığınız cari bakiye listesini yükleyin.' });
+    }
+    if (priceChanges.size) {
+      const n = [...priceChanges.values()].reduce((a, x) => a + x.length, 0);
+      extra.push({ id: 'fiyat', icon: TrendingUp, tone: 'bg-rose-50 text-rose-600', tab: 'quotes',
+        title: `${priceChanges.size} bekleyen teklifte fiyat değişti`, text: `${n} kalemin katalog fiyatı teklif verildikten sonra güncellendi.`,
+        advice: 'Müşteri onaylamadan önce revize teklif göndermeyi düşünün.' });
+    }
+    return [...list.slice(0, 1), ...extra, ...list.slice(1)].slice(0, 7);
+  }, [quotes, customers, collections, rates, t, canQuotes, canMoney, priceChanges, onOpenMikro]);
   const setStatus = (name: string, status: CustomerStatus) => {
     if (!onSaveCustomer) return;
     const label = status === 'kara_liste' ? 'kara listeye' : 'pasife';
@@ -144,6 +176,11 @@ export const SimpleHome: React.FC<{
                   <div className="flex gap-1.5 flex-wrap mt-auto">
                     {tip.quote && <button onClick={() => onOpenQuote(tip.quote!)} className={`${btn} bg-brand-600 border-brand-600 text-white`}><FileText className="w-3.5 h-3.5" /> Teklifi aç</button>}
                     {tip.phone && <a href={`tel:${tip.phone.replace(/[^\d+]/g, '')}`} className={`${btn} bg-accent-500 border-accent-500 text-white`}><Phone className="w-3.5 h-3.5" /> Ara</a>}
+                    {(tip.id === 'big' || tip.id === 'sleep' || tip.id === 'alacak') && tip.customer && (
+                      <WhatsAppMenu phone={tip.phone} ctx={{ name: tip.customer, quote: tip.quote, quoteValue: tip.quote ? quoteTry(tip.quote, rates) : undefined, balance: tip.balance, balanceDate: tip.balance != null ? today() : undefined }} />
+                    )}
+                    {tip.id === 'mikro' && onOpenMikro && <button onClick={onOpenMikro} className={`${btn} bg-brand-600 border-brand-600 text-white`}><FileUp className="w-3.5 h-3.5" /> Bakiye yükle</button>}
+                    {tip.id === 'fiyat' && <button onClick={() => onOpen('quotes')} className={`${btn} bg-brand-600 border-brand-600 text-white`}><FileText className="w-3.5 h-3.5" /> Teklifleri gör</button>}
                     {tip.customer && onOpenCustomer && <button onClick={() => onOpenCustomer(tip.customer!)} className={`${btn} bg-white border-slate-200 text-slate-700`}><Lightbulb className="w-3.5 h-3.5" /> Ne yapmalı?</button>}
                     {tip.id === 'sleep' && onSaveCustomer && <>
                       <button onClick={() => setStatus(tip.customer!, 'pasif')} className={`${btn} bg-white border-slate-200 text-slate-600`}><CirclePause className="w-3.5 h-3.5" /> Pasife al</button>
@@ -235,7 +272,7 @@ export const SimpleHome: React.FC<{
 
 const AY = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 const AY_UZUN = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-const short = (v: number) => v >= 1e6 ? `${(v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} Mn` : v >= 1e3 ? `${Math.round(v / 1e3).toLocaleString('tr-TR')} B` : `${Math.round(v)}`;
+const short = (v: number) => v >= 1e6 ? `${(v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} Mn` : v >= 1e3 ? `${Math.round(v / 1e3).toLocaleString('tr-TR')} bin` : `${Math.round(v)}`;
 
 type Month = { key: string; teklif: number; adet: number; onay: number; onayAdet: number; tahsilat: number; harcama: number };
 
@@ -325,7 +362,7 @@ const MonthPanel: React.FC<{
   );
 };
 
-type Tip = { id: string; icon: React.ElementType; tone: string; title: string; text: string; tab: Tab; quote?: Quote; customer?: string; phone?: string; advice?: string };
+type Tip = { id: string; icon: React.ElementType; tone: string; title: string; text: string; tab: Tab; quote?: Quote; customer?: string; phone?: string; advice?: string; balance?: number };
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / 864e5);
 
 /** Verilerden kısa, işe yarar öneriler üretir (en fazla 6) */

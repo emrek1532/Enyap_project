@@ -163,6 +163,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [activeTab, setActiveTabState] = useState<ActiveTab>('home');
   // Ana sayfadaki öneriden açılacak müşteri carisi
   const [focusCustomer, setFocusCustomer] = useState<string | null>(null);
+  const [openMikro, setOpenMikro] = useState(false);
   // Ana sayfadan "Tahsilat / Harcama Ekle" ile gelince form açık başlasın
   const [ledgerStartNew, setLedgerStartNew] = useState<'collections' | 'expenses' | null>(null);
 
@@ -583,10 +584,10 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
 
   // Update Quote Status
-  const handleUpdateQuoteStatus = (id: string, status: QuoteStatus) => {
+  const handleUpdateQuoteStatus = (id: string, status: QuoteStatus, lostReason?: string) => {
     const target = data.quotes.find(q => q.id === id);
     if (!target) return;
-    const updated: Quote = { ...target, status, updatedAt: new Date().toISOString() };
+    const updated: Quote = { ...target, status, lostReason: status === 'iptal' ? (lostReason ?? target.lostReason) : undefined, updatedAt: new Date().toISOString() };
     const activity = logActivity(
       'Teklif Durumu Değişti',
       `${target.customerName} teklifi "${status}" durumuna alındı.`,
@@ -737,6 +738,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
                 onNewNote={() => setActiveTab('notes')}
                 onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
                 onSaveCustomer={handleSaveCustomer}
+                onOpenMikro={can(profile, 'collections', 'edit') ? () => { setOpenMikro(true); setActiveTab('customers'); } : undefined}
               />
             )}
           </>
@@ -792,6 +794,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onDeleteCustomer={handleDeleteCustomer}
             focusName={focusCustomer}
             onFocusHandled={() => setFocusCustomer(null)}
+            openMikro={openMikro}
+            onMikroHandled={() => setOpenMikro(false)}
             onCreateQuoteForCustomer={(customer) => {
               setQuoteCustomer(customer);
               setIsNewQuoteOpen(true);

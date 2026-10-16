@@ -53,6 +53,8 @@ export interface Quote {
   isEncrypted?: boolean;
   tags?: string[];
   preparedBy?: string;   // Teklifi veren kişi
+  /** İptal edilen teklifin kaybedilme nedeni */
+  lostReason?: string;
   amountUsd?: number;    // Döviz kırılımı (Excel'den aktarılan teklifler)
   amountEur?: number;
   amountTry?: number;
@@ -158,6 +160,11 @@ export interface Customer {
   /** aktif (varsayılan), pasif veya kara_liste */
   status?: CustomerStatus;
   statusNote?: string;
+  /** Mikro cari kodu ve son yüklenen bakiye (+ borçlu / − alacaklı) */
+  mikroCode?: string;
+  mikroTitle?: string;
+  mikroBalance?: number | null;
+  mikroBalanceDate?: string;
   createdAt: string;
   updatedAt: string;
 }
