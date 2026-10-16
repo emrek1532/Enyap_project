@@ -69,8 +69,8 @@ export const SimpleHome: React.FC<{
   const actions = [
     canAdd.quote && { label: 'Yeni Teklif', icon: FilePlus2, cls: 'bg-brand-600 text-white', on: onNewQuote },
     canAdd.collection && { label: 'Tahsilat Ekle', icon: Wallet, cls: 'bg-accent-500 text-white', on: onNewCollection },
-    canAdd.expense && { label: 'Harcama Ekle', icon: Receipt, cls: 'bg-orange-500 text-white', on: onNewExpense },
-    { label: 'Not Al', icon: StickyNote, cls: 'bg-amber-400 text-amber-950', on: onNewNote },
+    canAdd.expense && { label: 'Harcama Ekle', icon: Receipt, cls: 'bg-brand-900 text-white', on: onNewExpense },
+    { label: 'Not Al', icon: StickyNote, cls: 'bg-white text-brand-700 border border-brand-200', on: onNewNote },
   ].filter(Boolean) as { label: string; icon: React.ElementType; cls: string; on: () => void }[];
 
   return (

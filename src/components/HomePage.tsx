@@ -410,10 +410,10 @@ export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; i
   quotes: { title: 'Teklifler', icon: FileText, tone: 'bg-brand-50 text-brand-600' },
   customers: { title: 'Müşteriler', icon: Users, tone: 'bg-sky-50 text-sky-600' },
   collections: { title: 'Yapılan Tahsilatlar', icon: Wallet, tone: 'bg-accent-50 text-accent-700' },
-  expenses: { title: 'Yapılan Harcamalar', icon: Receipt, tone: 'bg-orange-50 text-orange-600' },
+  expenses: { title: 'Yapılan Harcamalar', icon: Receipt, tone: 'bg-slate-100 text-brand-800' },
   materials: { title: 'Malzemeler', icon: Package, tone: 'bg-teal-50 text-teal-600' },
   reports: { title: 'Rapor', icon: BarChart3, tone: 'bg-indigo-50 text-indigo-600' },
-  notes: { title: 'Notlar', icon: StickyNote, tone: 'bg-amber-50 text-amber-600' },
+  notes: { title: 'Notlar', icon: StickyNote, tone: 'bg-accent-50 text-accent-600' },
   admin: { title: 'Yönetim', icon: ShieldCheck, tone: 'bg-slate-100 text-slate-700' },
 };
 /** Bölüm sayfalarının üstündeki başlık: geri, başlık, ana sayfa */
