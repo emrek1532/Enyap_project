@@ -54,17 +54,33 @@ export async function setSupplierDiscount(id: string, discount: number) {
  * Okunan PDF yazısından firma listesini kendiliğinden oluşturur: kalemlere ayırır, kaydeder
  * (aynı liste tekrar yüklenirse üzerine yazar, eski "bizim kod" bağlantıları korunur) ve bizim kodlarla eşleştirir.
  */
+type PItemRaw = [string, number, number, number, number];
+
 export async function importListFromText(
   fileName: string, pages: string[][], onInfo?: (info: string) => void,
 ): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number }> {
   const { parsePriceLines, detectCurrency, guessListInfo, listIdFor } = await import('./priceParse');
+  const { parsePositionedPage } = await import('./tableParse');
+  // Sayfa başındaki konumlu yazı (#POS:…) ayrılır
+  const posOf = new Map<string[], PItemRaw[]>();
+  pages = pages.map(p => {
+    if (!p[0]?.startsWith('#POS:')) return p;
+    const rest = p.slice(1);
+    try { posOf.set(rest, JSON.parse(p[0].slice(5))); } catch { /* bozuk kayıt: yok say */ }
+    return rest;
+  });
   const lines = pages.flat().filter(l => l !== '#OCR');
   const currency = detectCurrency(lines.join('\n'));
   // Her sayfa yapay zekayla okunur (katalog düzenindeki listeler için); olmazsa genel kurallarla
   type Item = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency };
   const parsed: Item[] = [];
   let failed = 0;
-  const textPages = pages.map(p => p.filter(l => l !== '#OCR')).filter(p => p.join('').replace(/\s/g, '').length > 40);
+  const textPages = pages.map(p => {
+    const f = p.filter(l => l !== '#OCR');
+    const raw = posOf.get(p);
+    if (raw) posOf.set(f, raw);
+    return f;
+  }).filter(p => p.join('').replace(/\s/g, '').length > 40);
   // Sayfalar ikişer ikişer okunur; yapay zeka hata verirse 2 kez daha denenir (yoğunlukta kısa bekleyerek)
   let quota = false;
   const isOcr = pages.some(p => p[0] === '#OCR');
@@ -73,6 +89,12 @@ export async function importListFromText(
     // Yapay zeka sadece kuralların okuyamadığı (katalog düzenli / taranmış) sayfalarda devreye girer.
     if (!isOcr) {
       const rule = parsePriceLines(pg).map(x => ({ ...x, currency: x.currency || currency }));
+      // Konuma göre tablo okuma (iki sütunlu sayfalar, koli/fiyat ayrımı): satır okumasıyla en az aynı sayıda kalem bulursa tercih edilir
+      const raw = posOf.get(pg);
+      if (raw) {
+        const pos = parsePositionedPage(raw.map(([s, x, y, w, h]) => ({ s, x, y, w, h }))).map(x => ({ ...x, currency: x.currency || currency }));
+        if (pos.length >= 3 && pos.length >= rule.length * 0.8) return pos;
+      }
       if (rule.length >= 3) return rule;
     }
     for (let attempt = 0; attempt < 3 && !quota; attempt++) {
@@ -407,9 +429,13 @@ async function ocrPdfPages(data: ArrayBuffer, onInfo?: (info: string) => void): 
 }
 
 export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => void): Promise<{ pages: number; chars: number; ocr: boolean; text: string[][] }> {
-  const { pdfPages } = await import('./pdfQuote');
+  const { pdfPagesWithItems } = await import('./pdfQuote');
   const data = await file.arrayBuffer();
-  let pages = await pdfPages(data.slice(0));
+  const full = await pdfPagesWithItems(data.slice(0));
+  // Konumlu yazı sayfanın ilk satırında saklanır (#POS:…): liste tablo tablo okunur, tekrar okumada da kullanılır
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  let pages = full.map(p => p.lines);
+  const posLine = (i: number) => '#POS:' + JSON.stringify(full[i].items.map(it => [it.s, r1(it.x), r1(it.y), r1(it.w), r1(it.h)]));
   let ocr = false;
   const textLen = (ps: string[][]) => ps.reduce((a, l) => a + l.join('').length, 0);
   // Sayfa başına çok az yazı varsa PDF taranmıştır: resimden okunur
@@ -420,6 +446,7 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
   const chars = textLen(pages);
   if (!chars) return { pages: pages.length, chars, ocr, text: pages };
   const now = new Date().toISOString();
+  if (!ocr) pages = pages.map((lines, i) => [posLine(i), ...lines]);
   const rows = pages.map((lines, i) => ({ file_name: file.name, page: i + 1, content: (ocr ? '#OCR\n' : '') + lines.join('\n'), uploaded_at: now }));
   // Önce bu dosyanın eski kaydı silinir (tekrar yüklemede fazladan sayfa kalmasın)
   await supabase.from('supplier_raw_pages').delete().eq('file_name', file.name);
