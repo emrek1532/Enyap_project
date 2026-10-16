@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2, List, Gauge } from 'lucide-react';
+import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2, List, Gauge, FileUp } from 'lucide-react';
+import { MikroUpload } from './MikroUpload';
+import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
 import { CUSTOMER_STATUS, SEGMENT, Segment, adviseFor, evaluate, statusOf } from '../lib/customerInsights';
 import { CustomerAccount, STATUS_LABEL } from './CustomerAccount';
@@ -22,6 +24,9 @@ interface CustomersPanelProps {
   /** Ana sayfadaki öneriden açılacak firma adı */
   focusName?: string | null;
   onFocusHandled?: () => void;
+  /** Ana sayfadan "Mikro bakiyesi yükle" ile gelindiyse yükleme penceresi açılır */
+  openMikro?: boolean;
+  onMikroHandled?: () => void;
 }
 
 const emptyForm = { name: '', city: 'Isparta' };
@@ -43,7 +48,7 @@ const normalize = (s: string) => s.toLocaleLowerCase('tr');
 const isApproved = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
 const tl = (n: number) => `${n.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} TL`;
 
-type CustomerSortKey = 'name' | 'city' | 'quotes' | 'approved' | 'pending' | 'total' | 'last';
+type CustomerSortKey = 'name' | 'city' | 'quotes' | 'approved' | 'pending' | 'total' | 'last' | 'balance';
 
 export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   customers,
@@ -58,7 +63,13 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   currentRole,
   focusName,
   onFocusHandled,
+  openMikro,
+  onMikroHandled,
 }) => {
+  const [mikroOpen, setMikroOpen] = useState(false);
+  useEffect(() => { if (openMikro) { setMikroOpen(true); onMikroHandled?.(); } }, [openMikro]); // eslint-disable-line react-hooks/exhaustive-deps
+  const balanceOf = (c: Customer) => (showCollections ? estimatedBalance(c, collections) : null);
+  const lastMikro = useMemo(() => customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), ''), [customers]);
   const rates = useRates(quotes);
   const [mode, setMode] = useState<'list' | 'eval'>('list');
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
@@ -158,12 +169,13 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           case 'pending': r = a.st.pending - b.st.pending; break;
           case 'total': r = a.st.approvedTotal - b.st.approvedTotal; break;
           case 'last': r = a.st.lastDate.localeCompare(b.st.lastDate); break;
+          case 'balance': r = (balanceOf(a.c)?.estimate ?? -Infinity) - (balanceOf(b.c)?.estimate ?? -Infinity); break;
           default: r = compareText(a.c.name, b.c.name);
         }
         return (sort.dir === 'asc' ? r : -r) || trCompare(a.c.name, b.c.name);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, statusFilter, sort, rates]);
+  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, statusFilter, sort, rates, collections]);
 
   const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || sort.key !== 'name' || sort.dir !== 'asc';
   const resetFilters = () => {
@@ -336,6 +348,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
               { key: 'name', dir: 'desc', label: 'Firma: Z → A' },
               { key: 'total', dir: 'desc', label: 'Onaylı tutar: yüksek' },
+              ...(showCollections ? [{ key: 'balance' as const, dir: 'desc' as const, label: 'Bakiye: yüksek' }] : []),
               { key: 'quotes', dir: 'desc', label: 'En çok teklif' },
               { key: 'approved', dir: 'desc', label: 'En çok onay' },
               { key: 'pending', dir: 'desc', label: 'En çok bekleyen' },
@@ -343,6 +356,12 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               { key: 'last', dir: 'asc', label: 'Son teklif: eski' },
               { key: 'city', dir: 'asc', label: 'Şehir: A → Z' },
             ]} />
+            {showCollections && onSaveCollection && (
+              <button onClick={() => setMikroOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-sm whitespace-nowrap">
+                <FileUp className="w-4 h-4" /> Mikro bakiyesi
+              </button>
+            )}
             <button
               onClick={openNew}
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow-sm whitespace-nowrap"
@@ -359,6 +378,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               ? `${customers.length} kayıtlı müşteri`
               : `${filtered.length} / ${customers.length} müşteri`}
           </span>
+          {showCollections && lastMikro && (
+            <span className={`ml-auto ${(Date.now() - Date.parse(lastMikro)) / 864e5 > 15 ? 'text-rose-600 font-bold' : ''}`}>
+              Mikro bakiyeleri: {lastMikro.split('-').reverse().join('.')}
+            </span>
+          )}
           {hasFilters && (
             <button onClick={resetFilters} className="font-semibold text-slate-500 hover:text-slate-800">
               Filtreleri temizle
@@ -386,8 +410,13 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="font-black text-slate-900 text-sm tabular-nums">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</div>
-                    <div className="text-[10px] text-slate-400">onaylı toplam</div>
+                    {balanceOf(c) ? (<>
+                      <div className={`font-black text-sm tabular-nums ${balanceOf(c)!.estimate < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(Math.round(balanceOf(c)!.estimate))}</div>
+                      <div className="text-[10px] text-slate-400">bakiye</div>
+                    </>) : (<>
+                      <div className="font-black text-slate-900 text-sm tabular-nums">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</div>
+                      <div className="text-[10px] text-slate-400">onaylı toplam</div>
+                    </>)}
                   </div>
                 </button>
                 <div className="mt-2 flex items-center justify-between gap-2">
@@ -418,6 +447,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   <SortHeader label="Onaylı" align="right" active={sort.key === 'approved'} dir={sort.dir} onClick={() => sortBy('approved', 'desc')} />
                   <SortHeader label="Beklemede" align="right" active={sort.key === 'pending'} dir={sort.dir} onClick={() => sortBy('pending', 'desc')} />
                   <SortHeader label="Onaylı Toplam" align="right" active={sort.key === 'total'} dir={sort.dir} onClick={() => sortBy('total', 'desc')} />
+                  {showCollections && <SortHeader label="Bakiye" align="right" active={sort.key === 'balance'} dir={sort.dir} onClick={() => sortBy('balance', 'desc')} />}
                   <SortHeader label="Son Teklif" active={sort.key === 'last'} dir={sort.dir} onClick={() => sortBy('last', 'desc')} />
                   <th className="py-3 px-3 text-right">İşlemler</th>
                 </tr>
@@ -444,6 +474,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     <td className="py-2.5 px-3 text-right tabular-nums font-bold text-slate-900 whitespace-nowrap">
                       {st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}
                     </td>
+                    {showCollections && (
+                      <td className={`py-2.5 px-3 text-right tabular-nums font-bold whitespace-nowrap ${(balanceOf(c)?.estimate ?? 0) < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {balanceOf(c) ? tl(Math.round(balanceOf(c)!.estimate)) : '-'}
+                      </td>
+                    )}
                     <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">
                       {st.lastDate ? new Date(st.lastDate).toLocaleDateString('tr-TR') : '-'}
                     </td>
@@ -513,7 +548,12 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           currentRole={currentRole}
           maxWon={evals.max}
           onSetStatus={(st, note) => setStatus(viewing, st, note)}
+          balance={balanceOf(viewing)}
         />
+      )}
+
+      {mikroOpen && (
+        <MikroUpload customers={customers} onClose={() => setMikroOpen(false)} onSave={list => list.forEach(onSaveCustomer)} />
       )}
 
       {/* Add / Edit form */}

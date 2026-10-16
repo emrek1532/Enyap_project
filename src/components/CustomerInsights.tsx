@@ -29,11 +29,14 @@ export const CustomerInsights: React.FC<{
   statusNote?: string;
   onSetStatus?: (s: CustomerStatus, note: string) => void;
   onOpenQuote?: (q: Quote) => void;
-}> = ({ ev, status, statusNote, onSetStatus, onOpenQuote }) => {
+  balance?: number | null;
+  /** Telefon varsa hazır WhatsApp mesajları */
+  whatsapp?: React.ReactNode;
+}> = ({ ev, status, statusNote, onSetStatus, onOpenQuote, balance, whatsapp }) => {
   const [asking, setAsking] = useState<CustomerStatus | null>(null);
   const [note, setNote] = useState('');
   const seg = SEGMENT[ev.segment];
-  const advice = adviseFor(ev, status);
+  const advice = adviseFor(ev, status, balance);
   const pick = (s: CustomerStatus) => {
     if (s === status) return;
     if (s === 'aktif') { onSetStatus?.('aktif', ''); return; }

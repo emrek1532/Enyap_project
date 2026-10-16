@@ -33,3 +33,6 @@ export function nextQuoteNumber(quotes: { quoteNumber?: string }[], date = new D
   }, 0);
   return `EK-${year}-${String(max + 1).padStart(4, '0')}`;
 }
+
+/** Kaybedilen (iptal) teklif nedenleri */
+export const LOST_REASONS = ['Fiyat yüksek', 'Rakibe gitti', 'Proje iptal / ertelendi', 'Müşteri vazgeçti', 'Teslim süresi', 'Diğer'] as const;

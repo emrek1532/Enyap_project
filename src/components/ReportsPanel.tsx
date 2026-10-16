@@ -296,6 +296,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       approved: approved.length, approvedAmt: amount(approved),
       pending: pending.length, pendingAmt: amount(pending),
       cancelled: cancelled.length, cancelledAmt: amount(cancelled),
+      lost: Object.entries(cancelled.reduce<Record<string, { n: number; amt: number }>>((m, q) => {
+        const k = q.lostReason || 'Neden girilmemiş';
+        m[k] = m[k] || { n: 0, amt: 0 }; m[k].n++; m[k].amt += qTry(q); return m;
+      }, {})).sort((a, b) => b[1].amt - a[1].amt),
     };
   }, [pQuotes]);
 
@@ -562,6 +566,22 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           { key: 'q', label: 'Verilen Teklif', color: C_QUOTE, values: monthly.map(([, v]) => v.quoteAmt) },
           { key: 'a', label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
         ]} />
+
+      {/* Kaybedilen teklif nedenleri */}
+      {stats.cancelled > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4">
+          <h3 className="font-bold text-slate-900 text-sm">Kaybedilen Teklifler · Nedenleri</h3>
+          <p className="text-xs text-slate-500 mb-3">{stats.cancelled} teklif · {tl(stats.cancelledAmt)} · teklifi iptal ederken seçilen neden</p>
+          <div className="space-y-2">
+            {stats.lost.map(([k, v]) => (
+              <div key={k} className="text-xs">
+                <div className="flex justify-between gap-2 mb-0.5"><span className="font-semibold text-slate-700">{k}</span><span className="tabular-nums text-slate-500">{v.n} teklif · {tl(v.amt)}</span></div>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${k === 'Neden girilmemiş' ? 'bg-slate-300' : 'bg-rose-400'}`} style={{ width: `${Math.max(2, (v.amt / Math.max(1, stats.cancelledAmt)) * 100)}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Müşteri performansı */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">

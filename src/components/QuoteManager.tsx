@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   FileText, 
   Search, 
@@ -29,6 +29,9 @@ import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRul
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
+import { WhatsAppMenu } from './WhatsAppMenu';
+import { usePriceChanges } from '../lib/priceWatch';
+import { LOST_REASONS } from '../lib/quoteRules';
 
 const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
@@ -56,7 +59,7 @@ interface QuoteManagerProps {
   quotes: Quote[];
   currentRole: UserRole;
   onOpenNewQuote: () => void;
-  onUpdateQuoteStatus: (id: string, status: QuoteStatus) => void;
+  onUpdateQuoteStatus: (id: string, status: QuoteStatus, lostReason?: string) => void;
   onDeleteQuote: (id: string) => void;
   onPrintQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
@@ -81,10 +84,19 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [askLost, setAskLost] = useState(false);
+  useEffect(() => setAskLost(false), [selectedQuote?.id]);
   // Müşteri kartı: o müşteriye verilen tüm teklifler
   const [customerView, setCustomerView] = useState<string | null>(null);
   // Tutarlar KDV dahil TL karşılığı (döviz TCMB kuruyla çevrilir)
   const rates = useRates(quotes);
+  const priceChanges = usePriceChanges(quotes);
+  const priceBadge = (id: string) => {
+    const ch = priceChanges.get(id);
+    if (!ch) return null;
+    const avg = Math.round((ch.reduce((a, c) => a + c.pct, 0) / ch.length) * 100);
+    return <span title={`${ch.length} kalemin katalog fiyatı değişti`} className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-rose-50 text-rose-700 border-rose-200">Fiyat değişti {avg > 0 ? '+' : ''}%{avg}</span>;
+  };
   const netTry = useMemo(() => {
     const m = new Map<string, number>();
     quotes.forEach(q => m.set(q.id, quoteTry(q, rates)));
@@ -314,6 +326,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>{statusBadge.label}</span>
+                      {priceBadge(quote.id)}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {pending && (
@@ -375,6 +388,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                           <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>
                             {statusBadge.label}
                           </span>
+                          {priceChanges.has(quote.id) && <span className="mt-1 block w-fit">{priceBadge(quote.id)}</span>}
                           {needsFollowUp(quote) && (
                             <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
                               ⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)
@@ -504,8 +518,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                       <button
                         key={st}
                         onClick={() => {
+                          if (st === 'iptal') { setAskLost(true); return; }
+                          setAskLost(false);
                           onUpdateQuoteStatus(selectedQuote.id, st);
-                          setSelectedQuote({ ...selectedQuote, status: st });
+                          setSelectedQuote({ ...selectedQuote, status: st, lostReason: undefined });
                         }}
                         className={`p-2 rounded-lg text-xs font-bold border transition-all text-center ${
                           isCurrent
@@ -518,6 +534,43 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     );
                   })}
                 </div>
+                {(askLost || selectedQuote.status === 'iptal') && (
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                    <div className="text-[11px] font-bold text-slate-600 mb-1.5">{askLost ? 'Neden kaybedildi? (seçince iptal edilir)' : 'Kaybedilme nedeni'}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {LOST_REASONS.map(r => (
+                        <button key={r} onClick={() => {
+                          onUpdateQuoteStatus(selectedQuote.id, 'iptal', r);
+                          setSelectedQuote({ ...selectedQuote, status: 'iptal', lostReason: r });
+                          setAskLost(false);
+                        }}
+                          className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${selectedQuote.status === 'iptal' && selectedQuote.lostReason === r ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {priceChanges.get(selectedQuote.id) && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3">
+                  <div className="text-xs font-black text-rose-700 mb-1.5">Teklif verildikten sonra {priceChanges.get(selectedQuote.id)!.length} kalemin fiyatı değişti</div>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {priceChanges.get(selectedQuote.id)!.map(c => (
+                      <div key={c.code} className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="min-w-0 truncate text-slate-700">{c.name}</span>
+                        <span className="shrink-0 tabular-nums text-slate-500">{c.old.toLocaleString('tr-TR')} → <b className="text-slate-900">{c.now.toLocaleString('tr-TR')}</b> <b className={c.pct > 0 ? 'text-rose-600' : 'text-emerald-600'}>{c.pct > 0 ? '+' : ''}%{Math.round(c.pct * 100)}</b></span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-2">Müşteri onaylamadan önce revize teklif göndermeyi düşünün (Düzenle / Revize Et).</p>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <WhatsAppMenu phone={selectedQuote.customerPhone} label="WhatsApp mesajı"
+                  ctx={{ name: selectedQuote.customerName, contact: selectedQuote.customerContact, quote: selectedQuote, quoteValue: netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates) }} />
               </div>
 
               {/* Items Table */}

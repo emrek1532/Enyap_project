@@ -94,7 +94,7 @@ export function evaluate(quotes: Quote[], collections: Collection[], rates: Rate
 export interface Advice { kind: 'firsat' | 'takip' | 'fiyat' | 'kazan' | 'sadakat' | 'odeme' | 'yeni' | 'risk'; title: string; text: string; quote?: Quote }
 
 /** Kurallara dayalı aksiyon önerileri (en önemliden başlayarak) */
-export function adviseFor(ev: Evaluation, status: CustomerStatus): Advice[] {
+export function adviseFor(ev: Evaluation, status: CustomerStatus, balance?: number | null): Advice[] {
   const out: Advice[] = [];
   if (status === 'kara_liste') {
     out.push({ kind: 'risk', title: 'Kara listede', text: 'Yeni teklif vermeden önce peşin ödeme veya teminat (çek/senet) isteyin; vadeli satış yapmayın.' });
@@ -118,7 +118,9 @@ export function adviseFor(ev: Evaluation, status: CustomerStatus): Advice[] {
     text: `Geçmişte ${tl(ev.wonTotal)} iş yapıldı. Ziyaret veya arama planlayın; sezon öncesi bakım/yenileme kampanyası ya da yeni ürün bilgisi paylaşın.` });
   if (ev.segment === 'altin') out.push({ kind: 'sadakat', title: 'En değerli müşterilerden',
     text: 'Özel fiyat listesi, öncelikli teslimat veya yıllık anlaşma teklif edin; yılda bir yüz yüze ziyaret ilişkiyi güçlendirir.' });
-  if (ev.wonTotal > 0 && ev.collected > 0 && ev.collected < ev.wonTotal * 0.6) out.push({ kind: 'odeme', title: 'Tahsilat onaylı işlerin gerisinde',
+  if (balance != null && balance >= 50000) out.push({ kind: 'odeme', title: `Açık bakiye ${tl(balance)}`,
+    text: 'Ödeme planını konuşun; vadesi geçen tutar varsa yeni siparişi ödemeye bağlayın. WhatsApp\'tan hazır ödeme hatırlatması gönderebilirsiniz.' });
+  if (balance == null && ev.wonTotal > 0 && ev.collected > 0 && ev.collected < ev.wonTotal * 0.6) out.push({ kind: 'odeme', title: 'Tahsilat onaylı işlerin gerisinde',
     text: `Onaylı ${tl(ev.wonTotal)} işe karşılık ${tl(ev.collected)} tahsilat görünüyor. Cari bakiyeyi kontrol edip ödeme planı konuşun.` });
   if (ev.segment === 'yeni') out.push({ kind: 'yeni', title: 'Yeni müşteri',
     text: 'Teklifin ardından tanışma ziyareti yapın; tamamlanmış işlerinizden referans ve fotoğraf paylaşın.' });

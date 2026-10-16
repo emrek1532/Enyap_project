@@ -4,6 +4,7 @@ import { CollectionQuickForm } from './LedgerPanel';
 import { DateInput } from './DateInput';
 import { Collection, Customer, CustomerStatus, Quote, QuoteStatus, UserRole } from '../types';
 import { CustomerInsights } from './CustomerInsights';
+import { WhatsAppMenu } from './WhatsAppMenu';
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
@@ -52,7 +53,9 @@ export const CustomerAccount: React.FC<{
   /** Değerlendirme puanı için en yüksek onaylı ciro (tüm müşteriler) */
   maxWon?: number;
   onSetStatus?: (s: CustomerStatus, note: string) => void;
-}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus }) => {
+  /** Mikro'dan yüklenen bakiye ve sonrasındaki tahsilatlarla tahmini güncel bakiye */
+  balance?: { balance: number; date: string; collectedAfter: number; estimate: number } | null;
+}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance }) => {
   const ev = useMemo(() => evaluate(allQuotes, allCollections, rates, maxWon), [allQuotes, allCollections, rates, maxWon]);
   const cStatus = statusOf(customer);
   const [addingCol, setAddingCol] = useState(false);
@@ -158,6 +161,11 @@ export const CustomerAccount: React.FC<{
               <Wallet className="w-4 h-4" /> Tahsilat ekle
             </button>
           )}
+          <WhatsAppMenu
+            phone={customer.phone || allQuotes.find(x => x.customerPhone)?.customerPhone}
+            ctx={{ name: customer.name, contact: customer.contactPerson, quote: allQuotes.find(x => PENDING_STATUSES.includes(x.status)) || allQuotes[0], quoteValue: (() => { const x = allQuotes.find(y => PENDING_STATUSES.includes(y.status)) || allQuotes[0]; return x ? quoteTry(x, rates) : undefined; })(), balance: showCollections ? balance?.estimate : undefined, balanceDate: balance ? new Date().toISOString() : undefined }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-bold"
+          />
           <button onClick={onNewQuote} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-bold">
             <FilePlus2 className="w-4 h-4" /> Yeni teklif
           </button>
@@ -165,7 +173,20 @@ export const CustomerAccount: React.FC<{
         </div>
 
         <div className="p-3 sm:p-5 space-y-3 overflow-y-auto flex-1">
-          <CustomerInsights ev={ev} status={cStatus} statusNote={customer.statusNote} onSetStatus={onSetStatus} onOpenQuote={onOpenQuote} />
+          {balance && showCollections && (
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 sm:p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Cari bakiye (tahmini güncel)</div>
+                <div className={`text-2xl font-black tabular-nums ${balance.estimate < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(balance.estimate)}</div>
+                <div className="text-[11px] text-slate-500">{balance.estimate < 0 ? 'Firma alacaklı (fazla ödeme/avans)' : balance.estimate > 0 ? 'Firmanın borcu' : 'Bakiye yok'}</div>
+              </div>
+              <div className="text-xs text-slate-600 leading-relaxed">
+                Mikro bakiyesi <b className="tabular-nums">{tl(balance.balance)}</b> ({day(balance.date)} itibarıyla)
+                {balance.collectedAfter > 0 && <><br />Sonrasında girilen tahsilat <b className="tabular-nums">−{tl(balance.collectedAfter)}</b></>}
+              </div>
+            </section>
+          )}
+          <CustomerInsights ev={ev} balance={showCollections ? balance?.estimate : undefined} status={cStatus} statusNote={customer.statusNote} onSetStatus={onSetStatus} onOpenQuote={onOpenQuote} />
           {/* Tarih filtresi */}
           <div className="flex flex-wrap items-center gap-1.5">
             {[{ k: 'all', label: 'Tümü', on: () => setRange({ key: 'all', from: '', to: '' }) },
