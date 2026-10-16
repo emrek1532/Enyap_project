@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, X } from 'lucide-react';
+import { Loader2, Printer, Send, X } from 'lucide-react';
 import { Quote } from '../types';
 
 interface PrintableQuoteModalProps {
@@ -208,6 +208,61 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
     return () => { document.title = prev; };
   }, [quote]);
 
+  // WhatsApp ile gönderim: açılışta sayfalar arka planda PDF dosyasına çevrilir; düğmeye basınca
+  // telefonun paylaş menüsü açılır (WhatsApp seçilir). Paylaşım desteklenmiyorsa PDF indirilir.
+  const capRef = useRef<HTMLDivElement>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfState, setPdfState] = useState<'idle' | 'busy' | 'ready' | 'error'>('idle');
+  const [shareMsg, setShareMsg] = useState('');
+  useEffect(() => {
+    if (!quote) return;
+    let cancelled = false;
+    setPdfState('busy'); setPdfFile(null);
+    (async () => {
+      try {
+        await document.fonts?.ready;
+        const root = capRef.current;
+        if (!root) throw new Error('sayfa yok');
+        await Promise.all(Array.from(root.querySelectorAll('img')).map(img => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined))));
+        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas-pro'), import('jspdf')]);
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+        const els = Array.from(root.querySelectorAll<HTMLElement>('.rq-page'));
+        for (let i = 0; i < els.length; i++) {
+          const canvas = await html2canvas(els[i], { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+          if (i > 0) pdf.addPage();
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
+          if (cancelled) return;
+        }
+        const blob = pdf.output('blob');
+        if (!cancelled) { setPdfFile(new File([blob], `${fileNameFor(quote)}.pdf`, { type: 'application/pdf' })); setPdfState('ready'); }
+      } catch {
+        if (!cancelled) setPdfState('error');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [quote]);
+
+  const sendWhatsApp = async () => {
+    if (!pdfFile || !quote) return;
+    const text = `Enyap Isı · ${quote.quoteNumber} nolu fiyat teklifi`;
+    setShareMsg('');
+    try {
+      if (navigator.canShare?.({ files: [pdfFile] })) {
+        await navigator.share({ files: [pdfFile], title: pdfFile.name, text });
+        return;
+      }
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return; // paylaşım penceresi kapatıldı
+    }
+    // Paylaşım yoksa (ör. bilgisayar): PDF indirilir, WhatsApp açılır; dosya sohbete sürüklenir
+    const url = URL.createObjectURL(pdfFile);
+    const a = document.createElement('a');
+    a.href = url; a.download = pdfFile.name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+    setShareMsg('PDF indirildi; açılan WhatsApp sohbetine dosyayı sürükleyip bırakın.');
+  };
+
   if (!quote) return null;
 
   // Sayfalara böl: uzun ürün adları birden fazla satır kaplar
@@ -346,11 +401,21 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
         <span className="font-bold text-sm sm:text-base truncate">Fiyat Teklifi · {quote.quoteNumber}</span>
         <div className="flex items-center gap-2 shrink-0">
           <button
+            onClick={sendWhatsApp}
+            disabled={pdfState !== 'ready'}
+            title={pdfState === 'error' ? 'PDF hazırlanamadı' : 'PDF olarak WhatsApp ile gönder'}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#1ebe5b] text-white font-bold text-xs sm:text-sm shadow-sm disabled:opacity-60"
+          >
+            {pdfState === 'busy' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            <span>{pdfState === 'busy' ? 'PDF hazırlanıyor' : pdfState === 'error' ? 'PDF hatası' : 'WhatsApp'}</span>
+          </button>
+          <button
             onClick={() => window.print()}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white hover:bg-brand-50 text-brand-700 font-bold text-xs sm:text-sm shadow-sm"
           >
             <Printer className="w-4 h-4" />
-            <span>Yazdır / PDF Kaydet</span>
+            <span className="hidden sm:inline">Yazdır / PDF Kaydet</span>
+            <span className="sm:hidden">Yazdır</span>
           </button>
           <button onClick={onClose} className="p-1.5 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700">
             <X className="w-5 h-5" />
@@ -365,6 +430,11 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
           ))}
         </div>
       </div>
+      {shareMsg && <div className="no-print px-3 py-2 bg-emerald-50 text-emerald-800 text-xs font-semibold">{shareMsg}</div>}
+      {/* PDF dosyası için ekran dışında, gerçek boyutta kopya */}
+      {createPortal(<div ref={capRef} aria-hidden style={{ position: 'fixed', left: '-10000px', top: 0, pointerEvents: 'none' }}>
+        {pages.map((_, pi) => <React.Fragment key={pi}>{renderPage(pi)}</React.Fragment>)}
+      </div>, document.body)}
       {createPortal(<div id="rq-print">{pages.map((_, pi) => <React.Fragment key={pi}>{renderPage(pi)}</React.Fragment>)}</div>, document.body)}
     </div>
   );

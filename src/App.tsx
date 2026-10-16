@@ -523,6 +523,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     // Kaydettikten sonra Teklifler sayfasına geç: yeni teklif en üstte görünsün
     setQuoteFilter('all');
     setActiveTab('quotes');
+    // Teklif çıktısı hemen açılır: buradan PDF'i WhatsApp ile gönderebilir ya da yazdırabilirsiniz
+    if (newQuote.items?.length) setPrintableQuote(newQuote);
   };
 
   // Mevcut teklifi düzenle / revize et
