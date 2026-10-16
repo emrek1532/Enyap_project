@@ -174,6 +174,8 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
       const v = { code: r.our_code, manual: !!r.match_manual };
       keep.set(`${r.code}|${r.name}`, v);
       if (!keep.has(`n:${r.name}`)) keep.set(`n:${r.name}`, v);
+      // Ürün adı okuma düzeltmesiyle değişse bile aynı firma kodu aynı üründür
+      if (r.code && !keep.has(`c:${r.code}`)) keep.set(`c:${r.code}`, v);
     });
     if (data.length < 1000) break;
   }
@@ -186,7 +188,7 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
   for (let i = 0; i < parsed.length; i += 500) {
     onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
     const rows = parsed.slice(i, i + 500).map(p => {
-      const k = p.ourCode ? { code: p.ourCode, manual: true } : keep.get(`${p.code}|${p.name}`) || keep.get(`n:${p.name}`);
+      const k = p.ourCode ? { code: p.ourCode, manual: true } : keep.get(`${p.code}|${p.name}`) || keep.get(`n:${p.name}`) || (p.code ? keep.get(`c:${p.code}`) : undefined);
       return {
         list_id: listId, code: p.code, name: p.name, grp: p.grp || null, price: p.price, currency: p.currency, unit: p.unit,
         our_code: k?.code || null, match_manual: !!k?.manual, match_tried: !!k,
