@@ -64,6 +64,12 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
+  // Teklif PDF'i (Gönder) için gereken kütüphaneler uygulama açıldıktan sonra arka planda indirilir
+  useEffect(() => {
+    const t = window.setTimeout(() => { import('html2canvas-pro'); import('jspdf'); }, 4000);
+    return () => window.clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);

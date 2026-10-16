@@ -11,7 +11,8 @@ import {
   CheckCircle, 
   AlertCircle, 
   ChevronRight, 
-  Printer, 
+  Printer,
+  Share2,
   Truck, 
   Trash2, 
   Edit3, 
@@ -327,11 +328,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         <>
                           <button onClick={() => onUpdateQuoteStatus(quote.id, 'onaylandi')}
                             className="px-2 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">✓ Onayla</button>
-                          <button onClick={() => onUpdateQuoteStatus(quote.id, 'iptal')}
-                            className="px-2 py-1.5 rounded-md bg-slate-50 text-slate-500 text-[11px] font-bold border border-slate-200">✕</button>
                         </>
                       )}
-                      <button onClick={() => onPrintQuote(quote)} className="p-1.5 rounded-md text-sky-600 bg-sky-50" title="Resmi Teklif"><Printer className="w-4 h-4" /></button>
+                      <button onClick={() => onPrintQuote(quote)} className="p-1.5 rounded-md text-accent-600 bg-accent-50" title="Teklifi gönder / yazdır"><Share2 className="w-4 h-4" /></button>
                       <button onClick={() => onEditQuote(quote)} className="p-1.5 rounded-md text-amber-600 bg-amber-50" title="Düzenle / Revize Et"><Pencil className="w-4 h-4" /></button>
                     </div>
                   </div>
@@ -407,21 +406,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                                 >
                                   ✓ Onayla
                                 </button>
-                                <button
-                                  onClick={() => onUpdateQuoteStatus(quote.id, 'iptal')}
-                                  className="px-2 py-1 rounded-md bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-700 text-[11px] font-bold border border-slate-200 whitespace-nowrap"
-                                  title="İptal olarak işaretle"
-                                >
-                                  ✕ İptal
-                                </button>
                               </>
                             )}
                             <button
                               onClick={() => onPrintQuote(quote)}
-                              className="p-1.5 rounded-md hover:bg-sky-50 text-sky-600 transition-colors"
-                              title="Resmi Antetli Teklif Yazdır / PDF"
+                              className="p-1.5 rounded-md hover:bg-accent-50 text-accent-600 transition-colors"
+                              title="Teklifi gönder / yazdır"
                             >
-                              <Printer className="w-4 h-4" />
+                              <Share2 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => onEditQuote(quote)}
