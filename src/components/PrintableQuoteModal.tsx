@@ -104,11 +104,13 @@ const importedTotals = (q: Quote): Record<Cur, Totals> => {
   };
 };
 
+/** Dosya adı: "Enorpa Enerji EK20260004 16-10-2026" (firma adı aynen, teklif no işaretsiz, tarih) */
 const fileNameFor = (q: Quote) => {
-  const firm = q.customerName.split(/\s+/).slice(0, 2).join('_').replace(/[^\p{L}\p{N}_]/gu, '');
+  const firm = q.customerName.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const no = (q.quoteNumber || '').replace(/[^\p{L}\p{N}]/gu, '');
   const d = new Date(q.createdAt);
   const date = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-  return `${firm}_${q.quoteNumber}_${date}`;
+  return [firm, no, date].filter(Boolean).join(' ');
 };
 
 /** Şablondaki gibi mm cinsinden mutlak konumlanmış metin */
