@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
 import { CollectionQuickForm } from './LedgerPanel';
 import { DateInput } from './DateInput';
-import { Collection, Customer, Quote, QuoteStatus, UserRole } from '../types';
+import { Collection, Customer, CustomerStatus, Quote, QuoteStatus, UserRole } from '../types';
+import { CustomerInsights } from './CustomerInsights';
+import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
 
@@ -47,7 +49,12 @@ export const CustomerAccount: React.FC<{
   allCollectionRecords?: Collection[];
   customers?: Customer[];
   currentRole?: UserRole;
-}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta' }) => {
+  /** Değerlendirme puanı için en yüksek onaylı ciro (tüm müşteriler) */
+  maxWon?: number;
+  onSetStatus?: (s: CustomerStatus, note: string) => void;
+}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus }) => {
+  const ev = useMemo(() => evaluate(allQuotes, allCollections, rates, maxWon), [allQuotes, allCollections, rates, maxWon]);
+  const cStatus = statusOf(customer);
   const [addingCol, setAddingCol] = useState(false);
   const [tab, setTab] = useState<Tab>('quotes');
   const [qFilter, setQFilter] = useState<QFilter>('all');
@@ -140,7 +147,10 @@ export const CustomerAccount: React.FC<{
         <div className="px-4 sm:px-5 py-3.5 bg-brand-600 text-white flex items-center gap-3 pt-safe">
           <div className="min-w-0 flex-1">
             <div className="text-[11px] text-brand-100 font-bold uppercase tracking-wide">Cari hesap</div>
-            <h3 className="font-black text-base sm:text-lg leading-tight break-words">{customer.name}</h3>
+            <h3 className="font-black text-base sm:text-lg leading-tight break-words">
+              {customer.name}
+              {cStatus !== 'aktif' && <span className={`ml-2 align-middle text-[10px] px-2 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>}
+            </h3>
             <p className="text-xs text-brand-100 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
           </div>
           {onSaveCollection && (
@@ -155,6 +165,7 @@ export const CustomerAccount: React.FC<{
         </div>
 
         <div className="p-3 sm:p-5 space-y-3 overflow-y-auto flex-1">
+          <CustomerInsights ev={ev} status={cStatus} statusNote={customer.statusNote} onSetStatus={onSetStatus} onOpenQuote={onOpenQuote} />
           {/* Tarih filtresi */}
           <div className="flex flex-wrap items-center gap-1.5">
             {[{ k: 'all', label: 'Tümü', on: () => setRange({ key: 'all', from: '', to: '' }) },

@@ -19,6 +19,8 @@ const customerToRow = (c: Customer): Row => ({
   phone: orNull(c.phone),
   email: orNull(c.email),
   notes: orNull(c.notes),
+  status: c.status || 'aktif',
+  status_note: orNull(c.statusNote),
   created_at: c.createdAt,
   updated_at: c.updatedAt,
 });
@@ -31,6 +33,8 @@ const rowToCustomer = (r: Row): Customer => ({
   phone: r.phone ?? '',
   email: r.email ?? '',
   notes: r.notes ?? '',
+  status: r.status || 'aktif',
+  statusNote: r.status_note ?? '',
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2 } from 'lucide-react';
-import { Collection, Customer, Quote, UserRole } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2, List, Gauge } from 'lucide-react';
+import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
+import { CUSTOMER_STATUS, SEGMENT, Segment, adviseFor, evaluate, statusOf } from '../lib/customerInsights';
 import { CustomerAccount, STATUS_LABEL } from './CustomerAccount';
 import { CityInput } from './TextSuggest';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
@@ -18,6 +19,9 @@ interface CustomersPanelProps {
   onOpenQuote?: (q: Quote) => void;
   onSaveCollection?: (c: Collection) => void;
   currentRole?: UserRole;
+  /** Ana sayfadaki öneriden açılacak firma adı */
+  focusName?: string | null;
+  onFocusHandled?: () => void;
 }
 
 const emptyForm = { name: '', city: 'Isparta' };
@@ -52,8 +56,13 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   onOpenQuote,
   onSaveCollection,
   currentRole,
+  focusName,
+  onFocusHandled,
 }) => {
   const rates = useRates(quotes);
+  const [mode, setMode] = useState<'list' | 'eval'>('list');
+  const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
+  const [segFilter, setSegFilter] = useState<'all' | Segment | CustomerStatus>('all');
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
   const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
@@ -81,6 +90,31 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   }, [quotes]);
   const quotesOf = (c: Customer) => quotesByCustomer.get(fold(c.name.trim())) || [];
 
+  // Müşteri değerlendirmesi (puan, segment) — en yüksek onaylı ciroya göre ölçeklenir
+  const evals = useMemo(() => {
+    const colMap = new Map<string, Collection[]>();
+    collections.forEach(x => { const k = fold(x.customerName.trim()); if (!colMap.has(k)) colMap.set(k, []); colMap.get(k)!.push(x); });
+    const wonOf = (list: Quote[]) => list.filter(isApproved).reduce((t, q) => t + quoteTry(q, rates), 0);
+    const max = Math.max(0, ...customers.map(c => wonOf(quotesByCustomer.get(fold(c.name.trim())) || [])));
+    const map = new Map<string, ReturnType<typeof evaluate>>();
+    customers.forEach(c => { const k = fold(c.name.trim()); map.set(c.id, evaluate(quotesByCustomer.get(k) || [], colMap.get(k) || [], rates, max)); });
+    return { map, max };
+  }, [customers, quotesByCustomer, collections, rates]);
+
+  const setStatus = (c: Customer, status: CustomerStatus, note: string) => {
+    const next = { ...c, status, statusNote: status === 'aktif' ? '' : note, updatedAt: new Date().toISOString() };
+    onSaveCustomer(next);
+    setViewing(v => (v && v.id === c.id ? next : v));
+  };
+
+  // Ana sayfadaki öneriden gelinince ilgili firmanın carisini aç
+  useEffect(() => {
+    if (!focusName) return;
+    const c = customers.find(x => fold(x.name.trim()) === fold(focusName.trim()));
+    if (c) { setViewing(c); setOnlyApproved(true); }
+    onFocusHandled?.();
+  }, [focusName]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const cityCounts = useMemo(() => {
     const map = new Map<string, number>();
     customers.forEach(c => map.set(c.city || '—', (map.get(c.city || '—') || 0) + 1));
@@ -105,6 +139,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     const q = fold(search.trim());
     return customers
       .filter(c => cityFilter === 'all' || (c.city || '—') === cityFilter)
+      .filter(c => statusFilter === 'all' || statusOf(c) === statusFilter)
       .filter(c => !q || fold(c.name).includes(q) || fold(c.city || '').includes(q))
       .map(c => ({ c, st: statsOf(c) }))
       .filter(({ st }) =>
@@ -128,11 +163,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         return (sort.dir === 'asc' ? r : -r) || trCompare(a.c.name, b.c.name);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, sort, rates]);
+  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, statusFilter, sort, rates]);
 
-  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || sort.key !== 'name' || sort.dir !== 'asc';
+  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || sort.key !== 'name' || sort.dir !== 'asc';
   const resetFilters = () => {
-    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setSort({ key: 'name', dir: 'asc' }); setLimit(PAGE);
+    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setSort({ key: 'name', dir: 'asc' }); setLimit(PAGE);
   };
 
   const openNew = () => {
@@ -172,8 +207,83 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
   const inputCls = 'w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500';
 
+  const evalRows = useMemo(() => customers
+    .map(c => ({ c, ev: evals.map.get(c.id)! }))
+    .filter(r => r.ev && (r.ev.quoteCount > 0 || statusOf(r.c) !== 'aktif'))
+    .sort((a, b) => b.ev.score - a.ev.score || b.ev.wonTotal - a.ev.wonTotal), [customers, evals]);
+  const groupOf = (r: { c: Customer; ev: ReturnType<typeof evaluate> }): Segment | CustomerStatus => statusOf(r.c) !== 'aktif' ? statusOf(r.c) : r.ev.segment;
+  const segCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    evalRows.forEach(r => m.set(groupOf(r), (m.get(groupOf(r)) || 0) + 1));
+    return m;
+  }, [evalRows]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shownEval = evalRows.filter(r => (segFilter === 'all' || groupOf(r) === segFilter) && (!search || fold(r.c.name).includes(fold(search.trim()))));
+
   return (
     <div className="space-y-4">
+      <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70 w-fit">
+        {([['list', 'Müşteri listesi', List], ['eval', 'Değerlendirme', Gauge]] as const).map(([k, label, Icon]) => (
+          <button key={k} onClick={() => setMode(k)}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-extrabold ${mode === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
+            <Icon className="w-4 h-4" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'eval' && (
+        <div className="space-y-3">
+          <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input type="search" placeholder="Firma ara..." value={search} onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] -mx-1 px-1">
+              {([['all', 'Tümü', evalRows.length], ...(['altin', 'iyi', 'gelisen', 'zayif', 'yeni'] as Segment[]).map(k => [k, SEGMENT[k].label, segCounts.get(k) || 0]),
+                ...(['pasif', 'kara_liste'] as CustomerStatus[]).map(k => [k, CUSTOMER_STATUS[k].label, segCounts.get(k) || 0])] as [string, string, number][])
+                .filter(([k, , n]) => k === 'all' || n > 0)
+                .map(([k, label, n]) => (
+                  <button key={k} onClick={() => setSegFilter(k as typeof segFilter)}
+                    className={`px-3 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap ${segFilter === k ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+                    {label} <span className="opacity-70">{n}</span>
+                  </button>
+                ))}
+            </div>
+            <p className="text-[11px] text-slate-500 leading-snug">Puan: onay oranı (40) + onaylı ciro (30) + son teklifin yakınlığı (20) + son 12 aydaki teklif sıklığı (10).</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100 overflow-hidden">
+            {shownEval.slice(0, limit).map(({ c, ev }) => {
+              const g = groupOf({ c, ev });
+              const badge = g === 'pasif' || g === 'kara_liste' ? CUSTOMER_STATUS[g] : SEGMENT[g];
+              const tip = adviseFor(ev, statusOf(c))[0];
+              return (
+                <button key={c.id} onClick={() => { setViewing(c); setOnlyApproved(true); }} className="w-full text-left p-3 sm:px-4 hover:bg-slate-50 flex items-center gap-3">
+                  <span className="w-10 text-center shrink-0">
+                    <span className="block text-lg font-black text-slate-900 tabular-nums leading-none">{ev.score}</span>
+                    <span className="block h-1 mt-1 rounded-full bg-slate-100 overflow-hidden"><span className={`block h-full ${SEGMENT[ev.segment].bar}`} style={{ width: `${ev.score}%` }} /></span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-slate-900 text-sm">{c.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${badge.cls}`}>{badge.label}</span>
+                    </span>
+                    <span className="block text-[11px] text-slate-500 mt-0.5 tabular-nums">
+                      %{Math.round(ev.winRate * 100)} onay · {ev.wonCount}/{ev.quoteCount} teklif · {tl(Math.round(ev.wonTotal))}
+                    </span>
+                    {tip && <span className="block text-[11px] text-brand-700 font-semibold mt-0.5 truncate">→ {tip.title}</span>}
+                  </span>
+                </button>
+              );
+            })}
+            {shownEval.length === 0 && <p className="p-6 text-center text-sm text-slate-500">Bu grupta müşteri yok.</p>}
+            {shownEval.length > limit && (
+              <div className="p-3 text-center"><button onClick={() => setLimit(n => n + PAGE)} className="px-4 py-2 rounded-lg bg-brand-500 text-white text-xs font-bold">{PAGE} müşteri daha göster</button></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {mode === 'list' && (<>
       {/* Toolbar */}
       <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <div className="flex flex-col lg:flex-row gap-2">
@@ -210,6 +320,17 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <option value="pending">Bekleyen teklifi olanlar</option>
               <option value="followup">Tekrar görüşülecekler</option>
               <option value="none">Hiç teklif verilmeyenler</option>
+            </select>
+            <select
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value as typeof statusFilter); setLimit(PAGE); }}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
+              aria-label="Müşteri durumu"
+            >
+              <option value="all">Tüm durumlar</option>
+              <option value="aktif">Aktif</option>
+              <option value="pasif">Pasif</option>
+              <option value="kara_liste">Kara liste</option>
             </select>
             <MobileSortSelect className="!py-2.5 !rounded-xl !text-sm" sort={sort} onChange={(s) => { setSort(s); setLimit(PAGE); }} options={[
               { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
@@ -259,7 +380,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <div key={c.id} className="p-3">
                 <button onClick={() => { setViewing(c); setOnlyApproved(true); }} className="w-full text-left flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}</div>
+                    <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}<StatusBadge c={c} /></div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
                       {c.city || '—'}{st.lastDate ? ` · son teklif ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}
                     </div>
@@ -309,7 +430,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     className="hover:bg-brand-50/40 cursor-pointer"
                   >
                     <td className="py-2.5 px-3">
-                      <div className="font-bold text-slate-900 min-w-[10rem]">{c.name}</div>
+                      <div className="font-bold text-slate-900 min-w-[10rem]">{c.name}<StatusBadge c={c} /></div>
                       {st.followUp && (
                         <span className="mt-0.5 inline-block text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
                           ⏰ Tekrar görüş
@@ -371,6 +492,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         </div>
       )}
 
+      </>)}
+
       {/* Cari hesap: firmaya ait her şey */}
       {viewing && (
         <CustomerAccount
@@ -388,6 +511,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           allCollectionRecords={collections}
           customers={customers}
           currentRole={currentRole}
+          maxWon={evals.max}
+          onSetStatus={(st, note) => setStatus(viewing, st, note)}
         />
       )}
 
@@ -422,4 +547,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       )}
     </div>
   );
+};
+
+const StatusBadge: React.FC<{ c: Customer }> = ({ c }) => {
+  const st = statusOf(c);
+  if (st === 'aktif') return null;
+  return <span className={`ml-1.5 align-middle text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[st].cls}`}>{CUSTOMER_STATUS[st].label}</span>;
 };
