@@ -155,9 +155,14 @@ export interface Customer {
   phone?: string;
   email?: string;
   notes?: string;
+  /** aktif (varsayılan), pasif veya kara_liste */
+  status?: CustomerStatus;
+  statusNote?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type CustomerStatus = 'aktif' | 'pasif' | 'kara_liste';
 
 /** Yapılan tahsilat (müşteriden alınan ödeme) */
 export interface Collection {

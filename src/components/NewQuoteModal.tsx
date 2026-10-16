@@ -503,6 +503,15 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                     </span>
                   )}
                 />
+                {(() => {
+                  const st = findCustomer(customers, customerName);
+                  if (!st || !st.status || st.status === 'aktif') return null;
+                  return (
+                    <p className={`mt-1 text-[11px] font-bold rounded-md px-2 py-1 ${st.status === 'kara_liste' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>
+                      {st.status === 'kara_liste' ? '⚠ Bu firma kara listede' : 'Bu firma pasif'}{st.statusNote ? `: ${st.statusNote}` : ''}
+                    </p>
+                  );
+                })()}
               </div>
               <div className="col-span-1 sm:col-span-3">
                 <label className="ql">Şehir *</label>

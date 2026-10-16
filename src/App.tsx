@@ -161,6 +161,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   // Kullanıcının ekibi kayıt sırasında seçilir; kayıtlarda kimin eklediğini göstermek için kullanılır
   const currentRole: UserRole = session.user.user_metadata?.role === 'istanbul' ? 'istanbul' : 'isparta';
   const [activeTab, setActiveTabState] = useState<ActiveTab>('home');
+  // Ana sayfadaki öneriden açılacak müşteri carisi
+  const [focusCustomer, setFocusCustomer] = useState<string | null>(null);
   // Ana sayfadan "Tahsilat / Harcama Ekle" ile gelince form açık başlasın
   const [ledgerStartNew, setLedgerStartNew] = useState<'collections' | 'expenses' | null>(null);
 
@@ -733,6 +735,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
                 onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
                 onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
                 onNewNote={() => setActiveTab('notes')}
+                onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
+                onSaveCustomer={handleSaveCustomer}
               />
             )}
           </>
@@ -786,6 +790,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             quotes={data.quotes}
             onSaveCustomer={handleSaveCustomer}
             onDeleteCustomer={handleDeleteCustomer}
+            focusName={focusCustomer}
+            onFocusHandled={() => setFocusCustomer(null)}
             onCreateQuoteForCustomer={(customer) => {
               setQuoteCustomer(customer);
               setIsNewQuoteOpen(true);

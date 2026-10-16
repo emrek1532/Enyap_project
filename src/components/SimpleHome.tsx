@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target } from 'lucide-react';
-import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
+import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target, Lightbulb, FileText, Phone, CirclePause, Ban } from 'lucide-react';
+import { Collection, Customer, CustomerStatus, Expense, Quote, QuickNote } from '../types';
+import { foldName, statusOf } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { STATUS_LABEL } from './CustomerAccount';
@@ -35,7 +36,9 @@ export const SimpleHome: React.FC<{
   onNewCollection: () => void;
   onNewExpense: () => void;
   onNewNote: () => void;
-}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onNewNote }) => {
+  onOpenCustomer?: (name: string) => void;
+  onSaveCustomer?: (c: Customer) => void;
+}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onNewNote, onOpenCustomer, onSaveCustomer }) => {
   const rates = useRates(quotes);
   const t = today();
   const month = t.slice(0, 7);
@@ -68,7 +71,15 @@ export const SimpleHome: React.FC<{
     const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status));
     return { months, cur: months[5], prev: months[4], prevSame: calc(keys[4], `${keys[4]}-${pad(day)}`), pendingCount: pending.length, pendingAmt: pending.reduce((t, q) => t + quoteTry(q, rates), 0) };
   }, [quotes, collections, expenses, rates]);
-  const tips = useMemo(() => buildTips({ quotes, rates, t, canQuotes }), [quotes, rates, t, canQuotes]);
+  const tips = useMemo(() => buildTips({ quotes, customers, rates, t, canQuotes }), [quotes, customers, rates, t, canQuotes]);
+  const setStatus = (name: string, status: CustomerStatus) => {
+    if (!onSaveCustomer) return;
+    const label = status === 'kara_liste' ? 'kara listeye' : 'pasife';
+    if (!confirm(`${name} ${label} alınsın mı? Öneriler ve hatırlatmalarda artık gösterilmez.`)) return;
+    const now = new Date().toISOString();
+    const c = customers.find(x => foldName(x.name) === foldName(name));
+    onSaveCustomer(c ? { ...c, status, updatedAt: now } : { id: 'cus-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), name, city: '', status, createdAt: now, updatedAt: now });
+  };
   const reminders = useMemo(() => {
     const end = `${t}T23:59:59`;
     return notes.filter(n => !n.done && n.remindAt && n.remindAt <= end).sort((a, b) => a.remindAt!.localeCompare(b.remindAt!)).slice(0, 4);
@@ -114,16 +125,34 @@ export const SimpleHome: React.FC<{
         <section>
           <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5 mb-2 px-1"><Sparkles className="w-4 h-4 text-brand-600" /> Öneriler</h2>
           <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0 pb-1 [scrollbar-width:none]">
-            {tips.map(tip => (
-              <button key={tip.id} onClick={() => tip.quote ? onOpenQuote(tip.quote) : onOpen(tip.tab)}
-                className="snap-start shrink-0 w-[78%] sm:w-72 text-left bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 hover:border-brand-300 active:bg-slate-50 transition flex gap-3">
-                <span className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${tip.tone}`}><tip.icon className="w-4.5 h-4.5" /></span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-black text-slate-900 leading-snug">{tip.title}</span>
-                  <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{tip.text}</span>
-                </span>
-              </button>
-            ))}
+            {tips.map(tip => {
+              const btn = 'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border whitespace-nowrap';
+              return (
+                <div key={tip.id} className="snap-start shrink-0 w-[82%] sm:w-80 bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 flex flex-col gap-2.5">
+                  <button onClick={() => tip.quote ? onOpenQuote(tip.quote) : tip.customer && onOpenCustomer ? onOpenCustomer(tip.customer) : onOpen(tip.tab)} className="text-left flex gap-3">
+                    <span className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${tip.tone}`}><tip.icon className="w-4.5 h-4.5" /></span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-black text-slate-900 leading-snug">{tip.title}</span>
+                      <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{tip.text}</span>
+                    </span>
+                  </button>
+                  {tip.advice && (
+                    <p className="text-xs text-slate-700 bg-slate-50 rounded-xl px-3 py-2 leading-snug flex gap-1.5">
+                      <Lightbulb className="w-3.5 h-3.5 text-brand-600 shrink-0 mt-0.5" /> <span>{tip.advice}</span>
+                    </p>
+                  )}
+                  <div className="flex gap-1.5 flex-wrap mt-auto">
+                    {tip.quote && <button onClick={() => onOpenQuote(tip.quote!)} className={`${btn} bg-brand-600 border-brand-600 text-white`}><FileText className="w-3.5 h-3.5" /> Teklifi aç</button>}
+                    {tip.phone && <a href={`tel:${tip.phone.replace(/[^\d+]/g, '')}`} className={`${btn} bg-accent-500 border-accent-500 text-white`}><Phone className="w-3.5 h-3.5" /> Ara</a>}
+                    {tip.customer && onOpenCustomer && <button onClick={() => onOpenCustomer(tip.customer!)} className={`${btn} bg-white border-slate-200 text-slate-700`}><Lightbulb className="w-3.5 h-3.5" /> Ne yapmalı?</button>}
+                    {tip.id === 'sleep' && onSaveCustomer && <>
+                      <button onClick={() => setStatus(tip.customer!, 'pasif')} className={`${btn} bg-white border-slate-200 text-slate-600`}><CirclePause className="w-3.5 h-3.5" /> Pasife al</button>
+                      <button onClick={() => setStatus(tip.customer!, 'kara_liste')} className={`${btn} bg-white border-rose-200 text-rose-600`}><Ban className="w-3.5 h-3.5" /> Kara liste</button>
+                    </>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -296,22 +325,35 @@ const MonthPanel: React.FC<{
   );
 };
 
-type Tip = { id: string; icon: React.ElementType; tone: string; title: string; text: string; tab: Tab; quote?: Quote };
+type Tip = { id: string; icon: React.ElementType; tone: string; title: string; text: string; tab: Tab; quote?: Quote; customer?: string; phone?: string; advice?: string };
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / 864e5);
 
 /** Verilerden kısa, işe yarar öneriler üretir (en fazla 6) */
-function buildTips({ quotes, rates, t, canQuotes }: {
-  quotes: Quote[]; rates: ReturnType<typeof useRates>; t: string; canQuotes: boolean;
+function buildTips({ quotes: allQuotes, customers, rates, t, canQuotes }: {
+  quotes: Quote[]; customers: Customer[]; rates: ReturnType<typeof useRates>; t: string; canQuotes: boolean;
 }): Tip[] {
   const tips: Tip[] = [];
+  // Pasif ve kara listedeki firmalar önerilerde gösterilmez
+  const byName = new Map(customers.map(c => [foldName(c.name), c]));
+  const blocked = new Set(customers.filter(c => statusOf(c) !== 'aktif').map(c => foldName(c.name)));
+  const quotes = allQuotes.filter(q => !blocked.has(foldName(q.customerName)));
+  const phoneOf = (name: string, q?: Quote) => byName.get(foldName(name))?.phone || q?.customerPhone || undefined;
   const won = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
 
   if (canQuotes) {
     // Son 60 günün en büyük bekleyen teklifi
     const big = quotes.filter(q => PENDING_STATUSES.includes(q.status) && daysBetween(q.createdAt, t) <= 60)
       .map(q => ({ q, v: quoteTry(q, rates) })).sort((a, b) => b.v - a.v)[0];
-    if (big && big.v > 0) tips.push({ id: 'big', icon: Target, tone: 'bg-brand-50 text-brand-700', tab: 'quotes', quote: big.q,
-      title: `En büyük fırsat: ${big.q.customerName}`, text: `${tl(big.v)} teklif ${daysBetween(big.q.createdAt, t)} gündür kararda.` });
+    if (big && big.v > 0) {
+      const d = daysBetween(big.q.createdAt, t);
+      const prev = quotes.filter(q => foldName(q.customerName) === foldName(big.q.customerName) && q.id !== big.q.id);
+      const wonPrev = prev.filter(won).length;
+      tips.push({ id: 'big', icon: Target, tone: 'bg-brand-50 text-brand-700', tab: 'quotes', quote: big.q, customer: big.q.customerName, phone: phoneOf(big.q.customerName, big.q),
+        title: `En büyük fırsat: ${big.q.customerName}`, text: `${tl(big.v)} teklif ${d} gündür kararda.`,
+        advice: d < 7 ? 'Bu hafta arayıp teklifin ulaştığını ve sorusu olup olmadığını teyit edin.'
+          : wonPrev ? `Daha önce ${wonPrev} teklifinizi onayladı; arayıp karar tarihini sorun, gerekirse ödeme vadesi önerin.`
+          : 'Arayıp karar sürecini sorun; fiyat engeli varsa alternatif marka ya da ödeme kolaylığı önerin.' });
+    }
 
     // Daha önce iş yapılmış ama 120+ gündür teklif verilmeyen firmalar
     const last = new Map<string, { at: string; won: number; name: string }>();
@@ -323,7 +365,8 @@ function buildTips({ quotes, rates, t, canQuotes }: {
       last.set(k, r);
     }
     const sleeping = [...last.values()].filter(r => r.won > 0 && r.at && daysBetween(r.at, t) >= 120).sort((a, b) => b.won - a.won);
-    if (sleeping.length) tips.push({ id: 'sleep', icon: UserRoundCheck, tone: 'bg-sky-50 text-sky-700', tab: 'customers',
+    if (sleeping.length) tips.push({ id: 'sleep', icon: UserRoundCheck, tone: 'bg-sky-50 text-sky-700', tab: 'customers', customer: sleeping[0].name, phone: phoneOf(sleeping[0].name),
+      advice: 'Arayıp yeni proje olup olmadığını sorun; artık çalışmıyorsanız pasife ya da kara listeye alın.',
       title: `${sleeping[0].name} uzun süredir sessiz`, text: `${Math.floor(daysBetween(sleeping[0].at, t) / 30)} aydır teklif yok; geçmişte ${tl(sleeping[0].won)} iş yapıldı.${sleeping.length > 1 ? ` (+${sleeping.length - 1} firma daha)` : ''}` });
 
     // Son 12 ayın en iyi müşterisi
@@ -332,7 +375,8 @@ function buildTips({ quotes, rates, t, canQuotes }: {
     const by = new Map<string, number>();
     for (const q of quotes) if (won(q) && (q.createdAt || '') >= ys) by.set(q.customerName, (by.get(q.customerName) || 0) + quoteTry(q, rates));
     const top = [...by.entries()].sort((a, b) => b[1] - a[1])[0];
-    if (top) tips.push({ id: 'top', icon: Trophy, tone: 'bg-violet-50 text-violet-600', tab: 'customers',
+    if (top) tips.push({ id: 'top', icon: Trophy, tone: 'bg-violet-50 text-violet-600', tab: 'customers', customer: top[0],
+      advice: 'Özel fiyat veya öncelikli teslimat teklif ederek ilişkiyi güçlendirin.',
       title: `Yılın müşterisi: ${top[0]}`, text: `Son 12 ayda ${tl(top[1])} onaylı iş.` });
 
     // Onay oranı: son 90 gün vs önceki 90 gün
