@@ -33,8 +33,9 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
   useEffect(() => { uploadedSupplierFiles().then(m => setUploaded(Object.keys(m).length), () => setUploaded(null)); }, []);
 
   const run = async (files: File[]) => {
-    // Daha önce yazısıyla yüklenmiş dosyalar atlanır: yarıda kalan yükleme kaldığı yerden sürer
-    const done = await uploadedSupplierFiles().catch(() => ({} as Record<string, number>));
+    // Toplu yüklemede daha önce yüklenmiş dosyalar atlanır (yarıda kalan yükleme kaldığı yerden sürer);
+    // tek dosya seçilince her zaman yeniden okunur ve aynı listenin üzerine yazılır
+    const done = files.length > 1 ? await uploadedSupplierFiles().catch(() => ({} as Record<string, number>)) : {} as Record<string, number>;
     const already = files.filter(f => /\.pdf$/i.test(f.name) && done[f.name]);
     const isSheet = (f: File) => /\.(xlsx|csv)$/i.test(f.name);
     const pdfs = files.filter(f => (/\.pdf$/i.test(f.name) && !done[f.name]) || isSheet(f));

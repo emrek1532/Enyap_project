@@ -236,6 +236,11 @@ function layoutLines(items: TItem[], pageWidth: number): string[] {
 }
 
 export async function pdfPages(data: ArrayBuffer): Promise<string[][]> {
+  return (await pdfPagesWithItems(data)).map(p => p.lines);
+}
+
+/** Sayfa satırları + konumlu yazı parçaları (fiyat listelerinde tablo tablo okumak için) */
+export async function pdfPagesWithItems(data: ArrayBuffer): Promise<{ lines: string[]; items: { s: string; x: number; y: number; w: number; h: number }[] }[]> {
   const pdfjs = await import('pdfjs-dist');
   if (typeof window !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerSrc) {
     pdfjs.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
@@ -246,15 +251,15 @@ export async function pdfPages(data: ArrayBuffer): Promise<string[][]> {
     standardFontDataUrl: '/pdfjs/standard_fonts/',
     wasmUrl: '/pdfjs/wasm/',
   }).promise;
-  const pages: string[][] = [];
+  const pages: { lines: string[]; items: { s: string; x: number; y: number; w: number; h: number }[] }[] = [];
   try {
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
       const content = await page.getTextContent();
       const items = (content.items as any[])
-        .map(it => ({ s: fixGlyphs(String(it.str ?? '')), x: it.transform[4] as number, y: it.transform[5] as number, h: Math.abs(it.transform[3] as number) || 8 }))
+        .map(it => ({ s: fixGlyphs(String(it.str ?? '')), x: it.transform[4] as number, y: it.transform[5] as number, h: Math.abs(it.transform[3] as number) || 8, w: Number(it.width) || 0 }))
         .filter(it => it.s.trim());
-      pages.push(layoutLines(items, page.view?.[2] ?? 595));
+      pages.push({ lines: layoutLines(items, page.view?.[2] ?? 595), items });
       page.cleanup();
     }
   } finally {
