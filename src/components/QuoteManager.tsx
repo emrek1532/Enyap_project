@@ -265,14 +265,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       </div>
 
       {/* Table / List View */}
-      {followUpCount > 0 && statusFilter !== 'takip' && (
-        <button
-          onClick={() => { setStatusFilter('takip'); setListLimit(LIST_PAGE); }}
-          className="w-full text-left p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs sm:text-sm text-amber-900 font-semibold hover:bg-amber-100"
-        >
-          ⏰ {followUpCount} teklif 3 günden uzun süredir yanıt bekliyor — müşteri ile tekrar görüşün. Listelemek için tıklayın.
-        </button>
-      )}
 
       <div className="flex items-center justify-between gap-2 px-1">
         <p className="text-xs text-slate-500">

@@ -41,7 +41,6 @@ import { PENDING_STATUSES } from './lib/quoteRules';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import type { ActiveTab } from './components/Navigation';
-import { DashboardStats } from './components/DashboardStats';
 import { QuoteManager } from './components/QuoteManager';
 import { QuickNoteFab } from './components/QuickNoteFab';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
@@ -748,22 +747,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           />
         )}
         
-        {/* KPI Dashboard & Urgent Action Banner */}
-        {activeTab === 'quotes' && (
-          <DashboardStats
-            quotes={data.quotes}
-            orders={data.orders}
-            events={data.events}
-            currentRole={currentRole}
-            onOpenNewQuote={() => setIsNewQuoteOpen(true)}
-            onNavigateTab={setActiveTab}
-            onShowQuotes={(filter) => {
-              setQuoteFilter(filter);
-              setActiveTab('quotes');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        )}
 
         {activeTab === 'quotes' && can(profile, 'quotes', 'edit') && (
           <div className="flex justify-end mb-3">
