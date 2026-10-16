@@ -58,9 +58,10 @@ type PItemRaw = [string, number, number, number, number];
 
 export async function importListFromText(
   fileName: string, pages: string[][], onInfo?: (info: string) => void,
-): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number }> {
+): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; ambiguous: number }> {
   const { parsePriceLines, detectCurrency, guessListInfo, listIdFor } = await import('./priceParse');
   const { parsePositionedPage } = await import('./tableParse');
+  const { parseMatrixPage } = await import('./matrixParse');
   // Sayfa başındaki konumlu yazı (#POS:…) ayrılır
   const posOf = new Map<string[], PItemRaw[]>();
   pages = pages.map(p => {
@@ -92,7 +93,11 @@ export async function importListFromText(
       // Konuma göre tablo okuma (iki sütunlu sayfalar, koli/fiyat ayrımı): satır okumasıyla en az aynı sayıda kalem bulursa tercih edilir
       const raw = posOf.get(pg);
       if (raw) {
-        const pos = parsePositionedPage(raw.map(([s, x, y, w, h]) => ({ s, x, y, w, h }))).map(x => ({ ...x, currency: x.currency || currency }));
+        const its = raw.map(([s, x, y, w, h]) => ({ s, x, y, w, h }));
+        // Matris tablo (ölçü sütunları × Siyah/Galvaniz gibi çeşit satırları): her hücre ayrı kalem, çeşit adı korunur
+        const mat = parseMatrixPage(its).map(x => ({ ...x, currency: x.currency || currency }));
+        const pos = parsePositionedPage(its).map(x => ({ ...x, currency: x.currency || currency }));
+        if (mat.length >= 6 && mat.length >= pos.length && mat.length >= rule.length * 0.5) return mat;
         if (pos.length >= 3 && pos.length >= rule.length * 0.8) return pos;
       }
       if (rule.length >= 3) return rule;
@@ -158,11 +163,31 @@ export async function reimportList(sourceFile: string, onInfo?: (info: string) =
 
 type ListItem = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency; ourCode?: string };
 
+/**
+ * Aynı adla farklı fiyatlı kalemler: listede renk/çeşit (Siyah–Galvaniz, PN16–PN25…) bilgisi okunamamış demektir.
+ * Bu kalemler ayırt edilebilsin diye adlarına fiyat sırasıyla "(çeşit 1)", "(çeşit 2)" eklenir ve sayısı döner;
+ * kullanıcıya uyarı gösterilir (ucuz olan genelde siyah/standart çeşittir). Kalemler birbirine karışıp yanlış koda bağlanmaz.
+ */
+export function markAmbiguous(items: { name: string; price: number; code?: string }[]): number {
+  const by = new Map<string, typeof items>();
+  for (const it of items) {
+    const k = `${it.code || ''}|${it.name.toLocaleLowerCase('tr')}`;
+    const g = by.get(k); if (g) g.push(it); else by.set(k, [it]);
+  }
+  let n = 0;
+  for (const g of by.values()) {
+    if (new Set(g.map(i => i.price)).size < 2) continue;
+    [...g].sort((a, b) => a.price - b.price).forEach((it, k) => { it.name = `${it.name} (çeşit ${k + 1})`.slice(0, 200); n++; });
+  }
+  return n;
+}
+
 /** Kalemleri firma listesi olarak kaydeder (aynı liste varsa üzerine yazar, eski bağlantılar korunur) ve eşleştirir */
 async function saveSupplierList(fileName: string, parsed: ListItem[], currency: Currency, onInfo?: (info: string) => void) {
   const { guessListInfo, listIdFor } = await import('./priceParse');
   const { name, listDate } = guessListInfo(fileName);
   const listId = listIdFor(name, listDate);
+  const ambiguous = markAmbiguous(parsed);
 
   // Eski bağlantılar (aynı ürün adı) yeni kalemlere taşınır; elle kaldırılan bağlar da kaldırılmış kalır
   const keep = new Map<string, { code: string | null; manual: boolean }>();
@@ -198,7 +223,7 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     if (error) throw error;
   }
   const matched = await autoMatchList(listId, parsed.length, onInfo);
-  return { listId, name, items: parsed.length, matched };
+  return { listId, name, items: parsed.length, matched, ambiguous };
 }
 
 /**

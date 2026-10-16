@@ -59,7 +59,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           const imp = await importListFromSheet(f, info => setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
           setRows(r => r.map(x => (x.name === f.name ? {
             ...x, status: 'ok',
-            info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı`,
+            info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit sütunu okunamamış olabilir, kontrol edin` : ''}`,
           } : x)));
           onImported?.();
           continue;
@@ -75,7 +75,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
         setRows(r => r.map(x => (x.name === f.name ? {
           ...x, status: 'ok',
-          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.failedPages ? ` · ${imp.failedPages} sayfa okunamadı` : ''}${res.ocr ? ' (resimden okundu)' : ''}`,
+          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.failedPages ? ` · ${imp.failedPages} sayfa okunamadı` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit okunamamış olabilir, kontrol edin` : ''}${res.ocr ? ' (resimden okundu)' : ''}`,
         } : x)));
         onImported?.();
       } catch (e) {

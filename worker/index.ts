@@ -19,6 +19,8 @@ interface Env {
 const SUPABASE_URL = 'https://aaduhhdwemnyqhnttcat.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_r-RVHM4n_fEKQ5pX-L_kvQ_Cg2CDu5r';
 const MODEL = 'claude-opus-5-5';
+// Fiyat listesi sayfaları için hızlı ve ucuz Claude modeli
+const PRICELIST_MODEL = 'claude-haiku-5-5';
 const WHISPER = '@cf/openai/whisper-large-v3-turbo';
 const LLAMA = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 // Fiyat listesi sayfaları için küçük ve ucuz model (68 sayfalık katalog günlük ücretsiz kotaya sığsın)
@@ -378,14 +380,43 @@ Her ürün için:
 - price: liste fiyatı (sayı; "1.250,50" → 1250.5, "78" → 78)
 - currency: o fiyatın para birimi: "TRY", "USD" veya "EUR". Fiyat sütunu başlığına ya da fiyatın yanındaki işarete bak ($ → USD, € → EUR, TL/₺ → TRY). Aynı sayfada farklı para birimleri olabilir; ÇEVİRME, yazıldığı gibi bırak.
 - group: ürünün bölüm/aile başlığı (ör. "FAF 2300 Çekvalf Çalpara Wafer Komple Paslanmaz")
-Fiyatı olmayan satırları, sertifika/belge listelerini, adres/telefon/açıklama satırlarını ALMA. Uydurma ürün ekleme. Sadece JSON döndür.`;
+ÇEŞİT / RENK: Aynı ürün ve ölçü için birden fazla fiyat satırı/sütunu varsa (Siyah–Galvaniz, Beyaz–Kromajlı–Pirinç, PN16–PN25, bar değerleri, standart–hızlı tepkimeli…) her fiyat AYRI üründür ve çeşit adı ürün adına yazılır (ör. "Redüksiyon Galvaniz 1"-1/2""). Çeşit adını asla atlama; aynı adla iki farklı fiyat ÜRETME.
+MATRİS TABLO: Üstte ölçü sütunları, solda ürün/çeşit satırları olan tablolarda her dolu hücre ayrı üründür: ad = ürün + çeşit + o sütunun ölçüsü.
+Koli/ambalaj adedi, kg, mm aralığı gibi sayıları fiyat sanma. Fiyatı olmayan satırları, sertifika/belge listelerini, adres/telefon/açıklama satırlarını ALMA. Uydurma ürün ekleme. Sadece JSON döndür.`;
+
+/** Claude'un yapılandırılmış çıktısı için tüm nesnelerde ek alan kapatılır */
+const strictSchema = (sc: any): any => (Array.isArray(sc) ? sc.map(strictSchema) : sc && typeof sc === 'object'
+  ? Object.fromEntries([...Object.entries(sc).map(([k, v]) => [k, strictSchema(v)]), ...(sc.type === 'object' ? [['additionalProperties', false]] : [])])
+  : sc);
+
+/** Claude anahtarı tanımlıysa fiyat listesi sayfası Claude ile okunur (küçük Llama modeli çeşit/matris tablolarda hata yapıyor) */
+async function priceListWithClaude(text: string, env: Env): Promise<Response> {
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  try {
+    const response = await client.messages.create({
+      model: PRICELIST_MODEL,
+      max_tokens: 16000,
+      output_config: { format: { type: 'json_schema', schema: strictSchema(PRICELIST_SCHEMA) } },
+      system: PRICELIST_PROMPT,
+      messages: [{ role: 'user', content: text }],
+    } as any);
+    const out = (response.content as any[]).find(b => b.type === 'text');
+    const parsed = out ? JSON.parse(out.text) : null;
+    return json({ items: Array.isArray(parsed?.items) ? parsed.items : [] });
+  } catch (err) {
+    if (err instanceof Anthropic.RateLimitError) return json({ error: 'quota', items: [] }, 429);
+    return json({ error: 'ai', message: String((err as Error)?.message || err).slice(0, 200), items: [] }, 502);
+  }
+}
 
 async function handlePriceList(req: Request, env: Env): Promise<Response> {
-  if (!env.AI) return json({ error: 'no_ai', items: [] }, 503);
+  if (!env.AI && !env.ANTHROPIC_API_KEY) return json({ error: 'no_ai', items: [] }, 503);
   if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
   const body = await readBody(req);
   const text = String(body?.text || '').slice(0, 12000);
   if (!text.trim()) return json({ items: [] });
+  if (env.ANTHROPIC_API_KEY) return priceListWithClaude(text, env);
+  if (!env.AI) return json({ error: 'no_ai', items: [] }, 503);
   try {
     const r = await env.AI.run(LLAMA_SMALL, {
       messages: [{ role: 'system', content: PRICELIST_PROMPT }, { role: 'user', content: text }],
