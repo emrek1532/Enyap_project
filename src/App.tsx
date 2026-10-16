@@ -46,7 +46,9 @@ import { QuickNoteFab } from './components/QuickNoteFab';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
-import { HomePage, PageHeader, SECTION_META } from './components/HomePage';
+import { PageHeader, SECTION_META } from './components/HomePage';
+import { SimpleHome } from './components/SimpleHome';
+import { BottomNav } from './components/BottomNav';
 import { SalesDashboard } from './components/SalesDashboard';
 import { MaterialsPanel } from './components/MaterialsPanel';
 import { ReportsPanel } from './components/ReportsPanel';
@@ -668,7 +670,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const todayEventsCount = data.events.filter(e => e.date === todayStr && !e.completed).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-24 md:pb-8">
       
       {/* Header + desktop tabs stay pinned together while scrolling */}
       <div className="sticky top-0 z-30">
@@ -717,21 +719,21 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
                 onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
           />
             ) : (
-              <HomePage
+              <SimpleHome
                 quotes={data.quotes}
                 customers={data.customers || []}
                 collections={data.collections || []}
                 expenses={data.expenses || []}
                 notes={data.notes}
-                activities={data.activities}
+                sections={MENU_ORDER.filter(tabAllowed)}
                 onOpen={setActiveTab}
-                allowed={tabAllowed}
                 onOpenQuote={setEditingQuote}
                 canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
                 onNewQuote={() => setIsNewQuoteOpen(true)}
                 onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
                 onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
-          />
+                onNewNote={() => setActiveTab('notes')}
+              />
             )}
           </>
         )}
@@ -850,6 +852,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       </main>
 
       <QuickNoteFab currentRole={currentRole} onSave={handleSaveNote} />
+      <BottomNav
+        sections={MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title }))}
+        primary={['quotes', 'customers', 'collections'].filter(id => tabAllowed(id as ActiveTab))}
+        active={activeTab}
+        onOpen={id => setActiveTab(id as ActiveTab)}
+        onHome={goHome}
+        onSignOut={handleSignOut}
+        userEmail={session.user.email || ''}
+      />
 
       {/* MODALS */}
       {/* 1. New Quote Modal */}

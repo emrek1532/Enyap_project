@@ -11,7 +11,7 @@ export const QuickNoteFab: React.FC<{ currentRole: UserRole; onSave: (n: QuickNo
     <>
       <button
         onClick={() => { setOpen(true); setSaved(false); }}
-        className="fixed z-40 right-[1.375rem] bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] w-11 h-11 rounded-full bg-amber-400 hover:bg-amber-500 text-amber-950 shadow-lg shadow-amber-500/30 flex items-center justify-center active:scale-95 transition"
+        className="fixed z-40 right-[1.375rem] bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-6 w-11 h-11 rounded-full bg-amber-400 hover:bg-amber-500 text-amber-950 shadow-lg shadow-amber-500/30 flex items-center justify-center active:scale-95 transition"
         aria-label="Hızlı not" title="Hızlı not al"
       >
         <StickyNote className="w-5 h-5" />
