@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, Printer, Share2, X } from 'lucide-react';
+import { Loader2, Share2, X } from 'lucide-react';
 import { Quote } from '../types';
 
 interface PrintableQuoteModalProps {
@@ -220,7 +220,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
     setPdfState('busy'); setPdfFile(null);
     (async () => {
       try {
-        await document.fonts?.ready;
+        await Promise.race([document.fonts?.ready, new Promise(r => setTimeout(r, 1500))]);
         const root = capRef.current;
         if (!root) throw new Error('sayfa yok');
         await Promise.all(Array.from(root.querySelectorAll('img')).map(img => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined))));
@@ -228,7 +228,11 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
         const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
         const els = Array.from(root.querySelectorAll<HTMLElement>('.rq-page'));
         for (let i = 0; i < els.length; i++) {
-          const canvas = await html2canvas(els[i], { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+          // Sadece teklif sayfası kopyalanır (uygulamanın geri kalanı atlanır: büyük listelerde çok hızlandırır)
+          const canvas = await html2canvas(els[i], {
+            scale: 1.6, backgroundColor: '#ffffff', useCORS: true, logging: false,
+            ignoreElements: el => el.parentElement === document.body && el !== root && el.tagName !== 'STYLE' && el.tagName !== 'LINK',
+          });
           if (i > 0) pdf.addPage();
           pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
           if (cancelled) return;
@@ -408,14 +412,6 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
             {pdfState === 'busy' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
             <span>{pdfState === 'busy' ? 'PDF hazırlanıyor' : pdfState === 'error' ? 'PDF hatası' : 'Gönder'}</span>
           </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white hover:bg-brand-50 text-brand-700 font-bold text-xs sm:text-sm shadow-sm"
-          >
-            <Printer className="w-4 h-4" />
-            <span className="hidden sm:inline">Yazdır / PDF Kaydet</span>
-            <span className="sm:hidden">Yazdır</span>
-          </button>
           <button onClick={onClose} className="p-1.5 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700">
             <X className="w-5 h-5" />
           </button>
@@ -432,6 +428,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
       {shareMsg && <div className="no-print px-3 py-2 bg-emerald-50 text-emerald-800 text-xs font-semibold">{shareMsg}</div>}
       {/* PDF dosyası için ekran dışında, gerçek boyutta kopya */}
       {createPortal(<div ref={capRef} aria-hidden style={{ position: 'fixed', left: '-10000px', top: 0, pointerEvents: 'none' }}>
+        <style>{PAGE_CSS}</style>
         {pages.map((_, pi) => <React.Fragment key={pi}>{renderPage(pi)}</React.Fragment>)}
       </div>, document.body)}
       {createPortal(<div id="rq-print">{pages.map((_, pi) => <React.Fragment key={pi}>{renderPage(pi)}</React.Fragment>)}</div>, document.body)}
