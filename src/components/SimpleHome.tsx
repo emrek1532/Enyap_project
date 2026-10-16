@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, CircleDollarSign, AlertTriangle, Target } from 'lucide-react';
+import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
@@ -68,7 +68,7 @@ export const SimpleHome: React.FC<{
     const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status));
     return { months, cur: months[5], prev: months[4], prevSame: calc(keys[4], `${keys[4]}-${pad(day)}`), pendingCount: pending.length, pendingAmt: pending.reduce((t, q) => t + quoteTry(q, rates), 0) };
   }, [quotes, collections, expenses, rates]);
-  const tips = useMemo(() => buildTips({ quotes, collections, rates, t, canQuotes, canMoney }), [quotes, collections, rates, t, canQuotes, canMoney]);
+  const tips = useMemo(() => buildTips({ quotes, rates, t, canQuotes }), [quotes, rates, t, canQuotes]);
   const reminders = useMemo(() => {
     const end = `${t}T23:59:59`;
     return notes.filter(n => !n.done && n.remindAt && n.remindAt <= end).sort((a, b) => a.remindAt!.localeCompare(b.remindAt!)).slice(0, 4);
@@ -300,24 +300,11 @@ type Tip = { id: string; icon: React.ElementType; tone: string; title: string; t
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / 864e5);
 
 /** Verilerden kısa, işe yarar öneriler üretir (en fazla 6) */
-function buildTips({ quotes, collections, rates, t, canQuotes, canMoney }: {
-  quotes: Quote[]; collections: Collection[]; rates: ReturnType<typeof useRates>; t: string; canQuotes: boolean; canMoney: boolean;
+function buildTips({ quotes, rates, t, canQuotes }: {
+  quotes: Quote[]; rates: ReturnType<typeof useRates>; t: string; canQuotes: boolean;
 }): Tip[] {
   const tips: Tip[] = [];
   const won = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
-
-  if (canMoney) {
-    // Vadesi geçmiş ama hâlâ portföyde görünen çek/senetler (son 30 gün)
-    const past = collections.filter(c => c.dueDate && c.dueDate < t && daysBetween(c.dueDate, t) <= 30);
-    if (past.length) tips.push({ id: 'due-past', icon: AlertTriangle, tone: 'bg-rose-50 text-rose-600', tab: 'collections',
-      title: `${past.length} çek/senedin vadesi geçti`, text: `Toplam ${tl(sumTry(past))}. Bankaya verildi mi, kontrol edin.` });
-    // Bu hafta vadesi gelenler
-    const in7 = new Date(); in7.setDate(in7.getDate() + 7);
-    const l7 = `${in7.getFullYear()}-${pad(in7.getMonth() + 1)}-${pad(in7.getDate())}`;
-    const week = collections.filter(c => c.dueDate && c.dueDate >= t && c.dueDate <= l7);
-    if (week.length) tips.push({ id: 'due-week', icon: CircleDollarSign, tone: 'bg-accent-50 text-accent-700', tab: 'collections',
-      title: `Bu hafta ${tl(sumTry(week))} vade`, text: `${week.length} çek/senet 7 gün içinde tahsile dönüyor.` });
-  }
 
   if (canQuotes) {
     // Son 60 günün en büyük bekleyen teklifi
