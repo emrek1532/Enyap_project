@@ -528,6 +528,25 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       ['Yapılan Harcama', multiCurrency(expTotals).join(' + '), `${pExpenses.length} kayıt`],
       ['Net (Tahsilat − Harcama)', multiCurrency(netTotals).join(' + '), 'seçilen dönemde'],
     ],
+    charts: [
+      { type: 'columns', title: 'Aylık Teklif ve Onay (TL)', months: months.map(monthLabel), series: [
+        { label: 'Verilen', color: C_QUOTE, values: monthly.map(([, v]) => v.quoteAmt) },
+        { label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
+      ] },
+      { type: 'columns', title: 'Aylık Tahsilat ve Harcama (TL)', months: months.map(monthLabel), series: [
+        { label: 'Tahsilat', color: C_COLLECTION, values: monthly.map(([, v]) => v.col) },
+        { label: 'Harcama', color: C_EXPENSE, values: monthly.map(([, v]) => v.exp) },
+      ] },
+      { type: 'share', title: 'Teklif Durumu', center: `Satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`, parts: [
+        { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
+        { label: 'Bekleyen', value: stats.pendingAmt, color: '#7c3aed' },
+        { label: 'İptal', value: stats.cancelledAmt, color: '#e11d48' },
+      ] },
+      { type: 'share', title: 'Tahsilat · Ödeme Şekli', parts: colByMethod.map((r, i) => ({ label: `${r.label} (${r.count})`, value: r.value, color: PALETTE[i % PALETTE.length] })) },
+      { type: 'bars', title: 'En Çok Onay Alan Firmalar', color: C_QUOTE,
+        rows: [...customerRows].sort((a, b) => b.approvedAmt - a.approvedAmt).filter(r => r.approvedAmt > 0).slice(0, 8)
+          .map(r => ({ label: r.name, value: r.approvedAmt, sub: `${r.approved} onay · ${pct(r.approvedAmt, r.totalAmt)}` })) },
+    ],
     sections: [
       {
         heading: 'Aylık Özet',
