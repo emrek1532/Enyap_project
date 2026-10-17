@@ -10,11 +10,19 @@ export interface PrintSection {
   foot?: string[];
 }
 
+/** PDF'teki grafikler (sayfa resmine çizilir) */
+export type PrintChart =
+  | { type: 'columns'; title: string; months: string[]; series: { label: string; color: string; values: number[] }[] }
+  | { type: 'share'; title: string; center?: string; parts: { label: string; value: number; color: string }[] }
+  | { type: 'bars'; title: string; color: string; rows: { label: string; value: number; sub?: string }[] };
+
 export interface PrintDoc {
   title: string;
   period: string;
   /** Üstteki özet kutuları: [etiket, değer, alt satır] */
   summary?: [string, string, string?][];
+  /** Özetin altında, tablolardan önce çizilen grafikler */
+  charts?: PrintChart[];
   sections: PrintSection[];
   fileName: string;
   /** Alttaki "Enyap Isı Teklif & Takip" yazısını gizle */
@@ -44,6 +52,28 @@ const CSS = `
 .rp-doc .rp-sec .r{text-align:right;white-space:nowrap}
 .rp-doc .rp-sec tfoot td{font-weight:800;border-top:0.4mm solid #334155;border-bottom:none;background:#f8fafc}
 .rp-doc .rp-empty{color:#64748b;font-style:italic;padding:2mm 0}
+.rp-doc .rp-charts{display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-bottom:4mm}
+.rp-doc .rp-ch{border:0.25mm solid #cbd5e1;border-radius:2mm;padding:2.5mm 3mm}
+.rp-doc .rp-ch.wide{grid-column:1/-1}
+.rp-doc .rp-ch h3{margin:0 0 2mm;font-size:9pt;font-weight:800}
+.rp-doc .rp-leg{display:flex;flex-wrap:wrap;gap:1mm 4mm;font-size:7pt;color:#475569;margin-bottom:1.5mm}
+.rp-doc .rp-leg i{display:inline-block;width:2.5mm;height:2.5mm;border-radius:0.6mm;margin-right:1mm;vertical-align:-0.3mm}
+.rp-doc .rp-cols{display:flex;align-items:flex-end;gap:1.5mm;height:34mm;border-bottom:0.3mm solid #94a3b8}
+.rp-doc .rp-cols>div{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:0.5mm;height:100%}
+.rp-doc .rp-cols b{display:block;width:100%;max-width:6mm;border-radius:0.6mm 0.6mm 0 0}
+.rp-doc .rp-mo{display:flex;gap:1.5mm;font-size:6.5pt;color:#64748b;margin-top:0.8mm}
+.rp-doc .rp-mo span{flex:1;text-align:center;white-space:nowrap;overflow:hidden}
+.rp-doc .rp-max{font-size:6.5pt;color:#94a3b8;text-align:right;margin-bottom:0.5mm}
+.rp-doc .rp-stack{display:flex;height:5mm;border-radius:1.2mm;overflow:hidden;background:#eef2f7;margin:1mm 0 2mm}
+.rp-doc .rp-row{display:flex;justify-content:space-between;gap:2mm;font-size:7.5pt;padding:0.6mm 0;border-bottom:0.2mm solid #f1f5f9}
+.rp-doc .rp-row span:last-child{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rp-doc .rp-big{font-size:14pt;font-weight:800;color:#0f172a}
+.rp-doc .rp-bar{margin-bottom:1.6mm;font-size:7.5pt}
+.rp-doc .rp-bar>div:first-child{display:flex;justify-content:space-between;gap:2mm}
+.rp-doc .rp-bar>div:first-child span:last-child{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rp-doc .rp-bar em{font-style:normal;color:#64748b;font-size:6.5pt}
+.rp-doc .rp-track{height:2.2mm;background:#eef2f7;border-radius:1mm;overflow:hidden;margin-top:0.5mm}
+.rp-doc .rp-track b{display:block;height:100%;border-radius:1mm}
 .rp-doc .rp-foot{margin-top:4mm;font-size:7pt;color:#94a3b8;text-align:right}
 @media print{
   @page{size:A4;margin:12mm 11mm}
@@ -112,6 +142,31 @@ export function printReport(fileName: string) {
 
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+const tlShort = (n: number) => n >= 1e6 ? `${(n / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} Mn ₺`
+  : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString('tr-TR')} B ₺` : `${Math.round(n).toLocaleString('tr-TR')} ₺`;
+const tlFull = (n: number) => `${Math.round(n).toLocaleString('tr-TR')} ₺`;
+
+function chartHtml(c: PrintChart): string {
+  if (c.type === 'columns') {
+    const max = Math.max(1, ...c.series.flatMap(s => s.values));
+    const leg = `<div class="rp-leg">${c.series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.label)}: ${tlFull(s.values.reduce((a, b) => a + b, 0))}</span>`).join('')}</div>`;
+    const cols = c.months.map((_, mi) => `<div>${c.series.map(s => `<b style="background:${s.color};height:${Math.max(s.values[mi] > 0 ? 1.5 : 0, (s.values[mi] / max) * 100)}%"></b>`).join('')}</div>`).join('');
+    return `<div class="rp-ch"><h3>${esc(c.title)}</h3>${leg}<div class="rp-max">en yüksek ${tlShort(max)}</div><div class="rp-cols">${cols}</div>
+      <div class="rp-mo">${c.months.map((m, i) => `<span>${i % Math.ceil(c.months.length / 7) ? '' : esc(m)}</span>`).join('')}</div></div>`;
+  }
+  if (c.type === 'share') {
+    const parts = c.parts.filter(p => p.value > 0);
+    const total = parts.reduce((a, p) => a + p.value, 0);
+    if (!total) return `<div class="rp-ch"><h3>${esc(c.title)}</h3><div class="rp-empty">Bu dönemde kayıt yok.</div></div>`;
+    return `<div class="rp-ch"><h3>${esc(c.title)}</h3>${c.center ? `<div class="rp-big">${esc(c.center)}</div>` : ''}
+      <div class="rp-stack">${parts.map(p => `<b style="background:${p.color};width:${(p.value / total) * 100}%"></b>`).join('')}</div>
+      ${parts.map(p => `<div class="rp-row"><span><i style="display:inline-block;width:2.5mm;height:2.5mm;border-radius:0.6mm;margin-right:1.2mm;vertical-align:-0.3mm;background:${p.color}"></i>${esc(p.label)}</span><span>${tlFull(p.value)} · %${Math.round((p.value / total) * 100)}</span></div>`).join('')}</div>`;
+  }
+  const max = Math.max(1, ...c.rows.map(r => r.value));
+  return `<div class="rp-ch wide"><h3>${esc(c.title)}</h3>${c.rows.length ? c.rows.map(r => `<div class="rp-bar"><div><span>${esc(r.label)}${r.sub ? ` <em>${esc(r.sub)}</em>` : ''}</span><span>${tlFull(r.value)}</span></div>
+    <div class="rp-track"><b style="background:${c.color};width:${Math.max(1.5, (r.value / max) * 100)}%"></b></div></div>`).join('') : '<div class="rp-empty">Bu dönemde kayıt yok.</div>'}</div>`;
+}
+
 /** Raporu A4 sayfalarına böler (her sayfa ayrı çizilir: telefonda çok uzun resim sınırına takılmaz, satırlar ikiye bölünmez) */
 function reportPages(doc: PrintDoc): string[] {
   const head = `<div class="rp-head"><img src="/teklif-logo.jpg" alt="Enyap" /><div><h1>${esc(doc.title)}</h1><p>Dönem: ${esc(doc.period)}</p>
@@ -122,6 +177,8 @@ function reportPages(doc: PrintDoc): string[] {
   const pages: string[] = [];
   let cur = head + summary, used = summary ? 14 : 4;
   const flush = () => { pages.push(cur); cur = ''; used = 0; };
+  // Grafikler ilk sayfada özetin altına; tablolar sonraki sayfadan başlar
+  if (doc.charts?.length) { cur += `<div class="rp-charts">${doc.charts.map(chartHtml).join('')}</div>`; flush(); }
   for (const sec of doc.sections) {
     const cell = (c: string, i: number) => `<td${sec.columns[i]?.align === 'right' ? ' class="r"' : ''}>${esc(c)}</td>`;
     const thead = `<thead><tr>${sec.columns.map(c => `<th${c.align === 'right' ? ' class="r"' : ''}>${esc(c.label)}</th>`).join('')}</tr></thead>`;
