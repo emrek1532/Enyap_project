@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { dayOf, localDay } from '../lib/dates';
 import { 
   FileText, 
   Search, 
@@ -137,7 +138,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               ? needsFollowUp(quote)
               : quote.status === statusFilter);
         const matchesCity = cityFilter === 'all' || quote.city === cityFilter;
-        const day = (quote.createdAt || '').slice(0, 10);
+        const day = dayOf(quote.createdAt);
         const matchesDate = (!dateFrom || day >= dateFrom) && (!dateTo || day <= dateTo);
 
         return matchesSearch && matchesStatus && matchesCity && matchesDate;
@@ -486,7 +487,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-slate-400">KDV dahil</span>
                   </span>
                 </div>
-                <button onClick={() => setCustomerView(selectedQuote.customerName)} title="Müşterinin tüm teklifleri"
+                <button onClick={() => { setCustomerView(selectedQuote.customerName); setSelectedQuote(null); }} title="Müşterinin tüm teklifleri"
                   className="text-lg font-black text-slate-900 mt-1 text-left hover:text-brand-700 hover:underline underline-offset-2">
                   {selectedQuote.customerName}
                 </button>
@@ -683,7 +684,7 @@ export const CustomerQuotes: React.FC<{
   onClose: () => void;
 }> = ({ name, quotes, netTry, statusBadge, onOpenQuote, onClose }) => {
   const list = useMemo(
-    () => quotes.filter(q => q.customerName === name).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+    () => quotes.filter(q => q.customerName.trim().toLocaleLowerCase('tr') === name.trim().toLocaleLowerCase('tr')).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
     [quotes, name],
   );
   const sum = (xs: Quote[]) => xs.reduce((t, q) => t + (netTry.get(q.id) || 0), 0);

@@ -110,46 +110,81 @@ export function printReport(fileName: string) {
   window.setTimeout(() => window.print(), 50);
 }
 
+const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Raporu A4 sayfalarına böler (her sayfa ayrı çizilir: telefonda çok uzun resim sınırına takılmaz, satırlar ikiye bölünmez) */
+function reportPages(doc: PrintDoc): string[] {
+  const head = `<div class="rp-head"><img src="/teklif-logo.jpg" alt="Enyap" /><div><h1>${esc(doc.title)}</h1><p>Dönem: ${esc(doc.period)}</p>
+    <p>Oluşturulma: ${esc(new Date().toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }))}</p></div></div>`;
+  const summary = doc.summary?.length
+    ? `<div class="rp-sum">${doc.summary.map(([k, v, sub]) => `<div class="rp-card"><b>${esc(k)}</b><span>${esc(v)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`).join('')}</div>` : '';
+  const ROWS = 46; // bir sayfaya sığan satır (başlık payı hariç)
+  const pages: string[] = [];
+  let cur = head + summary, used = summary ? 14 : 4;
+  const flush = () => { pages.push(cur); cur = ''; used = 0; };
+  for (const sec of doc.sections) {
+    const cell = (c: string, i: number) => `<td${sec.columns[i]?.align === 'right' ? ' class="r"' : ''}>${esc(c)}</td>`;
+    const thead = `<thead><tr>${sec.columns.map(c => `<th${c.align === 'right' ? ' class="r"' : ''}>${esc(c.label)}</th>`).join('')}</tr></thead>`;
+    const title = `${sec.heading !== doc.title ? `<h2>${esc(sec.heading)}</h2>` : ''}${sec.note ? `<p class="rp-note">${esc(sec.note)}</p>` : ''}`;
+    if (used > ROWS - 5) flush();
+    if (!sec.rows.length) { cur += `<div class="rp-sec">${title}<div class="rp-empty">Bu dönemde kayıt yok.</div></div>`; used += 3; continue; }
+    let i = 0, first = true;
+    while (i < sec.rows.length) {
+      const room = Math.max(1, ROWS - used - (first ? 3 : 1));
+      const chunk = sec.rows.slice(i, i + room);
+      i += chunk.length;
+      const foot = i >= sec.rows.length && sec.foot ? `<tfoot><tr>${sec.foot.map(cell).join('')}</tr></tfoot>` : '';
+      cur += `<div class="rp-sec">${first ? title : ''}<table>${thead}<tbody>${chunk.map(r => `<tr>${r.map(cell).join('')}</tr>`).join('')}</tbody>${foot}</table></div>`;
+      used += chunk.length + (first ? 3 : 1) + (foot ? 1 : 0);
+      first = false;
+      if (i < sec.rows.length) flush();
+    }
+  }
+  if (cur) pages.push(cur);
+  if (!doc.hideFooter && pages.length) pages[pages.length - 1] += '<div class="rp-foot">Enyap Isı Teklif &amp; Takip</div>';
+  return pages;
+}
+
 /**
  * Raporu PDF dosyası olarak hazırlar ve paylaşır (WhatsApp, e-posta…); paylaşım desteklenmiyorsa indirir.
  * Yazdır penceresi açılmaz. Dönen yazı kullanıcıya gösterilecek kısa bilgidir.
  */
-export async function shareReport(fileName: string, title: string): Promise<string> {
-  const src = document.getElementById('rp-print');
-  if (!src) throw new Error('rapor hazır değil');
+export async function shareReport(doc: PrintDoc): Promise<string> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas-pro'), import('jspdf')]);
-  // A4 genişliğinde (190 mm içerik) ekran dışında bir kopya çizilir
-  const box = document.createElement('div');
-  box.className = 'rp-doc';
-  box.style.cssText = 'position:fixed;left:-10000px;top:0;width:718px;padding:0;background:#fff';
-  box.innerHTML = src.innerHTML;
-  document.body.appendChild(box);
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+  pdf.setProperties({ title: doc.title, author: 'Enyap Isı Sistemleri', creator: 'Enyap Isı Teklif & Takip' });
+  const margin = 10, w = 210 - margin * 2;
+  // Stiller sayfaya bir kez eklenir (rapor açık değilse de çalışsın)
+  const style = document.createElement('style');
+  style.textContent = CSS;
+  document.head.appendChild(style);
   try {
-    await Promise.all([...box.querySelectorAll('img')].map(img => (img.complete ? null : new Promise(r => { img.onload = img.onerror = r; }))));
-    const canvas = await html2canvas(box, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
-    pdf.setProperties({ title, author: 'Enyap Isı Sistemleri', creator: 'Enyap Isı Teklif & Takip' });
-    const margin = 10, w = 210 - margin * 2, pageH = 297 - margin * 2;
-    const pxPerMm = canvas.width / w;
-    const slice = Math.floor(pageH * pxPerMm);
-    for (let y = 0, page = 0; y < canvas.height; y += slice, page++) {
-      const h = Math.min(slice, canvas.height - y);
-      const part = document.createElement('canvas');
-      part.width = canvas.width; part.height = h;
-      part.getContext('2d')!.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-      if (page > 0) pdf.addPage();
-      pdf.addImage(part.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin, w, h / pxPerMm);
+    const pages = reportPages(doc);
+    for (let p = 0; p < pages.length; p++) {
+      const box = document.createElement('div');
+      box.className = 'rp-doc';
+      box.style.cssText = 'position:fixed;left:-10000px;top:0;width:718px;background:#fff';
+      box.innerHTML = pages[p];
+      document.body.appendChild(box);
+      try {
+        await Promise.all([...box.querySelectorAll('img')].map(img => (img.complete ? null : new Promise(r => { img.onload = img.onerror = r; }))));
+        const canvas = await html2canvas(box, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+        if (p > 0) pdf.addPage();
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin, w, Math.min(277, (canvas.height / canvas.width) * w));
+      } finally {
+        box.remove();
+      }
     }
-    const file = new File([pdf.output('blob')], `${fileName}.pdf`, { type: 'application/pdf' });
-    if (navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], title }); return ''; } catch (e) { if ((e as Error)?.name === 'AbortError') return ''; }
-    }
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a');
-    a.href = url; a.download = file.name; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    return `PDF indirildi (${file.name}); WhatsApp ya da e-postaya ek olarak ekleyebilirsiniz.`;
   } finally {
-    box.remove();
+    style.remove();
   }
+  const file = new File([pdf.output('blob')], `${doc.fileName}.pdf`, { type: 'application/pdf' });
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: doc.title }); return ''; } catch (e) { if ((e as Error)?.name === 'AbortError') return ''; }
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url; a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return `PDF indirildi (${file.name}); WhatsApp ya da e-postaya ek olarak ekleyebilirsiniz.`;
 }

@@ -194,7 +194,9 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase.from('supplier_items').select('code,name,our_code,match_manual')
       .eq('list_id', listId).or('our_code.not.is.null,match_manual.eq.true').range(from, from + 999);
-    if (error || !data?.length) break;
+    // Eski bağlantılar okunamazsa liste silinmez (bağlar kaybolmasın)
+    if (error) throw error;
+    if (!data?.length) break;
     data.forEach((r: any) => {
       const v = { code: r.our_code, manual: !!r.match_manual };
       keep.set(`${r.code}|${r.name}`, v);
@@ -205,11 +207,13 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     if (data.length < 1000) break;
   }
   const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
-  const listRow: any = { id: listId, name, list_date: listDate, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString() };
-  if (!existing) listRow.title = '';
+  const listRow: any = { id: listId, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString() };
+  // Var olan liste yeniden yüklenince kullanıcının verdiği firma adı / tarih korunur
+  if (!existing) Object.assign(listRow, { title: '', name, list_date: listDate });
   const { error: le } = await supabase.from('supplier_lists').upsert(listRow);
   if (le) throw le;
-  await supabase.from('supplier_items').delete().eq('list_id', listId);
+  const { error: de } = await supabase.from('supplier_items').delete().eq('list_id', listId);
+  if (de) throw de;
   for (let i = 0; i < parsed.length; i += 500) {
     onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
     const rows = parsed.slice(i, i + 500).map(p => {
@@ -226,6 +230,21 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
   return { listId, name, items: parsed.length, matched, ambiguous };
 }
 
+/** Tırnak içindeki ayırıcıları bölmeden CSV satırını hücrelere ayırır ("1.234,56" ve "Vana, DN25" tek hücre kalır) */
+function splitCsvLine(line: string, sep: string): string[] {
+  const out: string[] = [];
+  let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === sep) { out.push(cur.trim()); cur = ''; } else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
 /**
  * Excel (.xlsx) ya da CSV fiyat listesi: başlık satırındaki sütun adlarından kod, ürün adı, fiyat,
  * para birimi, grup ve birim bulunur. Firma adı ve tarih dosya adından alınır.
@@ -236,7 +255,7 @@ export async function importListFromSheet(file: File, onInfo?: (info: string) =>
   if (/\.csv$/i.test(file.name)) {
     const text = await file.text();
     const sep = (text.split('\n')[0].match(/;/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
-    rows = text.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(sep).map(c => c.replace(/^"|"$/g, '').trim()));
+    rows = text.split(/\r?\n/).filter(l => l.trim()).map(l => splitCsvLine(l, sep));
   } else {
     try {
       const readXlsx = (await import('read-excel-file')).default;
@@ -337,10 +356,14 @@ export async function autoMatchList(listId: string, total: number, onInfo?: (inf
 
 /** Liste bilgilerini düzeltir (firma adı, tarih, para birimi) */
 export async function updateSupplierListInfo(id: string, info: { name: string; listDate: string; currency: Currency }) {
+  const { data: old } = await supabase.from('supplier_lists').select('currency').eq('id', id).maybeSingle();
   const { error } = await supabase.from('supplier_lists')
     .update({ name: info.name, list_date: info.listDate, currency: info.currency, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
-  await supabase.from('supplier_items').update({ currency: info.currency }).eq('list_id', id);
+  // Para birimi değiştiyse sadece eski liste para birimindeki kalemler güncellenir (ayrı USD/EUR satırlar korunur)
+  if (old?.currency && old.currency !== info.currency) {
+    await supabase.from('supplier_items').update({ currency: info.currency }).eq('list_id', id).eq('currency', old.currency);
+  }
 }
 
 /** Firma listesini tamamen siler */

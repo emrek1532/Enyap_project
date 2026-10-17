@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { dayOf, localDay } from '../lib/dates';
 import { ArrowDown, ArrowUp, FileUp, ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
@@ -293,8 +294,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   // KDV satır satır değil ara toplam üzerinden hesaplanır (yuvarlama farkı çıkmasın)
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const lineNet = (it: QuoteItem) => r2((it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100));
+  // Toplamlar kaydedilecek kalemlerle aynı kurala göre: adı boş satır sayılmaz, adedi 0 olan 1 sayılır
+  const savedItems = items.filter(it => it.productName.trim().length > 0).map(it => (it.quantity > 0 ? it : { ...it, quantity: 1 }));
   const totalsByCurrency = (['TRY', 'USD', 'EUR'] as Currency[]).reduce<Record<Currency, number>>((acc, c) => {
-    const net = r2(items.filter(it => (it.currency || 'TRY') === c).reduce((a, it) => a + lineNet(it), 0));
+    const net = r2(savedItems.filter(it => (it.currency || 'TRY') === c).reduce((a, it) => a + lineNet(it), 0));
     acc[c] = r2(net + r2(net * 0.2));
     return acc;
   }, { TRY: 0, USD: 0, EUR: 0 });
@@ -366,9 +369,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     if (!customerName.trim()) return;
     if (!paymentTerm && !isEdit) return; // yeni teklifte vade zorunlu (tarayıcı da uyarır)
 
-    const filledItems = items
-      .filter(it => it.productName.trim().length > 0)
-      .map(it => (it.quantity > 0 ? it : { ...it, quantity: 1 }));
+    const filledItems = savedItems;
 
     // Düzenleme: numara, durum ve oluşturma tarihi korunur
     if (editQuote) {
@@ -400,7 +401,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
     const quoteId = 'qt-' + Date.now();
     const now = pdfMeta?.date ? new Date(`${pdfMeta.date}T09:00:00+03:00`) : new Date();
-    const in5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const in5Days = localDay(new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000));
 
     const newQuote: Quote = {
       id: quoteId,

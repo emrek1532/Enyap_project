@@ -286,7 +286,10 @@ export const SupplierListsPanel: React.FC = () => {
 
   const saveDiscount = async () => {
     if (!current) return;
-    const v = Math.min(100, Math.max(0, Number(discountDraft.replace(',', '.')) || 0));
+    // "%10", "10 %" gibi yazımlar da kabul edilir; okunamayan değer iskontoyu sıfırlamaz
+    const n = discountDraft.trim() === '' ? 0 : Number(discountDraft.replace(/[^\d,.]/g, '').replace(',', '.'));
+    if (!Number.isFinite(n)) { setDiscountDraft(String(current.discount)); return; }
+    const v = Math.min(100, Math.max(0, n));
     if (v === current.discount) return;
     try {
       await setSupplierDiscount(current.id, v);
@@ -477,7 +480,7 @@ export const SupplierListsPanel: React.FC = () => {
                 )}
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                {items.length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-400">Sonuç yok.</p>}
+                {items.filter(it => !onlyUnlinked || !it.ourCode).length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-400">{onlyUnlinked && items.length ? 'Yüklenen kalemlerin hepsi bağlı. Daha fazlası için aşağı kaydırın ya da aramayı daraltın.' : 'Sonuç yok.'}</p>}
                 <div className="divide-y divide-slate-100">
                   {items.filter(it => !onlyUnlinked || !it.ourCode).map((it, idx, arr) => (
                     <React.Fragment key={it.id}>

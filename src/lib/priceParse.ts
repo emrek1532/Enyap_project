@@ -15,6 +15,8 @@ const HEADER = /(fiyat\s*listesi|liste\s*fiyat|birim\s*fiyat|ürün\s*kodu|stok\
 
 export function parseNumber(s: string): number {
   const t = s.replace(/\s/g, '');
+  // Türkçe binlik ayraçlı tam sayı: "1.250" → 1250, "12.500.000" → 12500000
+  if (/^\d{1,3}(\.\d{3})+$/.test(t)) return Number(t.replace(/\./g, ''));
   const lastComma = t.lastIndexOf(','), lastDot = t.lastIndexOf('.');
   const n = lastComma > lastDot
     ? Number(t.replace(/\./g, '').replace(',', '.'))

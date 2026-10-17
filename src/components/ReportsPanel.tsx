@@ -377,7 +377,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         m[k] = m[k] || { n: 0, amt: 0 }; m[k].n++; m[k].amt += qTry(q); return m;
       }, {})).sort((a, b) => b[1].amt - a[1].amt),
     };
-  }, [pQuotes]);
+  }, [pQuotes, rates]);
 
   const colTotals = useMemo(() => sumByCurrency(pCollections), [pCollections]);
   const expTotals = useMemo(() => sumByCurrency(pExpenses), [pExpenses]);
@@ -400,22 +400,25 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     pCollections.forEach(c => { const m = get(c.date.slice(0, 7)); if (c.currency === 'TRY') m.col += c.amount; });
     pExpenses.forEach(e => { const m = get(e.date.slice(0, 7)); if (e.currency === 'TRY') m.exp += e.amount; });
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [pQuotes, pCollections, pExpenses]);
+  }, [pQuotes, pCollections, pExpenses, rates]);
   const months = monthly.map(([m]) => m);
 
   // En çok onay alan müşteriler / şehirler / teklifi verenler
   const groupQuotes = (keyOf: (q: Quote) => string) => {
-    const map = new Map<string, { total: number; totalAmt: number; approved: number; approvedAmt: number; city: string }>();
+    // Büyük/küçük harf farkı aynı firma sayılır ("ABC Yapı" = "Abc Yapı"); ilk görülen yazılış gösterilir
+    const map = new Map<string, { name: string; total: number; totalAmt: number; approved: number; approvedAmt: number; city: string }>();
     pQuotes.forEach(q => {
-      const k = keyOf(q).trim() || 'Belirtilmemiş';
-      const g = map.get(k) || { total: 0, totalAmt: 0, approved: 0, approvedAmt: 0, city: q.city || '' };
+      const name = keyOf(q).trim() || 'Belirtilmemiş';
+      const k = name.toLocaleLowerCase('tr');
+      const g = map.get(k) || { name, total: 0, totalAmt: 0, approved: 0, approvedAmt: 0, city: q.city || '' };
       g.total++; g.totalAmt += qTry(q);
       if (isApproved(q)) { g.approved++; g.approvedAmt += qTry(q); }
       map.set(k, g);
     });
-    return [...map.entries()].sort((a, b) => b[1].approvedAmt - a[1].approvedAmt || b[1].total - a[1].total);
+    return [...map.values()].map(({ name, ...g }) => [name, g] as [string, Omit<typeof g, never>])
+      .sort((a, b) => b[1].approvedAmt - a[1].approvedAmt || b[1].total - a[1].total);
   };
-  const byCustomer = useMemo(() => groupQuotes(q => q.customerName), [pQuotes]);
+  const byCustomer = useMemo(() => groupQuotes(q => q.customerName), [pQuotes, rates]);
 
   // Müşteri performans tablosu (başlığa tıklayarak sıralanır)
   const [custSort, setCustSort] = useState<SortState<CustKey>>({ key: 'approvedAmt', dir: 'desc' });
@@ -569,10 +572,12 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     if (sending) return;
     setPrintTarget(target);
     setSending(true); setSendMsg('');
-    const doc = target === 'summary' ? summaryDoc() : { title: sectionFor(target).heading, fileName: `Enyap_${sectionFor(target).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}` };
+    const doc: PrintDoc = target === 'summary' ? summaryDoc() : {
+      title: sectionFor(target).heading, period: periodLabel,
+      fileName: `Enyap_${sectionFor(target).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}`, sections: [sectionFor(target)],
+    };
     try {
-      await new Promise(r => setTimeout(r, 80)); // seçilen rapor çizilsin
-      setSendMsg(await shareReport(doc.fileName, doc.title));
+      setSendMsg(await shareReport(doc));
     } catch {
       setSendMsg('PDF hazırlanamadı, tekrar deneyin.');
     } finally {
