@@ -145,15 +145,16 @@ function reportPages(doc: PrintDoc): string[] {
   return pages;
 }
 
-/**
- * Raporu PDF dosyası olarak hazırlar ve paylaşır (WhatsApp, e-posta…); paylaşım desteklenmiyorsa indirir.
- * Yazdır penceresi açılmaz. Dönen yazı kullanıcıya gösterilecek kısa bilgidir.
- */
-export async function shareReport(doc: PrintDoc): Promise<string> {
+/** Hazırlanmış rapor: PDF dosyası + önizleme için sayfa resimleri */
+export interface BuiltReport { file: File; pages: string[]; title: string }
+
+/** Raporu A4 PDF olarak hazırlar (gönderilmez); önizleme için sayfa resimleri de döner */
+export async function buildReportPdf(doc: PrintDoc): Promise<BuiltReport> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas-pro'), import('jspdf')]);
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   pdf.setProperties({ title: doc.title, author: 'Enyap Isı Sistemleri', creator: 'Enyap Isı Teklif & Takip' });
   const margin = 10, w = 210 - margin * 2;
+  const previews: string[] = [];
   // Stiller sayfaya bir kez eklenir (rapor açık değilse de çalışsın)
   const style = document.createElement('style');
   style.textContent = CSS;
@@ -169,8 +170,10 @@ export async function shareReport(doc: PrintDoc): Promise<string> {
       try {
         await Promise.all([...box.querySelectorAll('img')].map(img => (img.complete ? null : new Promise(r => { img.onload = img.onerror = r; }))));
         const canvas = await html2canvas(box, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+        const jpg = canvas.toDataURL('image/jpeg', 0.9);
         if (p > 0) pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin, w, Math.min(277, (canvas.height / canvas.width) * w));
+        pdf.addImage(jpg, 'JPEG', margin, margin, w, Math.min(277, (canvas.height / canvas.width) * w));
+        previews.push(jpg);
       } finally {
         box.remove();
       }
@@ -178,13 +181,17 @@ export async function shareReport(doc: PrintDoc): Promise<string> {
   } finally {
     style.remove();
   }
-  const file = new File([pdf.output('blob')], `${doc.fileName}.pdf`, { type: 'application/pdf' });
-  if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: doc.title }); return ''; } catch (e) { if ((e as Error)?.name === 'AbortError') return ''; }
+  return { file: new File([pdf.output('blob')], `${doc.fileName}.pdf`, { type: 'application/pdf' }), pages: previews, title: doc.title };
+}
+
+/** Hazır PDF'i paylaşır (WhatsApp, e-posta…); paylaşım desteklenmiyorsa ya da download=true ise indirir */
+export async function sendReportFile(r: BuiltReport, download = false): Promise<string> {
+  if (!download && navigator.canShare?.({ files: [r.file] })) {
+    try { await navigator.share({ files: [r.file], title: r.title }); return ''; } catch (e) { if ((e as Error)?.name === 'AbortError') return ''; }
   }
-  const url = URL.createObjectURL(file);
+  const url = URL.createObjectURL(r.file);
   const a = document.createElement('a');
-  a.href = url; a.download = file.name; a.click();
+  a.href = url; a.download = r.file.name; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  return `PDF indirildi (${file.name}); WhatsApp ya da e-postaya ek olarak ekleyebilirsiniz.`;
+  return `PDF indirildi (${r.file.name}); WhatsApp ya da e-postaya ek olarak ekleyebilirsiniz.`;
 }
