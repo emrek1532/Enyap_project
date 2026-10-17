@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2, List, Gauge, FileUp } from 'lucide-react';
+import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2, List, Gauge, FileUp, Wallet } from 'lucide-react';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
@@ -71,7 +71,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const balanceOf = (c: Customer) => (showCollections ? estimatedBalance(c, collections) : null);
   const lastMikro = useMemo(() => customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), ''), [customers]);
   const rates = useRates(quotes);
-  const [mode, setMode] = useState<'list' | 'eval'>('list');
+  const [mode, setMode] = useState<'list' | 'eval' | 'balance'>('list');
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
   const [segFilter, setSegFilter] = useState<'all' | Segment | CustomerStatus>('all');
   const [search, setSearch] = useState('');
@@ -233,11 +233,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70 w-fit">
-        {([['list', 'Müşteri listesi', List], ['eval', 'Değerlendirme', Gauge]] as const).map(([k, label, Icon]) => (
+      <div className={`grid ${showCollections ? 'grid-cols-3' : 'grid-cols-2'} sm:flex gap-1 p-1 rounded-xl bg-slate-200/70 sm:w-fit`}>
+        {([['list', 'Müşteri listesi', 'Liste', List], ['eval', 'Değerlendirme', 'Puanlar', Gauge], ...(showCollections ? [['balance', 'Cari bakiyeler', 'Bakiyeler', Wallet]] as const : [])] as const).map(([k, label, shortLabel, Icon]) => (
           <button key={k} onClick={() => setMode(k)}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-extrabold ${mode === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
-            <Icon className="w-4 h-4" /> {label}
+            className={`flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-lg text-sm font-extrabold whitespace-nowrap ${mode === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
+            <Icon className="w-4 h-4 shrink-0" /> <span className="sm:hidden">{shortLabel}</span><span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
@@ -293,6 +293,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {mode === 'balance' && showCollections && (
+        <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
+          onOpen={c => { setViewing(c); setOnlyApproved(true); }} onMikro={onSaveCollection ? () => setMikroOpen(true) : undefined} />
       )}
 
       {mode === 'list' && (<>
@@ -410,7 +415,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    {balanceOf(c) ? (<>
+                    {sort.key === 'balance' && balanceOf(c) ? (<>
                       <div className={`font-black text-sm tabular-nums ${balanceOf(c)!.estimate < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(Math.round(balanceOf(c)!.estimate))}</div>
                       <div className="text-[10px] text-slate-400">bakiye</div>
                     </>) : (<>
@@ -593,4 +598,78 @@ const StatusBadge: React.FC<{ c: Customer }> = ({ c }) => {
   const st = statusOf(c);
   if (st === 'aktif') return null;
   return <span className={`ml-1.5 align-middle text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[st].cls}`}>{CUSTOMER_STATUS[st].label}</span>;
+};
+
+/** Cari bakiyeler: Mikro bakiyesi − sonradan girilen tahsilatlar (tahmini güncel bakiye) */
+const BalanceView: React.FC<{
+  customers: Customer[];
+  balanceOf: (c: Customer) => ReturnType<typeof estimatedBalance>;
+  lastMikro: string;
+  search: string;
+  setSearch: (v: string) => void;
+  onOpen: (c: Customer) => void;
+  onMikro?: () => void;
+}> = ({ customers, balanceOf, lastMikro, search, setSearch, onOpen, onMikro }) => {
+  const [side, setSide] = useState<'alacak' | 'borc' | 'all'>('alacak');
+  const rows = useMemo(() => customers.map(c => ({ c, b: balanceOf(c) })).filter(x => x.b && Math.round(x.b.estimate) !== 0) as { c: Customer; b: NonNullable<ReturnType<typeof estimatedBalance>> }[],
+    [customers, balanceOf]);
+  const alacak = rows.filter(r => r.b.estimate > 0), borc = rows.filter(r => r.b.estimate < 0);
+  const sum = (l: typeof rows) => l.reduce((t, r) => t + r.b.estimate, 0);
+  const shown = (side === 'alacak' ? alacak : side === 'borc' ? borc : rows)
+    .filter(r => !search || fold(r.c.name).includes(fold(search.trim())) || fold(r.c.city || '').includes(fold(search.trim())))
+    .sort((a, b) => Math.abs(b.b.estimate) - Math.abs(a.b.estimate));
+  const max = Math.max(1, ...shown.map(r => Math.abs(r.b.estimate)));
+  const old = lastMikro && (Date.now() - Date.parse(lastMikro)) / 864e5 > 15;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => setSide('alacak')} className={`text-left rounded-2xl border p-3 ${side === 'alacak' ? 'border-brand-400 bg-brand-50' : 'border-slate-200 bg-white'}`}>
+          <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide">Alacağımız</span>
+          <span className="block text-lg font-black text-slate-900 tabular-nums">{tl(Math.round(sum(alacak)))}</span>
+          <span className="block text-[11px] text-slate-500">{alacak.length} firma</span>
+        </button>
+        <button onClick={() => setSide('borc')} className={`text-left rounded-2xl border p-3 ${side === 'borc' ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-white'}`}>
+          <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide">Borcumuz / avans</span>
+          <span className="block text-lg font-black text-rose-600 tabular-nums">{tl(Math.round(-sum(borc)))}</span>
+          <span className="block text-[11px] text-slate-500">{borc.length} firma</span>
+        </button>
+      </div>
+      <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input type="search" placeholder="Firma veya şehir ara..." value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          {onMikro && (
+            <button onClick={onMikro} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 font-bold text-sm whitespace-nowrap">
+              <FileUp className="w-4 h-4" /> Mikro yükle
+            </button>
+          )}
+        </div>
+        <p className={`text-[11px] ${old ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+          {lastMikro ? `Mikro bakiyeleri ${lastMikro.split('-').reverse().join('.')} tarihli.` : 'Henüz Mikro bakiyesi yüklenmedi.'} Tutar = Mikro bakiyesi − o tarihten sonra girilen TL tahsilatlar.
+        </p>
+      </div>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100 overflow-hidden">
+        {shown.map(({ c, b }) => (
+          <button key={c.id} onClick={() => onOpen(c)} className="w-full text-left p-3 sm:px-4 hover:bg-slate-50 block">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
+                  {c.city || '—'} · Mikro {tl(Math.round(b.balance))}{b.collectedAfter > 0 ? ` − sonradan tahsilat ${tl(Math.round(b.collectedAfter))}` : ''}
+                </div>
+              </div>
+              <div className={`font-black text-sm tabular-nums shrink-0 ${b.estimate < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(Math.round(b.estimate))}</div>
+            </div>
+            <div className="h-1.5 rounded-full bg-slate-100 mt-2 overflow-hidden">
+              <div className={`h-full rounded-full ${b.estimate < 0 ? 'bg-rose-400' : 'bg-brand-500'}`} style={{ width: `${Math.max(2, (Math.abs(b.estimate) / max) * 100)}%` }} />
+            </div>
+          </button>
+        ))}
+        {shown.length === 0 && <p className="p-6 text-center text-sm text-slate-500">Bakiyesi olan müşteri yok.</p>}
+      </div>
+    </div>
+  );
 };

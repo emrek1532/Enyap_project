@@ -74,8 +74,48 @@ export const SimpleHome: React.FC<{
     const months = keys.map(key => calc(key));
     const day = Math.min(now.getDate(), new Date(Number(keys[4].slice(0, 4)), Number(keys[4].slice(5)), 0).getDate());
     const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status));
-    return { months, cur: months[5], prev: months[4], prevSame: calc(keys[4], `${keys[4]}-${pad(day)}`), pendingCount: pending.length, pendingAmt: pending.reduce((t, q) => t + quoteTry(q, rates), 0) };
-  }, [quotes, collections, expenses, rates]);
+    // Bu ayın detayı: durum dağılımı, firmalar, haftalar, ödeme şekli, harcama kategorisi, ay sonu tahmini
+    const curKey = keys[5];
+    const inCur = (s?: string) => !!s && dayOf(s).startsWith(curKey);
+    const mq = quotes.filter(q => inCur(q.createdAt));
+    const mc = collections.filter(c => inCur(c.date) && (c.currency || 'TRY') === 'TRY');
+    const me = expenses.filter(e => inCur(e.date) && (e.currency || 'TRY') === 'TRY');
+    const group = <T,>(list: T[], key: (x: T) => string, val: (x: T) => number) => {
+      const m = new Map<string, { label: string; value: number; count: number }>();
+      for (const x of list) { const k = key(x) || 'Diğer'; const g = m.get(k) || { label: k, value: 0, count: 0 }; g.value += val(x); g.count++; m.set(k, g); }
+      return [...m.values()].sort((a, b) => b.value - a.value);
+    };
+    const qv = (q: Quote) => quoteTry(q, rates);
+    const st = (pred: (q: Quote) => boolean) => { const l = mq.filter(pred); return { count: l.length, value: l.reduce((t, q) => t + qv(q), 0) }; };
+    const firms = new Map<string, { label: string; teklif: number; onay: number; count: number }>();
+    for (const q of mq.filter(q => q.status !== 'iptal')) {
+      const k = foldName(q.customerName);
+      const f = firms.get(k) || { label: q.customerName, teklif: 0, onay: 0, count: 0 };
+      f.teklif += qv(q); f.count++;
+      if (q.status === 'onaylandi' || q.status === 'siparis') f.onay += qv(q);
+      firms.set(k, f);
+    }
+    const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const weekOf = (s: string) => Math.min(4, Math.floor((Number(dayOf(s).slice(8, 10)) - 1) / 7));
+    const weeks = Array.from({ length: Math.ceil(dim / 7) }, (_, w) => ({
+      label: `${w * 7 + 1}-${Math.min(dim, w * 7 + 7)}`,
+      teklif: mq.filter(q => q.status !== 'iptal' && weekOf(q.createdAt) === w).reduce((t, q) => t + qv(q), 0),
+      tahsilat: mc.filter(c => weekOf(c.date) === w).reduce((t, c) => t + (c.amount || 0), 0),
+    }));
+    const dueChecks = collections.filter(c => c.dueDate && dayOf(c.dueDate).startsWith(curKey) && dayOf(c.dueDate) >= t);
+    const detail = {
+      day: now.getDate(), dim, weeks,
+      onay: st(q => q.status === 'onaylandi' || q.status === 'siparis'),
+      bekleyen: st(q => PENDING_STATUSES.includes(q.status)),
+      iptal: st(q => q.status === 'iptal'),
+      firms: [...firms.values()].sort((a, b) => b.teklif - a.teklif).slice(0, 5),
+      newFirms: [...firms.keys()].filter(k => !quotes.some(q => foldName(q.customerName) === k && dayOf(q.createdAt) < `${curKey}-01`)).length,
+      methods: group(mc, c => c.method, c => c.amount || 0),
+      categories: group(me, e => e.category, e => e.amount || 0).slice(0, 5),
+      dueChecks: { count: dueChecks.length, value: sumTry(dueChecks) },
+    };
+    return { months, cur: months[5], prev: months[4], prevSame: calc(keys[4], `${keys[4]}-${pad(day)}`), pendingCount: pending.length, pendingAmt: pending.reduce((t, q) => t + quoteTry(q, rates), 0), detail };
+  }, [quotes, collections, expenses, rates, t]);
   const priceChanges = usePriceChanges(quotes, canQuotes);
   const tips = useMemo(() => {
     const list = buildTips({ quotes, customers, rates, t, canQuotes });
@@ -277,6 +317,29 @@ const AY_UZUN = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz
 const short = (v: number) => v >= 1e6 ? `${(v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} Mn` : v >= 1e3 ? `${Math.round(v / 1e3).toLocaleString('tr-TR')} bin` : `${Math.round(v)}`;
 
 type Month = { key: string; teklif: number; adet: number; onay: number; onayAdet: number; tahsilat: number; harcama: number };
+type Part = { label: string; value: number; count: number };
+type MonthDetail = {
+  day: number; dim: number; weeks: { label: string; teklif: number; tahsilat: number }[];
+  onay: { count: number; value: number }; bekleyen: { count: number; value: number }; iptal: { count: number; value: number };
+  firms: { label: string; teklif: number; onay: number; count: number }[]; newFirms: number;
+  methods: Part[]; categories: Part[]; dueChecks: { count: number; value: number };
+};
+
+/** Kart içinde başlıklı küçük blok */
+const Block: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className = '' }) => (
+  <div className={`rounded-2xl bg-white/10 p-3 min-w-0 ${className}`}>
+    <p className="text-[11px] font-bold uppercase tracking-wider text-brand-200 mb-2">{title}</p>
+    {children}
+  </div>
+);
+
+/** Etiket + tutar + oran çubuğu */
+const BarRow: React.FC<{ label: string; value: number; max: number; note?: string; color?: string }> = ({ label, value, max, note, color = 'bg-accent-400' }) => (
+  <div className="text-xs">
+    <div className="flex justify-between gap-2"><span className="truncate text-brand-50">{label}{note && <span className="text-brand-200"> · {note}</span>}</span><span className="font-bold tabular-nums shrink-0">{short(value)}</span></div>
+    <div className="h-1.5 rounded-full bg-white/10 mt-1 overflow-hidden"><div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(2, (value / Math.max(1, max)) * 100)}%` }} /></div>
+  </div>
+);
 
 /** Geçen aya göre değişim rozeti */
 const Change: React.FC<{ cur: number; prev: number }> = ({ cur, prev }) => {
@@ -288,11 +351,13 @@ const Change: React.FC<{ cur: number; prev: number }> = ({ cur, prev }) => {
 };
 
 const MonthPanel: React.FC<{
-  stats: { months: Month[]; cur: Month; prev: Month; prevSame: Month; pendingCount: number; pendingAmt: number };
+  stats: { months: Month[]; cur: Month; prev: Month; prevSame: Month; pendingCount: number; pendingAmt: number; detail: MonthDetail };
   canQuotes: boolean; canMoney: boolean; canExp: boolean;
   onOpen: (tab: Tab) => void;
 }> = ({ stats, canQuotes, canMoney, canExp, onOpen }) => {
   const [mode, setMode] = React.useState<'teklif' | 'tahsilat'>(canQuotes ? 'teklif' : 'tahsilat');
+  const [open, setOpen] = React.useState(() => { try { return localStorage.getItem('home-month-detail') !== '0'; } catch { return true; } });
+  React.useEffect(() => { try { localStorage.setItem('home-month-detail', open ? '1' : '0'); } catch { /* yok */ } }, [open]);
   const { months, cur, prev, prevSame } = stats;
   const m = Number(cur.key.slice(5)) - 1;
   const val = (x: Month) => mode === 'teklif' ? x.teklif : x.tahsilat;
@@ -360,7 +425,104 @@ const MonthPanel: React.FC<{
           </div>
         )}
       </div>
+
+      <button onClick={() => setOpen(o => !o)} className="relative mt-3 w-full flex items-center justify-center gap-1 rounded-xl bg-white/10 hover:bg-white/15 py-2 text-xs font-bold">
+        {open ? 'Detayı gizle' : 'Ayın detayını göster'} <ChevronRight className={`w-4 h-4 transition ${open ? '-rotate-90' : 'rotate-90'}`} />
+      </button>
+      {open && <MonthDetails d={stats.detail} cur={cur} prev={prev} canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} onOpen={onOpen} />}
     </section>
+  );
+};
+
+/** "Bu ay nasıl gidiyor?" detayı: tahmin, durumlar, firmalar, haftalar, ödeme şekli, harcama */
+const MonthDetails: React.FC<{ d: MonthDetail; cur: Month; prev: Month; canQuotes: boolean; canMoney: boolean; canExp: boolean; onOpen: (tab: Tab) => void }> = ({ d, cur, prev, canQuotes, canMoney, canExp, onOpen }) => {
+  const f = d.dim / Math.max(1, d.day);
+  const pace = (v: number, p: number) => {
+    const est = v * f;
+    if (!v) return `Bu ay henüz yok (geçen ay ${short(p)} TL)`;
+    if (!p) return `Ay sonu tahmini ${short(est)} TL`;
+    const pct = Math.round(((est - p) / p) * 100);
+    return `Ay sonu tahmini ${short(est)} TL · geçen ayın ${pct >= 0 ? `%${pct} üstünde` : `%${-pct} altında`}`;
+  };
+  const statusTotal = d.onay.value + d.bekleyen.value + d.iptal.value;
+  const weekMax = Math.max(1, ...d.weeks.map(w => Math.max(canQuotes ? w.teklif : 0, canMoney ? w.tahsilat : 0)));
+  const thisWeek = Math.min(d.weeks.length - 1, Math.floor((d.day - 1) / 7));
+  return (
+    <div className="relative mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+      <Block title={`Gidişat · ${d.day}/${d.dim}. gün`} className="md:col-span-2">
+        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-2"><div className="h-full bg-white/60 rounded-full" style={{ width: `${(d.day / d.dim) * 100}%` }} /></div>
+        <ul className="space-y-1 text-xs text-brand-50">
+          {canQuotes && <li><b>Teklif:</b> {pace(cur.teklif, prev.teklif)}</li>}
+          {canQuotes && cur.adet > 0 && <li><b>Ortalama teklif:</b> {tl(cur.teklif / cur.adet)} · {d.newFirms} yeni firma</li>}
+          {canMoney && <li><b>Tahsilat:</b> {pace(cur.tahsilat, prev.tahsilat)}</li>}
+          {canMoney && d.dueChecks.count > 0 && <li><b>Ay sonuna kadar vadesi gelen çek/senet:</b> {d.dueChecks.count} adet · {tl(d.dueChecks.value)}</li>}
+          {canMoney && canExp && <li><b>Net (tahsilat − harcama):</b> {tl(cur.tahsilat - cur.harcama)}</li>}
+        </ul>
+      </Block>
+
+      {canQuotes && (
+        <Block title="Bu ayki tekliflerin durumu">
+          {statusTotal ? <>
+            <div className="flex h-3 rounded-full overflow-hidden bg-white/10 mb-2">
+              {[[d.onay, 'bg-emerald-300'], [d.bekleyen, 'bg-amber-300'], [d.iptal, 'bg-rose-300']].map(([x, c], i) => (x as { value: number }).value > 0 &&
+                <div key={i} className={c as string} style={{ width: `${((x as { value: number }).value / statusTotal) * 100}%` }} />)}
+            </div>
+            <div className="grid grid-cols-3 gap-1 text-[11px]">
+              {([['Onaylanan', d.onay, 'bg-emerald-300'], ['Bekleyen', d.bekleyen, 'bg-amber-300'], ['İptal', d.iptal, 'bg-rose-300']] as const).map(([l, x, c]) => (
+                <div key={l} className="min-w-0"><span className="flex items-center gap-1 text-brand-100"><i className={`w-2 h-2 rounded-sm ${c}`} />{l}</span>
+                  <b className="block tabular-nums">{short(x.value)}</b><span className="text-brand-200">{x.count} teklif</span></div>
+              ))}
+            </div>
+          </> : <p className="text-xs text-brand-200">Bu ay henüz teklif yok.</p>}
+        </Block>
+      )}
+
+      {canQuotes && (
+        <Block title="En çok teklif verilen firmalar">
+          {d.firms.length ? <div className="space-y-2">
+            {d.firms.map(x => <BarRow key={x.label} label={x.label} value={x.teklif} max={d.firms[0].teklif}
+              note={x.onay ? `${short(x.onay)} onay` : `${x.count} teklif`} color={x.onay ? 'bg-emerald-300' : 'bg-accent-400'} />)}
+          </div> : <p className="text-xs text-brand-200">Bu ay henüz teklif yok.</p>}
+        </Block>
+      )}
+
+      {(canQuotes || canMoney) && (
+        <Block title="Haftalara göre">
+          <div className="space-y-2">
+            {d.weeks.map((w, i) => (
+              <div key={w.label} className={`text-xs ${i > thisWeek ? 'opacity-40' : ''}`}>
+                <div className="flex justify-between text-brand-100"><span>{w.label} {AY[Number(cur.key.slice(5)) - 1]}{i === thisWeek && <b className="text-white"> · bu hafta</b>}</span>
+                  <span className="tabular-nums">{[canQuotes && `T ${short(w.teklif)}`, canMoney && `Th ${short(w.tahsilat)}`].filter(Boolean).join(' · ')}</span></div>
+                {canQuotes && <div className="h-1.5 rounded-full bg-white/10 mt-1 overflow-hidden"><div className="h-full bg-white/60 rounded-full" style={{ width: `${(w.teklif / weekMax) * 100}%` }} /></div>}
+                {canMoney && <div className="h-1.5 rounded-full bg-white/10 mt-0.5 overflow-hidden"><div className="h-full bg-accent-400 rounded-full" style={{ width: `${(w.tahsilat / weekMax) * 100}%` }} /></div>}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3 mt-2 text-[10px] text-brand-100">
+            {canQuotes && <span className="flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-white/60" /> Teklif (T)</span>}
+            {canMoney && <span className="flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-accent-400" /> Tahsilat (Th)</span>}
+          </div>
+        </Block>
+      )}
+
+      {canMoney && (
+        <Block title="Tahsilat · ödeme şekli">
+          {d.methods.length ? <div className="space-y-2">
+            {d.methods.map(x => <BarRow key={x.label} label={x.label} note={`${x.count} kayıt`} value={x.value} max={d.methods[0].value} />)}
+          </div> : <p className="text-xs text-brand-200">Bu ay henüz tahsilat yok.</p>}
+          <button onClick={() => onOpen('collections')} className="mt-2 text-[11px] font-bold text-brand-100 hover:text-white">Tahsilatlara git →</button>
+        </Block>
+      )}
+
+      {canExp && (
+        <Block title="Harcama · kategori">
+          {d.categories.length ? <div className="space-y-2">
+            {d.categories.map(x => <BarRow key={x.label} label={x.label} note={`${x.count} kayıt`} value={x.value} max={d.categories[0].value} color="bg-orange-300" />)}
+          </div> : <p className="text-xs text-brand-200">Bu ay henüz harcama yok.</p>}
+          <button onClick={() => onOpen('expenses')} className="mt-2 text-[11px] font-bold text-brand-100 hover:text-white">Harcamalara git →</button>
+        </Block>
+      )}
+    </div>
   );
 };
 
