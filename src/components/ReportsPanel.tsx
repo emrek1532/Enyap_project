@@ -4,7 +4,7 @@ import { Collection, Expense, Quote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
-import { BuiltReport, PrintDoc, PrintSection, ReportPrint, buildReportPdf, sendReportFile } from './ReportPrint';
+import { PrintDoc, PrintSection, useReportSender } from './ReportPrint';
 import { DateInput } from './DateInput';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
@@ -514,7 +514,6 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   };
 
   const [detail, setDetail] = useState<DetailKey | null>(null);
-  const [printTarget, setPrintTarget] = useState<'summary' | DetailKey>('summary');
 
   const summaryDoc = (): PrintDoc => ({
     title: 'Satış ve Tahsilat Raporu',
@@ -578,33 +577,14 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     ],
   });
 
-  const printDoc: PrintDoc = printTarget === 'summary' ? summaryDoc() : {
-    title: sectionFor(printTarget).heading,
-    period: periodLabel,
-    fileName: `Enyap_${sectionFor(printTarget).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}`,
-    sections: [sectionFor(printTarget)],
-  };
-  // Rapor PDF olarak hazırlanır ve paylaşılır (WhatsApp, e-posta…); yazdır penceresi açılmaz
-  const [sending, setSending] = useState(false);
-  const [sendMsg, setSendMsg] = useState('');
-  // Önce önizleme gösterilir, kullanıcı bakıp onaylayınca gönderilir
-  const [preview, setPreview] = useState<BuiltReport | null>(null);
-  const doPrint = async (target: 'summary' | DetailKey) => {
-    if (sending) return;
-    setPrintTarget(target);
-    setSending(true); setSendMsg('');
-    const doc: PrintDoc = target === 'summary' ? summaryDoc() : {
-      title: sectionFor(target).heading, period: periodLabel,
-      fileName: `Enyap_${sectionFor(target).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}`, sections: [sectionFor(target)],
-    };
-    try {
-      setPreview(await buildReportPdf(doc));
-    } catch {
-      setSendMsg('PDF hazırlanamadı, tekrar deneyin.');
-    } finally {
-      setSending(false);
-    }
-  };
+  // Önce önizleme gösterilir, kullanıcı bakıp onaylayınca gönderilir (tüm raporlarda ortak)
+  const report = useReportSender();
+  const sending = report.busy, sendMsg = report.msg;
+  const doPrint = (target: 'summary' | DetailKey) => report.open(target === 'summary' ? summaryDoc() : {
+    title: sectionFor(target).heading, period: periodLabel,
+    fileName: `Enyap_${sectionFor(target).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}`, sections: [sectionFor(target)],
+  });
+
 
   const PERIODS: [Period, string][] = [['month', 'Bu Ay'], ['3m', 'Son 3 Ay'], ['year', 'Bu Yıl'], ['12m', 'Son 12 Ay'], ['all', 'Tümü'], ['custom', 'Tarih Seç']];
 
@@ -766,35 +746,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           onClose={() => setDetail(null)}
         />
       )}
-      {preview && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/70 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setPreview(null)}>
-          <div onClick={e => e.stopPropagation()} className="bg-slate-100 w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-[92vh] overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200 pt-safe">
-              <div className="min-w-0 flex-1">
-                <h3 className="font-black text-slate-900 truncate">{preview.title}</h3>
-                <p className="text-xs text-slate-500">{preview.pages.length} sayfa · göndermeden önce kontrol edin</p>
-              </div>
-              <button onClick={() => setPreview(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {preview.pages.map((src, i) => (
-                <img key={i} src={src} alt={`Sayfa ${i + 1}`} className="w-full max-w-[700px] mx-auto block bg-white shadow-md rounded" />
-              ))}
-            </div>
-            <div className="flex gap-2 p-3 bg-white border-t border-slate-200 pb-safe">
-              <button onClick={async () => setSendMsg(await sendReportFile(preview, true))}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50">
-                <Download className="w-4 h-4" /> İndir
-              </button>
-              <button onClick={async () => { const m = await sendReportFile(preview); setSendMsg(m); if (!m) setPreview(null); }}
-                className="flex-[2] flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold">
-                <Send className="w-4 h-4" /> Gönder
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <ReportPrint doc={printDoc} />
+      {report.modal}
     </div>
   );
 };

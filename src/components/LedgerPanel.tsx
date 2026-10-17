@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, FileDown } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, Send, Loader2 } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { findCustomer } from '../lib/customers';
 import { DecimalInput } from './DecimalInput';
 import { DateInput } from './DateInput';
 import { CityInput, TextSuggest } from './TextSuggest';
-import { PrintDoc, ReportPrint, printReport } from './ReportPrint';
+import { PrintDoc, useReportSender } from './ReportPrint';
 import { SuggestInput } from './SuggestInput';
 
 export const COLLECTION_METHODS = ['Çek', 'Nakit', 'Havale/EFT', 'Kredi Kartı', 'Senet'];
@@ -182,6 +182,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   const [spender, setSpenderState] = useState(() => { try { return localStorage.getItem('enyap-expense-spender') ?? 'Emre KARAKAYA'; } catch { return 'Emre KARAKAYA'; } });
   const setSpender = (v: string) => { setSpenderState(v); try { localStorage.setItem('enyap-expense-spender', v); } catch { /* */ } };
   // Listelenen kayıtların PDF dökümü (muhasebeye göndermek için): tarih sırasıyla, kategori/ödeme özetli
+  const report = useReportSender();
   const printDoc = useMemo<PrintDoc>(() => {
     const rows = [...filtered].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
     const period = dateFrom || dateTo ? `${dateFrom ? fmtDate(dateFrom) : '…'} – ${dateTo ? fmtDate(dateTo) : '…'}` : 'Tüm kayıtlar';
@@ -454,11 +455,12 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
             <input value={spender} onChange={e => setSpender(e.target.value)} placeholder="Harcamayı yapan (PDF'te yazar)"
               title="PDF'te 'Harcamayı Yapan' olarak yazılır" className="p-2 border border-slate-200 rounded-lg text-sm" />
           )}
-          <button type="button" onClick={() => printReport(printDoc.fileName)} disabled={!filtered.length}
-            title="Listelenen kayıtları PDF olarak kaydet / yazdır"
+          <button type="button" onClick={() => report.open(printDoc)} disabled={!filtered.length || report.busy}
+            title="Listelenen kayıtların PDF'ini gör, sonra gönder / indir"
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand-200 bg-white text-brand-700 text-xs sm:text-sm font-bold hover:bg-brand-50 disabled:opacity-40">
-            <FileDown className="w-4 h-4" /> PDF ({filtered.length})
+            {report.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {report.busy ? 'Hazırlanıyor…' : `PDF Gönder (${filtered.length})`}
           </button>
+          {report.msg && <p className="w-full text-xs text-slate-600">{report.msg}</p>}
           {hasFilters && (
             <button onClick={resetFilters} className="px-2 py-2 rounded-lg border border-slate-200 sm:border-0 text-xs font-bold text-slate-500 hover:text-slate-800 sm:underline">Filtreleri temizle</button>
           )}
@@ -531,7 +533,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
         )}
       </div>
 
-      <ReportPrint doc={printDoc} />
+      {report.modal}
       {editing && isCollection && !records.some(r => r.id === editing.id) && (
         <MultiCollectionForm
           record={editing as Collection}
