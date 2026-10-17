@@ -9,6 +9,7 @@ import { WhatsAppMenu } from './WhatsAppMenu';
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
+import { formatQuoteAmount } from '../lib/money';
 
 export const STATUS_LABEL: Record<QuoteStatus, { label: string; cls: string }> = {
   yeni_talep: { label: 'Beklemede', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
@@ -254,7 +255,7 @@ export const CustomerAccount: React.FC<{
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{tl(quoteTry(x, rates))}</div>
-                      {x.currency !== 'TRY' && <div className="text-[10px] text-slate-400 whitespace-nowrap">{money(x.totalAmount, x.currency)}</div>}
+                      {x.currency !== 'TRY' && <div className="text-[10px] text-slate-400 whitespace-nowrap">{formatQuoteAmount(x)}</div>}
                     </div>
                     {onOpenQuote && <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />}
                   </button>

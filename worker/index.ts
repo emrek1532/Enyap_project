@@ -38,10 +38,13 @@ const json = (body: unknown, status = 200) =>
 async function isLoggedIn(req: Request, env: Env): Promise<boolean> {
   const auth = req.headers.get('authorization') || '';
   if (!auth.toLowerCase().startsWith('bearer ')) return false;
-  const res = await fetch(`${env.SUPABASE_URL || SUPABASE_URL}/auth/v1/user`, {
-    headers: { authorization: auth, apikey: env.SUPABASE_PUBLISHABLE_KEY || SUPABASE_KEY },
+  // Sadece onaylanmış (aktif) hesaplar: bekleyen ya da askıya alınmış kayıtlar yapay zekayı kullanamaz
+  const res = await fetch(`${env.SUPABASE_URL || SUPABASE_URL}/rest/v1/rpc/is_active`, {
+    method: 'POST',
+    headers: { authorization: auth, apikey: env.SUPABASE_PUBLISHABLE_KEY || SUPABASE_KEY, 'content-type': 'application/json' },
+    body: '{}',
   });
-  return res.ok;
+  return res.ok && (await res.json().catch(() => false)) === true;
 }
 
 // ---- Çıktı şeması: model her zaman bu yapıda cevap verir ----
@@ -481,12 +484,18 @@ async function vapidAuth(endpoint: string, vapid: { public: string; private: Jso
   return `vapid t=${head}.${body}.${b64u(sig)}, k=${vapid.public}`;
 }
 
+const VAPID_PUBLIC = 'BEmS4BsSaaJHThsS_esF8NRHVZvEmgjWuH4geyvbdqkwHhHrcAl8FT7WpnBWfQsIAscz6tztRkc5bw2BtP3TUSM';
+const PUSH_HOSTS = /(^|\.)(fcm\.googleapis\.com|googleapis\.com|push\.services\.mozilla\.com|push\.apple\.com|notify\.windows\.com)$/;
+
 async function handlePushSend(req: Request): Promise<Response> {
   try {
     const b = await req.json() as any;
     const sub = b?.subscription, vapid = b?.vapid;
     if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth || !vapid?.private || !vapid?.public) return json({ error: 'bad_request' }, 400);
     if (!/^https:\/\//.test(sub.endpoint)) return json({ error: 'bad_endpoint' }, 400);
+    // Sadece Enyap'ın kendi bildirim anahtarıyla ve bilinen bildirim servislerine gönderilir (başkası aracı olarak kullanamasın)
+    if (vapid.public !== VAPID_PUBLIC) return json({ error: 'forbidden' }, 403);
+    if (!PUSH_HOSTS.test(new URL(sub.endpoint).hostname)) return json({ error: 'bad_endpoint' }, 400);
     const body = await encryptPush(enc(JSON.stringify(b.payload || {})), sub.keys.p256dh, sub.keys.auth);
     const res = await fetch(sub.endpoint, {
       method: 'POST',
