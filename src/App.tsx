@@ -908,7 +908,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       <QuickNoteFab currentRole={currentRole} onSave={handleSaveNote} />
       <BottomNav
         sections={MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title }))}
-        primary={['quotes', 'customers', 'collections'].filter(id => tabAllowed(id as ActiveTab))}
+        primary={['quotes', 'customers', 'materials'].filter(id => tabAllowed(id as ActiveTab))}
         active={activeTab}
         onOpen={id => setActiveTab(id as ActiveTab)}
         onHome={goHome}

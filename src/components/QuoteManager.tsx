@@ -33,6 +33,7 @@ import { formatTl, quoteTry, useRates } from '../lib/rates';
 import { WhatsAppMenu } from './WhatsAppMenu';
 import { usePriceChanges } from '../lib/priceWatch';
 import { LOST_REASONS } from '../lib/quoteRules';
+import { DateInput } from './DateInput';
 
 const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
@@ -167,6 +168,22 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     [quotes]
   );
   const followUpCount = useMemo(() => quotes.filter(needsFollowUp).length, [quotes]);
+  // Hızlı tarih aralıkları: [etiket, başlangıç, bitiş]
+  const datePresets = useMemo((): [string, string, string][] => {
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const d = new Date();
+    const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const lastMon = new Date(mon); lastMon.setDate(mon.getDate() - 7);
+    const lastSun = new Date(mon); lastSun.setDate(mon.getDate() - 1);
+    return [
+      ['Bugün', iso(d), iso(d)],
+      ['Bu hafta', iso(mon), iso(d)],
+      ['Geçen hafta', iso(lastMon), iso(lastSun)],
+      ['Bu ay', iso(new Date(d.getFullYear(), d.getMonth(), 1)), iso(d)],
+      ['Geçen ay', iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)), iso(new Date(d.getFullYear(), d.getMonth(), 0))],
+      ['Bu yıl', iso(new Date(d.getFullYear(), 0, 1)), iso(d)],
+    ];
+  }, []);
   const hasExtraFilters = cityFilter !== 'all' || !!dateFrom || !!dateTo || !!searchTerm;
   const resetFilters = () => {
     setSearchTerm(''); setStatusFilter('all');
@@ -205,10 +222,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     <div className="space-y-4">
       
       {/* Top Filter & Action Bar */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col xl:flex-row xl:flex-wrap items-stretch xl:items-center justify-between gap-3">
         
         {/* Search */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 xl:min-w-[260px]">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -243,23 +260,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             {cities.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          <div className="col-span-2 order-last sm:order-none flex items-center gap-1 text-xs text-slate-500 [&>input]:flex-1 sm:[&>input]:flex-none">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setListLimit(LIST_PAGE); }}
-              className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white"
-              aria-label="Başlangıç tarihi"
-            />
+          <div className="col-span-2 order-last sm:order-none grid grid-cols-[1fr_auto_1fr] sm:flex items-center gap-1 text-xs text-slate-500">
+            <DateInput value={dateFrom} onChange={v => { setDateFrom(v); setListLimit(LIST_PAGE); }}
+              className="w-full sm:w-32 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" />
             <span>–</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setListLimit(LIST_PAGE); }}
-              className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white"
-              aria-label="Bitiş tarihi"
-            />
+            <DateInput value={dateTo} onChange={v => { setDateTo(v); setListLimit(LIST_PAGE); }}
+              className="w-full sm:w-32 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" />
           </div>
+
 
           {(hasExtraFilters || statusFilter !== 'all') && (
             <button onClick={resetFilters} className="px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 sm:border-0">
@@ -278,6 +286,18 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           </button>
         </div>
 
+        {/* Hızlı tarih aralığı */}
+        <div className="xl:basis-full flex flex-wrap gap-1.5">
+          {datePresets.map(([label, from, to]) => {
+            const on = dateFrom === from && dateTo === to;
+            return (
+              <button key={label} type="button" onClick={() => { if (on) { setDateFrom(''); setDateTo(''); } else { setDateFrom(from); setDateTo(to); } setListLimit(LIST_PAGE); }}
+                className={`px-2.5 py-1.5 rounded-full border text-xs font-semibold transition ${on ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'}`}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Table / List View */}
