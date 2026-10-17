@@ -13,15 +13,19 @@ const readStored = (): Rates | null => {
 };
 
 let pending: Promise<Rates | null> | null = null;
+let pendingAt = 0;
 export function fetchRates(): Promise<Rates | null> {
-  if (!pending) {
+  // Uygulama günlerce açık kalabilir: kur en fazla 1 saat önbellekte tutulur, hata olursa sonraki çağrıda tekrar denenir
+  if (!pending || Date.now() - pendingAt > 3600_000) {
+    pendingAt = Date.now();
     pending = fetch('/api/rates')
       .then(r => (r.ok ? r.json() : null))
       .then((r: Rates | null) => {
         if (r && r.USD > 0 && r.EUR > 0) { try { localStorage.setItem(KEY, JSON.stringify(r)); } catch { /* */ } return r; }
         return null;
       })
-      .catch(() => null);
+      .catch(() => null)
+      .then(r => { if (!r) pending = null; return r; });
   }
   return pending;
 }

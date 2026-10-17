@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { dayOf, localDay } from '../lib/dates';
 import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target, Lightbulb, FileText, Phone, CirclePause, Ban, FileUp } from 'lucide-react';
 import { Collection, Customer, CustomerStatus, Expense, Quote, QuickNote } from '../types';
 import { foldName, statusOf } from '../lib/customerInsights';
@@ -15,7 +16,7 @@ type Tab = Exclude<ActiveTab, 'home'>;
 const tl = (v: number) => `${Math.round(v).toLocaleString('tr-TR')} TL`;
 const pad = (n: number) => String(n).padStart(2, '0');
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
-const trDay = (s: string) => s.slice(0, 10).split('-').reverse().join('.');
+const trDay = (s: string) => dayOf(s).split('-').reverse().join('.');
 const greeting = () => {
   const h = new Date().getHours();
   return h < 5 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar';
@@ -57,7 +58,7 @@ export const SimpleHome: React.FC<{
     });
     // upTo: geçen ayı bugünün gününe kadar sayarak adil karşılaştırma
     const calc = (key: string, upTo?: string) => {
-      const inM = (s?: string) => !!s && s.startsWith(key) && (!upTo || s.slice(0, 10) <= upTo);
+      const inM = (s?: string) => !!s && dayOf(s).startsWith(key) && (!upTo || dayOf(s) <= upTo);
       const qs = quotes.filter(q => inM(q.createdAt) && q.status !== 'iptal');
       const won = qs.filter(q => q.status === 'onaylandi' || q.status === 'siparis');
       return {
@@ -113,8 +114,9 @@ export const SimpleHome: React.FC<{
     onSaveCustomer(c ? { ...c, status, updatedAt: now } : { id: 'cus-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), name, city: '', status, createdAt: now, updatedAt: now });
   };
   const reminders = useMemo(() => {
-    const end = `${t}T23:59:59`;
-    return notes.filter(n => !n.done && n.remindAt && n.remindAt <= end).sort((a, b) => a.remindAt!.localeCompare(b.remindAt!)).slice(0, 4);
+    // remindAt UTC tutulur: yerel gün sonuyla zaman olarak karşılaştırılır
+    const end = new Date(`${t}T23:59:59`).getTime();
+    return notes.filter(n => !n.done && n.remindAt && Date.parse(n.remindAt) <= end).sort((a, b) => a.remindAt!.localeCompare(b.remindAt!)).slice(0, 4);
   }, [notes, t]);
 
   const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5), [quotes]);
@@ -204,8 +206,8 @@ export const SimpleHome: React.FC<{
           <div className="divide-y divide-slate-100">
             {reminders.map(n => (
               <button key={n.id} onClick={() => onOpen('notes')} className="w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-                <span className={`w-14 shrink-0 text-xs font-black tabular-nums ${n.remindAt!.slice(0, 10) < t ? 'text-rose-600' : 'text-cyan-700'}`}>
-                  {n.remindAt!.slice(0, 10) < t ? trDay(n.remindAt!).slice(0, 5) : new Date(n.remindAt!).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                <span className={`w-14 shrink-0 text-xs font-black tabular-nums ${dayOf(n.remindAt!) < t ? 'text-rose-600' : 'text-cyan-700'}`}>
+                  {dayOf(n.remindAt!) < t ? trDay(n.remindAt!).slice(0, 5) : new Date(n.remindAt!).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <span className="min-w-0 flex-1 text-sm text-slate-800 line-clamp-2">{n.content}</span>
               </button>
@@ -408,9 +410,9 @@ function buildTips({ quotes: allQuotes, customers, rates, t, canQuotes }: {
 
     // Son 12 ayın en iyi müşterisi
     const y = new Date(); y.setFullYear(y.getFullYear() - 1);
-    const ys = y.toISOString().slice(0, 10);
+    const ys = localDay(y);
     const by = new Map<string, number>();
-    for (const q of quotes) if (won(q) && (q.createdAt || '') >= ys) by.set(q.customerName, (by.get(q.customerName) || 0) + quoteTry(q, rates));
+    for (const q of quotes) if (won(q) && dayOf(q.createdAt) >= ys) by.set(q.customerName, (by.get(q.customerName) || 0) + quoteTry(q, rates));
     const top = [...by.entries()].sort((a, b) => b[1] - a[1])[0];
     if (top) tips.push({ id: 'top', icon: Trophy, tone: 'bg-violet-50 text-violet-600', tab: 'customers', customer: top[0],
       advice: 'Özel fiyat veya öncelikli teslimat teklif ederek ilişkiyi güçlendirin.',

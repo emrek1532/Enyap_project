@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, HandCoins, Printer, X, ChevronRight } from 'lucide-react';
+import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, Send, X, ChevronRight, Loader2 } from 'lucide-react';
 import { Collection, Expense, Quote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
-import { PrintDoc, PrintSection, ReportPrint, printReport } from './ReportPrint';
+import { PrintDoc, PrintSection, ReportPrint, shareReport } from './ReportPrint';
+import { DateInput } from './DateInput';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
 interface ReportsPanelProps {
@@ -184,6 +185,81 @@ const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, emp
   </div>
 );
 
+// ---------- Halka grafik ----------
+const PALETTE = ['#006ec6', '#00b293', '#e8590c', '#7c3aed', '#f59e0b', '#0ea5e9', '#64748b'];
+const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string; value: number; color?: string; note?: string }[]; center?: React.ReactNode }> = ({ title, subtitle, parts, center }) => {
+  const [hover, setHover] = useState<number | null>(null);
+  const items = parts.filter(p => p.value > 0);
+  const total = items.reduce((t, p) => t + p.value, 0);
+  const R = 52, r = 34, C = 64;
+  let a0 = -Math.PI / 2;
+  const arcs = items.map((p, i) => {
+    const a1 = a0 + (p.value / total) * Math.PI * 2;
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    const pt = (rad: number, a: number) => `${C + rad * Math.cos(a)},${C + rad * Math.sin(a)}`;
+    const d = items.length === 1
+      ? `M${C - R},${C} a${R},${R} 0 1,0 ${2 * R},0 a${R},${R} 0 1,0 ${-2 * R},0 M${C - r},${C} a${r},${r} 0 1,1 ${2 * r},0 a${r},${r} 0 1,1 ${-2 * r},0`
+      : `M${pt(R, a0)} A${R},${R} 0 ${large},1 ${pt(R, a1)} L${pt(r, a1)} A${r},${r} 0 ${large},0 ${pt(r, a0)} Z`;
+    a0 = a1;
+    return { d, color: p.color || PALETTE[i % PALETTE.length], i };
+  });
+  const h = hover !== null ? items[hover] : null;
+  return (
+    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
+      <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
+      <p className="text-xs text-slate-500 mb-2">{subtitle}</p>
+      {total <= 0 ? <p className="text-xs text-slate-500 py-8 text-center">Bu dönemde veri yok.</p> : (
+        <div className="flex items-center gap-4">
+          <svg viewBox="0 0 128 128" className="w-32 h-32 shrink-0" role="img" aria-label={title}>
+            {arcs.map(a => (
+              <path key={a.i} d={a.d} fill={a.color} fillRule="evenodd" opacity={hover === null || hover === a.i ? 1 : 0.35}
+                onMouseEnter={() => setHover(a.i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(x => (x === a.i ? null : a.i))} className="cursor-pointer transition-opacity" />
+            ))}
+            <text x={C} y={C - 2} textAnchor="middle" fontSize={h ? 13 : 12} fontWeight={800} fill="#0f172a">{h ? `%${Math.round((h.value / total) * 100)}` : center ?? compact(total)}</text>
+            <text x={C} y={C + 12} textAnchor="middle" fontSize={8} fill="#64748b">{h ? compact(h.value) : 'toplam'}</text>
+          </svg>
+          <ul className="min-w-0 flex-1 space-y-1.5 text-xs">
+            {items.map((p, i) => (
+              <li key={p.label} className={`flex items-center gap-2 rounded-md px-1 ${hover === i ? 'bg-slate-50' : ''}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color || PALETTE[i % PALETTE.length] }} />
+                <span className="truncate text-slate-700 flex-1">{p.label}</span>
+                <span className="tabular-nums font-bold text-slate-900 whitespace-nowrap">{tl(p.value)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------- Yatay çubuklar (en iyi firmalar) ----------
+const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; value: number; sub?: string }[]; color: string }> = ({ title, subtitle, rows, color }) => {
+  const max = Math.max(1, ...rows.map(r => r.value));
+  return (
+    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
+      <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
+      <p className="text-xs text-slate-500 mb-3">{subtitle}</p>
+      {rows.length === 0 ? <p className="text-xs text-slate-500 py-8 text-center">Bu dönemde veri yok.</p> : (
+        <div className="space-y-2">
+          {rows.map((r, i) => (
+            <div key={r.label} className="text-xs">
+              <div className="flex justify-between gap-2 mb-0.5">
+                <span className="font-semibold text-slate-700 truncate"><span className="text-slate-400 mr-1">{i + 1}.</span>{r.label}</span>
+                <span className="tabular-nums font-bold text-slate-900 whitespace-nowrap">{tl(r.value)}</span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: color }} />
+              </div>
+              {r.sub && <div className="text-[10px] text-slate-400 mt-0.5">{r.sub}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; value: React.ReactNode; sub?: React.ReactNode; onClick?: () => void }> = ({ icon: Icon, tone, label, value, sub, onClick }) => (
   <button type="button" onClick={onClick}
     className="group text-left bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0 transition-all hover:border-brand-300 hover:shadow-md active:scale-[0.99]">
@@ -200,7 +276,7 @@ const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; val
 );
 
 /** Kutucuğa tıklayınca açılan liste (aynı tablo PDF'e de basılır) */
-const DetailModal: React.FC<{ section: PrintSection; period: string; onPrint: () => void; onClose: () => void }> = ({ section, period, onPrint, onClose }) => (
+const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: boolean; onPrint: () => void; onClose: () => void }> = ({ section, period, busy, onPrint, onClose }) => (
   <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
     <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-5xl rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] flex flex-col">
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
@@ -209,8 +285,8 @@ const DetailModal: React.FC<{ section: PrintSection; period: string; onPrint: ()
           <p className="text-xs text-slate-500">{period} · {section.rows.length.toLocaleString('tr-TR')} kayıt</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={onPrint} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">
-            <Printer className="w-4 h-4" /> PDF
+          <button onClick={onPrint} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Gönder
           </button>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
@@ -301,7 +377,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         m[k] = m[k] || { n: 0, amt: 0 }; m[k].n++; m[k].amt += qTry(q); return m;
       }, {})).sort((a, b) => b[1].amt - a[1].amt),
     };
-  }, [pQuotes]);
+  }, [pQuotes, rates]);
 
   const colTotals = useMemo(() => sumByCurrency(pCollections), [pCollections]);
   const expTotals = useMemo(() => sumByCurrency(pExpenses), [pExpenses]);
@@ -324,23 +400,25 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     pCollections.forEach(c => { const m = get(c.date.slice(0, 7)); if (c.currency === 'TRY') m.col += c.amount; });
     pExpenses.forEach(e => { const m = get(e.date.slice(0, 7)); if (e.currency === 'TRY') m.exp += e.amount; });
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [pQuotes, pCollections, pExpenses]);
+  }, [pQuotes, pCollections, pExpenses, rates]);
   const months = monthly.map(([m]) => m);
 
   // En çok onay alan müşteriler / şehirler / teklifi verenler
   const groupQuotes = (keyOf: (q: Quote) => string) => {
-    const map = new Map<string, { total: number; totalAmt: number; approved: number; approvedAmt: number; city: string }>();
+    // Büyük/küçük harf farkı aynı firma sayılır ("ABC Yapı" = "Abc Yapı"); ilk görülen yazılış gösterilir
+    const map = new Map<string, { name: string; total: number; totalAmt: number; approved: number; approvedAmt: number; city: string }>();
     pQuotes.forEach(q => {
-      const k = keyOf(q).trim() || 'Belirtilmemiş';
-      const g = map.get(k) || { total: 0, totalAmt: 0, approved: 0, approvedAmt: 0, city: q.city || '' };
+      const name = keyOf(q).trim() || 'Belirtilmemiş';
+      const k = name.toLocaleLowerCase('tr');
+      const g = map.get(k) || { name, total: 0, totalAmt: 0, approved: 0, approvedAmt: 0, city: q.city || '' };
       g.total++; g.totalAmt += qTry(q);
       if (isApproved(q)) { g.approved++; g.approvedAmt += qTry(q); }
       map.set(k, g);
     });
-    return [...map.entries()].sort((a, b) => b[1].approvedAmt - a[1].approvedAmt || b[1].total - a[1].total);
+    return [...map.values()].map(({ name, ...g }) => [name, g] as [string, Omit<typeof g, never>])
+      .sort((a, b) => b[1].approvedAmt - a[1].approvedAmt || b[1].total - a[1].total);
   };
-  const byCustomer = useMemo(() => groupQuotes(q => q.customerName), [pQuotes]);
-  const byPreparer = useMemo(() => groupQuotes(q => q.preparedBy || (q.createdBy === 'istanbul' ? 'İstanbul Ofis' : 'Isparta Saha')), [pQuotes]);
+  const byCustomer = useMemo(() => groupQuotes(q => q.customerName), [pQuotes, rates]);
 
   // Müşteri performans tablosu (başlığa tıklayarak sıralanır)
   const [custSort, setCustSort] = useState<SortState<CustKey>>({ key: 'approvedAmt', dir: 'desc' });
@@ -385,20 +463,16 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     pExpenses.filter(e => e.currency === 'TRY').forEach(e => map.set(e.category || 'Diğer', (map.get(e.category || 'Diğer') || 0) + e.amount));
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
   }, [pExpenses]);
-  // Portföy: vadesi gelmemiş çek / senetlerin aylara göre dağılımı (dönemden bağımsız)
-  const dueByMonth = useMemo(() => {
-    const todayStr = ymd(new Date());
+  // Seçilen dönemdeki tahsilatlar ödeme şekline göre (TL)
+  const colByMethod = useMemo(() => {
     const map = new Map<string, { value: number; count: number }>();
-    collections.filter(c => c.dueDate && c.dueDate >= todayStr && c.currency === 'TRY').forEach(c => {
-      const m = c.dueDate!.slice(0, 7);
-      const g = map.get(m) || { value: 0, count: 0 };
-      g.value += c.amount; g.count++;
-      map.set(m, g);
+    pCollections.filter(c => (c.currency || 'TRY') === 'TRY').forEach(c => {
+      const k = c.method || 'Diğer';
+      const g = map.get(k) || { value: 0, count: 0 };
+      g.value += c.amount; g.count++; map.set(k, g);
     });
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([m, g]) => ({ label: `${MONTHS_TR[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`, value: g.value, note: `${g.count} adet` }));
-  }, [collections]);
-  const portfolio = useMemo(() => dueByMonth.reduce((t, r) => ({ value: t.value + r.value, count: t.count + Number(r.note.split(' ')[0]) }), { value: 0, count: 0 }), [dueByMonth]);
+    return [...map.entries()].sort((a, b) => b[1].value - a[1].value).map(([label, g]) => ({ label, ...g }));
+  }, [pCollections]);
   // ---- Dönem etiketi, kutucuk listeleri ve PDF ----
   const trD = (d: string) => d.split('-').reverse().join('.');
   const periodLabel = period === 'all' ? 'Tüm kayıtlar'
@@ -417,12 +491,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     rows: byDateDesc(list, quoteDay).map(q => [trD(quoteDay(q)), q.customerName, q.quoteNumber, q.city || '-', STATUS_TR[q.status] || q.status, formatQuoteAmount(q)]),
     foot: ['Toplam', `${list.length} teklif`, '', '', '', tl(list.reduce((t, q) => t + qTry(q), 0))],
   });
-  const portfolioList = useMemo(() => {
-    const todayStr = ymd(new Date());
-    return collections.filter(c => c.dueDate && c.dueDate >= todayStr);
-  }, [collections]);
-
-  type DetailKey = 'quotes' | 'approved' | 'pending' | 'collections' | 'expenses' | 'portfolio';
+  type DetailKey = 'quotes' | 'approved' | 'pending' | 'collections' | 'expenses';
   const sectionFor = (k: DetailKey): PrintSection => {
     switch (k) {
       case 'quotes': return quoteSection('Verilen Teklifler', pQuotes);
@@ -441,14 +510,6 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         rows: byDateDesc(pExpenses, e => e.date).map(e => [trD(e.date), e.category, e.region || '-', e.method, e.description || '-', money(e.amount, e.currency)]),
         foot: ['Toplam', `${pExpenses.length} kayıt`, '', '', '', multiCurrency(expTotals).join(' + ')],
       };
-      case 'portfolio': return {
-        heading: 'Portföydeki Çek / Senetler',
-        note: 'Vadesi gelmemiş çek ve senetler (dönemden bağımsız), vadeye göre.',
-        columns: [{ label: 'Vade' }, { label: 'Firma' }, { label: 'Şekil' }, { label: 'Banka / Şube' }, { label: 'No' }, amountCol],
-        rows: [...portfolioList].sort((a, b) => a.dueDate!.localeCompare(b.dueDate!)).map(c => [trD(c.dueDate!), c.customerName, c.method,
-          [c.bankName, c.bankBranch].filter(Boolean).join(' / ') || '-', c.checkNo || '-', money(c.amount, c.currency)]),
-        foot: ['Toplam', `${portfolioList.length} adet`, '', '', '', multiCurrency(sumByCurrency(portfolioList)).join(' + ')],
-      };
     }
   };
 
@@ -465,7 +526,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       ['Bekleyen', tl(stats.pendingAmt), `${stats.pending} teklif karar bekliyor`],
       ['Yapılan Tahsilat', multiCurrency(colTotals).join(' + '), `${pCollections.length} kayıt`],
       ['Yapılan Harcama', multiCurrency(expTotals).join(' + '), `${pExpenses.length} kayıt`],
-      ['Portföydeki Çek/Senet', tl(portfolio.value), `${portfolio.count} adet · vadesi gelmemiş`],
+      ['Net (Tahsilat − Harcama)', multiCurrency(netTotals).join(' + '), 'seçilen dönemde'],
     ],
     sections: [
       {
@@ -485,36 +546,43 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           .map(r => [r.name, r.city || '-', String(r.total), tl(r.totalAmt), String(r.approved), tl(r.approvedAmt), pct(r.approvedAmt, r.totalAmt), r.collected ? tl(r.collected) : '-']),
       },
       {
-        heading: 'Teklifi Verene Göre',
-        columns: [{ label: 'Teklifi Veren' }, { label: 'Teklif', align: 'right' }, { label: 'Teklif Tutarı', align: 'right' }, { label: 'Onay', align: 'right' },
-          { label: 'Onay Tutarı', align: 'right' }, { label: 'Satış Oranı', align: 'right' }],
-        rows: byPreparer.map(([n, g]) => [n, String(g.total), tl(g.totalAmt), String(g.approved), tl(g.approvedAmt), pct(g.approvedAmt, g.totalAmt)]),
+        heading: 'Tahsilatlar (Ödeme Şekline Göre)',
+        note: 'Seçilen dönemde yapılan tahsilatlar.',
+        columns: [{ label: 'Ödeme Şekli' }, { label: 'Adet', align: 'right' }, { label: 'Tutar (TL)', align: 'right' }],
+        rows: colByMethod.map(r => [r.label, String(r.count), tl(r.value)]),
       },
       {
         heading: 'Harcamalar (Kategoriye Göre)',
         columns: [{ label: 'Kategori' }, { label: 'Tutar (TL)', align: 'right' }],
         rows: expByCategory.map(r => [r.label, tl(r.value)]),
       },
-      {
-        heading: 'Çek / Senet Vade Takvimi',
-        note: 'Vadesi gelmemiş TL çek ve senetler (dönemden bağımsız).',
-        columns: [{ label: 'Ay' }, { label: 'Adet', align: 'right' }, { label: 'Tutar', align: 'right' }],
-        rows: dueByMonth.map(r => [r.label, r.note.split(' ')[0], tl(r.value)]),
-        foot: ['Toplam', String(portfolio.count), tl(portfolio.value)],
-      },
     ],
   });
 
   const printDoc: PrintDoc = printTarget === 'summary' ? summaryDoc() : {
     title: sectionFor(printTarget).heading,
-    period: printTarget === 'portfolio' ? 'Bugün itibarıyla' : periodLabel,
+    period: periodLabel,
     fileName: `Enyap_${sectionFor(printTarget).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}`,
     sections: [sectionFor(printTarget)],
   };
-  const doPrint = (target: 'summary' | DetailKey) => {
+  // Rapor PDF olarak hazırlanır ve paylaşılır (WhatsApp, e-posta…); yazdır penceresi açılmaz
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState('');
+  const doPrint = async (target: 'summary' | DetailKey) => {
+    if (sending) return;
     setPrintTarget(target);
-    const doc = target === 'summary' ? summaryDoc() : { fileName: `Enyap_${sectionFor(target).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}` };
-    printReport(doc.fileName);
+    setSending(true); setSendMsg('');
+    const doc: PrintDoc = target === 'summary' ? summaryDoc() : {
+      title: sectionFor(target).heading, period: periodLabel,
+      fileName: `Enyap_${sectionFor(target).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}`, sections: [sectionFor(target)],
+    };
+    try {
+      setSendMsg(await shareReport(doc));
+    } catch {
+      setSendMsg('PDF hazırlanamadı, tekrar deneyin.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const PERIODS: [Period, string][] = [['month', 'Bu Ay'], ['3m', 'Son 3 Ay'], ['year', 'Bu Yıl'], ['12m', 'Son 12 Ay'], ['all', 'Tümü'], ['custom', 'Tarih Seç']];
@@ -531,17 +599,18 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             {label}
           </button>
         ))}
-        <button onClick={() => doPrint('summary')}
-          className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">
-          <Printer className="w-4 h-4" /> PDF Rapor Al
+        <button onClick={() => doPrint('summary')} disabled={sending}
+          className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Raporu Gönder
         </button>
         {period === 'custom' && (
-          <div className="flex items-center gap-1 text-xs text-slate-500">
-            <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="p-1.5 border border-slate-200 rounded-lg text-sm" />
+          <div className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs text-slate-500 sm:w-auto sm:flex">
+            <DateInput value={customFrom} onChange={setCustomFrom} className="w-full sm:w-36 p-2 border border-slate-200 rounded-lg text-sm" />
             <span>-</span>
-            <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} className="p-1.5 border border-slate-200 rounded-lg text-sm" />
+            <DateInput value={customTo} onChange={setCustomTo} className="w-full sm:w-36 p-2 border border-slate-200 rounded-lg text-sm" />
           </div>
         )}
+        {sendMsg && <p className="w-full text-xs text-slate-600">{sendMsg}</p>}
       </div>
 
       {/* Özet kutuları — dokununca ilgili liste açılır */}
@@ -556,8 +625,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           value={multiCurrency(colTotals).map(x => <div key={x}>{x}</div>)} sub={`${pCollections.length} kayıt`} onClick={() => setDetail('collections')} />
         <Tile icon={Receipt} tone="text-orange-600 bg-orange-50" label="Yapılan Harcama"
           value={multiCurrency(expTotals).map(x => <div key={x}>{x}</div>)} sub={`${pExpenses.length} kayıt`} onClick={() => setDetail('expenses')} />
-        <Tile icon={HandCoins} tone="text-sky-600 bg-sky-50" label="Portföydeki Çek/Senet" value={tl(portfolio.value)}
-          sub={`${portfolio.count} adet · vadesi gelmemiş`} onClick={() => setDetail('portfolio')} />
+        <Tile icon={BarChart3} tone="text-brand-700 bg-brand-50" label="Net (Tahsilat − Harcama)"
+          value={multiCurrency(netTotals).map(x => <div key={x}>{x}</div>)} sub="seçilen dönemde" onClick={() => setDetail('collections')} />
       </div>
 
       {/* Aylık grafik */}
@@ -566,6 +635,28 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           { key: 'q', label: 'Verilen Teklif', color: C_QUOTE, values: monthly.map(([, v]) => v.quoteAmt) },
           { key: 'a', label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
         ]} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <Donut title="Teklif Durumu" subtitle="Dönemde verilen tekliflerin tutara göre dağılımı"
+          center={pct(stats.approvedAmt, stats.totalAmt)}
+          parts={[
+            { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
+            { label: 'Bekleyen', value: stats.pendingAmt, color: '#7c3aed' },
+            { label: 'İptal', value: stats.cancelledAmt, color: '#e11d48' },
+          ]} />
+        <Donut title="Tahsilat · Ödeme Şekli" subtitle="Seçilen dönemdeki TL tahsilatlar"
+          parts={colByMethod.map(r => ({ label: `${r.label} (${r.count})`, value: r.value }))} />
+      </div>
+
+      <ColumnChart title="Aylık Tahsilat ve Harcama" subtitle="Seçilen dönemde aylara göre (TL)" months={months}
+        series={[
+          { key: 'c', label: 'Tahsilat', color: C_COLLECTION, values: monthly.map(([, v]) => v.col) },
+          { key: 'e', label: 'Harcama', color: C_EXPENSE, values: monthly.map(([, v]) => v.exp) },
+        ]} />
+
+      <HBars title="En Çok Onay Alan Firmalar" subtitle="Onaylanan teklif tutarına göre ilk 8" color={C_QUOTE}
+        rows={[...customerRows].sort((a, b) => b.approvedAmt - a.approvedAmt).filter(r => r.approvedAmt > 0).slice(0, 8)
+          .map(r => ({ label: r.name, value: r.approvedAmt, sub: `${r.approved} onay · satış oranı ${pct(r.approvedAmt, r.totalAmt)}` }))} />
 
       {/* Kaybedilen teklif nedenleri */}
       {stats.cancelled > 0 && (
@@ -648,7 +739,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       {detail && (
         <DetailModal
           section={sectionFor(detail)}
-          period={detail === 'portfolio' ? 'Bugün itibarıyla' : periodLabel}
+          period={periodLabel}
+          busy={sending}
           onPrint={() => doPrint(detail)}
           onClose={() => setDetail(null)}
         />

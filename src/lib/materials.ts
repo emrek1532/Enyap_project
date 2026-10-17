@@ -92,7 +92,10 @@ export async function saveMaterial(m: Material, previousCode?: string) {
     if (error) throw error;
     return;
   }
-  const { error } = await supabase.from('materials').upsert(row, { onConflict: 'code' });
+  // Yeni malzeme: aynı kod varsa üzerine yazılmaz, "bu kodla başka malzeme var" hatası verilir
+  const { error } = previousCode
+    ? await supabase.from('materials').update(row).eq('code', previousCode)
+    : await supabase.from('materials').insert(row);
   if (error) throw error;
 }
 

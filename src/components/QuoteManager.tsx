@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { dayOf, localDay } from '../lib/dates';
 import { 
   FileText, 
   Search, 
@@ -137,7 +138,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               ? needsFollowUp(quote)
               : quote.status === statusFilter);
         const matchesCity = cityFilter === 'all' || quote.city === cityFilter;
-        const day = (quote.createdAt || '').slice(0, 10);
+        const day = dayOf(quote.createdAt);
         const matchesDate = (!dateFrom || day >= dateFrom) && (!dateTo || day <= dateTo);
 
         return matchesSearch && matchesStatus && matchesCity && matchesDate;
@@ -486,7 +487,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-slate-400">KDV dahil</span>
                   </span>
                 </div>
-                <button onClick={() => setCustomerView(selectedQuote.customerName)} title="Müşterinin tüm teklifleri"
+                <button onClick={() => { setCustomerView(selectedQuote.customerName); setSelectedQuote(null); }} title="Müşterinin tüm teklifleri"
                   className="text-lg font-black text-slate-900 mt-1 text-left hover:text-brand-700 hover:underline underline-offset-2">
                   {selectedQuote.customerName}
                 </button>
@@ -674,7 +675,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 };
 
 /** Müşteri kartı: özet + o müşteriye verilen tüm teklifler (tıklayınca teklif açılır) */
-const CustomerQuotes: React.FC<{
+export const CustomerQuotes: React.FC<{
   name: string;
   quotes: Quote[];
   netTry: Map<string, number>;
@@ -683,7 +684,7 @@ const CustomerQuotes: React.FC<{
   onClose: () => void;
 }> = ({ name, quotes, netTry, statusBadge, onOpenQuote, onClose }) => {
   const list = useMemo(
-    () => quotes.filter(q => q.customerName === name).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+    () => quotes.filter(q => q.customerName.trim().toLocaleLowerCase('tr') === name.trim().toLocaleLowerCase('tr')).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
     [quotes, name],
   );
   const sum = (xs: Quote[]) => xs.reduce((t, q) => t + (netTry.get(q.id) || 0), 0);
@@ -692,59 +693,69 @@ const CustomerQuotes: React.FC<{
   const cancelled = list.filter(q => q.status === 'iptal');
   const city = list.find(q => q.city)?.city;
   const first = list[list.length - 1]?.createdAt;
-  const stats: [string, string, string?][] = [
-    ['Toplam teklif', `${list.length}`, formatTl(sum(list))],
-    ['Onaylanan', `${approved.length}`, formatTl(sum(approved))],
-    ['Beklemede', `${pending.length}`, formatTl(sum(pending))],
-    ['Onay oranı', list.length ? `%${Math.round((approved.length / list.length) * 100)}` : '—', `${cancelled.length} iptal`],
+  const rate = list.length ? Math.round((approved.length / list.length) * 100) : 0;
+  const stats: { k: string; v: string; sub?: string; tone: string }[] = [
+    { k: 'Toplam teklif', v: `${list.length}`, sub: formatTl(sum(list)), tone: 'bg-brand-50 border-brand-100 text-brand-800' },
+    { k: 'Onaylanan', v: `${approved.length}`, sub: formatTl(sum(approved)), tone: 'bg-accent-50 border-accent-100 text-accent-800' },
+    { k: 'Beklemede', v: `${pending.length}`, sub: formatTl(sum(pending)), tone: 'bg-amber-50 border-amber-100 text-amber-800' },
+    { k: 'Onay oranı', v: list.length ? `%${rate}` : '—', sub: `${cancelled.length} iptal`, tone: 'bg-slate-50 border-slate-200 text-slate-800' },
   ];
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh]">
-        <div className="p-4 border-b border-slate-200 flex items-start justify-between gap-3 bg-slate-50 sm:rounded-t-2xl pt-safe">
-          <div className="min-w-0">
-            <h3 className="text-lg font-black text-slate-900 leading-tight">{name}</h3>
-            <p className="text-xs text-slate-500">
-              {city || '—'}{first ? ` · ilk teklif ${new Date(first).toLocaleDateString('tr-TR')}` : ''}
-            </p>
+      <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
+        <div className="px-4 pb-4 pt-safe bg-gradient-to-br from-brand-700 to-brand-500 text-white sm:rounded-t-2xl">
+          <div className="pt-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-lg font-black leading-tight truncate">{name}</h3>
+              <p className="text-xs text-brand-100">
+                {city || '—'}{first ? ` · ilk teklif ${new Date(first).toLocaleDateString('tr-TR')}` : ''}
+              </p>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/15 text-lg font-bold leading-none" aria-label="Kapat">✕</button>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 text-lg font-bold" aria-label="Kapat">✕</button>
+          {/* Onay oranı çubuğu */}
+          {list.length > 0 && (
+            <div className="mt-3">
+              <div className="h-1.5 rounded-full bg-white/20 overflow-hidden">
+                <div className="h-full rounded-full bg-accent-400" style={{ width: `${rate}%` }} />
+              </div>
+              <div className="mt-1 text-[11px] text-brand-100">Tekliflerin %{rate}'i onaylandı</div>
+            </div>
+          )}
         </div>
         <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 border-b border-slate-100">
-          {stats.map(([k, v, sub]) => (
-            <div key={k} className="rounded-lg border border-slate-200 px-3 py-2">
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{k}</div>
-              <div className="text-lg font-black text-slate-900 tabular-nums">{v}</div>
-              {sub && <div className="text-[11px] text-slate-500 tabular-nums">{sub}</div>}
+          {stats.map(s => (
+            <div key={s.k} className={`rounded-xl border px-3 py-2 min-w-0 ${s.tone}`}>
+              <div className="text-[10px] font-bold uppercase tracking-wide opacity-70">{s.k}</div>
+              <div className="text-lg font-black tabular-nums">{s.v}</div>
+              {s.sub && <div className="text-[11px] opacity-80 tabular-nums truncate">{s.sub}</div>}
             </div>
           ))}
         </div>
-        <div className="overflow-y-auto flex-1">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-[11px] uppercase text-slate-500 sticky top-0">
-              <tr>
-                <th className="px-3 py-2 text-left">Teklif No</th>
-                <th className="px-3 py-2 text-left">Tarih</th>
-                <th className="px-3 py-2 text-left">Durum</th>
-                <th className="px-3 py-2 text-right">Tutar (KDV dahil)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {list.map(q => {
-                const b = statusBadge(q.status);
-                return (
-                  <tr key={q.id} onClick={() => onOpenQuote(q)} className="cursor-pointer hover:bg-brand-50/50">
-                    <td className="px-3 py-2 font-mono font-bold text-brand-700">{q.quoteNumber}</td>
-                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{new Date(q.createdAt).toLocaleDateString('tr-TR')}</td>
-                    <td className="px-3 py-2">
-                      {b && <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${b.color}`}>{b.label}</span>}
-                    </td>
-                    <td className="px-3 py-2 text-right font-bold tabular-nums whitespace-nowrap">{formatTl(netTry.get(q.id) || 0)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        {/* Liste: sütunlar ekrana sığar, yana kaymaz */}
+        <div className="overflow-y-auto overflow-x-hidden flex-1">
+          <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 bg-slate-50 sticky top-0 flex justify-between">
+            <span>Teklifler</span><span>Tutar (KDV dahil)</span>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {list.map(q => {
+              const b = statusBadge(q.status);
+              return (
+                <li key={q.id}>
+                  <button onClick={() => onOpenQuote(q)} className="w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-brand-50/60 active:bg-brand-50">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-brand-700 text-sm">{q.quoteNumber}</span>
+                        <span className="text-xs text-slate-500 whitespace-nowrap">{new Date(q.createdAt).toLocaleDateString('tr-TR')}</span>
+                      </div>
+                      {b && <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${b.color}`}>{b.label}</span>}
+                    </div>
+                    <div className="text-right font-bold tabular-nums whitespace-nowrap text-sm text-slate-900">{formatTl(netTry.get(q.id) || 0)}</div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </div>
     </div>

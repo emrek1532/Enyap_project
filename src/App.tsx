@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { dayOf, localDay } from './lib/dates';
 import type { Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import {
@@ -176,8 +177,11 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   }, []);
   const activeTabRef = useRef<ActiveTab>('home');
   activeTabRef.current = activeTab;
+  // Yetkiler canlı değişebilir (yönetici bölüm açınca): her zaman güncel kontrol kullanılır
+  const tabAllowedRef = useRef(tabAllowed);
+  tabAllowedRef.current = tabAllowed;
   const setActiveTab = useCallback((tab: ActiveTab) => {
-    if (activeTabRef.current === tab || !tabAllowed(tab)) return;
+    if (activeTabRef.current === tab || !tabAllowedRef.current(tab)) return;
     activeTabRef.current = tab;
     window.history.pushState({ tab }, '');
     setActiveTabState(tab);
@@ -538,7 +542,12 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
 
   // Mevcut teklifi düzenle / revize et
-  const handleUpdateQuote = (updated: Quote) => {
+  const handleUpdateQuote = (edited: Quote) => {
+    // Düzenleme açıkken başka cihazdan durum değiştiyse (onay/iptal) eski durum geri yazılmaz
+    const latest = data.quotes.find(q => q.id === edited.id);
+    const updated = latest && editingQuote && edited.status === editingQuote.status && latest.status !== editingQuote.status
+      ? { ...edited, status: latest.status, lostReason: latest.lostReason }
+      : edited;
     const activity = logActivity(
       'Teklif Revize Edildi',
       `${updated.customerName} için ${updated.quoteNumber} nolu teklif güncellendi.`,
@@ -668,7 +677,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
   // Counts for alerts & badges
   const urgentCount = data.quotes.filter(q => q.urgency === 'acil' && PENDING_STATUSES.includes(q.status)).length;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localDay();
   const pendingQuotesCount = data.quotes.filter(q => PENDING_STATUSES.includes(q.status)).length;
   const todayEventsCount = data.events.filter(e => e.date === todayStr && !e.completed).length;
 

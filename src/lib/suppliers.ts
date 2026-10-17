@@ -58,9 +58,10 @@ type PItemRaw = [string, number, number, number, number];
 
 export async function importListFromText(
   fileName: string, pages: string[][], onInfo?: (info: string) => void,
-): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number }> {
+): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; ambiguous: number }> {
   const { parsePriceLines, detectCurrency, guessListInfo, listIdFor } = await import('./priceParse');
   const { parsePositionedPage } = await import('./tableParse');
+  const { parseMatrixPage } = await import('./matrixParse');
   // Sayfa başındaki konumlu yazı (#POS:…) ayrılır
   const posOf = new Map<string[], PItemRaw[]>();
   pages = pages.map(p => {
@@ -92,7 +93,11 @@ export async function importListFromText(
       // Konuma göre tablo okuma (iki sütunlu sayfalar, koli/fiyat ayrımı): satır okumasıyla en az aynı sayıda kalem bulursa tercih edilir
       const raw = posOf.get(pg);
       if (raw) {
-        const pos = parsePositionedPage(raw.map(([s, x, y, w, h]) => ({ s, x, y, w, h }))).map(x => ({ ...x, currency: x.currency || currency }));
+        const its = raw.map(([s, x, y, w, h]) => ({ s, x, y, w, h }));
+        // Matris tablo (ölçü sütunları × Siyah/Galvaniz gibi çeşit satırları): her hücre ayrı kalem, çeşit adı korunur
+        const mat = parseMatrixPage(its).map(x => ({ ...x, currency: x.currency || currency }));
+        const pos = parsePositionedPage(its).map(x => ({ ...x, currency: x.currency || currency }));
+        if (mat.length >= 6 && mat.length >= pos.length && mat.length >= rule.length * 0.5) return mat;
         if (pos.length >= 3 && pos.length >= rule.length * 0.8) return pos;
       }
       if (rule.length >= 3) return rule;
@@ -158,18 +163,40 @@ export async function reimportList(sourceFile: string, onInfo?: (info: string) =
 
 type ListItem = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency; ourCode?: string };
 
+/**
+ * Aynı adla farklı fiyatlı kalemler: listede renk/çeşit (Siyah–Galvaniz, PN16–PN25…) bilgisi okunamamış demektir.
+ * Bu kalemler ayırt edilebilsin diye adlarına fiyat sırasıyla "(çeşit 1)", "(çeşit 2)" eklenir ve sayısı döner;
+ * kullanıcıya uyarı gösterilir (ucuz olan genelde siyah/standart çeşittir). Kalemler birbirine karışıp yanlış koda bağlanmaz.
+ */
+export function markAmbiguous(items: { name: string; price: number; code?: string }[]): number {
+  const by = new Map<string, typeof items>();
+  for (const it of items) {
+    const k = `${it.code || ''}|${it.name.toLocaleLowerCase('tr')}`;
+    const g = by.get(k); if (g) g.push(it); else by.set(k, [it]);
+  }
+  let n = 0;
+  for (const g of by.values()) {
+    if (new Set(g.map(i => i.price)).size < 2) continue;
+    [...g].sort((a, b) => a.price - b.price).forEach((it, k) => { it.name = `${it.name} (çeşit ${k + 1})`.slice(0, 200); n++; });
+  }
+  return n;
+}
+
 /** Kalemleri firma listesi olarak kaydeder (aynı liste varsa üzerine yazar, eski bağlantılar korunur) ve eşleştirir */
 async function saveSupplierList(fileName: string, parsed: ListItem[], currency: Currency, onInfo?: (info: string) => void) {
   const { guessListInfo, listIdFor } = await import('./priceParse');
   const { name, listDate } = guessListInfo(fileName);
   const listId = listIdFor(name, listDate);
+  const ambiguous = markAmbiguous(parsed);
 
   // Eski bağlantılar (aynı ürün adı) yeni kalemlere taşınır; elle kaldırılan bağlar da kaldırılmış kalır
   const keep = new Map<string, { code: string | null; manual: boolean }>();
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase.from('supplier_items').select('code,name,our_code,match_manual')
       .eq('list_id', listId).or('our_code.not.is.null,match_manual.eq.true').range(from, from + 999);
-    if (error || !data?.length) break;
+    // Eski bağlantılar okunamazsa liste silinmez (bağlar kaybolmasın)
+    if (error) throw error;
+    if (!data?.length) break;
     data.forEach((r: any) => {
       const v = { code: r.our_code, manual: !!r.match_manual };
       keep.set(`${r.code}|${r.name}`, v);
@@ -180,11 +207,13 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     if (data.length < 1000) break;
   }
   const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
-  const listRow: any = { id: listId, name, list_date: listDate, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString() };
-  if (!existing) listRow.title = '';
+  const listRow: any = { id: listId, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString() };
+  // Var olan liste yeniden yüklenince kullanıcının verdiği firma adı / tarih korunur
+  if (!existing) Object.assign(listRow, { title: '', name, list_date: listDate });
   const { error: le } = await supabase.from('supplier_lists').upsert(listRow);
   if (le) throw le;
-  await supabase.from('supplier_items').delete().eq('list_id', listId);
+  const { error: de } = await supabase.from('supplier_items').delete().eq('list_id', listId);
+  if (de) throw de;
   for (let i = 0; i < parsed.length; i += 500) {
     onInfo?.(`${Math.min(i + 500, parsed.length)}/${parsed.length} kalem kaydediliyor`);
     const rows = parsed.slice(i, i + 500).map(p => {
@@ -198,7 +227,22 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     if (error) throw error;
   }
   const matched = await autoMatchList(listId, parsed.length, onInfo);
-  return { listId, name, items: parsed.length, matched };
+  return { listId, name, items: parsed.length, matched, ambiguous };
+}
+
+/** Tırnak içindeki ayırıcıları bölmeden CSV satırını hücrelere ayırır ("1.234,56" ve "Vana, DN25" tek hücre kalır) */
+function splitCsvLine(line: string, sep: string): string[] {
+  const out: string[] = [];
+  let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === sep) { out.push(cur.trim()); cur = ''; } else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
 }
 
 /**
@@ -211,7 +255,7 @@ export async function importListFromSheet(file: File, onInfo?: (info: string) =>
   if (/\.csv$/i.test(file.name)) {
     const text = await file.text();
     const sep = (text.split('\n')[0].match(/;/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
-    rows = text.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(sep).map(c => c.replace(/^"|"$/g, '').trim()));
+    rows = text.split(/\r?\n/).filter(l => l.trim()).map(l => splitCsvLine(l, sep));
   } else {
     try {
       const readXlsx = (await import('read-excel-file')).default;
@@ -312,10 +356,14 @@ export async function autoMatchList(listId: string, total: number, onInfo?: (inf
 
 /** Liste bilgilerini düzeltir (firma adı, tarih, para birimi) */
 export async function updateSupplierListInfo(id: string, info: { name: string; listDate: string; currency: Currency }) {
+  const { data: old } = await supabase.from('supplier_lists').select('currency').eq('id', id).maybeSingle();
   const { error } = await supabase.from('supplier_lists')
     .update({ name: info.name, list_date: info.listDate, currency: info.currency, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
-  await supabase.from('supplier_items').update({ currency: info.currency }).eq('list_id', id);
+  // Para birimi değiştiyse sadece eski liste para birimindeki kalemler güncellenir (ayrı USD/EUR satırlar korunur)
+  if (old?.currency && old.currency !== info.currency) {
+    await supabase.from('supplier_items').update({ currency: info.currency }).eq('list_id', id).eq('currency', old.currency);
+  }
 }
 
 /** Firma listesini tamamen siler */

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dayOf, localDay } from '../lib/dates';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -33,13 +34,13 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    localDay()
   );
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newEvent, setNewEvent] = useState<Partial<CalendarEvent>>({
     title: '',
-    date: new Date().toISOString().split('T')[0],
+    date: localDay(),
     time: '10:00',
     category: 'saha_ziyaret',
     location: 'Isparta',
@@ -77,7 +78,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
   const handleToday = () => {
     const today = new Date();
     setCurrentDate(today);
-    setSelectedDateStr(today.toISOString().split('T')[0]);
+    setSelectedDateStr(localDay(today));
   };
 
   const getCategoryBadge = (category: EventCategory) => {
@@ -237,7 +238,7 @@ export const SharedCalendar: React.FC<SharedCalendarProps> = ({
               const dayNum = i + 1;
               const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
               const isSelected = dateStr === selectedDateStr;
-              const isToday = dateStr === new Date().toISOString().split('T')[0];
+              const isToday = dateStr === localDay();
               const dayEvents = filteredEvents.filter((e) => e.date === dateStr);
 
               return (

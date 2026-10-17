@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { dayOf, localDay } from '../lib/dates';
 import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
 import { CollectionQuickForm } from './LedgerPanel';
 import { DateInput } from './DateInput';
@@ -69,12 +70,12 @@ export const CustomerAccount: React.FC<{
   const [range, setRange] = useState<{ key: string; from: string; to: string }>({ key: 'all', from: '', to: '' });
   const years = useMemo(() => {
     const ys = new Set<string>();
-    allQuotes.forEach(x => x.createdAt && ys.add(x.createdAt.slice(0, 4)));
+    allQuotes.forEach(x => x.createdAt && ys.add(dayOf(x.createdAt).slice(0, 4)));
     allCollections.forEach(c => c.date && ys.add(c.date.slice(0, 4)));
     return [...ys].sort().reverse().slice(0, 4);
   }, [allQuotes, allCollections]);
   const inRange = (d?: string) => {
-    const x = (d || '').slice(0, 10);
+    const x = dayOf(d);
     return (!range.from || x >= range.from) && (!range.to || x <= range.to);
   };
   const quotes = range.key === 'all' ? allQuotes : allQuotes.filter(x => inRange(x.createdAt));
