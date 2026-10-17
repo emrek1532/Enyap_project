@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Download, Send, X } from 'lucide-react';
 
 /** PDF'e basılacak bir tablo bölümü */
 export interface PrintSection {
@@ -244,11 +245,55 @@ export async function buildReportPdf(doc: PrintDoc): Promise<BuiltReport> {
 /** Hazır PDF'i paylaşır (WhatsApp, e-posta…); paylaşım desteklenmiyorsa ya da download=true ise indirir */
 export async function sendReportFile(r: BuiltReport, download = false): Promise<string> {
   if (!download && navigator.canShare?.({ files: [r.file] })) {
-    try { await navigator.share({ files: [r.file], title: r.title }); return ''; } catch (e) { if ((e as Error)?.name === 'AbortError') return ''; }
+    // Yalnızca dosya paylaşılır: yanına yazı eklenince WhatsApp dosya adını "DOC-…-WA0001" yapıyor
+    try { await navigator.share({ files: [r.file] }); return ''; } catch (e) { if ((e as Error)?.name === 'AbortError') return ''; }
   }
   const url = URL.createObjectURL(r.file);
   const a = document.createElement('a');
   a.href = url; a.download = r.file.name; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return `PDF indirildi (${r.file.name}); WhatsApp ya da e-postaya ek olarak ekleyebilirsiniz.`;
+}
+
+/** Tüm raporlarda ortak akış: PDF hazırlanır → sayfalar önizlenir → Gönder (paylaş) ya da İndir */
+export function useReportSender() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [preview, setPreview] = useState<BuiltReport | null>(null);
+  const open = async (doc: PrintDoc) => {
+    if (busy) return;
+    setBusy(true); setMsg('');
+    try { setPreview(await buildReportPdf(doc)); } catch { setMsg('PDF hazırlanamadı, tekrar deneyin.'); } finally { setBusy(false); }
+  };
+  const modal = preview && createPortal(
+    <div className="fixed inset-0 z-[60] bg-slate-900/70 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setPreview(null)}>
+      <div onClick={e => e.stopPropagation()} className="bg-slate-100 w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-[92vh] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200 pt-safe">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-black text-slate-900 truncate">{preview.title}</h3>
+            <p className="text-xs text-slate-500">{preview.pages.length} sayfa · göndermeden önce kontrol edin</p>
+          </div>
+          <button onClick={() => setPreview(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {preview.pages.map((src, i) => (
+            <img key={i} src={src} alt={`Sayfa ${i + 1}`} className="w-full max-w-[700px] mx-auto block bg-white shadow-md rounded" />
+          ))}
+        </div>
+        {msg && <p className="px-3 pt-2 bg-white text-xs text-slate-600">{msg}</p>}
+        <div className="flex gap-2 p-3 bg-white border-t border-slate-200 pb-safe">
+          <button onClick={async () => setMsg(await sendReportFile(preview, true))}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50">
+            <Download className="w-4 h-4" /> İndir
+          </button>
+          <button onClick={async () => { const m = await sendReportFile(preview); setMsg(m); if (!m) setPreview(null); }}
+            className="flex-[2] flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold">
+            <Send className="w-4 h-4" /> Gönder
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+  return { open, busy, msg, modal };
 }
