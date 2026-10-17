@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Plus, LogOut, Bell, BellOff, Home } from 'lucide-react';
+import { HelpGuide } from './HelpGuide';
 import { disablePush, enablePush, pushEnabled, pushSupported } from '../lib/push';
 import { BrandLogo } from './BrandLogo';
 import { SyncStatus } from '../types';
@@ -103,6 +104,8 @@ export const Header: React.FC<HeaderProps> = ({
                 {push ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
               </button>
             )}
+
+            <HelpGuide variant="icon" className={sections.length ? 'hidden md:block' : ''} />
 
             {/* Sign out */}
             <button

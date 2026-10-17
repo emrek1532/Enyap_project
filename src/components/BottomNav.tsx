@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Home, MoreHorizontal, LogOut, Bell, BellOff, X } from 'lucide-react';
 import { disablePush, enablePush, pushEnabled, pushSupported } from '../lib/push';
+import { HelpGuide } from './HelpGuide';
 
 export type NavSection = { id: string; title: string; icon: React.ElementType; tone: string };
 
@@ -62,6 +63,7 @@ export const BottomNav: React.FC<{
               ))}
             </div>
             <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+              <HelpGuide variant="wide" className="col-span-2" />
               {push !== null && (
                 <button onClick={togglePush} className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700">
                   {push ? <Bell className="w-4 h-4 text-brand-600" /> : <BellOff className="w-4 h-4 text-slate-400" />}
