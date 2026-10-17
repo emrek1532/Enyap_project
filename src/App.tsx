@@ -217,6 +217,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   });
 
   // Sync state
+  const [rejected, setRejected] = useState<string[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     isSyncing: false,
@@ -273,6 +274,13 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           if (!isPermanentError(err)) throw err;
           console.error('Dropping operation that the database rejected:', queue[0], err);
           lastError = err.message;
+          // Kullanıcıya hangi kaydın kaydedilemediği gösterilir (sessizce kaybolmasın)
+          const op: any = queue[0];
+          const rec = op.record || {};
+          const label = { quotes: 'Teklif', collections: 'Tahsilat', expenses: 'Harcama', customers: 'Müşteri', notes: 'Not', events: 'Takvim', orders: 'Sipariş', activities: 'İşlem kaydı' }[op.entity as string] || op.entity;
+          const what = rec.quoteNumber || rec.customerName || rec.name || rec.title || (rec.content ? String(rec.content).slice(0, 30) : '') || op.id || '';
+          const why = err?.code === '42501' ? 'yetkiniz yok' : 'sunucu kabul etmedi';
+          setRejected(r => [...r, `${label}${what ? ` (${what})` : ''}: ${op.kind === 'delete' ? 'silinemedi' : 'kaydedilemedi'} — ${why}`].slice(-5));
         }
         // New operations may have been appended meanwhile; only drop the head
         queue = loadOutbox().slice(1);
@@ -402,12 +410,29 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
   // Customers
   const handleSaveCustomer = (customer: Customer) => {
+    // Firma adı değiştiyse teklif ve tahsilatlardaki eski ad da güncellenir (kayıtlar ada göre bağlı, kopmasın)
+    const fold = (x: string) => x.trim().toLocaleLowerCase('tr');
+    const old = (data.customers || []).find(c => c.id === customer.id);
+    const renamed = !!old && !!old.name.trim() && old.name.trim() !== customer.name.trim();
+    const now = new Date().toISOString();
+    const quoteOps = renamed ? data.quotes.filter(q => fold(q.customerName) === fold(old!.name)).map(q => ({ ...q, customerName: customer.name.trim(), updatedAt: now })) : [];
+    const colOps = renamed ? (data.collections || []).filter(c => fold(c.customerName) === fold(old!.name)).map(c => ({ ...c, customerName: customer.name.trim() })) : [];
+    const qById = new Map(quoteOps.map(q => [q.id, q])), cById = new Map(colOps.map(c => [c.id, c]));
     mutate(d => {
       const list = d.customers || [];
       const exists = list.some(c => c.id === customer.id);
-      return { ...d, customers: exists ? list.map(c => (c.id === customer.id ? customer : c)) : [...list, customer] };
+      return {
+        ...d,
+        customers: exists ? list.map(c => (c.id === customer.id ? customer : c)) : [...list, customer],
+        quotes: renamed ? d.quotes.map(q => qById.get(q.id) || q) : d.quotes,
+        collections: renamed ? (d.collections || []).map(c => cById.get(c.id) || c) : d.collections,
+      };
     });
-    persist([{ kind: 'upsert', entity: 'customers', record: customer }]);
+    persist([
+      { kind: 'upsert', entity: 'customers', record: customer },
+      ...quoteOps.map(q => ({ kind: 'upsert', entity: 'quotes', record: q } as PendingOp)),
+      ...colOps.map(c => ({ kind: 'upsert', entity: 'collections', record: c } as PendingOp)),
+    ]);
   };
 
   const handleDeleteCustomer = (id: string) => {
@@ -704,6 +729,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
       {/* Main App Content Area */}
       <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1">
+        {rejected.length > 0 && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm p-3 flex gap-3 items-start">
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold mb-1">Bazı değişiklikler sunucuya kaydedilemedi</div>
+              <ul className="list-disc pl-5 space-y-0.5 break-words">{rejected.map((r, i) => <li key={i}>{r}</li>)}</ul>
+            </div>
+            <button onClick={() => setRejected([])} className="text-red-700 font-semibold text-xs px-2 py-1 rounded hover:bg-red-100">Kapat</button>
+          </div>
+        )}
 
         {/* Ana sayfa */}
         {activeTab === 'home' && (
@@ -784,6 +818,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onDeleteQuote={handleDeleteQuote}
             onPrintQuote={setPrintableQuote}
             onEditQuote={setEditingQuote}
+            readOnly={!can(profile, 'quotes', 'edit')}
             statusFilter={quoteFilter}
             onStatusFilterChange={setQuoteFilter}
           />

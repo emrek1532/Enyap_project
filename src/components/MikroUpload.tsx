@@ -76,7 +76,11 @@ export const MikroUpload: React.FC<{
       if (ch === 'skip') continue;
       const patch = { mikroCode: r.code, mikroTitle: r.title, mikroBalance: r.balance, mikroBalanceDate: date, updatedAt: now };
       if (ch === 'new') {
-        out.set('new-' + r.code, { id: 'cus-' + Date.now() + '-' + r.code, name: shortName(r.title), city: PLATE[r.code.slice(0, 2)] || '', createdAt: now, ...patch });
+        // Aynı adla kayıtlı müşteri varsa yenisi açılmaz, o müşteriye yazılır (çift kayıt olmasın)
+        const name = shortName(r.title);
+        const same = customers.find(c => foldName(c.name) === foldName(name));
+        if (same) { out.set(same.id, { ...(out.get(same.id) || same), ...patch }); continue; }
+        out.set('new-' + r.code, { id: 'cus-' + Date.now() + '-' + r.code, name, city: PLATE[r.code.slice(0, 2)] || '', createdAt: now, ...patch });
       } else {
         const c = out.get(ch) || byId.get(ch);
         if (c) out.set(ch, { ...c, ...patch, mikroBalance: (out.has(ch) ? (out.get(ch)!.mikroBalance || 0) : 0) + r.balance });

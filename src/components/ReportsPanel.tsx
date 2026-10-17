@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, Send, X, ChevronRight, Loader2 } from 'lucide-react';
+import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, Send, X, ChevronRight, Loader2, Download, Eye } from 'lucide-react';
 import { Collection, Expense, Quote } from '../types';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
-import { PrintDoc, PrintSection, ReportPrint, shareReport } from './ReportPrint';
+import { BuiltReport, PrintDoc, PrintSection, ReportPrint, buildReportPdf, sendReportFile } from './ReportPrint';
 import { DateInput } from './DateInput';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
@@ -286,7 +286,7 @@ const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: bool
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={onPrint} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Gönder
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />} PDF Gör
           </button>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
@@ -568,6 +568,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   // Rapor PDF olarak hazırlanır ve paylaşılır (WhatsApp, e-posta…); yazdır penceresi açılmaz
   const [sending, setSending] = useState(false);
   const [sendMsg, setSendMsg] = useState('');
+  // Önce önizleme gösterilir, kullanıcı bakıp onaylayınca gönderilir
+  const [preview, setPreview] = useState<BuiltReport | null>(null);
   const doPrint = async (target: 'summary' | DetailKey) => {
     if (sending) return;
     setPrintTarget(target);
@@ -577,7 +579,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       fileName: `Enyap_${sectionFor(target).heading.replace(/[^\p{L}\p{N}]+/gu, '_')}`, sections: [sectionFor(target)],
     };
     try {
-      setSendMsg(await shareReport(doc));
+      setPreview(await buildReportPdf(doc));
     } catch {
       setSendMsg('PDF hazırlanamadı, tekrar deneyin.');
     } finally {
@@ -601,7 +603,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         ))}
         <button onClick={() => doPrint('summary')} disabled={sending}
           className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
-          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Raporu Gönder
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />} {sending ? 'Rapor hazırlanıyor…' : 'Raporu Gör ve Gönder'}
         </button>
         {period === 'custom' && (
           <div className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs text-slate-500 sm:w-auto sm:flex">
@@ -744,6 +746,34 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           onPrint={() => doPrint(detail)}
           onClose={() => setDetail(null)}
         />
+      )}
+      {preview && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/70 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setPreview(null)}>
+          <div onClick={e => e.stopPropagation()} className="bg-slate-100 w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-[92vh] overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200 pt-safe">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-slate-900 truncate">{preview.title}</h3>
+                <p className="text-xs text-slate-500">{preview.pages.length} sayfa · göndermeden önce kontrol edin</p>
+              </div>
+              <button onClick={() => setPreview(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {preview.pages.map((src, i) => (
+                <img key={i} src={src} alt={`Sayfa ${i + 1}`} className="w-full max-w-[700px] mx-auto block bg-white shadow-md rounded" />
+              ))}
+            </div>
+            <div className="flex gap-2 p-3 bg-white border-t border-slate-200 pb-safe">
+              <button onClick={async () => setSendMsg(await sendReportFile(preview, true))}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50">
+                <Download className="w-4 h-4" /> İndir
+              </button>
+              <button onClick={async () => { const m = await sendReportFile(preview); setSendMsg(m); if (!m) setPreview(null); }}
+                className="flex-[2] flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold">
+                <Send className="w-4 h-4" /> Gönder
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <ReportPrint doc={printDoc} />
     </div>

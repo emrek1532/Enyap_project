@@ -64,6 +64,8 @@ interface QuoteManagerProps {
   onDeleteQuote: (id: string) => void;
   onPrintQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
+  /** Sadece görüntüleme yetkisi: onay/düzenle/sil düğmeleri gizlenir */
+  readOnly?: boolean;
   statusFilter: string;
   onStatusFilterChange: (filter: string) => void;
 }
@@ -76,6 +78,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onDeleteQuote,
   onPrintQuote,
   onEditQuote,
+  readOnly = false,
   statusFilter,
   onStatusFilterChange: setStatusFilter,
 }) => {
@@ -330,14 +333,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                       {priceBadge(quote.id)}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {pending && (
+                      {pending && !readOnly && (
                         <>
                           <button onClick={() => onUpdateQuoteStatus(quote.id, 'onaylandi')}
                             className="px-2 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">✓ Onayla</button>
                         </>
                       )}
                       <button onClick={() => onPrintQuote(quote)} className="p-1.5 rounded-md text-accent-600 bg-accent-50" title="Teklifi gönder / yazdır"><Share2 className="w-4 h-4" /></button>
-                      <button onClick={() => onEditQuote(quote)} className="p-1.5 rounded-md text-amber-600 bg-amber-50" title="Düzenle / Revize Et"><Pencil className="w-4 h-4" /></button>
+                      {!readOnly && <button onClick={() => onEditQuote(quote)} className="p-1.5 rounded-md text-amber-600 bg-amber-50" title="Düzenle / Revize Et"><Pencil className="w-4 h-4" /></button>}
                     </div>
                   </div>
                 </div>
@@ -404,7 +407,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         </td>
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {PENDING_STATUSES.includes(quote.status) && (
+                            {PENDING_STATUSES.includes(quote.status) && !readOnly && (
                               <>
                                 <button
                                   onClick={() => onUpdateQuoteStatus(quote.id, 'onaylandi')}
@@ -422,13 +425,13 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                             >
                               <Share2 className="w-4 h-4" />
                             </button>
-                            <button
+                            {!readOnly && <button
                               onClick={() => onEditQuote(quote)}
                               className="p-1.5 rounded-md hover:bg-amber-50 text-amber-600 transition-colors"
                               title="Düzenle / Revize Et"
                             >
                               <Pencil className="w-4 h-4" />
-                            </button>
+                            </button>}
                             <button
                               onClick={() => setSelectedQuote(quote)}
                               className="p-1.5 rounded-md hover:bg-slate-100 text-slate-700 transition-colors"
@@ -507,7 +510,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             <div className="p-4 sm:p-5 space-y-4 text-xs sm:text-sm">
               
               {/* Stepper / Status Controller */}
-              <div>
+              <div className={readOnly ? 'hidden' : ''}>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Teklif Durumu
                 </label>
@@ -625,6 +628,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               {/* Action Buttons Grid */}
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
                 <button
+                  hidden={readOnly}
                   onClick={() => {
                     onEditQuote(selectedQuote);
                     setSelectedQuote(null);
@@ -651,6 +655,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
                 <span>{rates.date ? `Kur: 1 USD = ${rates.USD.toLocaleString('tr-TR')} TL · 1 EUR = ${rates.EUR.toLocaleString('tr-TR')} TL (TCMB ${rates.date})` : ''}</span>
                 <button
+                  hidden={readOnly}
                   onClick={() => {
                     if (confirm('Bu teklifi silmek istediğinize emin misiniz?')) {
                       onDeleteQuote(selectedQuote.id);
