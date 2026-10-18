@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, Send, X, ChevronRight, Loader2, Download, Eye } from 'lucide-react';
-import { Collection, Expense, Quote } from '../types';
+import { Collection, Customer, Expense, Quote } from '../types';
+import { foldName } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
@@ -12,6 +13,7 @@ interface ReportsPanelProps {
   quotes: Quote[];
   collections: Collection[];
   expenses: Expense[];
+  customers?: Customer[];
 }
 
 type Period = 'month' | '3m' | 'year' | '12m' | 'all' | 'custom';
@@ -334,7 +336,7 @@ const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: bool
 
 type CustKey = 'name' | 'city' | 'total' | 'totalAmt' | 'approved' | 'approvedAmt' | 'rate' | 'collected';
 
-export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections, expenses }) => {
+export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections, expenses, customers }) => {
   const rates = useRates(quotes);
   const qTry = (q: Quote) => quoteTry(q, rates);
   const [period, setPeriod] = useState<Period>('year');
@@ -381,9 +383,6 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
   const colTotals = useMemo(() => sumByCurrency(pCollections), [pCollections]);
   const expTotals = useMemo(() => sumByCurrency(pExpenses), [pExpenses]);
-  const netTotals = useMemo(() => ({
-    TRY: colTotals.TRY - expTotals.TRY, USD: colTotals.USD - expTotals.USD, EUR: colTotals.EUR - expTotals.EUR,
-  }), [colTotals, expTotals]);
 
   // Aylık kırılım
   const monthly = useMemo(() => {
@@ -432,7 +431,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     return map;
   }, [pCollections]);
   const customerRows = useMemo(() => {
-    const rows = byCustomer.map(([name, g]) => ({
+    // Kara listedeki firmalar müşteri sıralamalarında gösterilmez
+    const blocked = new Set((customers || []).filter(c => c.status === 'kara_liste').map(c => foldName(c.name)));
+    const rows = byCustomer.filter(([name]) => !blocked.has(foldName(name))).map(([name, g]) => ({
       name, ...g,
       rate: g.totalAmt > 0 ? g.approvedAmt / g.totalAmt : 0,
       collected: colByCustomerMap.get(name.trim().toLocaleLowerCase('tr')) || 0,
@@ -450,7 +451,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         : (val(a) as number) - (val(b) as number);
       return (custSort.dir === 'asc' ? r : -r) || compareText(a.name, b.name);
     });
-  }, [byCustomer, colByCustomerMap, custSort]);
+  }, [byCustomer, colByCustomerMap, custSort, customers]);
   const sortCust = (key: CustKey, first: SortDir) => setCustSort(s => nextSort(s, key, first));
 
   const monthlyTotals = useMemo(() => monthly.reduce((t, [, v]) => ({
@@ -525,7 +526,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       ['Bekleyen', tl(stats.pendingAmt), `${stats.pending} teklif karar bekliyor`],
       ['Yapılan Tahsilat', multiCurrency(colTotals).join(' + '), `${pCollections.length} kayıt`],
       ['Yapılan Harcama', multiCurrency(expTotals).join(' + '), `${pExpenses.length} kayıt`],
-      ['Net (Tahsilat − Harcama)', multiCurrency(netTotals).join(' + '), 'seçilen dönemde'],
+      ['Ortalama Teklif', tl(stats.total ? stats.totalAmt / stats.total : 0), `onaylananlarda ort. ${tl(stats.approved ? stats.approvedAmt / stats.approved : 0)}`],
     ],
     charts: [
       { type: 'columns', title: 'Aylık Teklif ve Onay (TL)', months: months.map(monthLabel), series: [
@@ -626,8 +627,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           value={multiCurrency(colTotals).map(x => <div key={x}>{x}</div>)} sub={`${pCollections.length} kayıt`} onClick={() => setDetail('collections')} />
         <Tile icon={Receipt} tone="text-orange-600 bg-orange-50" label="Yapılan Harcama"
           value={multiCurrency(expTotals).map(x => <div key={x}>{x}</div>)} sub={`${pExpenses.length} kayıt`} onClick={() => setDetail('expenses')} />
-        <Tile icon={BarChart3} tone="text-brand-700 bg-brand-50" label="Net (Tahsilat − Harcama)"
-          value={multiCurrency(netTotals).map(x => <div key={x}>{x}</div>)} sub="seçilen dönemde" onClick={() => setDetail('collections')} />
+        <Tile icon={BarChart3} tone="text-brand-700 bg-brand-50" label="Ortalama Teklif"
+          value={tl(stats.total ? stats.totalAmt / stats.total : 0)} sub={`onaylananlarda ort. ${tl(stats.approved ? stats.approvedAmt / stats.approved : 0)}`} onClick={() => setDetail('quotes')} />
       </div>
 
       {/* Aylık grafik */}

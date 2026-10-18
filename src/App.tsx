@@ -899,6 +899,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             quotes={data.quotes}
             collections={data.collections || []}
             expenses={data.expenses || []}
+            customers={data.customers || []}
           />
         )}
 
