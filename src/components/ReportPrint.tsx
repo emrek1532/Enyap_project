@@ -36,6 +36,9 @@ const CSS = `
   -webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff}
 .rp-doc .rp-head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:0.5mm solid #006ec6;padding-bottom:3mm;margin-bottom:4mm}
 .rp-doc .rp-head img{height:15mm;display:block}
+.rp-doc .rp-prep{margin-top:1.5mm;padding-left:2mm;border-left:0.7mm solid #00b293}
+.rp-doc .rp-prep b{display:block;font-size:10pt;font-weight:800;color:#0f172a;letter-spacing:0.02em}
+.rp-doc .rp-prep span{display:block;font-size:7.5pt;color:#475569;margin-top:0.3mm}
 .rp-doc .rp-head h1{margin:0;font-size:15pt;font-weight:800;text-align:right}
 .rp-doc .rp-head p{margin:1mm 0 0;font-size:8.5pt;color:#475569;text-align:right}
 .rp-doc .rp-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5mm;margin-bottom:5mm}
@@ -141,6 +144,9 @@ export function printReport(fileName: string) {
   window.setTimeout(() => window.print(), 50);
 }
 
+/** Her raporda görünen hazırlayan bilgisi */
+export const PREPARER = { name: 'Emre KARAKAYA', title: 'Makine Mühendisi · Bölge Satış Sorumlusu' };
+
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const tlShort = (n: number) => n >= 1e6 ? `${(n / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} Mn ₺`
@@ -170,7 +176,7 @@ function chartHtml(c: PrintChart): string {
 
 /** Raporu A4 sayfalarına böler (her sayfa ayrı çizilir: telefonda çok uzun resim sınırına takılmaz, satırlar ikiye bölünmez) */
 function reportPages(doc: PrintDoc): string[] {
-  const head = `<div class="rp-head"><img src="/teklif-logo.jpg" alt="Enyap" /><div><h1>${esc(doc.title)}</h1><p>Dönem: ${esc(doc.period)}</p>
+  const head = `<div class="rp-head"><div><img src="/teklif-logo.jpg" alt="Enyap" /><div class="rp-prep"><b>${esc(PREPARER.name)}</b><span>${esc(PREPARER.title)}</span></div></div><div><h1>${esc(doc.title)}</h1><p>Dönem: ${esc(doc.period)}</p>
     <p>Oluşturulma: ${esc(new Date().toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }))}</p></div></div>`;
   const summary = doc.summary?.length
     ? `<div class="rp-sum">${doc.summary.map(([k, v, sub]) => `<div class="rp-card"><b>${esc(k)}</b><span>${esc(v)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`).join('')}</div>` : '';
