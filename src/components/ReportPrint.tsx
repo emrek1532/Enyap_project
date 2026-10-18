@@ -34,15 +34,18 @@ const CSS = `
 #rp-print{display:none}
 .rp-doc{color:#0f172a;font-family:Arial,Arimo,'Liberation Sans',Helvetica,sans-serif;font-size:8.5pt;line-height:1.35;
   -webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff}
-.rp-doc .rp-head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:0.5mm solid #006ec6;padding-bottom:3mm;margin-bottom:4mm}
+.rp-doc .rp-head{display:flex;align-items:center;justify-content:space-between;gap:6mm;border-bottom:0.5mm solid #006ec6;padding-bottom:3.5mm;margin-bottom:3.5mm}
 .rp-doc .rp-head img{height:15mm;display:block}
-.rp-doc .rp-prep{margin-top:1.5mm;padding-left:2mm;border-left:0.7mm solid #00b293}
-.rp-doc .rp-prep b{display:block;font-size:10pt;font-weight:800;color:#0f172a;letter-spacing:0.02em}
-.rp-doc .rp-prep span{display:block;font-size:7.5pt;color:#475569;margin-top:0.3mm}
-.rp-doc .rp-head h1{margin:0;font-size:15pt;font-weight:800;text-align:right}
+.rp-doc .rp-head h1{margin:0;font-size:16pt;font-weight:800;text-align:right;color:#0f172a}
+.rp-doc .rp-meta{display:flex;justify-content:space-between;align-items:stretch;gap:6mm;background:#f1f6fb;border-radius:2mm;padding:3mm 4mm;margin-bottom:6mm}
+.rp-doc .rp-meta i{display:block;font-style:normal;font-size:6.5pt;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em}
+.rp-doc .rp-meta b{display:block;font-size:10.5pt;font-weight:800;color:#0f172a;margin-top:0.8mm}
+.rp-doc .rp-meta span{display:block;font-size:8pt;color:#475569;margin-top:0.6mm}
+.rp-doc .rp-prep{padding-left:3mm;border-left:0.8mm solid #00b293}
+.rp-doc .rp-when{text-align:right}
 .rp-doc .rp-head p{margin:1mm 0 0;font-size:8.5pt;color:#475569;text-align:right}
-.rp-doc .rp-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5mm;margin-bottom:5mm}
-.rp-doc .rp-card{border:0.25mm solid #cbd5e1;border-radius:2mm;padding:2.5mm 3mm;break-inside:avoid}
+.rp-doc .rp-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-bottom:6mm}
+.rp-doc .rp-card{border:0.25mm solid #cbd5e1;border-radius:2mm;padding:3.2mm 3.5mm;break-inside:avoid}
 .rp-doc .rp-card b{display:block;font-size:7pt;color:#64748b;text-transform:uppercase;letter-spacing:0.03em}
 .rp-doc .rp-card span{display:block;font-size:12pt;font-weight:800;margin-top:0.8mm}
 .rp-doc .rp-card i{display:block;font-style:normal;font-size:7.5pt;color:#64748b;margin-top:0.5mm}
@@ -56,13 +59,13 @@ const CSS = `
 .rp-doc .rp-sec .r{text-align:right;white-space:nowrap}
 .rp-doc .rp-sec tfoot td{font-weight:800;border-top:0.4mm solid #334155;border-bottom:none;background:#f8fafc}
 .rp-doc .rp-empty{color:#64748b;font-style:italic;padding:2mm 0}
-.rp-doc .rp-charts{display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-bottom:4mm}
+.rp-doc .rp-charts{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-bottom:5mm}
 .rp-doc .rp-ch{border:0.25mm solid #cbd5e1;border-radius:2mm;padding:2.5mm 3mm}
 .rp-doc .rp-ch.wide{grid-column:1/-1}
 .rp-doc .rp-ch h3{margin:0 0 2mm;font-size:9pt;font-weight:800}
 .rp-doc .rp-leg{display:flex;flex-wrap:wrap;gap:1mm 4mm;font-size:7pt;color:#475569;margin-bottom:1.5mm}
 .rp-doc .rp-leg i{display:inline-block;width:2.5mm;height:2.5mm;border-radius:0.6mm;margin-right:1mm;vertical-align:-0.3mm}
-.rp-doc .rp-cols{display:flex;align-items:flex-end;gap:1.5mm;height:34mm;border-bottom:0.3mm solid #94a3b8}
+.rp-doc .rp-cols{display:flex;align-items:flex-end;gap:1.5mm;height:46mm;border-bottom:0.3mm solid #94a3b8}
 .rp-doc .rp-cols>div{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:0.5mm;height:100%}
 .rp-doc .rp-cols b{display:block;width:100%;max-width:6mm;border-radius:0.6mm 0.6mm 0 0}
 .rp-doc .rp-mo{display:flex;gap:1.5mm;font-size:6.5pt;color:#64748b;margin-top:0.8mm}
@@ -72,7 +75,7 @@ const CSS = `
 .rp-doc .rp-row{display:flex;justify-content:space-between;gap:2mm;font-size:7.5pt;padding:0.6mm 0;border-bottom:0.2mm solid #f1f5f9}
 .rp-doc .rp-row span:last-child{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .rp-doc .rp-big{font-size:14pt;font-weight:800;color:#0f172a}
-.rp-doc .rp-bar{margin-bottom:1.6mm;font-size:7.5pt}
+.rp-doc .rp-bar{margin-bottom:2.6mm;font-size:7.5pt}
 .rp-doc .rp-bar>div:first-child{display:flex;justify-content:space-between;gap:2mm}
 .rp-doc .rp-bar>div:first-child span:last-child{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .rp-doc .rp-bar em{font-style:normal;color:#64748b;font-size:6.5pt}
@@ -176,16 +179,27 @@ function chartHtml(c: PrintChart): string {
 
 /** Raporu A4 sayfalarına böler (her sayfa ayrı çizilir: telefonda çok uzun resim sınırına takılmaz, satırlar ikiye bölünmez) */
 function reportPages(doc: PrintDoc): string[] {
-  const head = `<div class="rp-head"><div><img src="/teklif-logo.jpg" alt="Enyap" /><div class="rp-prep"><b>${esc(PREPARER.name)}</b><span>${esc(PREPARER.title)}</span></div></div><div><h1>${esc(doc.title)}</h1><p>Dönem: ${esc(doc.period)}</p>
-    <p>Oluşturulma: ${esc(new Date().toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }))}</p></div></div>`;
+  const head = `<div class="rp-head"><img src="/teklif-logo.jpg" alt="Enyap" /><h1>${esc(doc.title)}</h1></div>
+    <div class="rp-meta"><div class="rp-prep"><i>Hazırlayan</i><b>${esc(PREPARER.name)}</b><span>${esc(PREPARER.title)}</span></div>
+    <div class="rp-when"><i>Dönem</i><b>${esc(doc.period)}</b><span>Oluşturulma: ${esc(new Date().toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }))}</span></div></div>`;
   const summary = doc.summary?.length
     ? `<div class="rp-sum">${doc.summary.map(([k, v, sub]) => `<div class="rp-card"><b>${esc(k)}</b><span>${esc(v)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`).join('')}</div>` : '';
   const ROWS = 46; // bir sayfaya sığan satır (başlık payı hariç)
   const pages: string[] = [];
-  let cur = head + summary, used = summary ? 14 : 4;
+  let cur = head + summary, used = summary ? 17 : 7;
   const flush = () => { pages.push(cur); cur = ''; used = 0; };
   // Grafikler ilk sayfada özetin altına; tablolar sonraki sayfadan başlar
-  if (doc.charts?.length) { cur += `<div class="rp-charts">${doc.charts.map(chartHtml).join('')}</div>`; flush(); }
+  // Geniş çubuk grafikler (ör. firmalar) ilk sayfaya sığmadığından ikinci sayfanın başına alınır
+  if (doc.charts?.length) {
+    const isWide = (c: PrintChart) => c.type === 'bars' && !c.half;
+    const first = doc.charts.filter(c => !isWide(c)), wide = doc.charts.filter(isWide);
+    if (first.length) cur += `<div class="rp-charts">${first.map(chartHtml).join('')}</div>`;
+    flush();
+    if (wide.length) {
+      cur = `<div class="rp-charts">${wide.map(chartHtml).join('')}</div>`;
+      used = wide.reduce((t, c) => t + 4 + (c.type === 'bars' ? c.rows.length * 2 : 0), 0);
+    }
+  }
   for (const sec of doc.sections) {
     const cell = (c: string, i: number) => `<td${sec.columns[i]?.align === 'right' ? ' class="r"' : ''}>${esc(c)}</td>`;
     const thead = `<thead><tr>${sec.columns.map(c => `<th${c.align === 'right' ? ' class="r"' : ''}>${esc(c.label)}</th>`).join('')}</tr></thead>`;
