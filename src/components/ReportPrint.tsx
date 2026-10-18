@@ -15,7 +15,7 @@ export interface PrintSection {
 export type PrintChart =
   | { type: 'columns'; title: string; months: string[]; series: { label: string; color: string; values: number[] }[] }
   | { type: 'share'; title: string; center?: string; parts: { label: string; value: number; color: string }[] }
-  | { type: 'bars'; title: string; color: string; rows: { label: string; value: number; sub?: string }[] };
+  | { type: 'bars'; title: string; color: string; half?: boolean; rows: { label: string; value: number; sub?: string }[] };
 
 export interface PrintDoc {
   title: string;
@@ -170,7 +170,7 @@ function chartHtml(c: PrintChart): string {
       ${parts.map(p => `<div class="rp-row"><span><i style="display:inline-block;width:2.5mm;height:2.5mm;border-radius:0.6mm;margin-right:1.2mm;vertical-align:-0.3mm;background:${p.color}"></i>${esc(p.label)}</span><span>${tlFull(p.value)} · %${Math.round((p.value / total) * 100)}</span></div>`).join('')}</div>`;
   }
   const max = Math.max(1, ...c.rows.map(r => r.value));
-  return `<div class="rp-ch wide"><h3>${esc(c.title)}</h3>${c.rows.length ? c.rows.map(r => `<div class="rp-bar"><div><span>${esc(r.label)}${r.sub ? ` <em>${esc(r.sub)}</em>` : ''}</span><span>${tlFull(r.value)}</span></div>
+  return `<div class="rp-ch${c.half ? '' : ' wide'}"><h3>${esc(c.title)}</h3>${c.rows.length ? c.rows.map(r => `<div class="rp-bar"><div><span>${esc(r.label)}${r.sub ? ` <em>${esc(r.sub)}</em>` : ''}</span><span>${tlFull(r.value)}</span></div>
     <div class="rp-track"><b style="background:${c.color};width:${Math.max(1.5, (r.value / max) * 100)}%"></b></div></div>`).join('') : '<div class="rp-empty">Bu dönemde kayıt yok.</div>'}</div>`;
 }
 

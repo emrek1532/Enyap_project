@@ -21,8 +21,6 @@ type Period = 'month' | '3m' | 'year' | '12m' | 'all' | 'custom';
 // Grafik renkleri (kurumsal mavi / yeşil, harcama turuncu) — renk körlüğü testinden geçirildi
 const C_QUOTE = '#006ec6';
 const C_APPROVED = '#019a82';
-const C_COLLECTION = '#019a82';
-const C_EXPENSE = '#e8590c';
 
 const MONTHS_TR = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
@@ -418,6 +416,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       .sort((a, b) => b[1].approvedAmt - a[1].approvedAmt || b[1].total - a[1].total);
   };
   const byCustomer = useMemo(() => groupQuotes(q => q.customerName), [pQuotes, rates]);
+  // Şehirlere göre satış (bölge performansı)
+  const cityRows = useMemo(() => groupQuotes(q => q.city || '').filter(([, g]) => g.totalAmt > 0).slice(0, 8)
+    .map(([name, g]) => ({ label: name, value: g.approvedAmt, sub: `${g.total} teklif · ${tl(g.totalAmt)} · satış oranı ${pct(g.approvedAmt, g.totalAmt)}` })), [pQuotes, rates]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Müşteri performans tablosu (başlığa tıklayarak sıralanır)
   const [custSort, setCustSort] = useState<SortState<CustKey>>({ key: 'approvedAmt', dir: 'desc' });
@@ -533,10 +534,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         { label: 'Verilen', color: C_QUOTE, values: monthly.map(([, v]) => v.quoteAmt) },
         { label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
       ] },
-      { type: 'columns', title: 'Aylık Tahsilat ve Harcama (TL)', months: months.map(monthLabel), series: [
-        { label: 'Tahsilat', color: C_COLLECTION, values: monthly.map(([, v]) => v.col) },
-        { label: 'Harcama', color: C_EXPENSE, values: monthly.map(([, v]) => v.exp) },
-      ] },
+      { type: 'bars', half: true, title: 'Şehirlere Göre Onaylanan (TL)', color: C_APPROVED, rows: cityRows },
       { type: 'share', title: 'Teklif Durumu', center: `Satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`, parts: [
         { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
         { label: 'Bekleyen', value: stats.pendingAmt, color: '#7c3aed' },
@@ -650,11 +648,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           parts={colByMethod.map(r => ({ label: `${r.label} (${r.count})`, value: r.value }))} />
       </div>
 
-      <ColumnChart title="Aylık Tahsilat ve Harcama" subtitle="Seçilen dönemde aylara göre (TL)" months={months}
-        series={[
-          { key: 'c', label: 'Tahsilat', color: C_COLLECTION, values: monthly.map(([, v]) => v.col) },
-          { key: 'e', label: 'Harcama', color: C_EXPENSE, values: monthly.map(([, v]) => v.exp) },
-        ]} />
+      <HBars title="Şehirlere Göre Satış" subtitle="Onaylanan teklif tutarına göre ilk 8 şehir (yanında verilen teklif ve satış oranı)" color={C_APPROVED} rows={cityRows} />
 
       <HBars title="En Çok Onay Alan Firmalar" subtitle="Onaylanan teklif tutarına göre ilk 8" color={C_QUOTE}
         rows={[...customerRows].sort((a, b) => b.approvedAmt - a.approvedAmt).filter(r => r.approvedAmt > 0).slice(0, 8)
