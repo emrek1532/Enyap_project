@@ -7,6 +7,8 @@ var SHEET_NAME = 'Verilen Teklifler';
 var COLLECTION_SHEET = 'Yapılan Tahsilatlar';
 // Tahsilat sütunları: A Tarih | B Firma | C Tahsilat | D Şehir (formül) | E Banka | F Şube | G Çek No
 //                     H Tutar | I Vade | J Kayıt No (sistemdeki kimlik; eşleştirme için)
+var EXPENSE_SHEET = 'Harcamalar';
+// Harcama sütunları: A Tarih | B Açıklama (kategori) | C Kart (ödeme) | D Miktar | E Not | F Kayıt No
 
 function doPost(e) {
   var data;
@@ -17,6 +19,7 @@ function doPost(e) {
   lock.waitLock(20000);
   try {
     if (data.kind === 'collection') return collection_(data);
+    if (data.kind === 'expense') return expense_(data);
     var sh = sheet_();
     if (!sh) return out_('sheet yok');
     var no = String(data.quoteNumber || '').trim();
@@ -59,6 +62,44 @@ function test() {
   Logger.log(sh ? ('Bulundu: ' + sh.getName() + ', son satır ' + lastDataRow_(sh)) : 'Teklif sayfası bulunamadı');
   var col = sheet_(COLLECTION_SHEET);
   Logger.log(col ? ('Bulundu: ' + col.getName() + ', son satır ' + lastDataRow_(col, 2)) : 'Tahsilat sayfası bulunamadı');
+  var ex = sheet_(EXPENSE_SHEET);
+  Logger.log(ex ? ('Bulundu: ' + ex.getName() + ', son satır ' + lastDataRow_(ex, 1)) : 'Harcama sayfası bulunamadı');
+}
+
+// ---- Harcamalar ----
+function expense_(data) {
+  var sh = sheet_(EXPENSE_SHEET);
+  if (!sh) return out_('harcama sayfası yok');
+  if (String(sh.getRange(1, 6).getValue()).trim() === '') sh.getRange(1, 6).setValue('Kayıt No');
+
+  var row = findExpense_(sh, data);
+  if (data.action === 'delete') {
+    if (row) sh.deleteRow(row);
+    return out_('deleted');
+  }
+  if (!row) row = lastDataRow_(sh, 1) + 1;
+  sh.getRange(row, 1, 1, 6).setValues([[
+    date_(data.date), data.category || '', data.method || '', Number(data.amount) || 0, data.description || '', data.id || ''
+  ]]);
+  return out_('ok ' + row);
+}
+
+// Önce F sütunundaki kayıt no ile, yoksa (eski satırlar) tarih + açıklama + tutar ile bulur
+function findExpense_(sh, data) {
+  var last = lastDataRow_(sh, 1);
+  if (last < 2) return 0;
+  var vals = sh.getRange(2, 1, last - 1, 6).getValues();
+  var id = String(data.id || '');
+  for (var i = 0; i < vals.length; i++) if (id && String(vals[i][5]) === id) return i + 2;
+  var o = data.old || data;
+  var key = [String(o.date || ''), norm_(o.category || ''), Number(o.amount) || 0].join('|');
+  for (var j = 0; j < vals.length; j++) {
+    var v = vals[j];
+    if (String(v[5]).trim() !== '') continue;
+    var k = [ymd_(v[0]), norm_(v[1]), Number(v[3]) || 0].join('|');
+    if (k === key) return j + 2;
+  }
+  return 0;
 }
 
 // ---- Yapılan Tahsilatlar ----
