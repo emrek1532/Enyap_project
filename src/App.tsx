@@ -41,20 +41,18 @@ import { findCustomer } from './lib/customers';
 import { PENDING_STATUSES } from './lib/quoteRules';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
-import type { ActiveTab } from './components/Navigation';
+import type { ActiveTab } from './components/Sections';
 import { QuoteManager } from './components/QuoteManager';
 import { QuickNoteFab } from './components/QuickNoteFab';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
-import { PageHeader, SECTION_META } from './components/HomePage';
+import { PageHeader, SECTION_META } from './components/Sections';
 import { SimpleHome } from './components/SimpleHome';
 import { BottomNav } from './components/BottomNav';
-import { SalesDashboard } from './components/SalesDashboard';
 import { MaterialsPanel } from './components/MaterialsPanel';
 import { ReportsPanel } from './components/ReportsPanel';
 import { NewQuoteModal } from './components/NewQuoteModal';
-import { AiResult, collectionDraftFrom, expenseDraftFrom, quoteDraftFrom } from './lib/ai';
 import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './components/LedgerPanel';
 import { CustomersPanel } from './components/CustomersPanel';
 import { BulkQuoteImport } from './components/BulkQuoteImport';
@@ -141,15 +139,6 @@ const ENTITY_MODULE: Record<string, Module | undefined> = {
 };
 
 function Portal({ session, profile }: { session: Session; profile: Profile }) {
-  // Yeni ana sayfa önizlemesi: ?onizleme=1 ile bu cihazda açılır, ?onizleme=0 ile kapanır
-  const [newHome, setNewHome] = useState(() => {
-    try {
-      const q = new URLSearchParams(window.location.search).get('onizleme');
-      if (q === '1') localStorage.setItem('enyap-new-home', '1');
-      if (q === '0') localStorage.removeItem('enyap-new-home');
-      return localStorage.getItem('enyap-new-home') === '1';
-    } catch { return false; }
-  });
   const tabAllowed = (tab: ActiveTab): boolean => {
     switch (tab) {
       case 'home': case 'customers': return true;
@@ -441,40 +430,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
 
   // Save new quote
-  // ---- Sesli asistan ----
-  const aiContext = () => ({
-    customers: (data.customers || []).map(c => c.name),
-    expenseCategories: EXPENSE_CATEGORIES,
-    expenseMethods: EXPENSE_METHODS,
-    regions: [...new Set((data.expenses || []).map(e => e.region).filter((r): r is string => !!r))],
-    banks: BANKS,
-  });
-
-  const cityOfCustomer = (name?: string | null) => {
-    const k = (name || '').trim().toLocaleLowerCase('tr');
-    return (data.customers || []).find(c => c.name.trim().toLocaleLowerCase('tr') === k)?.city || undefined;
-  };
-
-  const handleAiResult = async (r: AiResult) => {
-    if (r.intent === 'quote' && r.quote) {
-      const draft = await quoteDraftFrom(r.quote);
-      draft.city = draft.city || cityOfCustomer(draft.customerName);
-      setEditingQuote(null);
-      setQuoteCustomer(null);
-      setQuoteDraft(draft);
-      setIsNewQuoteOpen(true);
-    } else if (r.intent === 'collection' && r.collection) {
-      const d = collectionDraftFrom(r.collection);
-      setLedgerDraft({ ...d, city: cityOfCustomer(d.customerName) });
-      setLedgerStartNew('collections');
-      setActiveTab('collections');
-    } else if (r.intent === 'expense' && r.expense) {
-      setLedgerDraft(expenseDraftFrom(r.expense));
-      setLedgerStartNew('expenses');
-      setActiveTab('expenses');
-    }
-  };
-
   // Not bildirimine dokunulduysa (/?open-note=ID) notlar açılır ve not vurgulanır
   const [highlightNote, setHighlightNote] = useState<string | null>(null);
   useEffect(() => {
@@ -704,7 +659,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const urgentCount = data.quotes.filter(q => q.urgency === 'acil' && PENDING_STATUSES.includes(q.status)).length;
   const todayStr = localDay();
   const pendingQuotesCount = data.quotes.filter(q => PENDING_STATUSES.includes(q.status)).length;
-  const todayEventsCount = data.events.filter(e => e.date === todayStr && !e.completed).length;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-24 md:pb-8">
@@ -715,7 +669,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       <Header
         syncStatus={syncStatus}
         onTriggerSync={() => performSync()}
-        onOpenNewQuote={() => setIsNewQuoteOpen(true)}
         onSignOut={handleSignOut}
         userEmail={session.user.email || ''}
         urgentCount={urgentCount}
@@ -742,48 +695,23 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         {/* Ana sayfa */}
         {activeTab === 'home' && (
           <>
-            {newHome && (
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
-                <span><b>Önizleme:</b> yeni ana sayfa (sadece bu cihazda görünüyor)</span>
-                <button onClick={() => { try { localStorage.removeItem('enyap-new-home'); } catch { /* */ } setNewHome(false); }} className="font-bold underline">Eski görünüme dön</button>
-              </div>
-            )}
-            {newHome ? (
-              <SalesDashboard
-                quotes={data.quotes}
-                customers={data.customers || []}
-                collections={data.collections || []}
-                expenses={data.expenses || []}
-                notes={data.notes}
-                activities={data.activities}
-                onOpen={setActiveTab}
-                allowed={tabAllowed}
-                onOpenQuote={setEditingQuote}
-                canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
-                onNewQuote={() => setIsNewQuoteOpen(true)}
-                onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
-                onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
-          />
-            ) : (
-              <SimpleHome
-                quotes={data.quotes}
-                customers={data.customers || []}
-                collections={data.collections || []}
-                expenses={data.expenses || []}
-                notes={data.notes}
-                sections={MENU_ORDER.filter(tabAllowed)}
-                onOpen={setActiveTab}
-                onOpenQuote={setEditingQuote}
-                canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
-                onNewQuote={() => setIsNewQuoteOpen(true)}
-                onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
-                onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
-                onNewNote={() => setActiveTab('notes')}
-                onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
-                onSaveCustomer={handleSaveCustomer}
-                onOpenMikro={can(profile, 'collections', 'edit') ? () => { setOpenMikro(true); setActiveTab('customers'); } : undefined}
-              />
-            )}
+          <SimpleHome
+              quotes={data.quotes}
+              customers={data.customers || []}
+              collections={data.collections || []}
+              expenses={data.expenses || []}
+              notes={data.notes}
+              sections={MENU_ORDER.filter(tabAllowed)}
+              onOpen={setActiveTab}
+              onOpenQuote={setEditingQuote}
+              canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
+              onNewQuote={() => setIsNewQuoteOpen(true)}
+              onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
+              onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
+              onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
+              onSaveCustomer={handleSaveCustomer}
+              onOpenMikro={can(profile, 'collections', 'edit') ? () => { setOpenMikro(true); setActiveTab('customers'); } : undefined}
+            />
           </>
         )}
 

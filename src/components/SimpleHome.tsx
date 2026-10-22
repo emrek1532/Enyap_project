@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { dayOf, localDay } from '../lib/dates';
-import { FilePlus2, Wallet, Receipt, StickyNote, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target, Lightbulb, FileText, Phone, CirclePause, Ban, FileUp } from 'lucide-react';
+import { FilePlus2, Wallet, Receipt, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target, Lightbulb, FileText, Phone, CirclePause, Ban, FileUp } from 'lucide-react';
 import { Collection, Customer, CustomerStatus, Expense, Quote, QuickNote } from '../types';
 import { foldName, statusOf } from '../lib/customerInsights';
 import { estimatedBalance } from '../lib/mikroBalance';
@@ -9,7 +9,7 @@ import { WhatsAppMenu } from './WhatsAppMenu';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { STATUS_LABEL } from './CustomerAccount';
-import type { ActiveTab } from './Navigation';
+import type { ActiveTab } from './Sections';
 
 type Tab = Exclude<ActiveTab, 'home'>;
 
@@ -39,11 +39,10 @@ export const SimpleHome: React.FC<{
   onNewQuote: () => void;
   onNewCollection: () => void;
   onNewExpense: () => void;
-  onNewNote: () => void;
   onOpenCustomer?: (name: string) => void;
   onSaveCustomer?: (c: Customer) => void;
   onOpenMikro?: () => void;
-}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onNewNote, onOpenCustomer, onSaveCustomer, onOpenMikro }) => {
+}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, onSaveCustomer, onOpenMikro }) => {
   const rates = useRates(quotes);
   const t = today();
   const month = t.slice(0, 7);
@@ -171,7 +170,6 @@ export const SimpleHome: React.FC<{
     canAdd.quote && { label: 'Yeni Teklif', icon: FilePlus2, cls: 'bg-brand-600 text-white', on: onNewQuote },
     canAdd.collection && { label: 'Tahsilat Ekle', icon: Wallet, cls: 'bg-accent-500 text-white', on: onNewCollection },
     canAdd.expense && { label: 'Harcama Ekle', icon: Receipt, cls: 'bg-brand-900 text-white', on: onNewExpense },
-    { label: 'Not Al', icon: StickyNote, cls: 'bg-white text-brand-700 border border-brand-200', on: onNewNote },
   ].filter(Boolean) as { label: string; icon: React.ElementType; cls: string; on: () => void }[];
 
   return (
@@ -182,7 +180,7 @@ export const SimpleHome: React.FC<{
       </div>
 
       {/* Hızlı işlemler */}
-      <div className={`grid gap-2.5 ${actions.length >= 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'}`}>
+      <div className={`grid gap-2.5 ${actions.length >= 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
         {actions.map(a => (
           <button key={a.label} onClick={a.on}
             className={`flex items-center gap-2.5 px-3.5 py-3.5 rounded-2xl font-bold text-sm shadow-sm active:scale-[0.98] transition ${a.cls}`}>
