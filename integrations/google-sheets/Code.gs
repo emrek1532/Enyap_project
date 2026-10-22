@@ -20,37 +20,7 @@ function doPost(e) {
   try {
     if (data.kind === 'collection') return collection_(data);
     if (data.kind === 'expense') return expense_(data);
-    var sh = sheet_();
-    if (!sh) return out_('sheet yok');
-    var no = String(data.quoteNumber || '').trim();
-    if (!no || no === '-') return out_('skip');
-
-    var row = findRow_(sh, no);
-    var oldNo = String(data.oldQuoteNumber || '').trim();
-    if (!row && oldNo && oldNo !== '-' && oldNo !== no) row = findRow_(sh, oldNo);
-
-    if (data.action === 'delete') {
-      if (row) sh.deleteRow(row);
-      return out_('deleted');
-    }
-
-    if (!row) {
-      var last = lastDataRow_(sh);
-      row = last + 1;
-      if (last >= 2) {
-        // Şehir ve genel toplam formüllerini bir üst satırdan kopyala
-        [5, 10, 11].forEach(function (c) { sh.getRange(last, c).copyTo(sh.getRange(row, c)); });
-      }
-    }
-
-    var p = String(data.date || '').split('-');
-    var date = p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : new Date();
-    var num = /^\d+$/.test(no) ? Number(no) : no;
-
-    sh.getRange(row, 1, 1, 4).setValues([[num, date, data.status || 'Beklemede', data.customer || '']]);
-    sh.getRange(row, 6, 1, 4).setValues([[data.preparedBy || '', Number(data.usd) || 0, Number(data.eur) || 0, Number(data['try']) || 0]]);
-    sh.getRange(row, 12).setValue(data.notes || '');
-    return out_('ok ' + row);
+    return quote_(data);
   } finally {
     lock.releaseLock();
   }
@@ -64,6 +34,41 @@ function test() {
   Logger.log(col ? ('Bulundu: ' + col.getName() + ', son satır ' + lastDataRow_(col, 2)) : 'Tahsilat sayfası bulunamadı');
   var ex = sheet_(EXPENSE_SHEET);
   Logger.log(ex ? ('Bulundu: ' + ex.getName() + ', son satır ' + lastDataRow_(ex, 1)) : 'Harcama sayfası bulunamadı');
+}
+
+// ---- Verilen Teklifler ----
+function quote_(data) {
+  var sh = sheet_();
+  if (!sh) return out_('sheet yok');
+  var no = String(data.quoteNumber || '').trim();
+  if (!no || no === '-') return out_('skip');
+
+  var row = findRow_(sh, no);
+  var oldNo = String(data.oldQuoteNumber || '').trim();
+  if (!row && oldNo && oldNo !== '-' && oldNo !== no) row = findRow_(sh, oldNo);
+
+  if (data.action === 'delete') {
+    if (row) sh.deleteRow(row);
+    return out_('deleted');
+  }
+
+  if (!row) {
+    var last = lastDataRow_(sh);
+    row = last + 1;
+    if (last >= 2) {
+      // Şehir ve genel toplam formüllerini bir üst satırdan kopyala
+      [5, 10, 11].forEach(function (c) { sh.getRange(last, c).copyTo(sh.getRange(row, c)); });
+    }
+  }
+
+  var p = String(data.date || '').split('-');
+  var date = p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : new Date();
+  var num = /^\d+$/.test(no) ? Number(no) : no;
+
+  sh.getRange(row, 1, 1, 4).setValues([[num, date, data.status || 'Beklemede', data.customer || '']]);
+  sh.getRange(row, 6, 1, 4).setValues([[data.preparedBy || '', Number(data.usd) || 0, Number(data.eur) || 0, Number(data['try']) || 0]]);
+  sh.getRange(row, 12).setValue(data.notes || '');
+  return out_('ok ' + row);
 }
 
 // ---- Harcamalar ----
@@ -225,4 +230,22 @@ function harcamalariEsitle() {
   });
   if (vals.length) sh.getRange(2, 1, vals.length, 6).setValues(vals);
   Logger.log('Güncellenen: ' + updated + ', eklenen: ' + added + ', toplam satır: ' + vals.length);
+}
+
+// ---- Tek seferlik: senkron kapalıyken (ör. gizli anahtar yanlışken) girilen teklif ve tahsilatları Sheet'e yazar ----
+// GUN_SAYISI kadar geriye giderek o tarihten beri eklenen/değişen kayıtları getirir; var olan satırı günceller, yoksa ekler.
+function teklifTahsilatEsitle() {
+  var GUN_SAYISI = 10;
+  var since = Utilities.formatDate(new Date(Date.now() - GUN_SAYISI * 864e5), 'Europe/Istanbul', 'yyyy-MM-dd');
+  var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/sheet_sync_export', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
+    payload: JSON.stringify({ p_token: SECRET, p_since: since })
+  });
+  if (res.getResponseCode() !== 200) throw new Error('Veri alınamadı: ' + res.getContentText());
+  var data = JSON.parse(res.getContentText());
+  var q = 0, c = 0;
+  (data.quotes || []).forEach(function (x) { x.action = 'upsert'; quote_(x); q++; });
+  (data.collections || []).forEach(function (x) { x.action = 'upsert'; collection_(x); c++; });
+  Logger.log(since + ' tarihinden beri: ' + q + ' teklif, ' + c + ' tahsilat yazıldı');
 }
