@@ -183,3 +183,46 @@ function lastDataRow_(sh, col) {
 }
 
 function out_(s) { return ContentService.createTextOutput(s); }
+
+// ---- Tek seferlik: "Harcamalar" sayfasını sistemdeki harcamalarla eşitler ----
+// Apps Script'te bu fonksiyonu seçip bir kez "Çalıştır"a basın. Kayıt No (F) ile, yoksa eski tarih + tür + tutar ile
+// satırı bulur; bulunamayanları sona ekler. Hepsini tek seferde yazar (kilit gerekmez).
+var SUPABASE_URL = 'https://aaduhhdwemnyqhnttcat.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_r-RVHM4n_fEKQ5pX-L_kvQ_Cg2CDu5r';
+
+function harcamalariEsitle() {
+  var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/expense_sheet_export', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
+    payload: JSON.stringify({ p_token: SECRET })
+  });
+  if (res.getResponseCode() !== 200) throw new Error('Veri alınamadı: ' + res.getContentText());
+  var recs = JSON.parse(res.getContentText()) || [];
+
+  var sh = sheet_(EXPENSE_SHEET);
+  if (!sh) throw new Error('Harcamalar sayfası yok');
+  sh.getRange(1, 6).setValue('Kayıt No');
+  var last = lastDataRow_(sh, 1);
+  var vals = last >= 2 ? sh.getRange(2, 1, last - 1, 6).getValues() : [];
+  var byId = {}, byKey = {};
+  vals.forEach(function (v, i) {
+    var id = String(v[5] || '').trim();
+    if (id) { byId[id] = i; return; }
+    var k = [ymd_(v[0]), norm_(v[1]), Number(v[3]) || 0].join('|');
+    (byKey[k] = byKey[k] || []).push(i);
+  });
+  var updated = 0, added = 0;
+  recs.forEach(function (r) {
+    // r = [id, tarih, tür, ödeme, tutar, açıklama, eskiTarih, eskiTür, eskiTutar]
+    var i = byId[r[0]];
+    if (i === undefined && r[6]) {
+      var list = byKey[[r[6], norm_(r[7]), Number(r[8]) || 0].join('|')];
+      if (list && list.length) i = list.shift();
+    }
+    var row = [date_(r[1]), r[2], r[3], Number(r[4]) || 0, r[5] || '', r[0]];
+    if (i === undefined) { vals.push(row); byId[r[0]] = vals.length - 1; added++; }
+    else { vals[i] = row; byId[r[0]] = i; updated++; }
+  });
+  if (vals.length) sh.getRange(2, 1, vals.length, 6).setValues(vals);
+  Logger.log('Güncellenen: ' + updated + ', eklenen: ' + added + ', toplam satır: ' + vals.length);
+}
