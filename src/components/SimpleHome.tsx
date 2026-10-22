@@ -1,11 +1,8 @@
 import React, { useMemo } from 'react';
-import { dayOf, localDay } from '../lib/dates';
-import { FilePlus2, Wallet, Receipt, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown, Sparkles, UserRoundCheck, Trophy, Target, Lightbulb, FileText, Phone, CirclePause, Ban, FileUp } from 'lucide-react';
-import { Collection, Customer, CustomerStatus, Expense, Quote, QuickNote } from '../types';
-import { foldName, statusOf } from '../lib/customerInsights';
-import { estimatedBalance } from '../lib/mikroBalance';
-import { usePriceChanges } from '../lib/priceWatch';
-import { WhatsAppMenu } from './WhatsAppMenu';
+import { dayOf } from '../lib/dates';
+import { FilePlus2, Wallet, Receipt, ChevronRight, CalendarClock, BellRing, TrendingUp, TrendingDown } from 'lucide-react';
+import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
+import { foldName } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { STATUS_LABEL } from './CustomerAccount';
@@ -40,12 +37,9 @@ export const SimpleHome: React.FC<{
   onNewCollection: () => void;
   onNewExpense: () => void;
   onOpenCustomer?: (name: string) => void;
-  onSaveCustomer?: (c: Customer) => void;
-  onOpenMikro?: () => void;
-}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, onSaveCustomer, onOpenMikro }) => {
+}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer }) => {
   const rates = useRates(quotes);
   const t = today();
-  const month = t.slice(0, 7);
   const canMoney = sections.includes('collections');
   const canExp = sections.includes('expenses');
   const canQuotes = sections.includes('quotes');
@@ -115,43 +109,6 @@ export const SimpleHome: React.FC<{
     };
     return { months, cur: months[5], prev: months[4], prevSame: calc(keys[4], `${keys[4]}-${pad(day)}`), pendingCount: pending.length, pendingAmt: pending.reduce((t, q) => t + quoteTry(q, rates), 0), detail };
   }, [quotes, collections, expenses, rates, t]);
-  const priceChanges = usePriceChanges(quotes, canQuotes);
-  const tips = useMemo(() => {
-    const list = buildTips({ quotes, customers, rates, t, canQuotes });
-    const extra: Tip[] = [];
-    if (canMoney) {
-      // Mikro bakiyeleri: en çok alacak + güncellik hatırlatması
-      const bal = customers.map(c => ({ c, b: estimatedBalance(c, collections) })).filter(x => x.b && x.b.estimate > 0)
-        .sort((a, b) => b.b!.estimate - a.b!.estimate);
-      if (bal.length) {
-        const top = bal[0];
-        extra.push({ id: 'alacak', icon: Wallet, tone: 'bg-accent-50 text-accent-700', tab: 'customers', customer: top.c.name, phone: top.c.phone,
-          balance: top.b!.estimate,
-          title: `En çok alacak: ${top.c.name}`, text: `${tl(top.b!.estimate)} açık bakiye.${bal.length > 1 ? ` Sonra: ${bal.slice(1, 3).map(x => `${x.c.name} ${short(x.b!.estimate)}`).join(', ')}.` : ''}`,
-          advice: 'Ödeme planını sorun; WhatsApp\'tan hazır ödeme hatırlatması gönderebilirsiniz.' });
-      }
-      const last = customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), '');
-      const age = last ? Math.floor((Date.now() - Date.parse(last)) / 864e5) : null;
-      if (onOpenMikro && (age == null || age > 15)) extra.push({ id: 'mikro', icon: FileUp, tone: 'bg-slate-100 text-slate-700', tab: 'customers',
-        title: age == null ? 'Mikro bakiyelerini yükleyin' : `Mikro bakiyeleri ${age} gün önce yüklendi`,
-        text: 'Cari bakiyelerin güncel görünmesi için Mikro\'dan aldığınız cari bakiye listesini yükleyin.' });
-    }
-    if (priceChanges.size) {
-      const n = [...priceChanges.values()].reduce((a, x) => a + x.length, 0);
-      extra.push({ id: 'fiyat', icon: TrendingUp, tone: 'bg-rose-50 text-rose-600', tab: 'quotes',
-        title: `${priceChanges.size} bekleyen teklifte fiyat değişti`, text: `${n} kalemin katalog fiyatı teklif verildikten sonra güncellendi.`,
-        advice: 'Müşteri onaylamadan önce revize teklif göndermeyi düşünün.' });
-    }
-    return [...list.slice(0, 1), ...extra, ...list.slice(1)].slice(0, 7);
-  }, [quotes, customers, collections, rates, t, canQuotes, canMoney, priceChanges, onOpenMikro]);
-  const setStatus = (name: string, status: CustomerStatus) => {
-    if (!onSaveCustomer) return;
-    const label = status === 'kara_liste' ? 'kara listeye' : 'pasife';
-    if (!confirm(`${name} ${label} alınsın mı? Öneriler ve hatırlatmalarda artık gösterilmez.`)) return;
-    const now = new Date().toISOString();
-    const c = customers.find(x => foldName(x.name) === foldName(name));
-    onSaveCustomer(c ? { ...c, status, updatedAt: now } : { id: 'cus-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), name, city: '', status, createdAt: now, updatedAt: now });
-  };
   const reminders = useMemo(() => {
     // remindAt UTC tutulur: yerel gün sonuyla zaman olarak karşılaştırılır
     const end = new Date(`${t}T23:59:59`).getTime();
@@ -191,48 +148,6 @@ export const SimpleHome: React.FC<{
 
       {/* Bu ay: özet ve son 6 ay grafiği */}
       {(canQuotes || canMoney) && <MonthPanel stats={stats} canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} onOpen={onOpen} />}
-
-      {/* Öneriler */}
-      {tips.length > 0 && (
-        <section>
-          <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5 mb-2 px-1"><Sparkles className="w-4 h-4 text-brand-600" /> Öneriler</h2>
-          <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0 pb-1 [scrollbar-width:none]">
-            {tips.map(tip => {
-              const btn = 'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border whitespace-nowrap';
-              return (
-                <div key={tip.id} className="snap-start shrink-0 w-[82%] sm:w-80 bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 flex flex-col gap-2.5">
-                  <button onClick={() => tip.quote ? onOpenQuote(tip.quote) : tip.customer && onOpenCustomer ? onOpenCustomer(tip.customer) : onOpen(tip.tab)} className="text-left flex gap-3">
-                    <span className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${tip.tone}`}><tip.icon className="w-4.5 h-4.5" /></span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-black text-slate-900 leading-snug">{tip.title}</span>
-                      <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{tip.text}</span>
-                    </span>
-                  </button>
-                  {tip.advice && (
-                    <p className="text-xs text-slate-700 bg-slate-50 rounded-xl px-3 py-2 leading-snug flex gap-1.5">
-                      <Lightbulb className="w-3.5 h-3.5 text-brand-600 shrink-0 mt-0.5" /> <span>{tip.advice}</span>
-                    </p>
-                  )}
-                  <div className="flex gap-1.5 flex-wrap mt-auto">
-                    {tip.quote && <button onClick={() => onOpenQuote(tip.quote!)} className={`${btn} bg-brand-600 border-brand-600 text-white`}><FileText className="w-3.5 h-3.5" /> Teklifi aç</button>}
-                    {tip.phone && <a href={`tel:${tip.phone.replace(/[^\d+]/g, '')}`} className={`${btn} bg-accent-500 border-accent-500 text-white`}><Phone className="w-3.5 h-3.5" /> Ara</a>}
-                    {(tip.id === 'big' || tip.id === 'sleep' || tip.id === 'alacak') && tip.customer && (
-                      <WhatsAppMenu phone={tip.phone} ctx={{ name: tip.customer, quote: tip.quote, quoteValue: tip.quote ? quoteTry(tip.quote, rates) : undefined, balance: tip.balance, balanceDate: tip.balance != null ? today() : undefined }} />
-                    )}
-                    {tip.id === 'mikro' && onOpenMikro && <button onClick={onOpenMikro} className={`${btn} bg-brand-600 border-brand-600 text-white`}><FileUp className="w-3.5 h-3.5" /> Bakiye yükle</button>}
-                    {tip.id === 'fiyat' && <button onClick={() => onOpen('quotes')} className={`${btn} bg-brand-600 border-brand-600 text-white`}><FileText className="w-3.5 h-3.5" /> Teklifleri gör</button>}
-                    {tip.customer && onOpenCustomer && <button onClick={() => onOpenCustomer(tip.customer!)} className={`${btn} bg-white border-slate-200 text-slate-700`}><Lightbulb className="w-3.5 h-3.5" /> Ne yapmalı?</button>}
-                    {tip.id === 'sleep' && onSaveCustomer && <>
-                      <button onClick={() => setStatus(tip.customer!, 'pasif')} className={`${btn} bg-white border-slate-200 text-slate-600`}><CirclePause className="w-3.5 h-3.5" /> Pasife al</button>
-                      <button onClick={() => setStatus(tip.customer!, 'kara_liste')} className={`${btn} bg-white border-rose-200 text-rose-600`}><Ban className="w-3.5 h-3.5" /> Kara liste</button>
-                    </>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {/* Bugünün hatırlatmaları */}
       {reminders.length > 0 && (
@@ -524,72 +439,3 @@ const MonthDetails: React.FC<{ d: MonthDetail; cur: Month; prev: Month; canQuote
   );
 };
 
-type Tip = { id: string; icon: React.ElementType; tone: string; title: string; text: string; tab: Tab; quote?: Quote; customer?: string; phone?: string; advice?: string; balance?: number };
-const daysBetween = (a: string, b: string) => Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / 864e5);
-
-/** Verilerden kısa, işe yarar öneriler üretir (en fazla 6) */
-function buildTips({ quotes: allQuotes, customers, rates, t, canQuotes }: {
-  quotes: Quote[]; customers: Customer[]; rates: ReturnType<typeof useRates>; t: string; canQuotes: boolean;
-}): Tip[] {
-  const tips: Tip[] = [];
-  // Pasif ve kara listedeki firmalar önerilerde gösterilmez
-  const byName = new Map(customers.map(c => [foldName(c.name), c]));
-  const blocked = new Set(customers.filter(c => statusOf(c) !== 'aktif').map(c => foldName(c.name)));
-  const quotes = allQuotes.filter(q => !blocked.has(foldName(q.customerName)));
-  const phoneOf = (name: string, q?: Quote) => byName.get(foldName(name))?.phone || q?.customerPhone || undefined;
-  const won = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
-
-  if (canQuotes) {
-    // Son 60 günün en büyük bekleyen teklifi
-    const big = quotes.filter(q => PENDING_STATUSES.includes(q.status) && daysBetween(q.createdAt, t) <= 60)
-      .map(q => ({ q, v: quoteTry(q, rates) })).sort((a, b) => b.v - a.v)[0];
-    if (big && big.v > 0) {
-      const d = daysBetween(big.q.createdAt, t);
-      const prev = quotes.filter(q => foldName(q.customerName) === foldName(big.q.customerName) && q.id !== big.q.id);
-      const wonPrev = prev.filter(won).length;
-      tips.push({ id: 'big', icon: Target, tone: 'bg-brand-50 text-brand-700', tab: 'quotes', quote: big.q, customer: big.q.customerName, phone: phoneOf(big.q.customerName, big.q),
-        title: `En büyük fırsat: ${big.q.customerName}`, text: `${tl(big.v)} teklif ${d} gündür kararda.`,
-        advice: d < 7 ? 'Bu hafta arayıp teklifin ulaştığını ve sorusu olup olmadığını teyit edin.'
-          : wonPrev ? `Daha önce ${wonPrev} teklifinizi onayladı; arayıp karar tarihini sorun, gerekirse ödeme vadesi önerin.`
-          : 'Arayıp karar sürecini sorun; fiyat engeli varsa alternatif marka ya da ödeme kolaylığı önerin.' });
-    }
-
-    // Daha önce iş yapılmış ama 120+ gündür teklif verilmeyen firmalar
-    const last = new Map<string, { at: string; won: number; name: string }>();
-    for (const q of quotes) {
-      const k = q.customerName.trim().toLocaleLowerCase('tr');
-      const r = last.get(k) || { at: '', won: 0, name: q.customerName };
-      if ((q.createdAt || '') > r.at) r.at = q.createdAt || '';
-      if (won(q)) r.won += quoteTry(q, rates);
-      last.set(k, r);
-    }
-    const sleeping = [...last.values()].filter(r => r.won > 0 && r.at && daysBetween(r.at, t) >= 120).sort((a, b) => b.won - a.won);
-    if (sleeping.length) tips.push({ id: 'sleep', icon: UserRoundCheck, tone: 'bg-sky-50 text-sky-700', tab: 'customers', customer: sleeping[0].name, phone: phoneOf(sleeping[0].name),
-      advice: 'Arayıp yeni proje olup olmadığını sorun; artık çalışmıyorsanız pasife ya da kara listeye alın.',
-      title: `${sleeping[0].name} uzun süredir sessiz`, text: `${Math.floor(daysBetween(sleeping[0].at, t) / 30)} aydır teklif yok; geçmişte ${tl(sleeping[0].won)} iş yapıldı.${sleeping.length > 1 ? ` (+${sleeping.length - 1} firma daha)` : ''}` });
-
-    // Son 12 ayın en iyi müşterisi
-    const y = new Date(); y.setFullYear(y.getFullYear() - 1);
-    const ys = localDay(y);
-    const by = new Map<string, number>();
-    for (const q of quotes) if (won(q) && dayOf(q.createdAt) >= ys) by.set(q.customerName, (by.get(q.customerName) || 0) + quoteTry(q, rates));
-    const top = [...by.entries()].sort((a, b) => b[1] - a[1])[0];
-    if (top) tips.push({ id: 'top', icon: Trophy, tone: 'bg-violet-50 text-violet-600', tab: 'customers', customer: top[0],
-      advice: 'Özel fiyat veya öncelikli teslimat teklif ederek ilişkiyi güçlendirin.',
-      title: `Yılın müşterisi: ${top[0]}`, text: `Son 12 ayda ${tl(top[1])} onaylı iş.` });
-
-    // Onay oranı: son 90 gün vs önceki 90 gün
-    const rateOf = (from: number, to: number) => {
-      const qs = quotes.filter(q => { const d = daysBetween(q.createdAt, t); return d >= from && d < to && q.status !== 'iptal'; });
-      const tot = qs.reduce((s, q) => s + quoteTry(q, rates), 0);
-      return tot ? qs.filter(won).reduce((s, q) => s + quoteTry(q, rates), 0) / tot : null;
-    };
-    const r1 = rateOf(0, 90), r0 = rateOf(90, 180);
-    if (r1 != null && r0 != null && Math.abs(r1 - r0) >= 0.03) {
-      const up = r1 > r0;
-      tips.push({ id: 'rate', icon: up ? TrendingUp : TrendingDown, tone: up ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600', tab: 'reports',
-        title: `Onay oranı %${Math.round(r1 * 100)} (${up ? 'yükseliyor' : 'düşüyor'})`, text: `Son 3 ay, önceki 3 aya göre (%${Math.round(r0 * 100)}).` });
-    }
-  }
-  return tips.slice(0, 6);
-}
