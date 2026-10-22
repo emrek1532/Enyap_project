@@ -11,10 +11,8 @@ import { SuggestInput } from './SuggestInput';
 
 export const COLLECTION_METHODS = ['Çek', 'Nakit', 'Havale/EFT', 'Kredi Kartı', 'Senet'];
 export const EXPENSE_METHODS = ['Kredi Kartı **9973', 'UTTS', 'Şahsi', 'Şirket', 'Nakit', 'Havale/EFT'];
-export const EXPENSE_CATEGORIES = [
-  'Yakıt', 'Yemek', 'Konaklama', 'AdBlue', 'Otopark', 'İkramlık', 'Araç Bakım', 'Ulaşım',
-  'Kargo/Nakliye', 'Malzeme', 'Ofis', 'Telefon/İnternet', 'Trafik Cezası', 'Vergi/Harç', 'Personel', 'Diğer',
-];
+// Harcama türleri (Google Sheet "Harcamalar" ile aynı); ayrıntı (şehir, gece, otopark…) açıklamaya yazılır
+export const EXPENSE_CATEGORIES = ['Yemek', 'Yakıt', 'İkramlık', 'Konaklama', 'Adblue', 'Diğer'];
 /** Çek bankaları (öneri listesi; kayıtlardaki yazımlarla uyumlu) */
 export const BANKS = [
   'Halkbank', 'Ziraat Bankası', 'Vakıfbank', 'Garanti Bankası', 'İş Bankası', 'Yapı Kredi', 'Akbank',
