@@ -11,10 +11,8 @@ export type Status = 'pending' | 'active' | 'suspended';
 
 export const MODULES: { key: Module; label: string }[] = [
   { key: 'quotes', label: 'Teklifler' },
-  { key: 'orders', label: 'Siparişler' },
   { key: 'collections', label: 'Tahsilat' },
   { key: 'expenses', label: 'Harcama' },
-  { key: 'calendar', label: 'Takvim' },
   { key: 'notes', label: 'Notlar' },
   { key: 'materials', label: 'Malzemeler' },
   { key: 'suppliers', label: 'Firma listeleri' },

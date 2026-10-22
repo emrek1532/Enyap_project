@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Plus, LogOut, Bell, BellOff, Home } from 'lucide-react';
+import { RefreshCw, LogOut, Bell, BellOff, Home } from 'lucide-react';
 import { HelpGuide } from './HelpGuide';
 import { disablePush, enablePush, pushEnabled, pushSupported } from '../lib/push';
 import { BrandLogo } from './BrandLogo';
@@ -8,7 +8,6 @@ import { SyncStatus } from '../types';
 interface HeaderProps {
   syncStatus: SyncStatus;
   onTriggerSync: () => void;
-  onOpenNewQuote: () => void;
   onSignOut: () => void;
   userEmail: string;
   urgentCount: number;
@@ -22,7 +21,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   syncStatus,
   onTriggerSync,
-  onOpenNewQuote,
   onSignOut,
   userEmail,
   urgentCount,
@@ -69,29 +67,17 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Actions: Menü, Sync, New Quote, Sign out */}
+          {/* Actions: eşitleme durumu, bildirim, kılavuz, çıkış */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap">
             {/* Cloud Sync Button */}
             <button
               onClick={onTriggerSync}
               disabled={syncStatus.isSyncing}
               className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium transition-all"
-              title="Bulut ile Senkronize Et"
+              title={syncStatus.isSyncing ? 'Eşitleniyor…' : syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı · kayıtlar bağlantı gelince gönderilir'}
             >
               <RefreshCw className={`w-3.5 h-3.5 text-brand-500 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">
-                {syncStatus.isSyncing ? 'Eşitleniyor...' : 'Senkronize Et'}
-              </span>
               <span className={`w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-            </button>
-
-            {/* Quick Add Quote button */}
-            <button
-              onClick={onOpenNewQuote}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-sm shadow-brand-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Teklif Gir</span>
             </button>
 
             {/* Bildirimler */}

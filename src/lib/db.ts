@@ -352,11 +352,10 @@ async function fetchAllRows(table: string, orderBy: string, ascending: boolean):
 }
 
 export async function fetchAllData(): Promise<AppData> {
-  const [customers, quotes, orders, events, notes, activities, collections, expenses] = await Promise.all([
+  // Siparişler ve takvim artık kullanılmıyor: yüklenmez (tablolar veritabanında duruyor)
+  const [customers, quotes, notes, activities, collections, expenses] = await Promise.all([
     fetchAllRows('customers', 'name', true),
     fetchAllRows('quotes', 'created_at', false),
-    fetchAllRows('orders', 'created_at', false),
-    fetchAllRows('events', 'date', true),
     fetchAllRows('notes', 'created_at', false),
     supabase.from('activities').select('*').not('id', 'like', 'diag-%').order('timestamp', { ascending: false }).limit(50),
     fetchAllRows('collections', 'date', false),
@@ -366,8 +365,8 @@ export async function fetchAllData(): Promise<AppData> {
   return {
     customers: (check(customers) || []).map(rowToCustomer),
     quotes: (check(quotes) || []).map(rowToQuote),
-    orders: (check(orders) || []).map(rowToOrder),
-    events: (check(events) || []).map(rowToEvent),
+    orders: [],
+    events: [],
     notes: (check(notes) || []).map(rowToNote),
     activities: (check(activities) || []).map(rowToActivity),
     collections: (check(collections) || []).map(rowToCollection),
@@ -431,7 +430,7 @@ export function isPermanentError(err: any): boolean {
 /** Diğer cihazlardan gelen değişiklikleri canlı dinler. */
 export function subscribeToChanges(onChange: () => void): () => void {
   const channel = supabase.channel('enyap-db-changes');
-  for (const table of ['customers', 'quotes', 'orders', 'events', 'notes', 'activities', 'collections', 'expenses']) {
+  for (const table of ['customers', 'quotes', 'notes', 'activities', 'collections', 'expenses']) {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange);
   }
   channel.subscribe();

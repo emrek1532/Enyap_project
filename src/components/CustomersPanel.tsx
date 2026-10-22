@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2, List, Gauge, FileUp, Wallet } from 'lucide-react';
+import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2, List, FileUp, Wallet } from 'lucide-react';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
-import { CUSTOMER_STATUS, SEGMENT, Segment, adviseFor, evaluate, statusOf } from '../lib/customerInsights';
+import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { CustomerAccount, STATUS_LABEL } from './CustomerAccount';
 import { CityInput } from './TextSuggest';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
@@ -71,9 +71,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const balanceOf = (c: Customer) => (showCollections ? estimatedBalance(c, collections) : null);
   const lastMikro = useMemo(() => customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), ''), [customers]);
   const rates = useRates(quotes);
-  const [mode, setMode] = useState<'list' | 'eval' | 'balance'>('list');
+  const [mode, setMode] = useState<'list' | 'balance'>('list');
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
-  const [segFilter, setSegFilter] = useState<'all' | Segment | CustomerStatus>('all');
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
   const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
@@ -219,81 +218,17 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
   const inputCls = 'w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500';
 
-  const evalRows = useMemo(() => customers
-    .map(c => ({ c, ev: evals.map.get(c.id)! }))
-    .filter(r => r.ev && (r.ev.quoteCount > 0 || statusOf(r.c) !== 'aktif'))
-    .sort((a, b) => b.ev.score - a.ev.score || b.ev.wonTotal - a.ev.wonTotal), [customers, evals]);
-  const groupOf = (r: { c: Customer; ev: ReturnType<typeof evaluate> }): Segment | CustomerStatus => statusOf(r.c) !== 'aktif' ? statusOf(r.c) : r.ev.segment;
-  const segCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    evalRows.forEach(r => m.set(groupOf(r), (m.get(groupOf(r)) || 0) + 1));
-    return m;
-  }, [evalRows]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shownEval = evalRows.filter(r => (segFilter === 'all' || groupOf(r) === segFilter) && (!search || fold(r.c.name).includes(fold(search.trim()))));
 
   return (
     <div className="space-y-4">
-      <div className={`grid ${showCollections ? 'grid-cols-3' : 'grid-cols-2'} sm:flex gap-1 p-1 rounded-xl bg-slate-200/70 sm:w-fit`}>
-        {([['list', 'Müşteri listesi', 'Liste', List], ['eval', 'Değerlendirme', 'Puanlar', Gauge], ...(showCollections ? [['balance', 'Cari bakiyeler', 'Bakiyeler', Wallet]] as const : [])] as const).map(([k, label, shortLabel, Icon]) => (
+      <div className={`grid ${showCollections ? 'grid-cols-2' : 'grid-cols-1'} sm:flex gap-1 p-1 rounded-xl bg-slate-200/70 sm:w-fit`}>
+        {([['list', 'Müşteri listesi', 'Liste', List], ...(showCollections ? [['balance', 'Cari bakiyeler', 'Bakiyeler', Wallet]] as const : [])] as const).map(([k, label, shortLabel, Icon]) => (
           <button key={k} onClick={() => setMode(k)}
             className={`flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-lg text-sm font-extrabold whitespace-nowrap ${mode === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
             <Icon className="w-4 h-4 shrink-0" /> <span className="sm:hidden">{shortLabel}</span><span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
-
-      {mode === 'eval' && (
-        <div className="space-y-3">
-          <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input type="search" placeholder="Firma ara..." value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </div>
-            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] -mx-1 px-1">
-              {([['all', 'Tümü', evalRows.length], ...(['altin', 'iyi', 'gelisen', 'zayif', 'yeni'] as Segment[]).map(k => [k, SEGMENT[k].label, segCounts.get(k) || 0]),
-                ...(['pasif', 'kara_liste'] as CustomerStatus[]).map(k => [k, CUSTOMER_STATUS[k].label, segCounts.get(k) || 0])] as [string, string, number][])
-                .filter(([k, , n]) => k === 'all' || n > 0)
-                .map(([k, label, n]) => (
-                  <button key={k} onClick={() => setSegFilter(k as typeof segFilter)}
-                    className={`px-3 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap ${segFilter === k ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
-                    {label} <span className="opacity-70">{n}</span>
-                  </button>
-                ))}
-            </div>
-            <p className="text-[11px] text-slate-500 leading-snug">Puan: onay oranı (40) + onaylı ciro (30) + son teklifin yakınlığı (20) + son 12 aydaki teklif sıklığı (10).</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            {shownEval.slice(0, limit).map(({ c, ev }) => {
-              const g = groupOf({ c, ev });
-              const badge = g === 'pasif' || g === 'kara_liste' ? CUSTOMER_STATUS[g] : SEGMENT[g];
-              const tip = adviseFor(ev, statusOf(c))[0];
-              return (
-                <button key={c.id} onClick={() => { setViewing(c); setOnlyApproved(true); }} className="w-full text-left p-3 sm:px-4 hover:bg-slate-50 flex items-center gap-3">
-                  <span className="w-10 text-center shrink-0">
-                    <span className="block text-lg font-black text-slate-900 tabular-nums leading-none">{ev.score}</span>
-                    <span className="block h-1 mt-1 rounded-full bg-slate-100 overflow-hidden"><span className={`block h-full ${SEGMENT[ev.segment].bar}`} style={{ width: `${ev.score}%` }} /></span>
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-slate-900 text-sm">{c.name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${badge.cls}`}>{badge.label}</span>
-                    </span>
-                    <span className="block text-[11px] text-slate-500 mt-0.5 tabular-nums">
-                      %{Math.round(ev.winRate * 100)} onay · {ev.wonCount}/{ev.quoteCount} teklif · {tl(Math.round(ev.wonTotal))}
-                    </span>
-                    {tip && <span className="block text-[11px] text-brand-700 font-semibold mt-0.5 truncate">→ {tip.title}</span>}
-                  </span>
-                </button>
-              );
-            })}
-            {shownEval.length === 0 && <p className="p-6 text-center text-sm text-slate-500">Bu grupta müşteri yok.</p>}
-            {shownEval.length > limit && (
-              <div className="p-3 text-center"><button onClick={() => setLimit(n => n + PAGE)} className="px-4 py-2 rounded-lg bg-brand-500 text-white text-xs font-bold">{PAGE} müşteri daha göster</button></div>
-            )}
-          </div>
-        </div>
-      )}
 
       {mode === 'balance' && showCollections && (
         <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
