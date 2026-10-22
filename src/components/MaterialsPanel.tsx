@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Package, Pencil, Plus, Scale, Search, Trash2, X } from 'lucide-react';
+import { Loader2, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
 import { MobileSortSelect, SortHeader, SortState, nextSort } from './SortHeader';
 import { SupplierListsPanel } from './SupplierListsPanel';
-import { SupplierCompare } from './SupplierCompare';
 import { supabase } from '../lib/supabase';
 import { fetchSupplierLists } from '../lib/suppliers';
 import { can, useAccess } from '../lib/access';
@@ -18,7 +17,7 @@ const selectCls = 'w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('tr-TR') : '-');
 const fmtStock = (v?: number | null) => (v == null ? '-' : v.toLocaleString('tr-TR', { maximumFractionDigits: 2 }));
 
-const OwnMaterials: React.FC<{ onCompare?: (name: string) => void }> = ({ onCompare }) => {
+const OwnMaterials: React.FC = () => {
   const [query, setQuery] = useState('');
   const [codeQuery, setCodeQuery] = useState('');
   const [filters, setFilters] = useState<MaterialFilters>({ currency: '', unit: '', price: '', stock: '' });
@@ -81,11 +80,6 @@ const OwnMaterials: React.FC<{ onCompare?: (name: string) => void }> = ({ onComp
     </span>
   ) : (
     <span className="inline-flex items-center gap-1">
-      {onCompare && (
-        <button onClick={() => onCompare(m.name)} className="p-1.5 rounded-md text-slate-500 hover:text-brand-600 hover:bg-brand-50" title="Firma listelerinde fiyat karşılaştır">
-          <Scale className="w-4 h-4" />
-        </button>
-      )}
       <button onClick={() => setEditing({ m, originalCode: m.code })} className="p-1.5 rounded-md text-slate-500 hover:text-brand-600 hover:bg-brand-50" title="Düzenle">
         <Pencil className="w-4 h-4" />
       </button>
@@ -349,13 +343,12 @@ const MaterialForm: React.FC<{
 export const MaterialsPanel: React.FC = () => {
   const me = useAccess();
   const showOwn = can(me, 'materials'), showSup = can(me, 'suppliers');
-  const [tab, setTab] = useState<'own' | 'suppliers' | 'compare'>(() => {
+  const [tab, setTab] = useState<'own' | 'suppliers'>(() => {
     if (!showOwn) return 'suppliers';
     if (!showSup) return 'own';
     try { return localStorage.getItem('enyap-materials-tab') === 'suppliers' ? 'suppliers' : 'own'; } catch { return 'own'; }
   });
-  const [compareQ, setCompareQ] = useState('');
-  const choose = (t: 'own' | 'suppliers' | 'compare') => { setTab(t); try { localStorage.setItem('enyap-materials-tab', t); } catch { /* */ } };
+  const choose = (t: 'own' | 'suppliers') => { setTab(t); try { localStorage.setItem('enyap-materials-tab', t); } catch { /* */ } };
   // Sekmelerin altında kalem sayıları
   const [ownCount, setOwnCount] = useState<number | null>(null);
   const [supInfo, setSupInfo] = useState<{ lists: number; items: number } | null>(null);
@@ -380,19 +373,8 @@ export const MaterialsPanel: React.FC = () => {
           Firma Fiyat Listeleri
           <span className={sub}>{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '\u00a0'}</span>
         </button>
-        <button role="tab" aria-selected={tab === 'compare'} onClick={() => choose('compare')} className={tabCls(tab === 'compare')}>
-          Fiyat Karşılaştır
-          <span className={sub}>en ucuz firma</span>
-        </button>
       </div>}
-      {!showOwn && showSup && (
-        <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70" role="tablist">
-          <button onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>Firma Fiyat Listeleri</button>
-          <button onClick={() => choose('compare')} className={tabCls(tab === 'compare')}>Fiyat Karşılaştır</button>
-        </div>
-      )}
-      {tab === 'own' ? <OwnMaterials onCompare={showSup ? (name => { setCompareQ(name); setTab('compare'); }) : undefined} />
-        : tab === 'compare' ? <SupplierCompare initialQuery={compareQ} /> : <SupplierListsPanel />}
+      {tab === 'own' ? <OwnMaterials /> : <SupplierListsPanel />}
     </div>
   );
 };

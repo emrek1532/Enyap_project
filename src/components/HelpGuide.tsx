@@ -10,7 +10,6 @@ const GUIDE: [string, string[]][] = [
     'Kutulardaki yüzdeler geçen ayın aynı günlerine göre değişimdir (ör. 1–17 Ekim ile 1–17 Eylül).',
     'Onaylanan kutusundaki % satış oranıdır: onaylanan tutar ÷ verilen teklif tutarı.',
     '"Ayın detayını göster": ay sonu tahmini, teklif durumları, en çok teklif verilen firmalar, haftalık dağılım, ödeme şekli ve harcama kategorileri.',
-    'Öneriler: en büyük bekleyen teklif, uzun süredir teklif verilmeyen firmalar, en çok alacak gibi hatırlatmalar. WhatsApp düğmesiyle hazır mesaj gönderilir.',
   ]],
   ['Teklifler', [
     'Yeni Teklif ile müşteri seçilir, malzemeler katalogdan aranarak eklenir; iskonto ve para birimi kalem bazında girilebilir.',
@@ -18,7 +17,6 @@ const GUIDE: [string, string[]][] = [
     'Bugün / Bu hafta / Bu ay / Geçen ay / Bu yıl düğmeleri tarih aralığını tek dokunuşla seçer; tekrar basınca kaldırır.',
     'Bir teklife dokununca ayrıntısı açılır: PDF önizleme, WhatsApp/e-posta ile gönderme, düzenleme, onaylama veya iptal (neden seçilerek).',
     '"Tekrar görüşülecek" filtresi uzun süredir cevap bekleyen teklifleri gösterir.',
-    'Toplu PDF yükle: eski teklif PDF\'leri sisteme topluca alınır.',
   ]],
   ['Müşteriler', [
     'Liste sekmesi: firmalar, teklif/onay/bekleyen sayıları ve onaylı toplam tutar. Firmaya dokununca cari kartı açılır.',
