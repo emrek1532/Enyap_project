@@ -1,7 +1,6 @@
 /**
  * Enyap Worker: statik siteyi sunar, /api/* isteklerini burada karşılar.
- * POST /api/ai/parse — sesle söylenen metni (teklif / tahsilat / harcama) yapılandırılmış taslağa çevirir.
- * POST /api/ai/voice — kaydedilen sesi Whisper ile yazıya çevirir, sonra aynı şekilde taslağa çevirir.
+ * POST /api/ai/voice — kaydedilen sesi Whisper ile yazıya çevirir, sonra yapılandırılmış taslağa çevirir.
  * Anlama: ANTHROPIC_API_KEY tanımlıysa Claude, değilse Cloudflare Workers AI (ücretsiz kota) kullanılır.
  * Anahtarlar tarayıcıya hiç gitmez.
  */
@@ -264,15 +263,6 @@ async function readBody(req: Request): Promise<Body | null> {
 const fail = (err: unknown) => err instanceof ParseError
   ? json({ error: err.code, message: err.message }, err.status)
   : json({ error: 'unknown', message: 'Beklenmeyen hata.' }, 500);
-
-async function handleParse(req: Request, env: Env): Promise<Response> {
-  if (!env.ANTHROPIC_API_KEY && !env.AI) return json({ error: 'no_key', message: 'Yapay zeka tanımlı değil.' }, 503);
-  if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized', message: 'Oturum açın.' }, 401);
-  const body = await readBody(req);
-  const text = (body?.text || '').trim().slice(0, 4000);
-  if (!body || !text) return json({ error: 'bad_request', message: 'Metin boş.' }, 400);
-  try { return json({ result: await parseText(text, body, env) }); } catch (err) { return fail(err); }
-}
 
 /** Ses kaydı → Whisper ile yazı → taslak. Anlama başarısız olsa da yazı döner (tarayıcı kendi çözer). */
 async function handleVoice(req: Request, env: Env): Promise<Response> {
@@ -589,14 +579,12 @@ caches.open('enyap-share')
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname === '/api/ai/parse' && req.method === 'POST') return handleParse(req, env);
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
     if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env);
     if (url.pathname === '/api/push/send' && req.method === 'POST') return handlePushSend(req);
     if (url.pathname === '/api/rates') return handleRates();
     if (url.pathname === '/share-target') return handleShare(req, url);
-    if (url.pathname === '/api/ai/status') return json({ ready: !!(env.ANTHROPIC_API_KEY || env.AI), voice: !!env.AI });
     if (url.pathname.startsWith('/api/')) return json({ error: 'not_found' }, 404);
     return env.ASSETS.fetch(req);
   },

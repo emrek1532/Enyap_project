@@ -63,67 +63,6 @@ export interface Quote {
   paymentTerm?: string;  // Ödeme / vade: PEŞİN, KREDİ KARTI, 60 GÜN, 90 GÜN
 }
 
-export type OrderStatus = 
-  | 'hazirlaniyor'     // Sipariş onaylandı, malzeme toplanıyor
-  | 'depoda_hazir'    // İstanbul depoda paketlendi/hazır
-  | 'sevk_edildi'     // Ambar/Kargoya verildi, yolda
-  | 'teslim_edildi'   // Isparta'da müşteriye/şantiyeye ulaştı
-  | 'gecikmeli';      // Gecikme uyarısı
-
-export interface Order {
-  id: string;
-  orderNumber: string;
-  quoteId?: string;
-  quoteNumber?: string;
-  customerName: string;
-  customerContact?: string;
-  customerPhone: string;
-  deliveryAddress: string;
-  city: string;
-  itemsSummary: string;
-  totalAmount: number;
-  currency: 'TRY' | 'USD' | 'EUR';
-  orderDate: string;
-  targetShippingDate: string; // Ne zaman sevk olacağı (kritik takip alanı!)
-  actualShippingDate?: string;
-  carrierCompany: string; // Nakliye firması / Ambar / Yurtiçi Kargo vb.
-  trackingNumber?: string; // İrsaliye no veya ambar takip no
-  driverContact?: string;
-  status: OrderStatus;
-  statusNotes?: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: UserRole;
-}
-
-export type EventCategory = 
-  | 'saha_ziyaret'   // Isparta şantiye / müşteri ziyareti
-  | 'musteri_takip'  // Teklif takip telefon görüşmesi
-  | 'sevkiyat'       // İstanbul'dan sevk edilecek malzeme
-  | 'odeme'          // Çek / Vade / Avans takibi
-  | 'kritik'         // Acil iş
-  | 'genel';         // Genel şirket notu
-
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  date: string; // YYYY-MM-DD
-  time?: string; // HH:mm
-  category: EventCategory;
-  relatedEntity?: {
-    type: 'quote' | 'order';
-    id: string;
-    name: string;
-  };
-  location?: string;
-  assignedUser: 'all' | 'isparta' | 'istanbul';
-  completed: boolean;
-  notes?: string;
-  reminder?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface QuickNote {
   id: string;
   content: string;
@@ -210,8 +149,6 @@ export interface AppData {
   collections?: Collection[];
   expenses?: Expense[];
   quotes: Quote[];
-  orders: Order[];
-  events: CalendarEvent[];
   notes: QuickNote[];
   activities: ActivityLog[];
   lastUpdated: string;

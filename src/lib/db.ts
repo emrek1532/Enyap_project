@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { AppData, Customer, Quote, Order, CalendarEvent, QuickNote, ActivityLog, Collection, Expense } from '../types';
+import { AppData, Customer, Quote, QuickNote, ActivityLog, Collection, Expense } from '../types';
 
 /**
  * Supabase veri katmanı: uygulamadaki camelCase modeller ile
@@ -111,90 +111,6 @@ const rowToQuote = (r: Row): Quote => ({
   totalUsd: Number(r.total_usd ?? 0),
   imported: !!r.imported,
   paymentTerm: r.payment_term ?? undefined,
-});
-
-const orderToRow = (o: Order): Row => ({
-  id: o.id,
-  order_number: o.orderNumber,
-  quote_id: orNull(o.quoteId),
-  quote_number: o.quoteNumber ?? null,
-  customer_name: o.customerName,
-  customer_contact: o.customerContact ?? null,
-  customer_phone: o.customerPhone ?? '',
-  delivery_address: o.deliveryAddress ?? '',
-  city: o.city ?? '',
-  items_summary: o.itemsSummary ?? '',
-  total_amount: o.totalAmount ?? 0,
-  currency: o.currency ?? 'TRY',
-  order_date: orNull(o.orderDate),
-  target_shipping_date: orNull(o.targetShippingDate),
-  actual_shipping_date: orNull(o.actualShippingDate),
-  carrier_company: o.carrierCompany ?? '',
-  tracking_number: o.trackingNumber ?? null,
-  driver_contact: o.driverContact ?? null,
-  status: o.status,
-  status_notes: o.statusNotes ?? null,
-  created_by: o.createdBy,
-  created_at: o.createdAt,
-  updated_at: o.updatedAt,
-});
-
-const rowToOrder = (r: Row): Order => ({
-  id: r.id,
-  orderNumber: r.order_number,
-  quoteId: r.quote_id ?? '',
-  quoteNumber: r.quote_number ?? '',
-  customerName: r.customer_name,
-  customerContact: r.customer_contact ?? undefined,
-  customerPhone: r.customer_phone ?? '',
-  deliveryAddress: r.delivery_address ?? '',
-  city: r.city ?? '',
-  itemsSummary: r.items_summary ?? '',
-  totalAmount: Number(r.total_amount ?? 0),
-  currency: r.currency,
-  orderDate: r.order_date ?? '',
-  targetShippingDate: r.target_shipping_date ?? '',
-  actualShippingDate: r.actual_shipping_date ?? '',
-  carrierCompany: r.carrier_company ?? '',
-  trackingNumber: r.tracking_number ?? '',
-  driverContact: r.driver_contact ?? '',
-  status: r.status,
-  statusNotes: r.status_notes ?? '',
-  createdAt: r.created_at,
-  updatedAt: r.updated_at,
-  createdBy: r.created_by,
-});
-
-const eventToRow = (e: CalendarEvent): Row => ({
-  id: e.id,
-  title: e.title,
-  date: e.date,
-  time: e.time ?? null,
-  category: e.category,
-  related_entity: e.relatedEntity ?? null,
-  location: e.location ?? null,
-  assigned_user: e.assignedUser,
-  completed: !!e.completed,
-  notes: e.notes ?? null,
-  reminder: !!e.reminder,
-  created_at: e.createdAt,
-  updated_at: e.updatedAt,
-});
-
-const rowToEvent = (r: Row): CalendarEvent => ({
-  id: r.id,
-  title: r.title,
-  date: r.date,
-  time: r.time ?? undefined,
-  category: r.category,
-  relatedEntity: r.related_entity ?? undefined,
-  location: r.location ?? undefined,
-  assignedUser: r.assigned_user,
-  completed: r.completed,
-  notes: r.notes ?? undefined,
-  reminder: r.reminder,
-  createdAt: r.created_at,
-  updatedAt: r.updated_at,
 });
 
 const noteToRow = (n: QuickNote): Row => ({
@@ -352,7 +268,7 @@ async function fetchAllRows(table: string, orderBy: string, ascending: boolean):
 }
 
 export async function fetchAllData(): Promise<AppData> {
-  // Siparişler ve takvim artık kullanılmıyor: yüklenmez (tablolar veritabanında duruyor)
+  // Siparişler ve takvim tabloları veritabanında arşiv olarak duruyor; uygulama kullanmıyor
   const [customers, quotes, notes, activities, collections, expenses] = await Promise.all([
     fetchAllRows('customers', 'name', true),
     fetchAllRows('quotes', 'created_at', false),
@@ -365,8 +281,6 @@ export async function fetchAllData(): Promise<AppData> {
   return {
     customers: (check(customers) || []).map(rowToCustomer),
     quotes: (check(quotes) || []).map(rowToQuote),
-    orders: [],
-    events: [],
     notes: (check(notes) || []).map(rowToNote),
     activities: (check(activities) || []).map(rowToActivity),
     collections: (check(collections) || []).map(rowToCollection),
@@ -375,14 +289,12 @@ export async function fetchAllData(): Promise<AppData> {
   };
 }
 
-export type Entity = 'customers' | 'quotes' | 'orders' | 'events' | 'notes' | 'activities' | 'collections' | 'expenses';
+export type Entity = 'customers' | 'quotes' | 'notes' | 'activities' | 'collections' | 'expenses';
 
 /** Sunucuya yazılacak tek bir değişiklik (çevrimdışıyken kuyrukta bekler). */
 export type PendingOp =
   | { kind: 'upsert'; entity: 'customers'; record: Customer }
   | { kind: 'upsert'; entity: 'quotes'; record: Quote }
-  | { kind: 'upsert'; entity: 'orders'; record: Order }
-  | { kind: 'upsert'; entity: 'events'; record: CalendarEvent }
   | { kind: 'upsert'; entity: 'notes'; record: QuickNote }
   | { kind: 'upsert'; entity: 'activities'; record: ActivityLog }
   | { kind: 'upsert'; entity: 'collections'; record: Collection }
@@ -392,8 +304,6 @@ export type PendingOp =
 export const toRow: Record<Entity, (x: any) => Row> = {
   customers: customerToRow,
   quotes: quoteToRow,
-  orders: orderToRow,
-  events: eventToRow,
   notes: noteToRow,
   activities: activityToRow,
   collections: collectionToRow,
@@ -405,16 +315,9 @@ export async function applyOp(op: PendingOp): Promise<void> {
     await remove(op.entity, op.id);
     return;
   }
-  try {
-    await upsert(op.entity, [toRow[op.entity](op.record)]);
-  } catch (err: any) {
-    // Bağlı teklif silinmişse siparişi teklif bağlantısı olmadan kaydet
-    if (op.entity === 'orders' && err?.code === '23503') {
-      await upsert('orders', [orderToRow({ ...(op.record as Order), quoteId: '' })]);
-      return;
-    }
-    throw err;
-  }
+  const map = toRow[op.entity];
+  if (!map) return; // eski sürümden kalan (sipariş/takvim) kayıtları atla
+  await upsert(op.entity, [map(op.record)]);
 }
 
 /**

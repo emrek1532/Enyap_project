@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf, localDay } from '../lib/dates';
 import { ArrowDown, ArrowUp, FileUp, ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
-import { Quote, QuoteItem, UrgencyLevel, UserRole, Customer } from '../types';
+import { Quote, QuoteItem, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { CityInput } from './TextSuggest';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
@@ -80,8 +80,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       .map(x => x.c);
   }, [customers, customerName]);
 
-  const [projectLocation, setProjectLocation] = useState(init?.projectLocation || '');
-  const [urgency, setUrgency] = useState<UrgencyLevel>(init?.urgency || 'normal');
   const [paymentTerm, setPaymentTerm] = useState(init?.paymentTerm || '');
   const [notes, setNotes] = useState(init?.notes || '');
   const [items, setItems] = useState<QuoteItem[]>(init?.items?.length
@@ -380,8 +378,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         quoteNumber: typedNo || editQuote.quoteNumber, // düzenlemede boş bırakılırsa eski numara kalır
         customerName: customerName.trim(),
         city: city.trim(),
-        projectLocation: projectLocation.trim() || undefined,
-        urgency,
         items: filledItems,
         ...(keepAmounts ? {} : {
           totalAmount: totalQuoteAmount,
@@ -410,9 +406,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       customerName: customerName.trim(),
       customerPhone: '',
       city: city.trim(),
-      projectLocation: projectLocation.trim() || undefined,
       requestChannel: 'telefon',
-      urgency: urgency,
+      urgency: 'normal',
       status: 'gonderildi',
       items: filledItems,
       totalAmount: totalQuoteAmount,
@@ -524,25 +519,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   <option value="">Seçiniz</option>
                   {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
-              </div>
-              <div className="col-span-1 sm:col-span-2">
-                <label className="ql">Aciliyet</label>
-                <select value={urgency} onChange={(e) => setUrgency(e.target.value as UrgencyLevel)} className="qf">
-                  <option value="acil">Acil</option>
-                  <option value="yuksek">Yüksek</option>
-                  <option value="normal">Normal</option>
-                  <option value="dusuk">Düşük</option>
-                </select>
-              </div>
-              <div className="col-span-2 sm:col-span-10">
-                <label className="ql">Proje / Şantiye</label>
-                <input
-                  type="text"
-                  placeholder="Örn: Modern Evler 32 Konut"
-                  value={projectLocation}
-                  onChange={(e) => setProjectLocation(e.target.value)}
-                  className="qf"
-                />
               </div>
               {duplicateNo && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no başka bir teklifte de var.</p>}
             </div>

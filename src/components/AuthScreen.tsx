@@ -59,7 +59,7 @@ export const AuthScreen: React.FC = () => {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-2 mb-6 bg-white rounded-2xl shadow-xl px-6 py-5">
           <BrandLogo className="h-10" />
-          <p className="text-xs font-semibold text-slate-500">Teklif & Sipariş Takip Sistemi</p>
+          <p className="text-xs font-semibold text-slate-500">Teklif & Satış Takip Sistemi</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 space-y-4">

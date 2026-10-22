@@ -515,7 +515,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   {selectedQuote.customerName}
                 </button>
                 <p className="text-xs text-slate-500">
-                  {selectedQuote.city} {selectedQuote.projectLocation ? `• ${selectedQuote.projectLocation}` : ''}
+                  {selectedQuote.city}
                 </p>
               </div>
               <button
