@@ -10,7 +10,6 @@ interface HeaderProps {
   onTriggerSync: () => void;
   onSignOut: () => void;
   userEmail: string;
-  urgentCount: number;
   onHome: () => void;
   /** Açılır menüdeki bölümler (yetkiye göre süzülmüş) */
   sections?: { id: string; title: string; icon: React.ElementType; tone: string }[];
@@ -23,7 +22,6 @@ export const Header: React.FC<HeaderProps> = ({
   onTriggerSync,
   onSignOut,
   userEmail,
-  urgentCount,
   onHome,
   sections = [],
   activeSection,
@@ -40,22 +38,6 @@ export const Header: React.FC<HeaderProps> = ({
   };
   return (
     <header className="bg-white text-slate-900 shadow-sm border-b border-slate-200 pt-safe">
-      {/* Top Notification Bar if there are urgent items */}
-      {urgentCount > 0 && (
-        <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-1.5 text-xs sm:text-sm font-medium flex items-center justify-between text-white shadow-inner">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <span className="flex h-2 w-2 rounded-full bg-white animate-ping shrink-0" />
-            <span className="truncate">
-              {urgentCount > 0 && (
-                <span className="mr-3 font-semibold">⚠️ {urgentCount} Teklif acil işlem bekliyor!</span>
-              )}
-
-            </span>
-          </div>
-          
-        </div>
-      )}
-
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3.5">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           
@@ -63,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button onClick={onHome} className="flex items-center gap-3 shrink-0 min-w-0 text-left" title="Ana Sayfa">
             <BrandLogo className="h-7 sm:h-9" />
             <span className="hidden md:block pl-3 border-l border-slate-200 text-xs font-semibold text-slate-500 leading-tight">
-              Isı Sistemleri<br />Teklif & Sipariş Takibi
+              Isı Sistemleri<br />Teklif & Satış Takibi
             </span>
           </button>
 

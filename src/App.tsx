@@ -11,14 +11,11 @@ import {
   AppData,
   Customer,
   Quote,
-  Order,
-  CalendarEvent,
   QuickNote,
   ActivityLog,
   UserRole,
   SyncStatus,
   QuoteStatus,
-  OrderStatus,
   Collection,
   Expense
 } from './types';
@@ -135,7 +132,7 @@ const MENU_TITLE: Partial<Record<ActiveTab, string>> = { collections: 'Tahsilat'
 
 // Kayıt türü → yetki bölümü (müşteriler ve hareketler tüm aktif kullanıcılara açık)
 const ENTITY_MODULE: Record<string, Module | undefined> = {
-  quotes: 'quotes', orders: 'orders', collections: 'collections', expenses: 'expenses', events: 'calendar', notes: 'notes',
+  quotes: 'quotes', collections: 'collections', expenses: 'expenses', notes: 'notes',
 };
 
 function Portal({ session, profile }: { session: Session; profile: Profile }) {
@@ -197,8 +194,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     return {
       customers: [],
       quotes: [],
-      orders: [],
-      events: [],
       notes: [],
       activities: [],
       lastUpdated: new Date().toISOString(),
@@ -266,7 +261,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           // Kullanıcıya hangi kaydın kaydedilemediği gösterilir (sessizce kaybolmasın)
           const op: any = queue[0];
           const rec = op.record || {};
-          const label = { quotes: 'Teklif', collections: 'Tahsilat', expenses: 'Harcama', customers: 'Müşteri', notes: 'Not', events: 'Takvim', orders: 'Sipariş', activities: 'İşlem kaydı' }[op.entity as string] || op.entity;
+          const label = { quotes: 'Teklif', collections: 'Tahsilat', expenses: 'Harcama', customers: 'Müşteri', notes: 'Not', activities: 'İşlem kaydı' }[op.entity as string] || op.entity;
           const what = rec.quoteNumber || rec.customerName || rec.name || rec.title || (rec.content ? String(rec.content).slice(0, 30) : '') || op.id || '';
           const why = err?.code === '42501' ? 'yetkiniz yok' : 'sunucu kabul etmedi';
           setRejected(r => [...r, `${label}${what ? ` (${what})` : ''}: ${op.kind === 'delete' ? 'silinemedi' : 'kaydedilemedi'} — ${why}`].slice(-5));
@@ -656,7 +651,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
 
   // Counts for alerts & badges
-  const urgentCount = data.quotes.filter(q => q.urgency === 'acil' && PENDING_STATUSES.includes(q.status)).length;
   const todayStr = localDay();
   const pendingQuotesCount = data.quotes.filter(q => PENDING_STATUSES.includes(q.status)).length;
 
@@ -671,7 +665,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         onTriggerSync={() => performSync()}
         onSignOut={handleSignOut}
         userEmail={session.user.email || ''}
-        urgentCount={urgentCount}
         onHome={goHome}
         sections={MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title }))}
         activeSection={activeTab}

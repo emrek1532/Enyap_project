@@ -5,7 +5,7 @@ import { HelpCircle, X } from 'lucide-react';
 /** Kısa kullanım kılavuzu: [başlık, maddeler] */
 const GUIDE: [string, string[]][] = [
   ['Ana Sayfa', [
-    'Üstteki düğmelerle hızlıca Yeni Teklif, Tahsilat, Harcama veya Not eklenir.',
+    'Üstteki düğmelerle hızlıca Yeni Teklif, Tahsilat veya Harcama eklenir.',
     '"Bu ay nasıl gidiyor?" kartı ayın 1\'inden bugüne verilen teklif, onaylanan, tahsilat ve harcamayı gösterir.',
     'Kutulardaki yüzdeler geçen ayın aynı günlerine göre değişimdir (ör. 1–17 Ekim ile 1–17 Eylül).',
     'Onaylanan kutusundaki % satış oranıdır: onaylanan tutar ÷ verilen teklif tutarı.',
@@ -22,7 +22,6 @@ const GUIDE: [string, string[]][] = [
   ]],
   ['Müşteriler', [
     'Liste sekmesi: firmalar, teklif/onay/bekleyen sayıları ve onaylı toplam tutar. Firmaya dokununca cari kartı açılır.',
-    'Puanlar sekmesi: firmalar onay oranı, ciro ve sıklığa göre puanlanır (Altın, İyi, Gelişen, Zayıf, Yeni).',
     'Bakiyeler sekmesi: Mikro\'dan yüklenen cari bakiyeler; alacağımız ve borcumuz ayrı toplanır.',
     'Güncel bakiye = Mikro bakiyesi − o tarihten sonra girilen TL tahsilatlar.',
     'Mikro yükle: Mikro\'dan alınan cari bakiye listesini yükleyin (15 günden eskiyse tarih kırmızı görünür).',
@@ -45,7 +44,7 @@ const GUIDE: [string, string[]][] = [
     '"Raporu Gör ve Gönder": grafikli PDF önce önizlenir, sonra gönderilir veya indirilir.',
   ]],
   ['Notlar ve Bildirimler', [
-    'Not Al ile saha/ofis notu eklenir; hatırlatma tarihi verilirse günü gelince ana sayfada çıkar.',
+    'Notlar bölümünden saha/ofis notu eklenir; hatırlatma tarihi verilirse günü gelince ana sayfada çıkar.',
     'Diğer menüsünden bildirimler açılırsa teklif hatırlatmaları telefona gelir.',
   ]],
   ['İpuçları', [
