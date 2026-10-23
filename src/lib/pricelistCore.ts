@@ -81,19 +81,21 @@ export async function parseListPages(
   type Item = { code: string; name: string; price: number; unit: string; grp?: string; currency: Currency };
   const parsed: Item[] = state ? [...state.parsed] : [];
   let failed = state?.failed ?? 0;
+  // Resimden okunan (OCR) sayfalar ayrı tutulur: aynı PDF'te yazılı sayfalar kuralla okunmaya devam eder
+  const ocrPages = new Set<string[]>();
   const textPages = pages.map(p => {
     const f = p.filter(l => l !== '#OCR');
     const raw = posOf.get(p);
     if (raw) posOf.set(f, raw);
+    if (p[0] === '#OCR') ocrPages.add(f);
     return f;
   }).filter(p => p.join('').replace(/\s/g, '').length > 40);
   // Sayfalar ikişer ikişer okunur; yapay zeka hata verirse 2 kez daha denenir (yoğunlukta kısa bekleyerek)
   let quota = state?.quota ?? false;
-  const isOcr = pages.some(p => p[0] === '#OCR');
   const readPage = async (pg: string[]) => {
     // Yazılı (taranmamış) PDF'te önce kurallarla okunur: rakamlar PDF'ten birebir alınır (0,16 $ → 0,16).
     // Yapay zeka sadece kuralların okuyamadığı (katalog düzenli / taranmış) sayfalarda devreye girer.
-    if (!isOcr) {
+    if (!ocrPages.has(pg)) {
       const rule = parsePriceLines(pg).map(x => ({ ...x, currency: x.currency || currency }));
       // Konuma göre tablo okuma (iki sütunlu sayfalar, koli/fiyat ayrımı): satır okumasıyla en az aynı sayıda kalem bulursa tercih edilir
       const raw = posOf.get(pg);

@@ -343,24 +343,25 @@ export const supplierColor = (name: string) => {
 };
 
 /** Firma fiyat listesi PDF'inin yazısını sayfa sayfa sisteme kaydeder (kalemlere ayrıştırma sonra yapılır) */
-/** Taranmış (resim) PDF sayfalarını cihazda yazı tanıma (OCR) ile okur */
-async function ocrPdfPages(data: ArrayBuffer, onInfo?: (info: string) => void): Promise<string[][]> {
+/** Taranmış (resim) PDF sayfalarını cihazda yazı tanıma (OCR) ile okur; `only` verilirse yalnızca o sayfalar (1'den başlar) */
+async function ocrPdfPages(data: ArrayBuffer, onInfo?: (info: string) => void, only?: number[]): Promise<Map<number, string[]>> {
   const pdfjs = await import('pdfjs-dist');
   const { createWorker } = await import('tesseract.js');
   const doc = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
   onInfo?.('yazı tanıma hazırlanıyor…');
   const worker = await createWorker('tur');
-  const pages: string[][] = [];
+  const pages = new Map<number, string[]>();
+  const list = only ?? Array.from({ length: doc.numPages }, (_, i) => i + 1);
   try {
-    for (let p = 1; p <= doc.numPages; p++) {
-      onInfo?.(`yazı tanınıyor ${p}/${doc.numPages} sayfa`);
+    for (const [k, p] of list.entries()) {
+      onInfo?.(`yazı tanınıyor ${k + 1}/${list.length} sayfa (resim sayfalar)`);
       const page = await doc.getPage(p);
       const vp = page.getViewport({ scale: 2 });
       const canvas = document.createElement('canvas');
       canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
       await page.render({ canvas, canvasContext: canvas.getContext('2d')!, viewport: vp }).promise;
       const { data: res } = await worker.recognize(canvas);
-      pages.push(res.text.split('\n').map(l => l.trim()).filter(Boolean));
+      pages.set(p, res.text.split('\n').map(l => l.trim()).filter(Boolean));
       page.cleanup();
       canvas.width = canvas.height = 0;
     }
@@ -379,18 +380,24 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
   const r1 = (n: number) => Math.round(n * 10) / 10;
   let pages = full.map(p => p.lines);
   const posLine = (i: number) => '#POS:' + JSON.stringify(full[i].items.map(it => [it.s, r1(it.x), r1(it.y), r1(it.w), r1(it.h)]));
-  let ocr = false;
   const textLen = (ps: string[][]) => ps.reduce((a, l) => a + l.join('').length, 0);
-  // Sayfa başına çok az yazı varsa PDF taranmıştır: resimden okunur
-  if (textLen(pages) < pages.length * 50) {
-    pages = await ocrPdfPages(data, onInfo);
-    ocr = true;
-  }
+  // Karar sayfa sayfa verilir: yazısı çok az olan sayfa (yalnız başlık/altbilgi, tablo resim) resimden okunur.
+  // Aynı PDF'te hem yazılı hem resim sayfalar olabilir (ör. Yavuz: ilk sayfalar yazı, sonrakiler taranmış).
+  const scanned = pages.map((l, i) => (l.join('').length < 600 ? i + 1 : 0)).filter(Boolean);
+  const ocrText = scanned.length ? await ocrPdfPages(data, onInfo, scanned) : new Map<number, string[]>();
+  const ocr = ocrText.size > 0;
+  pages = pages.map((l, i) => {
+    const o = ocrText.get(i + 1);
+    // Resimden daha çok yazı çıktıysa o kullanılır
+    return o && o.join('').length > l.join('').length ? o : l;
+  });
   const chars = textLen(pages);
   if (!chars) return { pages: pages.length, chars, ocr, text: pages };
   const now = new Date().toISOString();
-  if (!ocr) pages = pages.map((lines, i) => [posLine(i), ...lines]);
-  const rows = pages.map((lines, i) => ({ file_name: file.name, page: i + 1, content: (ocr ? '#OCR\n' : '') + lines.join('\n'), uploaded_at: now }));
+  const rows = pages.map((lines, i) => {
+    const fromOcr = lines !== full[i].lines;
+    return { file_name: file.name, page: i + 1, content: fromOcr ? '#OCR\n' + lines.join('\n') : [posLine(i), ...lines].join('\n'), uploaded_at: now };
+  });
   // Önce bu dosyanın eski kaydı silinir (tekrar yüklemede fazladan sayfa kalmasın)
   await supabase.from('supplier_raw_pages').delete().eq('file_name', file.name);
   for (let i = 0; i < rows.length; i += 20) {
