@@ -6,6 +6,7 @@ import { HelpCircle, X } from 'lucide-react';
 const GUIDE: [string, string[]][] = [
   ['Ana Sayfa', [
     'Üstteki düğmelerle hızlıca Yeni Teklif, Tahsilat veya Harcama eklenir.',
+    '"Sesle kayıt gir": örn. "Ahmet Isı\'dan 50 bin çek aldım, vade 30 Kasım" deyin; tahsilat, harcama ya da teklif formu dolu açılır, kontrol edip kaydedin.',
     '"Bu ay nasıl gidiyor?" kartı ayın 1\'inden bugüne verilen teklif, onaylanan, tahsilat ve harcamayı gösterir.',
     'Kutulardaki yüzdeler geçen ayın aynı günlerine göre değişimdir (ör. 1–17 Ekim ile 1–17 Eylül).',
     'Hızlı fiyat sor: ürün adı veya kodu yazılınca katalog fiyatı, firma listelerindeki iskontolu fiyatlar ve en son kime kaçtan verildiği görünür.',
@@ -42,6 +43,7 @@ const GUIDE: [string, string[]][] = [
   ['Tahsilat ve Harcama', [
     'Tahsilat Ekle: müşteri, tutar, ödeme şekli; çek/senet için banka, çek no ve vade girilir.',
     'Harcama Ekle: kategori, tutar, ödeme şekli ve bölge.',
+    '"Fişten oku": fişin fotoğrafı çekilir (birden çok seçilebilir); tutar, tarih, tür, şehir ve işletme adı kendiliğinden dolar. Kontrol edip kaydedin.',
     'Filtreler ve Bu hafta / Bu ay gibi hızlı tarih düğmeleri vardır.',
     '"PDF Gönder": listelenen kayıtların PDF\'i önce ekranda gösterilir, sonra Gönder (WhatsApp vb.) veya İndir seçilir.',
   ]],
@@ -54,6 +56,7 @@ const GUIDE: [string, string[]][] = [
   ['Notlar ve Bildirimler', [
     'Notlar bölümünden saha/ofis notu eklenir; hatırlatma tarihi verilirse günü gelince ana sayfada çıkar.',
     'Diğer menüsünden bildirimler açılırsa teklif hatırlatmaları telefona gelir.',
+    'Her pazartesi sabahı haftalık özet bildirimi gelir: geçen haftanın teklif, onay ve tahsilatı, bu hafta vadesi gelen çekler.',
   ]],
   ['İpuçları', [
     'İnternet yokken de kayıt girilebilir; bağlantı gelince otomatik gönderilir (üstteki yeşil nokta = senkron).',

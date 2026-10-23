@@ -8,6 +8,7 @@ import { quoteTry, useRates } from '../lib/rates';
 import { STATUS_LABEL } from './CustomerAccount';
 import type { ActiveTab } from './Sections';
 import { QuickPrice } from './QuickPrice';
+import { VoiceCommand, VoiceResult } from './VoiceCommand';
 import { Targets, useSetting } from '../lib/settings';
 
 type Tab = Exclude<ActiveTab, 'home'>;
@@ -39,7 +40,8 @@ export const SimpleHome: React.FC<{
   onNewCollection: () => void;
   onNewExpense: () => void;
   onOpenCustomer?: (name: string) => void;
-}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer }) => {
+  onVoice?: (r: VoiceResult) => void;
+}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, onVoice }) => {
   const rates = useRates(quotes);
   const t = today();
   const canMoney = sections.includes('collections');
@@ -147,6 +149,11 @@ export const SimpleHome: React.FC<{
           </button>
         ))}
       </div>
+
+      {/* Sesli komut */}
+      {onVoice && (canAdd.quote || canAdd.collection || canAdd.expense) && (
+        <VoiceCommand customers={customers.map(c => c.name)} allow={canAdd} onResult={onVoice} />
+      )}
 
       {/* Hızlı fiyat sorgusu */}
       {canQuotes && <QuickPrice quotes={quotes} onOpenQuote={onOpenQuote} />}
