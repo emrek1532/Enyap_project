@@ -112,13 +112,13 @@ export const RequestReader: React.FC<{ customers: Customer[]; onDraft: (draft: P
       )}
 
       <textarea value={text} onChange={e => setText(e.target.value)} rows={3}
-        placeholder="WhatsApp mesajını buraya yapıştırın… ya da aşağıdan fotoğraf / Excel seçin"
+        placeholder="WhatsApp mesajını buraya yapıştırın (her satıra bir ürün, ör. 500 lt genleşme - 4)… ya da fotoğraf / Excel seçin"
         className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm resize-y" />
       <div className="flex flex-wrap gap-2">
         <button disabled={!!busy || !text.trim()} onClick={() => { setPhoto(null); run({ text }); }}
           className="px-3 py-2 rounded-lg bg-brand-600 text-white text-xs font-bold disabled:opacity-40">Yazıyı oku</button>
         <label className={`px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${busy ? 'opacity-40 pointer-events-none' : 'hover:bg-slate-50'}`}>
-          <Camera className="w-4 h-4" /> Fotoğraf
+          <Camera className="w-4 h-4" /> Fotoğraf <span className="font-normal text-slate-400">(yapay zekâ)</span>
           <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(f); }} />
         </label>
         <label className={`px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${busy ? 'opacity-40 pointer-events-none' : 'hover:bg-slate-50'}`}>

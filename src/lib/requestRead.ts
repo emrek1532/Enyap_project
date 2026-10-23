@@ -1,6 +1,6 @@
 /**
  * Müşteri talebini okuma: el yazısı fotoğrafı, WhatsApp yazısı ya da Excel → ürün satırları → katalogda adaylar.
- * Yapay zekâ yalnızca talebi satırlara ayırır (/api/ai/request). Ürün seçimi kurallarla yapılır:
+ * Yazı ve Excel kurallarla, cihazda okunur (parseRequestText); yapay zekâ yalnız fotoğrafı satırlara ayırır (/api/ai/request). Ürün seçimi kurallarla yapılır:
  * tercihli ürün kuralları ("genleşme" → VTSKGD…) ölçüyle birleşince ürünü kesinleştirir, olmazsa adaylar sıralanır
  * ve kullanıcı seçer. Emin olunmayan satır sessizce teklife geçmez.
  */
@@ -14,7 +14,76 @@ export interface ReqLine { text: string; item: string; qty: number; unit: string
 export interface PrefRule { when: string; prefix: string }
 export const PREF_KEY = 'preferred-products';
 
+const GREETING = /^(merhaba|selam|selamlar|iyi (gunler|calismalar|aksamlar)|kolay gelsin|tesekkur\w*|sagol\w*|rica|fiyat\w*|teklif\w*|acil\w*|lutfen|hayirli|gunaydin)\b/;
+const UNIT_RE = /^(adet|ad\.?|tane|pcs|ad)$/;
+const METRE_RE = /^(mt|metre|m)$/;
+const DITTO = /^(["“”″〃'']{1,2}|aynı|aynen)$/i;
+
+/** Tek satırdan adet ve birimi ayırır: "500 lt genleşme - 1+1+1+1 = 4", "10 adet 2\" küresel vana", "kep 3\" x 5" */
+function splitQty(raw: string): { item: string; qty: number; unit: string } {
+  let s = raw.replace(/\s+/g, ' ').trim();
+  let qty: number | null = null;
+  let unit = 'Adet';
+  const take = (re: RegExp, val: (m: RegExpExecArray) => number) => {
+    const m = re.exec(s);
+    if (!m || qty !== null) return;
+    qty = val(m);
+    if (m[2] && METRE_RE.test(foldTr(m[2]))) unit = 'Metre';
+    s = (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length)).trim();
+  };
+  const sum = (t: string) => t.split('+').reduce((a, b) => a + (Number(b.trim().replace(',', '.')) || 0), 0);
+  // "... - 1+1+1+1 = 4" → toplam (eşittirden sonraki sayı esas)
+  take(/[-–:]\s*[\d+\s]*=\s*(\d+)\s*(adet|ad|tane|mt|metre)?\.?\s*$/i, m => Number(m[1]));
+  // "... - 1+1", "... - 3 adet", "...: 12 mt"
+  take(/[-–:]\s*(\d+(?:[.,]\d+)?(?:\s*\+\s*\d+)*)\s*(adet|ad|tane|mt|metre)?\.?\s*$/i, m => sum(m[1]));
+  // "10 adet ...", "... 10 adet", "25 mt ..."
+  take(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(adet|ad\.|tane|mt|metre)\b/i, m => Number(m[1].replace(',', '.')));
+  // "... x 5", "... x5"
+  take(/\s[x×*]\s*(\d+)\s*$/i, m => Number(m[1]));
+  // Madde işareti / sıra numarası ("- ", "• ", "3) ", "3. ") atılır; "200 lt" gibi ölçüler kalır
+  const item = s.replace(/^(?:[-–•*]+|\d{1,2}[.)])\s+/, '').replace(/[-–:,;]+\s*$/, '').trim();
+  return { item, qty: qty && qty > 0 ? qty : 1, unit };
+}
+
+/**
+ * Yazı talebini yapay zekâsız satırlara ayırır (WhatsApp mesajı, Excel'den gelen satırlar).
+ * Selamlaşma satırları atlanır, " / aynı işaretleri üstteki satırın aynı sıradaki kelimesiyle doldurulur.
+ */
+export function parseRequestText(text: string): ReqLine[] {
+  const out: ReqLine[] = [];
+  let prevWords: string[] = [];
+  for (const rawLine of text.split(/\r?\n|;/)) {
+    // Excel satırı: "ürün | 5" ya da "5 | ürün" → sayı hücresi adet olur
+    const cells = rawLine.split('|').map(c => c.trim()).filter(Boolean);
+    let line = rawLine;
+    if (cells.length > 1 && !/\d/.test(rawLine) && cells.some(c => /^(urun|malzeme|aciklama|cinsi|miktar|adet|birim|stok)/.test(foldTr(c)))) continue;
+    if (cells.length > 1) {
+      const qtyCell = cells.find(c => /^\d+(?:[.,]\d+)?$/.test(c));
+      const textCell = cells.filter(c => c !== qtyCell && /[a-zçğıöşü]{2}/i.test(c)).sort((a, b) => b.length - a.length)[0];
+      if (!textCell) continue;
+      line = qtyCell ? `${textCell} - ${qtyCell}` : textCell;
+    }
+    line = line.replace(/(\d)\s*(lt|l)\b/gi, '$1 lt').replace(/\s+/g, ' ').trim();
+    const f = foldTr(line);
+    if (!/[a-z]{2}/.test(f) || GREETING.test(f) && !/\d/.test(f)) continue;
+    // Başlık satırı (ürün / miktar / birim)
+    if (/^(urun|malzeme|aciklama|cinsi|stok)\b/.test(f) && !/\d/.test(f)) continue;
+    const words = line.split(' ');
+    if (words.some(w => DITTO.test(w)) && prevWords.length) {
+      for (let i = 0; i < words.length; i++) if (DITTO.test(words[i])) words[i] = prevWords[i] ?? '';
+      line = words.filter(Boolean).join(' ');
+    }
+    const { item, qty, unit } = splitQty(line);
+    if (!/[a-zçğıöşü]{2}/i.test(item)) continue;
+    out.push({ text: rawLine.trim(), item, qty, unit, unsure: false });
+    prevWords = line.split(' ');
+  }
+  return out;
+}
+
 export async function readRequest(input: { image?: string; text?: string }): Promise<{ customer: string; lines: ReqLine[] }> {
+  // Yazı ve Excel yapay zekâsız okunur; yapay zekâ yalnız fotoğraf (el yazısı) için
+  if (!input.image && input.text) return { customer: '', lines: parseRequestText(input.text) };
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   const res = await fetch('/api/ai/request', {
@@ -23,7 +92,7 @@ export async function readRequest(input: { image?: string; text?: string }): Pro
     body: JSON.stringify(input),
   });
   const out = await res.json().catch(() => null);
-  if (res.status === 429) throw new Error('Yapay zekâ kotası doldu, biraz sonra tekrar deneyin (03:00\'te yenilenir).');
+  if (res.status === 429) throw new Error('Fotoğraf okuma (yapay zekâ) günlük ücretsiz kotaya takıldı; kota her gece 03:00\'te yenilenir. Talebi yazıyla yapıştırırsanız yapay zekâsız okunur.');
   if (!res.ok) throw new Error(out?.message || out?.error || 'Talep okunamadı');
   return { customer: String(out?.customer || ''), lines: Array.isArray(out?.lines) ? out.lines : [] };
 }
