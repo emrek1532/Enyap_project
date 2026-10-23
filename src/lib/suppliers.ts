@@ -305,6 +305,13 @@ export async function aiMatchList(listId: string, onInfo?: (info: string) => voi
   return { checked, linked };
 }
 
+/** Yükleme bitince: dosyadan kurulan listeyi yapay zekâyla eşleştirir (kural eşleşmesinin bulamadıkları) */
+export async function aiMatchUploaded(fileName: string, onInfo?: (info: string) => void) {
+  const { data } = await supabase.from('supplier_lists').select('id').eq('source_file', fileName).order('updated_at', { ascending: false }).limit(1);
+  const id = data?.[0]?.id as string | undefined;
+  return id ? aiMatchList(id, onInfo) : null;
+}
+
 export async function searchSupplierItems(q: string, opts: { list?: string | null; limit?: number; offset?: number } = {}) {
   const { data, error } = await supabase.rpc('search_supplier_items_v3', {
     q, list: opts.list ?? null, lim: opts.limit ?? 30, off: opts.offset ?? 0,
