@@ -2,6 +2,8 @@
 
 Kullanıcıyla Türkçe, kısa yazış. Değişiklikleri yayına almak için: dalı `origin/main`'den aç, commit, PR oluştur, squash ile birleştir (Cloudflare Worker `enyap-project` main'den otomatik yayınlanır).
 
+Kullanıcı yazılım ve yapay zekâyı öğrenmek istiyor: her işte, yapılan işlemi ve geçen kavramları (RAG, ajan, API, migration vb.) uygulamadan örnekle 2-4 cümleyle sade Türkçe açıkla.
+
 ## Yapı
 - React + Vite + Tailwind v4 (`src/`), Cloudflare Worker (`worker/index.ts`: /api/ai/voice, /api/ai/pdf, /api/ai/pricelist, /api/ai/match, /api/ai/ask, /api/push/send, /share-target).
 - Supabase projesi `aaduhhdwemnyqhnttcat`. Şema değişiklikleri `supabase/migrations/` altında.
