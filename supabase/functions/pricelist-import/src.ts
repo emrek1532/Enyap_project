@@ -55,9 +55,11 @@ Deno.serve(async req => {
       configure({
         sb,
         ai: async (text: string) => {
+          // Takılan sayfa çalışmanın süre sınırını doldurmasın: 25 sn'de cevap yoksa sayfa atlanır
           const res = await fetch(`${WORKER}/api/ai/pricelist`, {
             method: 'POST', headers: { 'content-type': 'application/json', authorization: auth }, body: JSON.stringify({ text: text.slice(0, 12000) }),
-          });
+            signal: AbortSignal.timeout(25_000),
+          }).catch(e => { throw new Error(e?.name === 'TimeoutError' ? 'timeout' : String(e?.message || e)); });
           if (res.status === 429) throw new Error('quota');
           if (!res.ok) return null;
           const out = await res.json().catch(() => null);
