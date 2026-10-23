@@ -59,7 +59,7 @@ type PItemRaw = [string, number, number, number, number];
 export async function importListFromText(
   fileName: string, pages: string[][], onInfo?: (info: string) => void,
 ): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; ambiguous: number }> {
-  const { parsePriceLines, detectCurrency, guessListInfo, listIdFor } = await import('./priceParse');
+  const { parsePriceLines, detectCurrency } = await import('./priceParse');
   const { parsePositionedPage } = await import('./tableParse');
   const { parseMatrixPage } = await import('./matrixParse');
   // Sayfa başındaki konumlu yazı (#POS:…) ayrılır

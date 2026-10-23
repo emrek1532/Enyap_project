@@ -2,8 +2,8 @@ import { Quote, QuoteStatus } from '../types';
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** Henüz sonuçlanmamış (müşteriden yanıt / ofisten fiyat bekleyen) teklif durumları */
-export const PENDING_STATUSES: QuoteStatus[] = ['yeni_talep', 'hazirlaniyor', 'gonderildi', 'revizyon'];
+/** Henüz sonuçlanmamış (müşteriden yanıt bekleyen) teklif durumları */
+export const PENDING_STATUSES: QuoteStatus[] = ['gonderildi'];
 
 /** Beklemede kalan teklif için bu kadar günden sonra "müşteri ile tekrar görüş" uyarısı çıkar */
 export const FOLLOW_UP_AFTER_DAYS = 3;
@@ -34,5 +34,11 @@ export function nextQuoteNumber(quotes: { quoteNumber?: string }[], date = new D
   return `EK-${year}-${String(max + 1).padStart(4, '0')}`;
 }
 
-/** Kaybedilen (iptal) teklif nedenleri */
-export const LOST_REASONS = ['Fiyat yüksek', 'Rakibe gitti', 'Proje iptal / ertelendi', 'Müşteri vazgeçti', 'Teslim süresi', 'Diğer'] as const;
+/** Bekleyen teklif neden bekliyor (iptal = sipariş olup sonradan iptal; ona neden sorulmaz) */
+export const PENDING_REASONS = ['Fiyat yüksek', 'Rakip daha ucuz', 'Müşteri düşünüyor', 'Proje ertelendi', 'Teslim süresi', 'Diğer'] as const;
+
+/** Neden ve not tek alanda tutulur: "Rakip daha ucuz · ABC Isı 45.000 TL" */
+export const splitReason = (r?: string) => {
+  const [reason, ...rest] = (r || '').split(' · ');
+  return { reason: reason || '', note: rest.join(' · ') };
+};

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, Send, X, ChevronRight, Loader2, Download, Eye } from 'lucide-react';
+import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, X, ChevronRight, Loader2, Eye } from 'lucide-react';
 import { Collection, Customer, Expense, Quote } from '../types';
 import { foldName } from '../lib/customerInsights';
-import { PENDING_STATUSES } from '../lib/quoteRules';
+import { PENDING_STATUSES, splitReason } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
 import { PrintDoc, PrintSection, useReportSender } from './ReportPrint';
@@ -41,7 +41,7 @@ const compact = (v: number) => {
   return v.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
 };
 
-const isApproved = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
+const isApproved = (q: Quote) => q.status === 'onaylandi';
 const isPending = (q: Quote) => PENDING_STATUSES.includes(q.status);
 
 const sumByCurrency = (list: { amount: number; currency: Currency }[]) =>
@@ -372,10 +372,14 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       approved: approved.length, approvedAmt: amount(approved),
       pending: pending.length, pendingAmt: amount(pending),
       cancelled: cancelled.length, cancelledAmt: amount(cancelled),
-      lost: Object.entries(cancelled.reduce<Record<string, { n: number; amt: number }>>((m, q) => {
-        const k = q.lostReason || 'Neden girilmemiş';
+      // Bekleyen teklifler neden bekliyor (teklif detayında seçilen neden)
+      waiting: Object.entries(pending.reduce<Record<string, { n: number; amt: number }>>((m, q) => {
+        const k = splitReason(q.lostReason).reason || 'Neden girilmemiş';
         m[k] = m[k] || { n: 0, amt: 0 }; m[k].n++; m[k].amt += qTry(q); return m;
-      }, {})).sort((a, b) => b[1].amt - a[1].amt),
+      }, {})).sort((a, b) => (a[0] === 'Neden girilmemiş' ? 1 : 0) - (b[0] === 'Neden girilmemiş' ? 1 : 0) || b[1].amt - a[1].amt),
+      // Rakip notları: "Rakip daha ucuz · ABC Isı 45.000 TL"
+      rivals: pending.filter(q => splitReason(q.lostReason).reason === 'Rakip daha ucuz')
+        .map(q => ({ q, note: splitReason(q.lostReason).note })),
     };
   }, [pQuotes, rates]);
 
@@ -480,8 +484,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   const periodLabel = period === 'all' ? 'Tüm kayıtlar'
     : `${from.startsWith('0000') ? 'Başlangıç' : trD(from)} – ${to.startsWith('9999') ? 'Bugün' : trD(to)}`;
   const STATUS_TR: Record<string, string> = {
-    yeni_talep: 'Yeni Talep', hazirlaniyor: 'Hazırlanıyor', gonderildi: 'Beklemede', revizyon: 'Revizyon',
-    onaylandi: 'Onaylandı', siparis: 'Sipariş', iptal: 'İptal', arsiv: 'Arşiv',
+    gonderildi: 'Beklemede', onaylandi: 'Onaylandı', iptal: 'İptal',
   };
   const byDateDesc = <T,>(list: T[], d: (x: T) => string) => [...list].sort((a, b) => d(b).localeCompare(d(a)));
   const amountCol = { label: 'Tutar', align: 'right' as const };
@@ -654,19 +657,29 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         rows={[...customerRows].sort((a, b) => b.approvedAmt - a.approvedAmt).filter(r => r.approvedAmt > 0).slice(0, 8)
           .map(r => ({ label: r.name, value: r.approvedAmt, sub: `${r.approved} onay · satış oranı ${pct(r.approvedAmt, r.totalAmt)}` }))} />
 
-      {/* Kaybedilen teklif nedenleri */}
-      {stats.cancelled > 0 && (
+      {/* Bekleyen teklifler: neden bekliyor */}
+      {stats.pending > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4">
-          <h3 className="font-bold text-slate-900 text-sm">Kaybedilen Teklifler · Nedenleri</h3>
-          <p className="text-xs text-slate-500 mb-3">{stats.cancelled} teklif · {tl(stats.cancelledAmt)} · teklifi iptal ederken seçilen neden</p>
+          <h3 className="font-bold text-slate-900 text-sm">Bekleyen Teklifler · Neden Bekliyor?</h3>
+          <p className="text-xs text-slate-500 mb-3">{stats.pending} teklif · {tl(stats.pendingAmt)} · teklif detayında seçilen neden</p>
           <div className="space-y-2">
-            {stats.lost.map(([k, v]) => (
+            {stats.waiting.map(([k, v]) => (
               <div key={k} className="text-xs">
                 <div className="flex justify-between gap-2 mb-0.5"><span className="font-semibold text-slate-700">{k}</span><span className="tabular-nums text-slate-500">{v.n} teklif · {tl(v.amt)}</span></div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${k === 'Neden girilmemiş' ? 'bg-slate-300' : 'bg-rose-400'}`} style={{ width: `${Math.max(2, (v.amt / Math.max(1, stats.cancelledAmt)) * 100)}%` }} /></div>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${k === 'Neden girilmemiş' ? 'bg-slate-300' : 'bg-amber-400'}`} style={{ width: `${Math.max(2, (v.amt / Math.max(1, stats.pendingAmt)) * 100)}%` }} /></div>
               </div>
             ))}
           </div>
+          {stats.rivals.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Rakip notları</div>
+              <ul className="space-y-1 text-xs">
+                {stats.rivals.map(({ q, note }) => (
+                  <li key={q.id} className="flex justify-between gap-2"><span className="min-w-0 truncate"><b className="text-slate-800">{q.customerName}</b> <span className="text-slate-400">{q.quoteNumber}</span></span><span className="text-slate-600 text-right">{note || '—'}</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

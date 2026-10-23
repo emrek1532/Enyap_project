@@ -260,10 +260,6 @@ async function readBody(req: Request): Promise<Body | null> {
   try { return await req.json(); } catch { return null; }
 }
 
-const fail = (err: unknown) => err instanceof ParseError
-  ? json({ error: err.code, message: err.message }, err.status)
-  : json({ error: 'unknown', message: 'Beklenmeyen hata.' }, 500);
-
 /** Ses kaydı → Whisper ile yazı → taslak. Anlama başarısız olsa da yazı döner (tarayıcı kendi çözer). */
 async function handleVoice(req: Request, env: Env): Promise<Response> {
   if (!env.AI) return json({ error: 'no_ai', message: 'Sunucuda ses tanıma tanımlı değil.' }, 503);

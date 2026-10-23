@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { dayOf, localDay } from '../lib/dates';
+import { dayOf } from '../lib/dates';
 import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
 import { CollectionQuickForm } from './LedgerPanel';
 import { DateInput } from './DateInput';
@@ -12,17 +12,12 @@ import { Rates, quoteTry } from '../lib/rates';
 import { formatQuoteAmount } from '../lib/money';
 
 export const STATUS_LABEL: Record<QuoteStatus, { label: string; cls: string }> = {
-  yeni_talep: { label: 'Beklemede', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
-  hazirlaniyor: { label: 'Beklemede', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
   gonderildi: { label: 'Beklemede', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
-  revizyon: { label: 'Beklemede', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
   onaylandi: { label: 'Onaylandı', cls: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-  siparis: { label: 'Onaylandı', cls: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   iptal: { label: 'İptal', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-  arsiv: { label: 'Arşiv', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
 };
 
-const isApproved = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
+const isApproved = (q: Quote) => q.status === 'onaylandi';
 const isPending = (q: Quote) => PENDING_STATUSES.includes(q.status);
 const tl = (n: number) => `${Math.round(n).toLocaleString('tr-TR')} TL`;
 const day = (s: string) => (s ? new Date(s).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
@@ -90,7 +85,7 @@ export const CustomerAccount: React.FC<{
 
   const approved = quotes.filter(isApproved);
   const pending = quotes.filter(isPending);
-  const cancelled = quotes.filter(x => x.status === 'iptal' || x.status === 'arsiv');
+  const cancelled = quotes.filter(x => x.status === 'iptal');
   const sumTry = (l: Quote[]) => l.reduce((s, x) => s + quoteTry(x, rates), 0);
   const colTry = collections.filter(c => c.currency === 'TRY').reduce((s, c) => s + c.amount, 0);
   const lastBuy = approved[0]?.createdAt;
@@ -105,7 +100,7 @@ export const CustomerAccount: React.FC<{
 
   const nq = fold(q.trim());
   const shownQuotes = quotes.filter(x =>
-    (qFilter === 'all' || (qFilter === 'approved' ? isApproved(x) : qFilter === 'pending' ? isPending(x) : x.status === 'iptal' || x.status === 'arsiv'))
+    (qFilter === 'all' || (qFilter === 'approved' ? isApproved(x) : qFilter === 'pending' ? isPending(x) : x.status === 'iptal'))
     && (!nq || fold(`${x.quoteNumber} ${x.notes || ''} ${x.preparedBy || ''} ${(x.items || []).map(i => `${i.productName} ${i.code || ''}`).join(' ')}`).includes(nq)));
   const shownLines = lines.filter(l => (!onlyBought || isApproved(l.quote))
     && (!nq || nq.split(/\s+/).every(w => fold(`${l.it.productName} ${l.it.code || ''} ${l.quote.quoteNumber}`).includes(w))));

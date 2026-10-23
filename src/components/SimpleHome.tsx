@@ -53,7 +53,7 @@ export const SimpleHome: React.FC<{
     const calc = (key: string, upTo?: string) => {
       const inM = (s?: string) => !!s && dayOf(s).startsWith(key) && (!upTo || dayOf(s) <= upTo);
       const qs = quotes.filter(q => inM(q.createdAt) && q.status !== 'iptal');
-      const won = qs.filter(q => q.status === 'onaylandi' || q.status === 'siparis');
+      const won = qs.filter(q => q.status === 'onaylandi');
       return {
         key,
         teklif: qs.reduce((t, q) => t + quoteTry(q, rates), 0),
@@ -85,7 +85,7 @@ export const SimpleHome: React.FC<{
       const k = foldName(q.customerName);
       const f = firms.get(k) || { label: q.customerName, teklif: 0, onay: 0, count: 0 };
       f.teklif += qv(q); f.count++;
-      if (q.status === 'onaylandi' || q.status === 'siparis') f.onay += qv(q);
+      if (q.status === 'onaylandi') f.onay += qv(q);
       firms.set(k, f);
     }
     const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -98,7 +98,7 @@ export const SimpleHome: React.FC<{
     const dueChecks = collections.filter(c => c.dueDate && dayOf(c.dueDate).startsWith(curKey) && dayOf(c.dueDate) >= t);
     const detail = {
       day: now.getDate(), dim, weeks,
-      onay: st(q => q.status === 'onaylandi' || q.status === 'siparis'),
+      onay: st(q => q.status === 'onaylandi'),
       bekleyen: st(q => PENDING_STATUSES.includes(q.status)),
       iptal: st(q => q.status === 'iptal'),
       firms: [...firms.values()].sort((a, b) => b.teklif - a.teklif).slice(0, 5),
