@@ -146,17 +146,22 @@ export function detectCurrency(text: string): Currency {
 
 /** Dosya adından firma adı ve liste tarihi: "FAF NİSAN 2026 FİYAT LİSTESİ.pdf" → FAF · Nisan 2026 */
 export function guessListInfo(fileName: string): { name: string; listDate: string } {
-  const base = fileName.replace(/\.[a-z0-9]+$/i, '').replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // "Şubat2026" gibi bitişik yazılan ay ve yıl ayrılır
+  const base = fileName.replace(/\.[a-z0-9]+$/i, '').replace(/[_\-]+/g, ' ').replace(/([A-Za-zÇĞİÖŞÜçğıöşü])(20\d\d)/g, '$1 $2').replace(/\s+/g, ' ').trim();
   const low = base.toLocaleLowerCase('tr');
   const fold = (s: string) => s.replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
-  const year = /(20\d\d)/.exec(base)?.[1] || '';
-  const mi = MONTHS.findIndex(m => fold(low).includes(fold(m)));
+  // Tarih yazılmışsa (01.01.2026): ay ve yıl oradan, kelime olarak ay adı varsa o öncelikli
+  const dm = /\b(\d{1,2})[./](\d{1,2})[./](20\d\d)\b/.exec(base);
+  const year = /\b(20\d\d)\b/.exec(base)?.[1] || dm?.[3] || '';
+  const words = fold(low).split(' ');
+  let mi = MONTHS.findIndex(m => words.includes(fold(m)));
+  if (mi < 0 && dm && Number(dm[2]) >= 1 && Number(dm[2]) <= 12) mi = Number(dm[2]) - 1;
   const month = mi >= 0 ? MONTHS[mi][0].toLocaleUpperCase('tr') + MONTHS[mi].slice(1) : '';
   const name = base
     .split(' ')
     .filter(w => {
       const f = fold(w.toLocaleLowerCase('tr'));
-      return f && !/^20\d\d$/.test(w) && !MONTHS.some(m => fold(m) === f)
+      return f && !/^20\d\d$/.test(w) && !/^\d{1,2}[./]\d{1,2}[./]20\d\d$/.test(w) && !MONTHS.some(m => fold(m) === f)
         && !['fiyat', 'fiyatlari', 'liste', 'listesi', 'price', 'list', 'guncel', 'yeni', 'v', 'tl', 'euro', 'eur', 'usd', 'iskontolu'].includes(f);
     })
     .join(' ')
