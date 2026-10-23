@@ -576,31 +576,58 @@ caches.open('enyap-share')
 // ---- RAG: veritabanının bulduğu adaylardan doğru malzemeyi seçme ve teklif geçmişine soru sorma ----
 const MATCH_PROMPT = `Bir tesisat malzemesi satıcısının firma fiyat listesi kalemlerini kendi malzeme kodlarıyla eşleştiriyorsun.
 Her kalem için verilen ADAYLAR arasından AYNI ürünü seç: ürün tipi, model/seri (Model 67 ≠ 77, F4 ≠ F5, MKSF ≠ MKTY), ölçü (DN, inç; "Q 50" = DN50, 2" = DN50), PN/bar, bağlantı (flanşlı/dişli/yivli), alt tip (lug/wafer, kauçuk/metal, şamandıralı/ters kovalı) ve renk/kaplama aynı olmalı.
-Malzeme adlarında kısaltma olur (KÜR. = küresel, FLŞ. = flanşlı, KOMP. = kompansatör). Emin değilsen ya da adaylarda aynı ürün yoksa code = null ver. Yakın ama farklı ürünü ASLA seçme.`;
+Malzeme adlarında kısaltma olur (KÜR. = küresel, FLŞ. = flanşlı, KOMP. = kompansatör). Emin değilsen ya da adaylarda aynı ürün yoksa code = null (ya da boş) ver. Yakın ama farklı ürünü ASLA seçme.`;
 
 const MATCH_SCHEMA = obj({
   matches: { type: 'array', items: obj({ id: num, code: nullable(str) }) },
 });
 
+// Claude anahtarı yoksa Cloudflare'in ücretsiz modeli kullanılır ("yok" için boş kod)
+const MATCH_SCHEMA_LLAMA = {
+  type: 'object',
+  properties: { matches: { type: 'array', items: { type: 'object', properties: { id: { type: 'number' }, code: { type: 'string' } }, required: ['id', 'code'] } } },
+  required: ['matches'],
+};
+
+/** Yapılandırılmış cevap: Claude anahtarı varsa Claude, yoksa Workers AI (Llama) */
+async function askModel(env: Env, system: string, user: string, schema: { claude: unknown; llama: unknown } | null, maxTokens: number): Promise<string> {
+  if (env.ANTHROPIC_API_KEY) {
+    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    const response = await client.messages.create({
+      model: PRICELIST_MODEL,
+      max_tokens: maxTokens,
+      output_config: { effort: 'low', ...(schema ? { format: { type: 'json_schema', schema: schema.claude } } : {}) },
+      system,
+      messages: [{ role: 'user', content: user }],
+    } as any);
+    return (response.content as any[]).find(b => b.type === 'text')?.text || '';
+  }
+  const r = await env.AI!.run(LLAMA, {
+    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    ...(schema ? { response_format: { type: 'json_schema', json_schema: schema.llama } } : {}),
+    max_tokens: Math.min(maxTokens, 4000),
+    temperature: 0,
+  });
+  return typeof r?.response === 'string' ? r.response : JSON.stringify(r?.response ?? '');
+}
+
+const aiError = (err: unknown) => {
+  const msg = String((err as Error)?.message || err);
+  if (err instanceof Anthropic.RateLimitError || /neuron|quota|4006|429/i.test(msg)) return json({ error: 'quota', message: msg.slice(0, 200) }, 429);
+  return json({ error: 'ai', message: msg.slice(0, 200) }, 502);
+};
+
 async function handleMatch(req: Request, env: Env): Promise<Response> {
-  if (!env.ANTHROPIC_API_KEY) return json({ error: 'no_ai' }, 503);
+  if (!env.ANTHROPIC_API_KEY && !env.AI) return json({ error: 'no_ai' }, 503);
   if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
   const body = await req.json().catch(() => null) as { items?: { id: number; name: string; code?: string; candidates: { code: string; name: string }[] }[] } | null;
   const items = (body?.items || []).slice(0, 25);
   if (!items.length) return json({ matches: [] });
   const text = items.map(it => `KALEM ${it.id}: ${it.name}${it.code ? ` [kod ${it.code}]` : ''}\n` +
     it.candidates.slice(0, 10).map(c => `  - ${c.code}: ${c.name}`).join('\n')).join('\n\n');
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   try {
-    const response = await client.messages.create({
-      model: PRICELIST_MODEL,
-      max_tokens: 8000,
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: MATCH_SCHEMA } },
-      system: MATCH_PROMPT,
-      messages: [{ role: 'user', content: text }],
-    } as any);
-    const out = (response.content as any[]).find(b => b.type === 'text');
-    const parsed = out ? JSON.parse(out.text) : null;
+    const out = await askModel(env, MATCH_PROMPT, text, { claude: MATCH_SCHEMA, llama: MATCH_SCHEMA_LLAMA }, 8000);
+    const parsed = out ? JSON.parse(out) : null;
     // Sadece o kalemin adaylarından biri kabul edilir
     const allowed = new Map(items.map(it => [Number(it.id), new Set(it.candidates.map(c => c.code))]));
     const matches = (parsed?.matches || [])
@@ -608,8 +635,7 @@ async function handleMatch(req: Request, env: Env): Promise<Response> {
       .map((m: any) => ({ id: Number(m.id), code: m.code && allowed.get(Number(m.id))!.has(m.code) ? m.code : null }));
     return json({ matches });
   } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) return json({ error: 'quota' }, 429);
-    return json({ error: 'ai', message: String((err as Error)?.message || err).slice(0, 200) }, 502);
+    return aiError(err);
   }
 }
 
@@ -617,26 +643,17 @@ const ASK_PROMPT = `Enyap Isı'nın teklif ve satış asistanısın. Kullanıcı
 Fiyatları para birimiyle yaz, tarih ve firma adını belirt. Satırlarda cevap yoksa "Kayıtlarda bulamadım" de; tahmin etme, uydurma.`;
 
 async function handleAsk(req: Request, env: Env): Promise<Response> {
-  if (!env.ANTHROPIC_API_KEY) return json({ error: 'no_ai' }, 503);
+  if (!env.ANTHROPIC_API_KEY && !env.AI) return json({ error: 'no_ai' }, 503);
   if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
   const body = await req.json().catch(() => null) as { question?: string; context?: string } | null;
   const question = String(body?.question || '').slice(0, 500);
   const context = String(body?.context || '').slice(0, 30000);
   if (!question.trim()) return json({ answer: '' });
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   try {
-    const response = await client.messages.create({
-      model: PRICELIST_MODEL,
-      max_tokens: 4000,
-      output_config: { effort: 'low' },
-      system: ASK_PROMPT,
-      messages: [{ role: 'user', content: `TEKLİF SATIRLARI:\n${context || '(bulunamadı)'}\n\nSORU: ${question}` }],
-    } as any);
-    const out = (response.content as any[]).find(b => b.type === 'text');
-    return json({ answer: out?.text || '' });
+    const answer = await askModel(env, ASK_PROMPT, `BUGÜN: ${new Date().toISOString().slice(0, 10)}\n\nTEKLİF SATIRLARI (tarih | firma | teklif no | durum | ürün | miktar | fiyat):\n${context || '(bulunamadı)'}\n\nSORU: ${question}`, null, 4000);
+    return json({ answer });
   } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) return json({ error: 'quota' }, 429);
-    return json({ error: 'ai', message: String((err as Error)?.message || err).slice(0, 200) }, 502);
+    return aiError(err);
   }
 }
 

@@ -9,7 +9,8 @@ import { STATUS_LABEL } from './CustomerAccount';
 // Soruda arama için anlamı olmayan kelimeler
 const STOP = new Set(('ne neler kac kaca kactan hangi hangisi verdik verdim verildi icin mi mu en son ile ve veya bir bu su o gecen yil ' +
   'yili ay ayi hafta kim kime kimden fiyat fiyati fiyatina teklif teklifi teklifler tekliflerde ver vermis olan olarak gibi daha kadar ' +
-  'toplam tum butun hepsi var yok nedir nasil acaba bize biz firmasina firmaya firma para paraya parayla tane adet').split(' '));
+  'toplam tum butun hepsi var yok nedir nasil acaba bize biz firmasina firmaya firma para paraya parayla tane adet ' +
+  'bugun dun yarin sattik sattim satildi aldi aldik aldilar verildi istedi onaylandi onaylanan iptal bekleyen bekliyor').split(' '));
 
 /** İnç yazımlarını birleştirir: 2 inç, 2'', 1 1/2 parmak → 2", 1 1/2" */
 const normInch = (s: string) => foldTr(s).replace(/''|”|″/g, '"').replace(/(\d(?:\s?\d\/\d)?)\s*(?:inc|parmak)\b/g, '$1"');
@@ -31,7 +32,9 @@ function findLines(question: string, quotes: Quote[], customers: string[]): stri
   if (Math.max(0, ...customers.map(nameHits)) > best) return [];
   const pool = best ? quotes.filter(q => custHits(q) === best) : quotes;
   const custWords = best ? words.filter(w => pool.some(q => foldTr(q.customerName).includes(w))) : [];
-  const itemWords = words.filter(w => !custWords.includes(w));
+  // Firmanın hiçbir ürününde geçmeyen kelimeler (zaman, fiil) ürün aramasından çıkarılır
+  const itemWords = words.filter(w => !custWords.includes(w)
+    && (!best || pool.some(q => (q.items || []).some(it => has(normInch(`${it.productName} ${it.code || ''}`), w)))));
   const scored: { score: number; date: string; line: string }[] = [];
   for (const q of pool) {
     for (const it of q.items || []) {
