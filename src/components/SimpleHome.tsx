@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { BellRing, Bot, ChevronRight, FilePlus2, MessageCircleQuestion, Mic, PhoneCall, Receipt, Search, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
-import { Collection, Customer, Expense, Quote, QuickNote } from '../types';
+import { Bot, ChevronRight, FilePlus2, MessageCircleQuestion, Mic, Receipt, Search, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { Collection, Customer, Expense, Quote } from '../types';
 import { foldName } from '../lib/customerInsights';
-import { PENDING_STATUSES, needsFollowUp, quoteAgeInDays } from '../lib/quoteRules';
+import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import type { ActiveTab } from './Sections';
 import { QuickPrice } from './QuickPrice';
@@ -20,7 +20,6 @@ const tl = (v: number) => `${Math.round(v).toLocaleString('tr-TR')} TL`;
 const short = (v: number) => v >= 1e6 ? `${(v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} Mn` : v >= 1e3 ? `${Math.round(v / 1e3).toLocaleString('tr-TR')} bin` : `${Math.round(v)}`;
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const trDay = (s: string) => dayOf(s).split('-').reverse().join('.');
 const AY = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 const AY_UZUN = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const GUN = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
@@ -34,14 +33,13 @@ type Month = { key: string; teklif: number; adet: number; onay: number; onayAdet
 
 /**
  * Ana sayfa: hızlı işlemler, tek kutuda arama + yapay zekâ, bu ayın rakamları (dokununca ilgili liste süzülmüş açılır),
- * son 6 ay grafiği, ayın haftaları, firmalar ve bugün yapılacaklar (hatırlatmalar, aranacak teklifler).
+ * son 6 ay grafiği, ayın haftaları, firmalar.
  */
 export const SimpleHome: React.FC<{
   quotes: Quote[];
   customers: Customer[];
   collections: Collection[];
   expenses: Expense[];
-  notes: QuickNote[];
   sections: Tab[];
   onOpen: (tab: Tab) => void;
   onOpenQuotes?: (v: QuoteView) => void;
@@ -52,7 +50,7 @@ export const SimpleHome: React.FC<{
   onNewExpense: () => void;
   onOpenCustomer?: (name: string) => void;
   onVoice?: (r: VoiceResult) => void;
-}> = ({ quotes, customers, collections, expenses, notes, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, onVoice }) => {
+}> = ({ quotes, customers, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, onVoice }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -107,21 +105,13 @@ export const SimpleHome: React.FC<{
       firms.set(k, f);
     }
     const st = (pred: (q: Quote) => boolean) => { const l = mq.filter(pred); return { count: l.length, value: l.reduce((a, q) => a + qv(q), 0) }; };
-    const followUps = quotes.filter(needsFollowUp).sort((a, b) => qv(b) - qv(a));
     return {
       months, cur: months[5], prev: months[4], prevSame, curKey, dim, weeks,
       firms: [...firms.values()].sort((a, b) => b.onay - a.onay || b.teklif - a.teklif).slice(0, 6),
       status: { onay: st(q => q.status === 'onaylandi'), bekleyen: st(q => PENDING_STATUSES.includes(q.status)), iptal: st(q => q.status === 'iptal') },
       pendingCount: pending.length, pendingAmt: pending.reduce((a, q) => a + qv(q), 0),
-      followUps: followUps.slice(0, 5), followCount: followUps.length, followAmt: followUps.reduce((a, q) => a + qv(q), 0),
     };
   }, [quotes, collections, expenses, rates, t]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const reminders = useMemo(() => {
-    // remindAt UTC tutulur: yerel gün sonuyla zaman olarak karşılaştırılır
-    const end = new Date(`${t}T23:59:59`).getTime();
-    return notes.filter(n => !n.done && n.remindAt && Date.parse(n.remindAt) <= end).sort((a, b) => a.remindAt!.localeCompare(b.remindAt!)).slice(0, 5);
-  }, [notes, t]);
 
   const monthFrom = `${s.curKey}-01`, monthTo = `${s.curKey}-${pad(s.dim)}`;
   const m = Number(s.curKey.slice(5)) - 1;
@@ -165,44 +155,6 @@ export const SimpleHome: React.FC<{
       {/* Arama ve yapay zekâ tek kutuda */}
       <Assistant quotes={quotes} customers={customers} canQuotes={canQuotes} canAdd={canAdd} onVoice={onVoice}
         onOpenQuote={onOpenQuote} onOpenCustomer={onOpenCustomer} />
-
-      {/* Bugün yapılacaklar */}
-      {(reminders.length > 0 || (canQuotes && s.followCount > 0)) && (
-        <div className="grid gap-3 lg:grid-cols-2 items-start">
-          {canQuotes && s.followCount > 0 && (
-            <Card title={<><PhoneCall className="w-4 h-4 text-amber-600" /> Aranacak teklifler</>}
-              right={<button onClick={() => openQuotes({ status: 'takip' })} className="text-xs font-bold text-brand-700 flex items-center">{s.followCount} teklif · {short(s.followAmt)} TL <ChevronRight className="w-3.5 h-3.5" /></button>}>
-              <p className="px-4 -mt-1 pb-1 text-[11px] text-slate-500">Uzun süredir cevap bekleyenler, tutarı büyükten küçüğe</p>
-              <div className="divide-y divide-slate-100">
-                {s.followUps.map(q => (
-                  <button key={q.id} onClick={() => onOpenQuote(q)} className="w-full text-left flex items-center gap-3 px-4 py-2 hover:bg-slate-50">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold text-slate-900 truncate">{q.customerName}</span>
-                      <span className="block text-[11px] text-slate-500">{q.quoteNumber} · {quoteAgeInDays(q)} gündür bekliyor</span>
-                    </span>
-                    <span className="text-sm font-black text-slate-900 tabular-nums">{tl(quoteTry(q, rates))}</span>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-          {reminders.length > 0 && (
-            <Card title={<><BellRing className="w-4 h-4 text-cyan-600" /> Bugünün hatırlatmaları</>}
-              right={<button onClick={() => onOpen('notes')} className="text-xs font-bold text-brand-700 flex items-center">Notlar <ChevronRight className="w-3.5 h-3.5" /></button>}>
-              <div className="divide-y divide-slate-100">
-                {reminders.map(n => (
-                  <button key={n.id} onClick={() => onOpen('notes')} className="w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-                    <span className={`w-12 shrink-0 text-xs font-black tabular-nums ${dayOf(n.remindAt!) < t ? 'text-rose-600' : 'text-cyan-700'}`}>
-                      {dayOf(n.remindAt!) < t ? trDay(n.remindAt!).slice(0, 5) : new Date(n.remindAt!).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <span className="min-w-0 flex-1 text-sm text-slate-800 line-clamp-2">{n.content}</span>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-        </div>
-      )}
 
       {(canQuotes || canMoney) && (
         <>

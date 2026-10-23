@@ -724,7 +724,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               customers={data.customers || []}
               collections={data.collections || []}
               expenses={data.expenses || []}
-              notes={data.notes}
               sections={MENU_ORDER.filter(tabAllowed)}
               onOpen={setActiveTab}
               onOpenQuotes={v => { setQuoteFilter(v.status); setQuoteRange(v.from || v.to ? { from: v.from, to: v.to } : null); setActiveTab('quotes'); }}
