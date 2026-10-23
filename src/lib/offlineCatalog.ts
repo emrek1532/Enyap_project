@@ -9,7 +9,7 @@ type Row = [code: string, name: string, price: number, currency: string, unit: s
 
 const DB = 'enyap-offline', STORE = 'kv', KEY = 'catalog';
 const DAY = 864e5;
-let mem: { at: number; rows: Row[]; folded: string[] } | null = null;
+let mem: { at: number; ver?: string; rows: Row[]; folded: string[] } | null = null;
 
 const fold = (s: string) =>
   s.replace(/[İIı]/g, 'i').replace(/[Şş]/g, 's').replace(/[Ğğ]/g, 'g').replace(/[Üü]/g, 'u')
@@ -35,7 +35,7 @@ async function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRe
 
 async function load() {
   if (mem) return mem;
-  const v = await idb<{ at: number; rows: Row[] } | undefined>('readonly', s => s.get(KEY)).catch(() => undefined);
+  const v = await idb<{ at: number; ver?: string; rows: Row[] } | undefined>('readonly', s => s.get(KEY)).catch(() => undefined);
   if (!v) return null;
   mem = { ...v, folded: v.rows.map(r => fold(`${r[0]} ${r[1]}`)) };
   return mem;
@@ -47,11 +47,25 @@ export async function offlineCatalogInfo(): Promise<{ at: number; count: number 
   return c ? { at: c.at, count: c.rows.length } : null;
 }
 
-/** Kataloğu indirip cihaza kaydeder (24 saatten eskiyse ya da zorlanırsa) */
+/** Kataloğun sürümü: kalem sayısı + son güncelleme (tek küçük sorgu; katalog değişmediyse indirme yapılmaz) */
+async function catalogVersion(): Promise<string> {
+  const { data, count, error } = await supabase.from('materials').select('updated_at', { count: 'exact' }).order('updated_at', { ascending: false, nullsFirst: false }).limit(1);
+  if (error) throw error;
+  return `${count ?? 0}|${data?.[0]?.updated_at ?? ''}`;
+}
+
+/** Kataloğu cihaza kaydeder: günde en fazla bir kez kontrol eder, sadece katalog değiştiyse indirir */
 export async function syncOfflineCatalog(force = false): Promise<void> {
   if (!navigator.onLine) return;
   const cur = await load();
   if (!force && cur && Date.now() - cur.at < DAY) return;
+  const ver = await catalogVersion();
+  if (!force && cur && cur.ver === ver) {
+    const v = { at: Date.now(), ver, rows: cur.rows };
+    await idb('readwrite', s => s.put(v, KEY));
+    mem = { ...v, folded: cur.folded };
+    return;
+  }
   const rows: Row[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase.from('materials').select('code,name,price,currency,unit,vat_rate,stock').order('code').range(from, from + 999);
@@ -60,7 +74,7 @@ export async function syncOfflineCatalog(force = false): Promise<void> {
     if (!data || data.length < 1000) break;
   }
   if (!rows.length) return;
-  const v = { at: Date.now(), rows };
+  const v = { at: Date.now(), ver, rows };
   await idb('readwrite', s => s.put(v, KEY));
   mem = { ...v, folded: rows.map(r => fold(`${r[0]} ${r[1]}`)) };
 }
