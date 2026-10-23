@@ -16,7 +16,6 @@ const GUIDE: [string, string[]][] = [
   ]],
   ['Teklifler', [
     'Yeni Teklif ile müşteri seçilir, malzemeler katalogdan aranarak eklenir; iskonto ve para birimi kalem bazında girilebilir.',
-    'İskonto hafızası: firma seçiliyken katalogdan eklenen üründe o firmaya en son verilen iskonto (aynı ürün, yoksa aynı marka) otomatik gelir.',
     'Listede arama (müşteri, teklif no, şehir, ürün), durum ve şehir filtresi vardır.',
     'Bugün / Bu hafta / Bu ay / Geçen ay / Bu yıl düğmeleri tarih aralığını tek dokunuşla seçer; tekrar basınca kaldırır.',
     'Bir teklife dokununca ayrıntısı açılır: PDF önizleme, WhatsApp/e-posta ile gönderme, düzenleme, onaylama veya iptal (iptal = sipariş olup sonradan iptal).',
@@ -37,7 +36,6 @@ const GUIDE: [string, string[]][] = [
     'Firma listeleri: tedarikçi fiyat listeleri (PDF/Excel) yüklenir; satırlar katalogdaki ürünlerle eşleştirilir.',
     'Eşleşen ürünlerde liste fiyatı ile katalog fiyatı karşılaştırılır; fiyat değişince bekleyen tekliflerde uyarı çıkar.',
     'Yeni liste yüklenince önceki fiyatlarla karşılaştırılır: kaç üründe zam/indirim olduğu ve en çok zamlananlar firma kartında görünür.',
-    'Onaylanan teklifte "Tedarikçi siparişi hazırla": kalemler eşleşen firma listelerinden en ucuzuna atanır, firma bazında sipariş metni WhatsApp ile gönderilir.',
     'Çevrimdışı katalog: malzeme kataloğu günde bir kez cihaza indirilir; internet yokken malzeme ve fiyat araması buradan yapılır.',
   ]],
   ['Tahsilat ve Harcama', [
