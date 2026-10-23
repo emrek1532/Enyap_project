@@ -8,6 +8,7 @@ import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
 import { WhatsAppMenu } from './WhatsAppMenu';
 import { usePriceChanges } from '../lib/priceWatch';
+import { textMatcher } from '../lib/materials';
 import { PENDING_REASONS, splitReason } from '../lib/quoteRules';
 import { DateInput } from './DateInput';
 
@@ -105,6 +106,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   // Filtered quotes (newest first). Memoized: there can be thousands of quotes.
   const filteredQuotes = useMemo(() => {
     const q = fold(searchTerm.trim());
+    const itemMatch = textMatcher(searchTerm);
     return quotes
       .filter((quote) => {
         const matchesSearch =
@@ -113,7 +115,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           fold(quote.quoteNumber).includes(q) ||
           fold(quote.city || '').includes(q) ||
           fold(quote.notes || '').includes(q) ||
-          (quote.items || []).some((it) => fold(it.productName).includes(q));
+          (quote.items || []).some((it) => fold(it.productName).includes(q) || !!itemMatch?.(`${it.productName} ${it.code || ''}`));
 
         const matchesStatus =
           statusFilter === 'all' ||

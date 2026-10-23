@@ -3,7 +3,7 @@
  * internet yokken malzeme ve fiyat araması buradan yapılır. Günde bir kez arka planda yenilenir.
  */
 import { supabase } from './supabase';
-import type { Material } from './materials';
+import { textMatcher, type Material } from './materials';
 
 type Row = [code: string, name: string, price: number, currency: string, unit: string, vat: number, stock: number | null];
 
@@ -82,16 +82,16 @@ export async function syncOfflineCatalog(force = false): Promise<void> {
 /** Cihazdaki katalogda arama (kod başı eşleşmeleri önce) */
 export async function searchOffline(q: string, field: 'all' | 'code' | 'name' = 'all', limit = 20): Promise<Material[]> {
   const c = await load();
-  const toks = fold(q).split(/\s+/).filter(Boolean);
+  const match = textMatcher(q);
   if (!c) return [];
   const toMat = (r: Row): Material => ({ code: r[0], name: r[1], price: r[2], currency: r[3] as Material['currency'], unit: r[4], vatRate: r[5], stock: r[6] });
-  if (!toks.length) return c.rows.slice(0, limit).map(toMat);
+  if (!match) return c.rows.slice(0, limit).map(toMat);
   const hits: { r: Row; score: number }[] = [];
   for (let i = 0; i < c.rows.length; i++) {
     const r = c.rows[i];
     const s = field === 'code' ? fold(r[0]) : field === 'name' ? fold(r[1]) : c.folded[i];
-    if (!toks.every(t => s.includes(t))) continue;
-    hits.push({ r, score: fold(r[0]).startsWith(toks[0]) ? 0 : 1 });
+    if (!match(s, true)) continue;
+    hits.push({ r, score: fold(r[0]).startsWith(fold(q.trim()).split(/\s+/)[0]) ? 0 : 1 });
     if (hits.length > limit * 20) break;
   }
   return hits.sort((a, b) => a.score - b.score).slice(0, limit).map(({ r }) => toMat(r));

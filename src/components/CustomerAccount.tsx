@@ -11,6 +11,7 @@ import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
 import { formatQuoteAmount } from '../lib/money';
+import { textMatcher } from '../lib/materials';
 
 export const STATUS_LABEL: Record<QuoteStatus, { label: string; cls: string }> = {
   gonderildi: { label: 'Beklemede', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
@@ -102,11 +103,12 @@ export const CustomerAccount: React.FC<{
   const quotesWithItems = quotes.filter(x => x.items?.length).length;
 
   const nq = fold(q.trim());
+  const lineMatch = textMatcher(q);
   const shownQuotes = quotes.filter(x =>
     (qFilter === 'all' || (qFilter === 'approved' ? isApproved(x) : qFilter === 'pending' ? isPending(x) : x.status === 'iptal'))
     && (!nq || fold(`${x.quoteNumber} ${x.notes || ''} ${x.preparedBy || ''} ${(x.items || []).map(i => `${i.productName} ${i.code || ''}`).join(' ')}`).includes(nq)));
   const shownLines = lines.filter(l => (!onlyBought || isApproved(l.quote))
-    && (!nq || nq.split(/\s+/).every(w => fold(`${l.it.productName} ${l.it.code || ''} ${l.quote.quoteNumber}`).includes(w))));
+    && (!lineMatch || lineMatch(`${l.it.productName} ${l.it.code || ''} ${l.quote.quoteNumber}`)));
   const shownCols = collections.filter(c => !nq || fold(`${c.method} ${c.description || ''} ${c.checkNo || ''} ${c.bankName || ''}`).includes(nq));
 
   // Aynı gün alınan tahsilatlar (ör. aynı gün verilen çekler) tek satırda toplanır; dokununca parçalar açılır

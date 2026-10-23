@@ -147,14 +147,49 @@ export const foldTr = (s: string) =>
   s.replace(/[İIı]/g, 'i').replace(/[Şş]/g, 's').replace(/[Ğğ]/g, 'g').replace(/[Üü]/g, 'u')
     .replace(/[Öö]/g, 'o').replace(/[Çç]/g, 'c').toLowerCase();
 
+// İnç işareti: ", '', ”, ″, "inç", "parmak"
+const INCH = String.raw`\s*("|''|”|″|inc\b|parmak)`;
+
+/**
+ * Aramayı kelimelere ve inç ölçülerine ayırır (sunucudaki search_split ile aynı kural).
+ * Ölçü tam eşleşir: 2" → 1 1/2", 21/2", 1/2" gelmez; 1/2" → 1 1/2", 11/2" gelmez (11/2" = 1 1/2").
+ */
+export function splitSizes(q: string): { words: string[]; sizes: RegExp[] } {
+  let nq = foldTr(q).replace(/(\d)\s*(''|”|″|inc\b|parmak)/g, '$1"');
+  const sizes: RegExp[] = [];
+  const re = /(^|[^0-9/.,])((\d+)[ .-](\d)\/(\d+)|(\d+)\/(\d+)|(\d+))"/;
+  for (let m = re.exec(nq); m; m = re.exec(nq)) {
+    let w: string | undefined = m[3], a: string | undefined = m[4], b: string | undefined = m[5];
+    if (m[6]) {
+      w = undefined; a = m[6]; b = m[7];
+      if (a.length > 1 && Number(a) > Number(b)) { w = a.slice(0, -1); a = a.slice(-1); }
+    } else if (m[8]) { w = m[8]; a = b = undefined; }
+    sizes.push(new RegExp(!a ? `(^|[^0-9/.,])${w}(?![0-9]|[ .-]?[0-9]/)${INCH}`
+      // önünde tek haneli tam sayı olmamalı (1 1/2", 1-1/2", 21/2"); 20 1/2" (20 mm × 1/2") olur
+      : !w ? `(^|[^0-9/., -]|(^|[^0-9])[ .-]|[0-9]{2}[ .-])${a}/${b}${INCH}`
+      : `(^|[^0-9/.,])${w}[ .-]?${a}/${b}${INCH}`));
+    nq = nq.slice(0, m.index + m[1].length) + ' ' + nq.slice(m.index + m[0].length);
+  }
+  // Ölçü çıkınca kalan tek başına işaretler (*, x, -) aranmaz
+  const words = nq.split(/\s+/).filter(t => t && t !== 'x' && /[a-z0-9]/.test(t));
+  return { words, sizes };
+}
+
+/** Arama eşleştirici: tüm kelimeler geçmeli, inç ölçüleri tam tutmalı. Boş aramada null. */
+export function textMatcher(q: string): ((text: string, folded?: boolean) => boolean) | null {
+  const { words, sizes } = splitSizes(q);
+  if (!words.length && !sizes.length) return null;
+  return (text, folded) => {
+    const t = folded ? text : foldTr(text);
+    return words.every(w => t.includes(w)) && sizes.every(r => r.test(t));
+  };
+}
+
 export function searchRecent(q: string, field: MaterialField = 'all', limit = 8): Material[] {
-  const toks = foldTr(q).split(/\s+/).filter(Boolean);
-  if (!toks.length) return [];
+  const match = textMatcher(q);
+  if (!match) return [];
   return getRecentMaterials()
-    .filter(m => {
-      const s = foldTr(field === 'code' ? m.code : field === 'name' ? m.name : `${m.code} ${m.name}`);
-      return toks.every(t => s.includes(t));
-    })
+    .filter(m => match(field === 'code' ? m.code : field === 'name' ? m.name : `${m.code} ${m.name}`))
     .slice(0, limit);
 }
 
