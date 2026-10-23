@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Ban, CirclePause, CircleCheck } from 'lucide-react';
-import { CustomerStatus, Quote } from '../types';
+import { Collection, CustomerStatus, Quote } from '../types';
 import { CUSTOMER_STATUS, Evaluation } from '../lib/customerInsights';
 
 const tl = (v: number) => `${Math.round(v).toLocaleString('tr-TR')} TL`;
@@ -21,7 +21,10 @@ export const CustomerInsights: React.FC<{
   balance?: number | null;
   /** Telefon varsa hazır WhatsApp mesajları */
   whatsapp?: React.ReactNode;
-}> = ({ ev, status, statusNote, onSetStatus, onOpenQuote, balance, whatsapp }) => {
+  /** Firmanın tahsilatları: ödeme alışkanlığı için (yetki yoksa verilmez) */
+  collections?: Collection[];
+}> = ({ ev, status, statusNote, onSetStatus, onOpenQuote, balance, whatsapp, collections }) => {
+  const pay = useMemo(() => paymentHabit(collections || []), [collections]);
   const [asking, setAsking] = useState<CustomerStatus | null>(null);
   const [note, setNote] = useState('');
   const pick = (s: CustomerStatus) => {
@@ -52,6 +55,19 @@ export const CustomerInsights: React.FC<{
         )}
       </div>
 
+      {pay && (
+        <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+          <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1">Ödeme alışkanlığı</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5 text-xs">
+            <Fact label="Son tahsilat" value={pay.lastDays === 0 ? 'bugün' : `${pay.lastDays} gün önce`} warn={pay.lastDays > 90} />
+            <Fact label="Ortalama aralık" value={pay.gap != null ? `${pay.gap} günde bir` : '—'} />
+            <Fact label="Ort. çek vadesi" value={pay.maturity != null ? `${pay.maturity} gün` : '—'} warn={(pay.maturity ?? 0) > 120} />
+            <Fact label="Ödeme şekli" value={pay.methods} />
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1.5">{pay.count} tahsilat · toplam {tl(pay.total)}{pay.yearTotal > 0 && <> · son 12 ay {tl(pay.yearTotal)}</>}</div>
+        </div>
+      )}
+
       {status !== 'aktif' && statusNote && (
         <p className={`text-xs rounded-lg px-3 py-2 border ${CUSTOMER_STATUS[status].cls}`}><b>{CUSTOMER_STATUS[status].label} nedeni:</b> {statusNote}</p>
       )}
@@ -74,3 +90,34 @@ export const CustomerInsights: React.FC<{
     </section>
   );
 };
+
+const Fact: React.FC<{ label: string; value: string; warn?: boolean }> = ({ label, value, warn }) => (
+  <div className="min-w-0">
+    <div className="text-[10px] text-slate-500">{label}</div>
+    <div className={`font-bold truncate ${warn ? 'text-rose-600' : 'text-slate-800'}`}>{value}</div>
+  </div>
+);
+
+/** Tahsilatlardan ödeme alışkanlığı: son tahsilat, ortalama aralık, tutar ağırlıklı ortalama çek vadesi, ödeme şekli */
+function paymentHabit(list: Collection[]) {
+  const tr = list.filter(c => c.date).sort((a, b) => a.date.localeCompare(b.date));
+  if (!tr.length) return null;
+  const day = (s: string) => Date.parse(s.slice(0, 10));
+  const now = Date.now();
+  const lastDays = Math.max(0, Math.floor((now - day(tr[tr.length - 1].date)) / 864e5));
+  const dates = [...new Set(tr.map(c => c.date.slice(0, 10)))];
+  const gap = dates.length > 1 ? Math.round((day(dates[dates.length - 1]) - day(dates[0])) / 864e5 / (dates.length - 1)) : null;
+  const vade = tr.filter(c => c.dueDate && (c.currency || 'TRY') === 'TRY' && c.amount > 0);
+  const w = vade.reduce((s, c) => s + c.amount, 0);
+  const maturity = w > 0 ? Math.round(vade.reduce((s, c) => s + c.amount * Math.max(0, (day(c.dueDate!) - day(c.date)) / 864e5), 0) / w) : null;
+  const byMethod = new Map<string, number>();
+  tr.forEach(c => byMethod.set(c.method || 'Diğer', (byMethod.get(c.method || 'Diğer') || 0) + 1));
+  const methods = [...byMethod.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
+    .map(([m, n]) => `${m} %${Math.round((n / tr.length) * 100)}`).join(', ');
+  const tl0 = (c: Collection) => ((c.currency || 'TRY') === 'TRY' ? c.amount || 0 : 0);
+  return {
+    count: tr.length, lastDays, gap, maturity, methods,
+    total: tr.reduce((s, c) => s + tl0(c), 0),
+    yearTotal: tr.filter(c => now - day(c.date) <= 365 * 864e5).reduce((s, c) => s + tl0(c), 0),
+  };
+}

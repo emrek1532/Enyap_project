@@ -424,6 +424,31 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   const cityRows = useMemo(() => groupQuotes(q => q.city || '').filter(([, g]) => g.totalAmt > 0).slice(0, 8)
     .map(([name, g]) => ({ label: name, value: g.approvedAmt, sub: `${g.total} teklif · ${tl(g.totalAmt)} · satış oranı ${pct(g.approvedAmt, g.totalAmt)}` })), [pQuotes, rates]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Ürün ve marka bazında satış: onaylanan tekliflerin kalemlerinden (KDV dahil TL; marka = kodun ilk 3 harfi)
+  const productStats = useMemo(() => {
+    const prod = new Map<string, { label: string; value: number; qty: number; quotes: Set<string> }>();
+    const brand = new Map<string, { label: string; value: number; items: number; sample: string }>();
+    pQuotes.filter(isApproved).forEach(q => (q.items || []).forEach(it => {
+      const cur = it.currency || q.currency || 'TRY';
+      const r = cur === 'USD' ? rates.USD : cur === 'EUR' ? rates.EUR : 1;
+      const v = (it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100) * 1.2 * r;
+      if (!(v > 0)) return;
+      const code = (it.code || '').trim().toUpperCase();
+      const k = code || it.productName.trim().toLocaleLowerCase('tr');
+      const p = prod.get(k) || { label: it.productName.trim(), value: 0, qty: 0, quotes: new Set<string>() };
+      p.value += v; p.qty += it.quantity || 0; p.quotes.add(q.id); prod.set(k, p);
+      const bk = code ? code.slice(0, 3) : 'Kodsuz';
+      const b = brand.get(bk) || { label: bk, value: 0, items: 0, sample: it.productName.trim() };
+      b.value += v; b.items++; brand.set(bk, b);
+    }));
+    return {
+      products: [...prod.values()].sort((a, b) => b.value - a.value).slice(0, 10)
+        .map(p => ({ label: p.label, value: p.value, sub: `${p.qty.toLocaleString('tr-TR')} adet · ${p.quotes.size} teklif` })),
+      brands: [...brand.values()].sort((a, b) => b.value - a.value).slice(0, 8)
+        .map(b => ({ label: b.label, value: b.value, sub: `${b.items} kalem · ör. ${b.sample}` })),
+    };
+  }, [pQuotes, rates]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Müşteri performans tablosu (başlığa tıklayarak sıralanır)
   const [custSort, setCustSort] = useState<SortState<CustKey>>({ key: 'approvedAmt', dir: 'desc' });
   const [custLimit, setCustLimit] = useState(20);
@@ -538,6 +563,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         { label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
       ] },
       { type: 'bars', half: true, title: 'Şehirlere Göre Onaylanan (TL)', color: C_APPROVED, rows: cityRows },
+      { type: 'bars', title: 'En Çok Satan Ürünler (TL)', color: C_APPROVED, rows: productStats.products },
       { type: 'share', title: 'Teklif Durumu', center: `Satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`, parts: [
         { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
         { label: 'Bekleyen', value: stats.pendingAmt, color: '#7c3aed' },
@@ -651,6 +677,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           parts={colByMethod.map(r => ({ label: `${r.label} (${r.count})`, value: r.value }))} />
       </div>
 
+      <div className="grid gap-3 lg:grid-cols-2">
+        <HBars title="En Çok Satan Ürünler" subtitle="Onaylanan tekliflerin kalemlerinden, KDV dahil TL · ilk 10" color={C_APPROVED} rows={productStats.products} />
+        <HBars title="Marka / Ürün Grubu" subtitle="Ürün kodunun ilk 3 harfine göre (ör. KLS, FAF) · ilk 8" color={C_QUOTE} rows={productStats.brands} />
+      </div>
       <HBars title="Şehirlere Göre Satış" subtitle="Onaylanan teklif tutarına göre ilk 8 şehir (yanında verilen teklif ve satış oranı)" color={C_APPROVED} rows={cityRows} />
 
       <HBars title="En Çok Onay Alan Firmalar" subtitle="Onaylanan teklif tutarına göre ilk 8" color={C_QUOTE}

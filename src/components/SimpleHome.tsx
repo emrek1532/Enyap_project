@@ -7,6 +7,8 @@ import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { STATUS_LABEL } from './CustomerAccount';
 import type { ActiveTab } from './Sections';
+import { QuickPrice } from './QuickPrice';
+import { Targets, useSetting } from '../lib/settings';
 
 type Tab = Exclude<ActiveTab, 'home'>;
 
@@ -145,6 +147,9 @@ export const SimpleHome: React.FC<{
           </button>
         ))}
       </div>
+
+      {/* Hızlı fiyat sorgusu */}
+      {canQuotes && <QuickPrice quotes={quotes} onOpenQuote={onOpenQuote} />}
 
       {/* Bu ay: özet ve son 6 ay grafiği */}
       {(canQuotes || canMoney) && <MonthPanel stats={stats} canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} onOpen={onOpen} />}
@@ -311,6 +316,8 @@ const MonthPanel: React.FC<{
         ))}
       </div>
 
+      <TargetBars cur={cur} canQuotes={canQuotes} canMoney={canMoney} day={stats.detail.day} dim={stats.detail.dim} />
+
       {/* Son 6 ay */}
       <div className="relative mt-4">
         <div className="flex items-end gap-2 h-28">
@@ -439,3 +446,59 @@ const MonthDetails: React.FC<{ d: MonthDetail; cur: Month; prev: Month; canQuote
   );
 };
 
+
+/** Aylık hedef: onaylanan satış ve tahsilat için ilerleme çubuğu (ayın gün oranı çizgiyle gösterilir) */
+const TargetBars: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; day: number; dim: number }> = ({ cur, canQuotes, canMoney, day, dim }) => {
+  const [targets, saveTargets] = useSetting<Targets>('targets', { sales: 0, collection: 0 });
+  const [edit, setEdit] = React.useState(false);
+  const [draft, setDraft] = React.useState({ sales: '', collection: '' });
+  const [err, setErr] = React.useState('');
+  const pace = Math.round((day / dim) * 100);
+  const rows = [
+    canQuotes && targets.sales > 0 && { label: 'Satış hedefi', value: cur.onay, target: targets.sales },
+    canMoney && targets.collection > 0 && { label: 'Tahsilat hedefi', value: cur.tahsilat, target: targets.collection },
+  ].filter(Boolean) as { label: string; value: number; target: number }[];
+  const num = (v: string) => Number(v.replace(/\./g, '').replace(',', '.')) || 0;
+  const open = () => { setDraft({ sales: targets.sales ? String(targets.sales) : '', collection: targets.collection ? String(targets.collection) : '' }); setErr(''); setEdit(true); };
+  const save = async () => {
+    try { await saveTargets({ sales: num(draft.sales), collection: num(draft.collection) }); setEdit(false); }
+    catch { setErr('Kaydedilemedi (yetki gerekli).'); }
+  };
+  if (!canQuotes && !canMoney) return null;
+  return (
+    <div className="relative mt-3 space-y-2">
+      {rows.map(r => {
+        const pct = Math.round((r.value / r.target) * 100);
+        return (
+          <div key={r.label}>
+            <div className="flex justify-between text-[11px] font-semibold text-brand-100">
+              <span>{r.label} · <b className="text-white">%{pct}</b>{pct < pace ? <span className="text-amber-200"> (ay %{pace} geçti)</span> : ''}</span>
+              <span className="tabular-nums">{short(r.value)} / {short(r.target)} TL</span>
+            </div>
+            <div className="relative h-2.5 rounded-full bg-white/15 overflow-hidden mt-1">
+              <div className={`h-full rounded-full ${pct >= pace ? 'bg-emerald-300' : 'bg-amber-300'}`} style={{ width: `${Math.min(100, pct)}%` }} />
+              <div className="absolute top-0 bottom-0 w-0.5 bg-white/70" style={{ left: `${pace}%` }} title="Ayın geçen kısmı" />
+            </div>
+          </div>
+        );
+      })}
+      {edit ? (
+        <div className="rounded-2xl bg-white/10 p-2.5 space-y-2 text-xs">
+          <div className="grid grid-cols-2 gap-2">
+            {canQuotes && <label className="space-y-1"><span className="block text-brand-100 font-semibold">Aylık satış (TL)</span>
+              <input inputMode="numeric" value={draft.sales} onChange={e => setDraft(d => ({ ...d, sales: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg bg-white text-slate-900 text-sm" placeholder="ör. 2000000" /></label>}
+            {canMoney && <label className="space-y-1"><span className="block text-brand-100 font-semibold">Aylık tahsilat (TL)</span>
+              <input inputMode="numeric" value={draft.collection} onChange={e => setDraft(d => ({ ...d, collection: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg bg-white text-slate-900 text-sm" placeholder="ör. 1500000" /></label>}
+          </div>
+          {err && <p className="text-rose-200 font-semibold">{err}</p>}
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setEdit(false)} className="px-3 py-1.5 rounded-lg font-bold text-white/80">Vazgeç</button>
+            <button onClick={save} className="px-3 py-1.5 rounded-lg font-bold bg-white text-brand-800">Kaydet</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={open} className="text-[11px] font-bold text-brand-100 hover:text-white">{rows.length ? 'Hedefi değiştir' : '+ Aylık hedef koy'}</button>
+      )}
+    </div>
+  );
+};

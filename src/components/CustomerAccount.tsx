@@ -183,7 +183,7 @@ export const CustomerAccount: React.FC<{
               </div>
             </section>
           )}
-          <CustomerInsights ev={ev} balance={showCollections ? balance?.estimate : undefined} status={cStatus} statusNote={customer.statusNote} onSetStatus={onSetStatus} onOpenQuote={onOpenQuote} />
+          <CustomerInsights ev={ev} collections={showCollections ? allCollections : undefined} balance={showCollections ? balance?.estimate : undefined} status={cStatus} statusNote={customer.statusNote} onSetStatus={onSetStatus} onOpenQuote={onOpenQuote} />
           {/* Tarih filtresi */}
           <div className="flex flex-wrap items-center gap-1.5">
             {[{ k: 'all', label: 'Tümü', on: () => setRange({ key: 'all', from: '', to: '' }) },
