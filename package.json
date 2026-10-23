@@ -11,7 +11,8 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "postinstall": "node -e \"if (process.env.WORKERS_CI === '1') require('child_process').execSync('npm run build', { stdio: 'inherit' })\"",
-    "deploy:cloudflare": "npx wrangler deploy"
+    "deploy:cloudflare": "npx wrangler deploy",
+    "build:fn": "esbuild supabase/functions/pricelist-import/src.ts --bundle --minify --format=esm --platform=neutral --external:npm:* --banner:js=\"// @ts-nocheck derlenmiş dosya: kaynak src.ts\" --outfile=supabase/functions/pricelist-import/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
