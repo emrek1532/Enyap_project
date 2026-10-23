@@ -9,6 +9,7 @@ import { STATUS_LABEL } from './CustomerAccount';
 import type { ActiveTab } from './Sections';
 import { QuickPrice } from './QuickPrice';
 import { AskQuotes } from './AskQuotes';
+import { QuoteAgent } from './QuoteAgent';
 import { VoiceCommand, VoiceResult } from './VoiceCommand';
 import { Targets, useSetting } from '../lib/settings';
 
@@ -155,6 +156,9 @@ export const SimpleHome: React.FC<{
       {onVoice && (canAdd.quote || canAdd.collection || canAdd.expense) && (
         <VoiceCommand customers={customers.map(c => c.name)} allow={canAdd} onResult={onVoice} />
       )}
+
+      {/* Teklif taslağı ajanı (yapay zekâ) */}
+      {onVoice && canAdd.quote && <QuoteAgent quotes={quotes} customers={customers} onDraft={draft => onVoice({ kind: 'quote', draft })} />}
 
       {/* Hızlı arama: firma, ürün fiyatı */}
       <QuickPrice quotes={quotes} customers={customers} onOpenQuote={onOpenQuote} onOpenCustomer={onOpenCustomer} />

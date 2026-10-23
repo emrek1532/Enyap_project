@@ -590,7 +590,10 @@ const MATCH_SCHEMA_LLAMA = {
 };
 
 /** Yapılandırılmış cevap: Claude anahtarı varsa Claude, yoksa Workers AI (Llama) */
-async function askModel(env: Env, system: string, user: string, schema: { claude: unknown; llama: unknown } | null, maxTokens: number): Promise<string> {
+type Msg = { role: 'user' | 'assistant'; content: string };
+
+async function askModel(env: Env, system: string, user: string | Msg[], schema: { claude: unknown; llama: unknown } | null, maxTokens: number): Promise<string> {
+  const messages: Msg[] = typeof user === 'string' ? [{ role: 'user', content: user }] : user;
   if (env.ANTHROPIC_API_KEY) {
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
@@ -598,12 +601,12 @@ async function askModel(env: Env, system: string, user: string, schema: { claude
       max_tokens: maxTokens,
       output_config: { effort: 'low', ...(schema ? { format: { type: 'json_schema', schema: schema.claude } } : {}) },
       system,
-      messages: [{ role: 'user', content: user }],
+      messages,
     } as any);
     return (response.content as any[]).find(b => b.type === 'text')?.text || '';
   }
   const r = await env.AI!.run(LLAMA, {
-    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    messages: [{ role: 'system', content: system }, ...messages],
     ...(schema ? { response_format: { type: 'json_schema', json_schema: schema.llama } } : {}),
     max_tokens: Math.min(maxTokens, 4000),
     temperature: 0,
@@ -657,6 +660,89 @@ async function handleAsk(req: Request, env: Env): Promise<Response> {
   }
 }
 
+// ---- Teklif taslağı ajanı ----
+// Döngü cihazda döner: model her adımda araç ister, araçları uygulama cihazdaki veriyle (ve katalog aramasıyla) çalıştırır,
+// sonuçları geri yollar; model yeterli bilgiyi toplayınca taslağı verir. Worker sadece modele aracılık eder, veri tutmaz.
+const AGENT_PROMPT = `Enyap Isı'nın (ısıtma/tesisat malzemesi satıcısı) teklif taslağı ajanısın. Kullanıcının isteğinden bir fiyat teklifi TASLAĞI hazırlarsın; kaydetmeyi kullanıcı yapar.
+
+ARAÇLAR (her adımda bir veya birkaç araç çağırabilirsin, aynı adımdaki çağrılar birlikte çalışır):
+- cari_bul(arg: firma adı): kayıtlı carilerde en benzer firmaları verir.
+- son_teklifler(arg: carinin TAM adı): o firmaya verilen son teklifleri (ödeme vadesi, kalemler, iskontolar) verir.
+- urun_ara(arg: kısa ürün ifadesi, ör. "küresel vana 2\""): kendi kataloğumuzda kod, ad, liste fiyatı verir.
+- fiyat_gecmisi(arg: kod ya da ürün ifadesi): bu ürünü en son kime kaçtan, kaç iskontoyla verdiğimizi verir.
+
+ÇALIŞMA SIRASI:
+1. Firmayı cari_bul ile bul; aynı adımda her ürün için urun_ara çağır.
+2. Firma bulunduysa son_teklifler ile vadesini ve o firmaya genelde verilen iskontoyu öğren.
+3. Bir ürün için birden çok aday varsa ölçüsü (DN, inç), tipi ve markası istenene uyanı seç; firmaya daha önce verilmiş olan öncelikli. Uygun aday yoksa farklı bir ifadeyle bir kez daha ara.
+4. Bilgi yeterliyse done = true yap ve draft'ı doldur.
+
+KURALLAR:
+- Kod, fiyat, iskonto UYDURMA: sadece araç sonuçlarında ya da kullanıcının isteğinde geçen değerleri kullan. Bulamadığın ürünü code boş, adını isteğe göre yazarak ekle.
+- İskonto: kullanıcı söylediyse onu; "geçen seferki/her zamanki" dediyse ya da söylemediyse firmanın son tekliflerinde o ürüne veya benzer ürünlere verilen iskontoyu kullan; hiç yoksa 0.
+- Miktar söylenmediyse 1. Birim: Adet, Metre, Takım, Paket, Kg, Set.
+- En fazla 6 adımda bitir. done = false iken draft boş kalabilir.
+- reply: kullanıcıya ne yaptığını ve emin olmadığın noktaları anlatan 1-2 kısa Türkçe cümle.`;
+
+const AGENT_TOOLS = ['cari_bul', 'son_teklifler', 'urun_ara', 'fiyat_gecmisi'];
+
+const agentItem = {
+  code: str, name: str, quantity: num, unit: str, unitPrice: num, currency: str, discount: num,
+};
+const AGENT_SCHEMA = obj({
+  calls: { type: 'array', items: obj({ tool: { type: 'string', enum: AGENT_TOOLS }, arg: str }) },
+  done: { type: 'boolean' },
+  reply: str,
+  draft: nullable(obj({
+    customerName: str,
+    paymentTerm: str,
+    notes: str,
+    items: { type: 'array', items: obj(agentItem) },
+  })),
+});
+
+const AGENT_SCHEMA_LLAMA = {
+  type: 'object',
+  properties: {
+    calls: { type: 'array', items: { type: 'object', properties: { tool: { type: 'string', enum: AGENT_TOOLS }, arg: { type: 'string' } }, required: ['tool', 'arg'] } },
+    done: { type: 'boolean' },
+    reply: { type: 'string' },
+    draft: {
+      type: 'object',
+      properties: {
+        customerName: { type: 'string' }, paymentTerm: { type: 'string' }, notes: { type: 'string' },
+        items: { type: 'array', items: { type: 'object', properties: Object.fromEntries(Object.entries(agentItem).map(([k, v]) => [k, { type: v.type }])), required: ['name', 'quantity'] } },
+      },
+      required: ['customerName', 'items'],
+    },
+  },
+  required: ['calls', 'done', 'reply'],
+};
+
+async function handleAgent(req: Request, env: Env): Promise<Response> {
+  if (!env.ANTHROPIC_API_KEY && !env.AI) return json({ error: 'no_ai' }, 503);
+  if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
+  const body = await req.json().catch(() => null) as { request?: string; today?: string; steps?: { answer: string; results: string }[] } | null;
+  const request = String(body?.request || '').slice(0, 1000);
+  if (!request.trim()) return json({ error: 'empty' }, 400);
+  const steps = (body?.steps || []).slice(0, 8);
+  // Sohbet geçmişi: istek → modelin araç istekleri → araç sonuçları → ...
+  const messages: Msg[] = [{ role: 'user', content: `BUGÜN: ${String(body?.today || '').slice(0, 10)}\nİSTEK: ${request}` }];
+  for (const s of steps) {
+    messages.push({ role: 'assistant', content: String(s.answer).slice(0, 4000) });
+    messages.push({ role: 'user', content: `ARAÇ SONUÇLARI:\n${String(s.results).slice(0, 8000)}` });
+  }
+  // Son adımda araç kullanmadan bitirmesi istenir
+  if (steps.length >= 6) messages[messages.length - 1].content += '\n\nARTIK ARAÇ ÇAĞIRMA: done = true yap ve eldeki bilgiyle taslağı ver.';
+  try {
+    const out = await askModel(env, AGENT_PROMPT, messages, { claude: AGENT_SCHEMA, llama: AGENT_SCHEMA_LLAMA }, 3000);
+    const parsed = JSON.parse(out || '{}');
+    return json({ answer: out, step: parsed });
+  } catch (err) {
+    return aiError(err);
+  }
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
@@ -665,6 +751,7 @@ export default {
     if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env);
     if (url.pathname === '/api/ai/match' && req.method === 'POST') return handleMatch(req, env);
     if (url.pathname === '/api/ai/ask' && req.method === 'POST') return handleAsk(req, env);
+    if (url.pathname === '/api/ai/agent' && req.method === 'POST') return handleAgent(req, env);
     if (url.pathname === '/api/push/send' && req.method === 'POST') return handlePushSend(req);
     if (url.pathname === '/api/rates') return handleRates();
     if (url.pathname === '/share-target') return handleShare(req, url);
