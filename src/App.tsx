@@ -192,6 +192,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
   // Teklif listesinin durum filtresi; üstteki kutucuklar da bunu ayarlar
   const [quoteFilter, setQuoteFilter] = useState('all');
+  // Ana sayfadan süzülmüş açılış (durum + tarih aralığı); teklifler sayfasından çıkınca unutulur
+  const [quoteRange, setQuoteRange] = useState<{ from?: string; to?: string } | null>(null);
+  useEffect(() => { if (activeTab !== 'quotes') setQuoteRange(null); }, [activeTab]);
 
   // App Data State (Offline-first initialized)
   const [data, setData] = useState<AppData>(() => {
@@ -721,9 +724,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               customers={data.customers || []}
               collections={data.collections || []}
               expenses={data.expenses || []}
-              notes={data.notes}
               sections={MENU_ORDER.filter(tabAllowed)}
               onOpen={setActiveTab}
+              onOpenQuotes={v => { setQuoteFilter(v.status); setQuoteRange(v.from || v.to ? { from: v.from, to: v.to } : null); setActiveTab('quotes'); }}
               onOpenQuote={setEditingQuote}
               canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
               onNewQuote={() => setIsNewQuoteOpen(true)}
@@ -766,6 +769,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             statusFilter={quoteFilter}
             onStatusFilterChange={setQuoteFilter}
             focusQuote={focusQuote}
+            initialRange={quoteRange}
           />
         )}
 
