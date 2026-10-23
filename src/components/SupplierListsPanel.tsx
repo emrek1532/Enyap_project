@@ -4,7 +4,7 @@ import { MaterialPicker } from './MaterialPicker';
 import { supabase } from '../lib/supabase';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, aiMatchList, aiMatchUploaded, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, learnFromLinked, clearSupplierMatches, rematchSupplierItems, aiMatchList, aiMatchUploaded, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -200,12 +200,18 @@ export const SupplierListsPanel: React.FC = () => {
   const [linking, setLinking] = useState<number | null>(null);
   const [linkText, setLinkText] = useState('');
   const [onlyUnlinked, setOnlyUnlinked] = useState(false);
+  const [notice, setNotice] = useState('');
   const [uploadOpen, setUploadOpen] = useState(false);
   const linkItem = async (it: SupplierItem, code: string | null) => {
     try {
       await setSupplierOurCode(it.id, code);
       setItems(prev => prev.map(x => (x.id === it.id ? { ...x, ourCode: code, ourName: undefined } : x)));
       setLinking(null); setLinkText('');
+      if (code) {
+        // aynı adlı diğer ölçüler de bu kodun ailesine bağlanır
+        const n = await learnFromLinked(it.id).catch(() => 0);
+        if (n > 0) { setNotice(`Aynı türden ${n} kalem daha ${code.replace(/\d.*$/, '')}… kodlarına bağlandı`); load(0, false); }
+      }
     } catch (e) {
       setError((e as { message?: string })?.message || 'Kaydedilemedi');
     }
@@ -517,6 +523,9 @@ export const SupplierListsPanel: React.FC = () => {
           </div>
 
           {error && <div className="text-sm text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
+          {notice && (
+            <button onClick={() => setNotice('')} className="w-full text-left text-sm text-emerald-800 bg-emerald-50 rounded-lg px-3 py-2">{notice}</button>
+          )}
 
           {(active || query.trim()) && (
             <>
