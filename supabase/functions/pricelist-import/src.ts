@@ -11,7 +11,7 @@ const URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const WORKER = 'https://enyap-project.sakiremre153207.workers.dev';
-const BUDGET = 100_000; // tek çalışmada sayfa okumaya ayrılan süre (ücretsiz planda sınır 150 sn)
+const BUDGET = 70_000; // tek çalışmada sayfa okumaya ayrılan süre (ücretsiz planda sınır 150 sn; yoldaki sayfalar için pay)
 const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type' };
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...cors, 'content-type': 'application/json' } });
 

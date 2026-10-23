@@ -385,7 +385,8 @@ async function priceListWithClaude(text: string, env: Env): Promise<Response> {
     const response = await client.messages.create({
       model: PRICELIST_MODEL,
       max_tokens: 16000,
-      output_config: { format: { type: 'json_schema', schema: strictSchema(PRICELIST_SCHEMA) } },
+      // Düşük effort: sayfa okuma hızlı biter (sunucudaki yükleme süre sınırına takılmaz)
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: strictSchema(PRICELIST_SCHEMA) } },
       system: PRICELIST_PROMPT,
       messages: [{ role: 'user', content: text }],
     } as any);
@@ -593,8 +594,8 @@ async function handleMatch(req: Request, env: Env): Promise<Response> {
   try {
     const response = await client.messages.create({
       model: PRICELIST_MODEL,
-      max_tokens: 4000,
-      output_config: { format: { type: 'json_schema', schema: MATCH_SCHEMA } },
+      max_tokens: 8000,
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: MATCH_SCHEMA } },
       system: MATCH_PROMPT,
       messages: [{ role: 'user', content: text }],
     } as any);
@@ -626,7 +627,8 @@ async function handleAsk(req: Request, env: Env): Promise<Response> {
   try {
     const response = await client.messages.create({
       model: PRICELIST_MODEL,
-      max_tokens: 1000,
+      max_tokens: 4000,
+      output_config: { effort: 'low' },
       system: ASK_PROMPT,
       messages: [{ role: 'user', content: `TEKLİF SATIRLARI:\n${context || '(bulunamadı)'}\n\nSORU: ${question}` }],
     } as any);

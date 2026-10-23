@@ -160,7 +160,7 @@ export const SimpleHome: React.FC<{
       <QuickPrice quotes={quotes} customers={customers} onOpenQuote={onOpenQuote} onOpenCustomer={onOpenCustomer} />
 
       {/* Tekliflere soru sorma (yapay zekâ) */}
-      {canQuotes && <AskQuotes quotes={quotes} />}
+      {canQuotes && <AskQuotes quotes={quotes} customers={customers.map(c => c.name)} />}
 
       {/* Bu ay: özet ve son 6 ay grafiği */}
       {(canQuotes || canMoney) && <MonthPanel stats={stats} canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} onOpen={onOpen} />}

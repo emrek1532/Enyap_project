@@ -240,7 +240,7 @@ export const SupplierListsPanel: React.FC = () => {
   };
 
   const reloadLists = () => fetchSupplierLists().then(setLists).catch(() => { setLists(l => l || []); setError('Fiyat listeleri yüklenemedi.'); });
-  useEffect(() => { reloadLists(); }, []);
+  useEffect(() => { reloadLists(); resumeStuckJobs().catch(() => undefined); }, []);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [reading, setReading] = useState<string | null>(null);
   const reread = async () => {
@@ -453,6 +453,9 @@ export const SupplierListsPanel: React.FC = () => {
                         {reading ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{reading}</span> : 'Yeniden oku'}
                       </button>
                     )}
+                    <button type="button" onClick={() => runBulk('ai', null)} disabled={!!bulk} className="text-xs font-semibold text-violet-700 hover:underline disabled:opacity-60">
+                      {bulk?.key === '*' && bulk.info ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{bulk.info}</span> : 'Yapay zekâ ile eşleştir'}
+                    </button>
                     <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-slate-400 hover:text-rose-600">Listeyi sil</button>
                   </span>
                 )}
@@ -614,6 +617,13 @@ export const SupplierListsPanel: React.FC = () => {
 };
 
 /** Yüklemeyi sunucuya devreder; başaramazsa false (uygulama içinde yapılır) */
+/** Sunucuda yarıda kalmış (3 dakikadır ilerlemeyen) liste yüklemelerini kaldığı yerden sürdürür */
+async function resumeStuckJobs() {
+  const { data } = await supabase.from('pricelist_jobs').select('file_name')
+    .in('status', ['kuyrukta', 'calisiyor']).lt('updated_at', new Date(Date.now() - 3 * 60_000).toISOString());
+  for (const j of data || []) await supabase.functions.invoke('pricelist-import', { body: { file: j.file_name } }).catch(() => undefined);
+}
+
 async function startServerImport(fileName: string): Promise<boolean> {
   try {
     const { data: u } = await supabase.auth.getUser();

@@ -287,7 +287,10 @@ export async function aiMatchList(listId: string, onInfo?: (info: string) => voi
         body: JSON.stringify({ items: chunk.map(r => ({ id: r.id, name: r.name, code: r.code || undefined, candidates: r.candidates })) }),
       });
       if (res.status === 429) throw new Error('quota');
-      if (!res.ok) throw new Error('Yapay zekâ cevap vermedi');
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(`Yapay zekâ cevap vermedi (${res.status}${err?.message ? `: ${err.message}` : err?.error ? `: ${err.error}` : ''})`);
+      }
       const out = await res.json();
       const got = new Map<number, string | null>((out.matches || []).map((m: { id: number; code: string | null }) => [m.id, m.code]));
       // Cevapta olmayan kalem mevcut bağıyla kalır

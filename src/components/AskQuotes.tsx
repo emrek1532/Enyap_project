@@ -9,37 +9,52 @@ import { STATUS_LABEL } from './CustomerAccount';
 // Soruda arama için anlamı olmayan kelimeler
 const STOP = new Set(('ne neler kac kaca kactan hangi hangisi verdik verdim verildi icin mi mu en son ile ve veya bir bu su o gecen yil ' +
   'yili ay ayi hafta kim kime kimden fiyat fiyati fiyatina teklif teklifi teklifler tekliflerde ver vermis olan olarak gibi daha kadar ' +
-  'toplam tum butun hepsi var yok nedir nasil acaba bize biz firmasina firmaya firma').split(' '));
+  'toplam tum butun hepsi var yok nedir nasil acaba bize biz firmasina firmaya firma para paraya parayla tane adet').split(' '));
+
+/** İnç yazımlarını birleştirir: 2 inç, 2'', 1 1/2 parmak → 2", 1 1/2" */
+const normInch = (s: string) => foldTr(s).replace(/''|”|″/g, '"').replace(/(\d(?:\s?\d\/\d)?)\s*(?:inc|parmak)\b/g, '$1"');
 
 /** Soruyla ilgili teklif satırlarını cihazdaki veriden bulur (internet kullanmaz) */
-function findLines(question: string, quotes: Quote[]): string[] {
-  const words = foldTr(question).replace(/[?!.,;:()]/g, ' ').split(/\s+/).filter(w => w.length >= 2 && !STOP.has(w));
+function findLines(question: string, quotes: Quote[], customers: string[]): string[] {
+  const tokens = normInch(question).replace(/[?!.,;:()]/g, ' ').split(/\s+/).filter(Boolean);
+  // Uzun kelimelerde ek atılır (enerjiye → enerj, dirseği → dirse); inç ölçüsü kendi başına aranır
+  const words = tokens.filter(w => !STOP.has(w) && (/"/.test(w) || /[a-z]/.test(w) && w.length >= 3)).map(w => (/^[a-z]{6,}$/.test(w) ? w.slice(0, 5) : w));
   if (!words.length) return [];
+  // İnç ölçüsü önünde rakam ya da / olmadan aranır (2" ≠ 1/2")
+  const has = (text: string, w: string) => (w.includes('"')
+    ? new RegExp(`(^|[^0-9/])${w.replace(/[/"]/g, m => `\\${m}`)}`).test(text) : text.includes(w));
+  // Soruda firma adı geçiyorsa yalnızca adı en çok eşleşen firmanın teklifleri
+  const nameHits = (name: string) => words.filter(w => !w.includes('"') && foldTr(name).includes(w)).length;
+  const custHits = (q: Quote) => nameHits(q.customerName);
+  const best = Math.max(0, ...quotes.map(custHits));
+  // Adı daha iyi eşleşen bir cari varsa ama teklifi yoksa başka firmanın teklifleri gönderilmez
+  if (Math.max(0, ...customers.map(nameHits)) > best) return [];
+  const pool = best ? quotes.filter(q => custHits(q) === best) : quotes;
+  const custWords = best ? words.filter(w => pool.some(q => foldTr(q.customerName).includes(w))) : [];
+  const itemWords = words.filter(w => !custWords.includes(w));
   const scored: { score: number; date: string; line: string }[] = [];
-  for (const q of quotes) {
-    const cust = foldTr(`${q.customerName} ${q.city || ''}`);
-    const custHits = words.filter(w => cust.includes(w)).length;
+  for (const q of pool) {
     for (const it of q.items || []) {
-      const name = foldTr(`${it.productName} ${it.code || ''}`);
-      const itemHits = words.filter(w => name.includes(w)).length;
-      if (!custHits && !itemHits) continue;
+      const name = normInch(`${it.productName} ${it.code || ''}`);
+      const hits = itemWords.filter(w => has(name, w)).length;
+      if (itemWords.length && !hits) continue;
       const cur = it.currency || q.currency || 'TRY';
       scored.push({
-        score: custHits * 3 + itemHits,
+        score: hits,
         date: q.createdAt || '',
         line: `${dayOf(q.createdAt)} | ${q.customerName} | ${q.quoteNumber} | ${STATUS_LABEL[q.status]?.label || q.status} | ${it.productName} | ` +
           `${it.quantity} ${it.unit} | birim ${it.unitPrice} ${cur}${it.discount ? ` | iskonto %${it.discount}` : ''}`,
       });
     }
   }
-  return scored.sort((a, b) => b.score - a.score || b.date.localeCompare(a.date)).slice(0, 150).map(s => s.line);
+  return scored.sort((a, b) => b.score - a.score || b.date.localeCompare(a.date)).slice(0, 80).map(s => s.line);
 }
 
 /**
  * Tekliflere soru sorma (RAG): ilgili teklif satırları cihazda bulunur, soruyla birlikte yapay zekâya gider;
  * cevap yalnızca bu satırlara dayanır. Her soru tek istek.
  */
-export const AskQuotes: React.FC<{ quotes: Quote[] }> = ({ quotes }) => {
+export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[] }> = ({ quotes, customers }) => {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState('');
@@ -51,8 +66,10 @@ export const AskQuotes: React.FC<{ quotes: Quote[] }> = ({ quotes }) => {
     if (!question || busy) return;
     setBusy(true); setAnswer('');
     try {
-      const lines = findLines(question, quotes);
+      const lines = findLines(question, quotes, customers);
       setUsed(lines.length);
+      // Eşleşen satır yoksa yapay zekâya hiç gidilmez
+      if (!lines.length) { setAnswer('Kayıtlarda bulamadım: bu soruyla eşleşen teklif yok.'); return; }
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
       const res = await fetch('/api/ai/ask', {
@@ -62,7 +79,7 @@ export const AskQuotes: React.FC<{ quotes: Quote[] }> = ({ quotes }) => {
       });
       const out = await res.json().catch(() => null);
       setAnswer(res.status === 429 ? 'Yapay zekâ kotası doldu, biraz sonra tekrar deneyin.'
-        : res.ok ? out?.answer || 'Cevap alınamadı.' : 'Şu an cevap verilemiyor.');
+        : res.ok ? out?.answer || 'Cevap alınamadı.' : `Şu an cevap verilemiyor (${res.status}${out?.message ? `: ${out.message}` : out?.error ? `: ${out.error}` : ''}).`);
     } catch {
       setAnswer('Bağlantı kurulamadı.');
     } finally {
