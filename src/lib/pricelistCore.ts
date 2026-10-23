@@ -107,10 +107,16 @@ export async function parseListPages(
       }
       if (rule.length >= 3) return rule;
     }
-    for (let attempt = 0; attempt < 3 && !quota; attempt++) {
-      const ai = await aiPriceListPage(pg.join('\n')).catch(e => { if (String(e?.message) === 'quota') quota = true; return null; });
+    let timedOut = false;
+    for (let attempt = 0; attempt < 3 && !quota && !timedOut; attempt++) {
+      const ai = await aiPriceListPage(pg.join('\n')).catch(e => {
+        const m = String(e?.message);
+        if (m === 'quota') quota = true;
+        if (m === 'timeout') timedOut = true; // zaman aşımında yeniden denenmez
+        return null;
+      });
       if (ai) return ai;
-      if (!quota) await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+      if (!quota && !timedOut) await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
     }
     const rule = parsePriceLines(pg).map(x => ({ ...x, currency: x.currency || currency }));
     if (!rule.length) failed++;
