@@ -150,13 +150,26 @@ export const foldTr = (s: string) =>
 // İnç işareti: ", '', ”, ″, "inç", "parmak"
 const INCH = String.raw`\s*("|''|”|″|inc\b|parmak)`;
 
+// İnç → [DN, dış çapın tam kısmı (mm)]: 2" = DN50 = 60,3 mm
+const SIZE_EQ: Record<string, [number, number]> = {
+  '1/2': [15, 21], '3/4': [20, 26], '1': [25, 33], '1 1/4': [32, 42], '1 1/2': [40, 48], '2': [50, 60], '2 1/2': [65, 76],
+  '3': [80, 88], '4': [100, 114], '5': [125, 139], '6': [150, 168], '8': [200, 219],
+};
+const byDn = (dn: string) => Object.keys(SIZE_EQ).find(k => String(SIZE_EQ[k][0]) === dn);
+const byOd = (od: string) => Object.keys(SIZE_EQ).find(k => String(SIZE_EQ[k][1]) === od);
+
 /**
  * Aramayı kelimelere ve inç ölçülerine ayırır (sunucudaki search_split ile aynı kural).
  * Ölçü tam eşleşir: 2" → 1 1/2", 21/2", 1/2" gelmez; 1/2" → 1 1/2", 11/2" gelmez (11/2" = 1 1/2").
+ * Eşdeğerler: 2" = DN50 = 60,3 mm = "60'lık"; "patent" = TS EN 10253 / kaynaklı.
  */
 export function splitSizes(q: string): { words: string[]; sizes: RegExp[] } {
-  let nq = foldTr(q).replace(/(\d)\s*(''|”|″|inc\b|parmak)/g, '$1"');
+  let nq = foldTr(q).replace(/(\d)\s*(''|”|″|inc\b|parmak)/g, '$1"')
+    // DN50 ve "60'lık" inç ölçüsüne çevrilir (eşdeğerleri birlikte aranır)
+    .replace(/\bdn\s*(\d+)\b/g, (all, d) => (byDn(d) ? ` ${byDn(d)}"` : all))
+    .replace(/(^|[^0-9,.])(\d{2,3})\s*'?\s*(lik|luk)\b/g, (all, pre, d) => (byOd(d) ? `${pre}${byOd(d)}"` : all));
   const sizes: RegExp[] = [];
+  if (/\bpatent\b/.test(nq)) { sizes.push(/(patent|10253|kaynak)/); nq = nq.replace(/\bpatent\b/g, ' '); }
   const re = /(^|[^0-9/.,])((\d+)[ .-](\d)\/(\d+)|(\d+)\/(\d+)|(\d+))"/;
   for (let m = re.exec(nq); m; m = re.exec(nq)) {
     let w: string | undefined = m[3], a: string | undefined = m[4], b: string | undefined = m[5];
@@ -164,10 +177,13 @@ export function splitSizes(q: string): { words: string[]; sizes: RegExp[] } {
       w = undefined; a = m[6]; b = m[7];
       if (a.length > 1 && Number(a) > Number(b)) { w = a.slice(0, -1); a = a.slice(-1); }
     } else if (m[8]) { w = m[8]; a = b = undefined; }
-    sizes.push(new RegExp(!a ? `(^|[^0-9/.,])${w}(?![0-9]|[ .-]?[0-9]/)${INCH}`
+    let one = !a ? `(^|[^0-9/.,])${w}(?![0-9]|[ .-]?[0-9]/)${INCH}`
       // önünde tek haneli tam sayı olmamalı (1 1/2", 1-1/2", 21/2"); 20 1/2" (20 mm × 1/2") olur
       : !w ? `(^|[^0-9/., -]|(^|[^0-9])[ .-]|[0-9]{2}[ .-])${a}/${b}${INCH}`
-      : `(^|[^0-9/.,])${w}[ .-]?${a}/${b}${INCH}`));
+      : `(^|[^0-9/.,])${w}[ .-]?${a}/${b}${INCH}`;
+    const eq = SIZE_EQ[[w, a && `${a}/${b}`].filter(Boolean).join(' ')];
+    if (eq) one = `(${one}|\\bdn ?${eq[0]}(?![0-9])|(^|[^0-9.,])${eq[1]}[,.][0-9])`;
+    sizes.push(new RegExp(one));
     nq = nq.slice(0, m.index + m[1].length) + ' ' + nq.slice(m.index + m[0].length);
   }
   // Ölçü çıkınca kalan tek başına işaretler (*, x, -) aranmaz

@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, FileUp, ListPlus, Loader2, Plus, Trash2, X } from '
 import { Quote, QuoteItem, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { CityInput } from './TextSuggest';
+import { DateInput } from './DateInput';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
 import { Material, MATERIAL_UNITS, foldTr, rememberMaterial } from '../lib/materials';
 import { SuggestInput } from './SuggestInput';
@@ -34,6 +35,14 @@ interface NewQuoteModalProps {
 }
 
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
+
+/** Tarihi yeni güne taşır, günün saati aynı kalır (yerel saat) */
+const withDay = (iso: string, day: string) => {
+  const d = new Date(iso);
+  const t = new Date(`${day}T00:00:00`);
+  t.setHours(d.getHours(), d.getMinutes(), d.getSeconds());
+  return t.toISOString();
+};
 
 export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   currentRole,
@@ -85,6 +94,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   }, [customers, customerName]);
 
   const [paymentTerm, setPaymentTerm] = useState(init?.paymentTerm || '');
+  // Teklif tarihi: düzenlemede kendi tarihi, yenide bugün (PDF'ten gelirse PDF'teki tarih)
+  const [quoteDate, setQuoteDate] = useState(editQuote?.createdAt ? dayOf(editQuote.createdAt) : localDay());
   const [notes, setNotes] = useState(init?.notes || '');
   const [items, setItems] = useState<QuoteItem[]>(init?.items?.length
     ? init.items.map(it => ({ ...it, currency: it.currency || init.currency || 'TRY' }))
@@ -339,6 +350,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         }
       }
       if (pdf.paymentTerm && PAYMENT_TERMS.includes(pdf.paymentTerm)) setPaymentTerm(pdf.paymentTerm);
+      if (pdf.date && !editQuote) setQuoteDate(pdf.date);
       if (pdf.items.length) {
         // Katalogda adı birebir aynı olan malzemelerin kodu da gelsin
         let i = 0;
@@ -400,6 +412,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         }),
         notes: notes.trim() || undefined,
         paymentTerm: paymentTerm || undefined,
+        // Tarih değiştiyse saat korunarak yeni güne taşınır
+        createdAt: quoteDate && quoteDate !== dayOf(editQuote.createdAt) ? withDay(editQuote.createdAt, quoteDate) : editQuote.createdAt,
         updatedAt: new Date().toISOString(),
       }, { fromPdf: !!pdfMeta });
       onClose();
@@ -407,7 +421,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     }
 
     const quoteId = 'qt-' + Date.now();
-    const now = pdfMeta?.date ? new Date(`${pdfMeta.date}T09:00:00+03:00`) : new Date();
+    const day = quoteDate || pdfMeta?.date;
+    const now = day && day !== localDay() ? new Date(`${day}T09:00:00+03:00`) : new Date();
     const in5Days = localDay(new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000));
 
     const newQuote: Quote = {
@@ -514,7 +529,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   title={typedNo ? 'Elle girildi' : isEdit ? 'Boş bırakılırsa değişmez' : 'Boş bırakılırsa otomatik verilir'}
                 />
               </div>
-              <div className="col-span-2 sm:col-span-5">
+              <div className="col-span-2 sm:col-span-4">
                 <label className="ql">Müşteri / Firma *</label>
                 <SuggestInput<Customer>
                   value={customerName}
@@ -542,9 +557,13 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   );
                 })()}
               </div>
-              <div className="col-span-1 sm:col-span-3">
+              <div className="col-span-1 sm:col-span-2">
                 <label className="ql">Şehir *</label>
                 <CityInput required value={city} onChange={setCity} className="qf" />
+              </div>
+              <div className="col-span-1 sm:col-span-2">
+                <label className="ql">Tarih *</label>
+                <DateInput required value={quoteDate} onChange={setQuoteDate} className="qf" />
               </div>
               <div className="col-span-1 sm:col-span-2 ">
                 <label className="ql">Vade{isEdit ? '' : ' *'}</label>

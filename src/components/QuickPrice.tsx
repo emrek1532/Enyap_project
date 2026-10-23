@@ -7,6 +7,11 @@ import { SupplierItem, searchSupplierItems, supplierColor } from '../lib/supplie
 import { can, useAccess } from '../lib/access';
 import { dayOf } from '../lib/dates';
 
+/** Her firmadan en fazla `per` kalem, toplam `max` */
+const perList = (items: SupplierItem[], per: number, max: number) => {
+  const n = new Map<string, number>();
+  return items.filter(x => { const c = n.get(x.listId) || 0; n.set(x.listId, c + 1); return c < per; }).slice(0, max);
+};
 const money = (v: number, c: string) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as keyof typeof CURRENCY_LABEL] || c}`;
 const trDay = (s: string) => dayOf(s).split('-').reverse().join('.');
 
@@ -35,7 +40,8 @@ export const QuickPrice: React.FC<{
       setBusy(true);
       const [o, s] = await Promise.all([
         showOwn ? searchMaterials(term, { limit: 5 }).then(r => r.items, () => []) : Promise.resolve([]),
-        showSup ? searchSupplierItems(term, { limit: 6 }).then(r => r.items, () => []) : Promise.resolve([]),
+        // Her firmadan en fazla 2 kalem: liste adına göre sıralı ilk 6'da hep aynı firmalar kalmasın
+        showSup ? searchSupplierItems(term, { limit: 60 }).then(r => perList(r.items, 2, 10), () => []) : Promise.resolve([]),
       ]);
       if (!live) return;
       setOwn(o as Material[]); setSup(s as SupplierItem[]); setBusy(false);
