@@ -272,13 +272,13 @@ async function remove(table: string, id: string) {
  * Supabase tek istekte en fazla 1000 satır döndürür; büyük tabloları
  * sayfa sayfa çekip birleştirir.
  */
-async function fetchAllRows(table: string, orderBy: string, ascending: boolean): Promise<{ data: Row[]; error: any }> {
+async function fetchAllRows(table: string, orderBy: string, ascending: boolean, since?: string): Promise<{ data: Row[]; error: any }> {
   const PAGE = 1000;
   const all: Row[] = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
+    let q = supabase.from(table).select('*');
+    if (since) q = q.gt('synced_at', since);
+    const { data, error } = await q
       .order(orderBy, { ascending })
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
@@ -310,7 +310,76 @@ export async function fetchAllData(): Promise<AppData> {
     expenses: (check(expenses) || []).map(rowToExpense),
     visits: (visits.error ? [] : visits.data || []).map(rowToVisit),
     lastUpdated: new Date().toISOString(),
+    syncCursor: maxSynced([customers, quotes, notes, collections, expenses, visits]),
   };
+}
+
+/** Sunucu saatine göre en son değişiklik zamanı (sonraki artımlı eşitlemenin başlangıcı) */
+function maxSynced(results: { data: Row[] | null }[], fallback = ''): string {
+  let m = fallback;
+  for (const r of results) for (const row of r.data || []) if (row.synced_at && row.synced_at > m) m = row.synced_at;
+  return m;
+}
+
+/** Son eşitlemeden sonra değişen kayıtlar (eski veriler tekrar indirilmez) */
+export interface DataChanges {
+  customers: Customer[]; quotes: Quote[]; notes: QuickNote[]; activities: ActivityLog[];
+  collections: Collection[]; expenses: Expense[]; visits: Visit[]; cursor: string;
+}
+
+export async function fetchChanges(cursor: string): Promise<DataChanges> {
+  // Aynı anda yazılan kayıtlar kaçmasın diye 2 dakika geriden başlanır (tekrar gelenler id ile birleşir)
+  const since = new Date(Date.parse(cursor) - 120000).toISOString();
+  const [customers, quotes, notes, activities, collections, expenses, visits] = await Promise.all([
+    fetchAllRows('customers', 'name', true, since),
+    fetchAllRows('quotes', 'created_at', false, since),
+    fetchAllRows('notes', 'created_at', false, since),
+    supabase.from('activities').select('*').not('id', 'like', 'diag-%').gt('timestamp', since).order('timestamp', { ascending: false }).limit(50),
+    fetchAllRows('collections', 'date', false, since),
+    fetchAllRows('expenses', 'date', false, since),
+    fetchAllRows('visits', 'date', false, since),
+  ]);
+  return {
+    customers: (check(customers) || []).map(rowToCustomer),
+    quotes: (check(quotes) || []).map(rowToQuote),
+    notes: (check(notes) || []).map(rowToNote),
+    activities: (check(activities) || []).map(rowToActivity),
+    collections: (check(collections) || []).map(rowToCollection),
+    expenses: (check(expenses) || []).map(rowToExpense),
+    visits: (visits.error ? [] : visits.data || []).map(rowToVisit),
+    cursor: maxSynced([customers, quotes, notes, collections, expenses, visits], cursor),
+  };
+}
+
+/** Değişen kayıtları eldeki veriye id ile işler (yeni gelenler eklenir, değişenler güncellenir) */
+export function mergeChanges(d: AppData, ch: DataChanges): AppData {
+  const merge = <T extends { id: string }>(list: T[] | undefined, upd: T[], sort: (a: T, b: T) => number): T[] => {
+    if (!upd.length) return list || [];
+    const m = new Map((list || []).map(x => [x.id, x] as [string, T]));
+    upd.forEach(x => m.set(x.id, x));
+    return [...m.values()].sort(sort);
+  };
+  const desc = (k: (x: any) => string) => (a: any, b: any) => (k(b) || '').localeCompare(k(a) || '');
+  return {
+    ...d,
+    customers: merge(d.customers, ch.customers, (a, b) => a.name.localeCompare(b.name)),
+    quotes: merge(d.quotes, ch.quotes, desc(x => x.createdAt)),
+    notes: merge(d.notes, ch.notes, desc(x => x.createdAt)),
+    activities: merge(d.activities, ch.activities, desc(x => x.timestamp)).slice(0, 50),
+    collections: merge(d.collections, ch.collections, desc(x => x.date)),
+    expenses: merge(d.expenses, ch.expenses, desc(x => x.date)),
+    visits: merge(d.visits, ch.visits, desc(x => x.date)),
+    lastUpdated: new Date().toISOString(),
+    syncCursor: ch.cursor,
+  };
+}
+
+/** Başka cihazda silinen kaydı eldeki veriden çıkarır */
+export function removeRecord(d: AppData, table: string, id: string): AppData {
+  const key = table as keyof AppData;
+  const list = d[key];
+  if (!Array.isArray(list)) return d;
+  return { ...d, [key]: (list as { id: string }[]).filter(x => x.id !== id) };
 }
 
 export type Entity = 'customers' | 'quotes' | 'notes' | 'activities' | 'collections' | 'expenses' | 'visits';
@@ -356,11 +425,12 @@ export function isPermanentError(err: any): boolean {
   return !!code && /^[0-9A-Z]{5}$/.test(code) && !code.startsWith('08');
 }
 
-/** Diğer cihazlardan gelen değişiklikleri canlı dinler. */
-export function subscribeToChanges(onChange: () => void): () => void {
+/** Diğer cihazlardan gelen değişiklikleri canlı dinler (silinenlerde tablo ve id bildirilir). */
+export function subscribeToChanges(onChange: (e: { table: string; type: string; id?: string }) => void): () => void {
   const channel = supabase.channel('enyap-db-changes');
   for (const table of ['customers', 'quotes', 'notes', 'activities', 'collections', 'expenses', 'visits']) {
-    channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange);
+    channel.on('postgres_changes', { event: '*', schema: 'public', table }, (p: any) =>
+      onChange({ table, type: p.eventType, id: p.old?.id }));
   }
   channel.subscribe();
   return () => {

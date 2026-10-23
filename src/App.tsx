@@ -29,6 +29,9 @@ import {
 import { supabase } from './lib/supabase';
 import {
   fetchAllData,
+  fetchChanges,
+  mergeChanges,
+  removeRecord,
   applyOp,
   isPermanentError,
   subscribeToChanges,
@@ -238,8 +241,13 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const syncingRef = useRef(false);
   const rerunRef = useRef(false);
 
-  // Flush offline queue to Supabase, then pull the latest shared state
-  const performSync = useCallback(async (): Promise<void> => {
+  // Flush offline queue to Supabase, then pull the latest shared state.
+  // Kullanımı azaltmak için tüm veri günde bir (ya da elle yenilemede) indirilir; arada sadece değişen kayıtlar gelir.
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const fullRef = useRef(false);
+  const performSync = useCallback(async (full = false): Promise<void> => {
+    if (full) fullRef.current = true;
     if (syncingRef.current) {
       rerunRef.current = true;
       return;
@@ -274,13 +282,32 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         saveOutbox(queue);
       }
 
-      const fresh = await fetchAllData();
-
-      if (loadOutbox().length === 0) {
-        setData(fresh);
-        saveLocalData(fresh);
+      const FULL_KEY = 'enyap-last-full-sync';
+      let lastFull = 0;
+      try { lastFull = Number(localStorage.getItem(FULL_KEY)) || 0; } catch { /* yok */ }
+      const cursor = dataRef.current.syncCursor;
+      const needFull = fullRef.current || !cursor || Date.now() - lastFull > 24 * 3600 * 1000;
+      fullRef.current = false;
+      if (needFull) {
+        const fresh = await fetchAllData();
+        if (loadOutbox().length === 0) {
+          setData(fresh);
+          saveLocalData(fresh);
+          try { localStorage.setItem(FULL_KEY, String(Date.now())); } catch { /* yok */ }
+        } else {
+          rerunRef.current = true;
+        }
       } else {
-        rerunRef.current = true;
+        const ch = await fetchChanges(cursor!);
+        if (loadOutbox().length === 0) {
+          setData(prev => {
+            const next = mergeChanges(prev, ch);
+            saveLocalData(next);
+            return next;
+          });
+        } else {
+          rerunRef.current = true;
+        }
       }
       setSyncStatus({
         isOnline: true,
@@ -333,9 +360,14 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     performSync();
 
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const unsubscribe = subscribeToChanges(() => {
+    const unsubscribe = subscribeToChanges(e => {
+      // Silinen kayıt: indirme yapmadan eldeki veriden çıkar
+      if (e.type === 'DELETE' && e.id) {
+        setData(prev => { const next = removeRecord(prev, e.table, e.id!); saveLocalData(next); return next; });
+        return;
+      }
       clearTimeout(timer);
-      timer = setTimeout(() => performSync(), 400);
+      timer = setTimeout(() => performSync(), 1500);
     });
     return () => {
       clearTimeout(timer);
@@ -362,10 +394,10 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     window.addEventListener('offline', handleOffline);
     document.addEventListener('visibilitychange', handleVisible);
 
-    // Periodic heartbeat sync (in case a realtime message was missed)
+    // Canlı bildirim kaçarsa diye 5 dakikada bir (sadece değişenleri) kontrol et
     const interval = setInterval(() => {
-      if (navigator.onLine) performSync();
-    }, 60000);
+      if (navigator.onLine && document.visibilityState === 'visible') performSync();
+    }, 5 * 60000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -658,7 +690,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       {/* Top Application Header */}
       <Header
         syncStatus={syncStatus}
-        onTriggerSync={() => performSync()}
+        onTriggerSync={() => performSync(true)}
         onSignOut={handleSignOut}
         userEmail={session.user.email || ''}
         onHome={goHome}

@@ -60,6 +60,7 @@ const GUIDE: [string, string[]][] = [
   ]],
   ['İpuçları', [
     'İnternet yokken de kayıt girilebilir; bağlantı gelince otomatik gönderilir (üstteki yeşil nokta = senkron).',
+    'Veri kullanımı az tutulur: tüm veri günde bir kez indirilir, arada sadece değişen kayıtlar gelir. Üstteki eşitleme düğmesine basınca tüm veri yeniden indirilir.',
     'Sunucunun kabul etmediği bir kayıt olursa sayfanın üstünde kırmızı uyarı çıkar.',
     'Yetkiniz olmayan bölümler ve düğmeler görünmez; yetki için yöneticiye başvurun (Yönetim bölümü).',
   ]],

@@ -160,6 +160,8 @@ export interface AppData {
   notes: QuickNote[];
   activities: ActivityLog[];
   lastUpdated: string;
+  /** Sunucudaki son değişiklik zamanı: sonraki eşitlemede sadece bundan sonra değişenler indirilir */
+  syncCursor?: string;
 }
 
 export interface SyncStatus {
