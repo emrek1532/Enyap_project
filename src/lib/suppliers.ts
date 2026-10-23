@@ -578,33 +578,3 @@ export async function uploadedSupplierFiles(): Promise<Record<string, number>> {
   (data || []).forEach((r: any) => { out[r.source_file] = 1; });
   return out;
 }
-
-/** Bizim ürün kodlarıyla eşleşmiş firma listesi fiyatları (aynı firmanın birden çok listesi varsa en yenisi) */
-export interface SupplierOffer { supplier: string; listId: string; code: string; name: string; price: number; discount: number; net: number; currency: Currency; listDate: string }
-
-export async function supplierOffersFor(codes: string[]): Promise<Map<string, SupplierOffer[]>> {
-  const out = new Map<string, SupplierOffer[]>();
-  const uniq = [...new Set(codes.map(c => c.trim()).filter(Boolean))];
-  if (!uniq.length) return out;
-  const lists = new Map((await fetchSupplierLists()).map(l => [l.id, l]));
-  // Firma adı → en yeni listesi
-  const latest = new Map<string, string>();
-  for (const l of lists.values()) {
-    const cur = latest.get(l.name);
-    if (!cur || (l.listDate || '') > (lists.get(cur)!.listDate || '')) latest.set(l.name, l.id);
-  }
-  for (let i = 0; i < uniq.length; i += 200) {
-    const { data, error } = await supabase.from('supplier_items').select('list_id,code,name,price,currency,our_code').in('our_code', uniq.slice(i, i + 200));
-    if (error) throw error;
-    for (const r of (data || []) as any[]) {
-      const l = lists.get(r.list_id);
-      if (!l || latest.get(l.name) !== l.id || !(Number(r.price) > 0)) continue;
-      const price = Number(r.price), discount = Number(l.discount || 0);
-      const o: SupplierOffer = { supplier: l.name, listId: l.id, code: r.code || '', name: r.name || '', price, discount,
-        net: price * (1 - discount / 100), currency: (r.currency || l.currency || 'TRY') as Currency, listDate: l.listDate || '' };
-      out.set(r.our_code, [...(out.get(r.our_code) || []), o]);
-    }
-  }
-  for (const [k, v] of out) out.set(k, v.sort((a, b) => a.net - b.net));
-  return out;
-}
