@@ -4,7 +4,7 @@ import { MaterialPicker } from './MaterialPicker';
 import { supabase } from '../lib/supabase';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, aiMatchList, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -201,19 +201,21 @@ export const SupplierListsPanel: React.FC = () => {
   };
   const reqId = useRef(0);
   // Toplu eşleşme işlemleri (grup ya da tüm liste)
-  const [bulk, setBulk] = useState<{ key: string; ask?: 'clear' | 'rematch'; info?: string } | null>(null);
-  const runBulk = async (kind: 'clear' | 'rematch', grp: string | null) => {
+  const [bulk, setBulk] = useState<{ key: string; ask?: 'clear' | 'rematch' | 'ai'; info?: string } | null>(null);
+  const runBulk = async (kind: 'clear' | 'rematch' | 'ai', grp: string | null) => {
     if (!active) return;
     const key = grp ?? '*';
     setBulk({ key, info: kind === 'clear' ? 'bağlar kaldırılıyor…' : 'eşleştiriliyor…' });
     try {
       if (kind === 'clear') await clearSupplierMatches(active, grp);
+      else if (kind === 'ai') await aiMatchList(active, info => setBulk({ key, info }));
       else await rematchSupplierItems(active, grp, info => setBulk({ key, info }));
       setBulk(null);
       load(0, false);
     } catch (e) {
       setBulk(null);
-      setError((e as { message?: string })?.message || 'İşlem yapılamadı');
+      const msg = (e as { message?: string })?.message;
+      setError(msg === 'quota' ? 'Yapay zekâ kotası doldu, biraz sonra tekrar deneyin (kaldığı yerden sürer).' : msg || 'İşlem yapılamadı');
     }
   };
   const bulkActions = (grp: string | null, tone: string) => {
@@ -223,7 +225,7 @@ export const SupplierListsPanel: React.FC = () => {
     if (b?.info) return <span className="ml-auto text-[11px] font-semibold normal-case tracking-normal inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{b.info}</span>;
     if (b?.ask) return (
       <span className="ml-auto inline-flex items-center gap-1 normal-case tracking-normal">
-        <span className="text-[11px] font-semibold">{b.ask === 'clear' ? 'Bağlar kaldırılsın mı?' : 'Bağlar silinip yeniden eşleştirilsin mi?'}</span>
+        <span className="text-[11px] font-semibold">{b.ask === 'clear' ? 'Bağlar kaldırılsın mı?' : b.ask === 'ai' ? 'Yapay zekâ otomatik bağları kontrol edip eksikleri bulsun mu? (elle bağlananlara dokunmaz)' : 'Bağlar silinip yeniden eşleştirilsin mi?'}</span>
         <button type="button" onClick={() => runBulk(b.ask!, grp)} className="px-2 py-0.5 rounded-md bg-rose-600 text-white text-[11px] font-bold">Evet</button>
         <button type="button" onClick={() => setBulk(null)} className="px-1.5 text-[11px] font-semibold">Vazgeç</button>
       </span>
@@ -232,6 +234,7 @@ export const SupplierListsPanel: React.FC = () => {
       <span className="ml-auto inline-flex items-center gap-1">
         <button type="button" disabled={!!bulk} onClick={() => setBulk({ key, ask: 'clear' })} className={btn} style={{ borderColor: tone }}>Bağları kaldır</button>
         <button type="button" disabled={!!bulk} onClick={() => setBulk({ key, ask: 'rematch' })} className={btn} style={{ borderColor: tone }}>Yeniden eşleştir</button>
+        {grp === null && <button type="button" disabled={!!bulk} onClick={() => setBulk({ key, ask: 'ai' })} className={btn} style={{ borderColor: tone }}>Yapay zekâ ile eşleştir</button>}
       </span>
     );
   };

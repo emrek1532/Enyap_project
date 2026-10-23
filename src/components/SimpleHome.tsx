@@ -8,6 +8,7 @@ import { quoteTry, useRates } from '../lib/rates';
 import { STATUS_LABEL } from './CustomerAccount';
 import type { ActiveTab } from './Sections';
 import { QuickPrice } from './QuickPrice';
+import { AskQuotes } from './AskQuotes';
 import { VoiceCommand, VoiceResult } from './VoiceCommand';
 import { Targets, useSetting } from '../lib/settings';
 
@@ -157,6 +158,9 @@ export const SimpleHome: React.FC<{
 
       {/* Hızlı arama: firma, ürün fiyatı */}
       <QuickPrice quotes={quotes} customers={customers} onOpenQuote={onOpenQuote} onOpenCustomer={onOpenCustomer} />
+
+      {/* Tekliflere soru sorma (yapay zekâ) */}
+      {canQuotes && <AskQuotes quotes={quotes} />}
 
       {/* Bu ay: özet ve son 6 ay grafiği */}
       {(canQuotes || canMoney) && <MonthPanel stats={stats} canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} onOpen={onOpen} />}

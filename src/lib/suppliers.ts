@@ -256,11 +256,50 @@ export async function clearSupplierMatches(listId: string, grp: string | null) {
 
 /** Bir grubu (grp boşsa tüm listeyi) sıfırlayıp otomatik eşleştirmeyi yeniden çalıştırır */
 export async function rematchSupplierItems(listId: string, grp: string | null, onInfo?: (info: string) => void) {
-  let q = supabase.from('supplier_items').update({ our_code: null, match_manual: false, match_tried: false }).eq('list_id', listId);
+  let q = supabase.from('supplier_items').update({ our_code: null, match_manual: false, match_tried: false, ai_checked: false }).eq('list_id', listId);
   if (grp) q = q.eq('grp', grp);
   const { error } = await q;
   if (error) throw error;
   return autoMatchList(listId, 0, onInfo);
+}
+
+/**
+ * Yapay zekâ ile eşleştirme (RAG): veritabanı her kalem için en benzer malzemeleri bulur, yapay zekâ bunlardan
+ * aynı ürünü seçer ya da "yok" der. Elle bağlanan kalemlere dokunulmaz; yarıda kalırsa kaldığı yerden sürer.
+ */
+export async function aiMatchList(listId: string, onInfo?: (info: string) => void): Promise<{ checked: number; linked: number }> {
+  const { data: s } = await supabase.auth.getSession();
+  const token = s.session?.access_token;
+  type Row = { id: number; code: string | null; name: string; current: string | null; candidates: { code: string; name: string }[] };
+  let checked = 0, linked = 0;
+  for (let guard = 0; guard < 500; guard++) {
+    const { data, error } = await supabase.rpc('supplier_ai_batch', { p_list: listId, lim: 60 });
+    if (error) throw error;
+    const rows = (data || []) as Row[];
+    if (!rows.length) break;
+    const results: { id: number; code: string | null }[] = rows.filter(r => !r.candidates.length).map(r => ({ id: r.id, code: null }));
+    const ask = rows.filter(r => r.candidates.length);
+    // 20'şerli paketler aynı anda sorulur
+    await Promise.all(Array.from({ length: Math.ceil(ask.length / 20) }, (_, i) => ask.slice(i * 20, i * 20 + 20)).map(async chunk => {
+      const res = await fetch('/api/ai/match', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ items: chunk.map(r => ({ id: r.id, name: r.name, code: r.code || undefined, candidates: r.candidates })) }),
+      });
+      if (res.status === 429) throw new Error('quota');
+      if (!res.ok) throw new Error('Yapay zekâ cevap vermedi');
+      const out = await res.json();
+      const got = new Map<number, string | null>((out.matches || []).map((m: { id: number; code: string | null }) => [m.id, m.code]));
+      // Cevapta olmayan kalem mevcut bağıyla kalır
+      for (const r of chunk) results.push({ id: r.id, code: got.has(r.id) ? got.get(r.id)! : r.current });
+    }));
+    const { error: e2 } = await supabase.rpc('supplier_ai_apply', { p: results });
+    if (e2) throw e2;
+    checked += results.length;
+    linked += results.filter(r => r.code).length;
+    onInfo?.(`yapay zekâ eşleştiriyor · ${checked} kalem, ${linked} bağlandı`);
+  }
+  return { checked, linked };
 }
 
 export async function searchSupplierItems(q: string, opts: { list?: string | null; limit?: number; offset?: number } = {}) {
