@@ -480,7 +480,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         const name = decodeURIComponent(res.headers.get('x-file-name') || 'teklif.pdf');
         const file = new File([await res.blob()], name, { type: 'application/pdf' });
         const pdf = await readQuotePdf(file, { ai: false }).catch(() => null);
-        const existing = pdf?.quoteNumber ? quotesRef.current.find(q => (q.quoteNumber || '').trim() === pdf.quoteNumber) : undefined;
+        const no = (s?: string) => (s || '').trim().toLocaleUpperCase('tr');
+        const existing = pdf?.quoteNumber ? quotesRef.current.find(q => no(q.quoteNumber) === no(pdf.quoteNumber)) : undefined;
         setSharedPdf(file);
         if (existing) setEditingQuote(existing);
         else setIsNewQuoteOpen(true);
@@ -489,6 +490,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       }
     })();
   }, []);
+
+  // PDF ile revize edilen teklifi göster: Teklifler sayfası, teklif detayı ve PDF önizlemesi
+  const [focusQuote, setFocusQuote] = useState<{ id: string; n: number } | null>(null);
+  const showSavedQuote = (q: Quote) => {
+    setQuoteFilter('all');
+    setActiveTab('quotes');
+    setFocusQuote({ id: q.id, n: Date.now() });
+    if (q.items?.length) setPrintableQuote(q);
+  };
 
   const handleSaveQuote = (newQuote: Quote) => {
     const activity = logActivity(
@@ -516,7 +526,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
 
   // Mevcut teklifi düzenle / revize et
-  const handleUpdateQuote = (edited: Quote) => {
+  const handleUpdateQuote = (edited: Quote, opts?: { fromPdf: boolean }) => {
     // Düzenleme açıkken başka cihazdan durum değiştiyse (onay/iptal) eski durum geri yazılmaz
     const latest = data.quotes.find(q => q.id === edited.id);
     const updated = latest && editingQuote && edited.status === editingQuote.status && latest.status !== editingQuote.status
@@ -539,6 +549,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       { kind: 'upsert', entity: 'quotes', record: updated },
       { kind: 'upsert', entity: 'activities', record: activity },
     ]);
+    if (opts?.fromPdf) showSavedQuote(updated);
   };
 
   // Update Quote Status
@@ -705,6 +716,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             readOnly={!can(profile, 'quotes', 'edit')}
             statusFilter={quoteFilter}
             onStatusFilterChange={setQuoteFilter}
+            focusQuote={focusQuote}
           />
         )}
 
@@ -813,6 +825,14 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           initialPdf={sharedPdf}
           pdfNotice={pdfNotice}
           onSaveQuote={handleSaveQuote}
+          onOpenExisting={(q, file) => {
+            setIsNewQuoteOpen(false);
+            setPdfNotice('');
+            setQuoteCustomer(null);
+            setQuoteDraft(null);
+            setSharedPdf(file);
+            setEditingQuote(q);
+          }}
           onClose={() => {
             setIsNewQuoteOpen(false);
             setSharedPdf(null);

@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, FileUp, ListPlus, Loader2, Plus, Trash2, X } from '
 import { Quote, QuoteItem, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { CityInput } from './TextSuggest';
-import { CURRENCY_LABEL, Currency } from '../lib/money';
+import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
 import { Material, MATERIAL_UNITS, foldTr, rememberMaterial } from '../lib/materials';
 import { SuggestInput } from './SuggestInput';
 import { DecimalInput } from './DecimalInput';
@@ -14,7 +14,8 @@ import { catalogCode, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuo
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
-  onSaveQuote: (quote: Quote) => void;
+  /** fromPdf: form PDF'ten dolduruldu (kayıttan sonra teklif ve PDF'i gösterilir) */
+  onSaveQuote: (quote: Quote, opts?: { fromPdf: boolean }) => void;
   onClose: () => void;
   customers?: Customer[];
   initialCustomer?: Customer | null;
@@ -28,6 +29,8 @@ interface NewQuoteModalProps {
   initialPdf?: File | null;
   /** PDF'in elle seçilmesi gerektiğinde gösterilecek yol tarifi */
   pdfNotice?: string;
+  /** PDF'teki teklif no sistemde varsa: o teklifi bu PDF ile revize etmek için */
+  onOpenExisting?: (q: Quote, file: File) => void;
 }
 
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
@@ -43,6 +46,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   draft = null,
   initialPdf = null,
   pdfNotice = '',
+  onOpenExisting,
 }) => {
   // Düzenlemede mevcut teklif, sesli taslakta taslak; ikisi de yoksa boş form
   const init: Partial<Quote> | null = editQuote || draft;
@@ -308,6 +312,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfMsg, setPdfMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pdfMeta, setPdfMeta] = useState<{ preparedBy?: string; date?: string } | null>(null);
+  // PDF'teki teklif no sistemde zaten var mı (yeni teklif açarken)
+  const [existing, setExisting] = useState<{ q: Quote; file: File } | null>(null);
+  const normNo = (s?: string) => (s || '').trim().toLocaleUpperCase('tr');
 
   const fillFromPdf = async (file: File) => {
     setPdfBusy(true); setPdfMsg(null);
@@ -317,7 +324,11 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         setPdfMsg({ ok: false, text: 'PDF okunamadı (taranmış / resim PDF olabilir).' });
         return;
       }
-      if (pdf.quoteNumber && !isEdit) setQuoteNoInput(pdf.quoteNumber);
+      if (pdf.quoteNumber && !isEdit) {
+        setQuoteNoInput(pdf.quoteNumber);
+        const found = quotes.find(q => normNo(q.quoteNumber) === normNo(pdf.quoteNumber));
+        setExisting(found ? { q: found, file } : null);
+      }
       if (pdf.customerName && !isEdit) {
         const names = [...new Set([...customers.map(c => c.name), ...quotes.map(q => q.customerName)].filter(Boolean))];
         const name = matchCustomer(pdf.customerName, names) || titleTr(pdf.customerName.split(/\s+/).slice(0, 3).join(' '));
@@ -390,7 +401,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         notes: notes.trim() || undefined,
         paymentTerm: paymentTerm || undefined,
         updatedAt: new Date().toISOString(),
-      });
+      }, { fromPdf: !!pdfMeta });
       onClose();
       return;
     }
@@ -426,7 +437,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       isEncrypted: false,
     };
 
-    onSaveQuote(newQuote);
+    onSaveQuote(newQuote, { fromPdf: !!pdfMeta });
     onClose();
   };
 
@@ -465,6 +476,28 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             {pdfMsg && (
               <div className={`text-xs rounded-md px-3 py-2 ${pdfMsg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
                 {pdfMsg.text}
+              </div>
+            )}
+            {existing && !isEdit && (
+              <div className="text-xs rounded-md px-3 py-2.5 bg-amber-50 text-amber-900 border border-amber-300 space-y-2">
+                <div>
+                  <b>Bu teklif sistemde zaten var:</b> {existing.q.quoteNumber} · {existing.q.customerName} · {dayOf(existing.q.createdAt).split('-').reverse().join('.')} · {formatQuoteAmount(existing.q)}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {onOpenExisting && (
+                    <button type="button" onClick={() => onOpenExisting(existing.q, existing.file)}
+                      className="px-3 py-1.5 rounded-md bg-amber-600 text-white font-bold">Mevcut teklifi bu PDF ile güncelle (revize)</button>
+                  )}
+                  <button type="button" onClick={() => setExisting(null)}
+                    className="px-3 py-1.5 rounded-md bg-white border border-amber-300 font-bold">Yine de yeni teklif aç</button>
+                </div>
+              </div>
+            )}
+            {isEdit && pdfMeta && (
+              <div className="text-xs rounded-md px-3 py-2 bg-sky-50 text-sky-900 border border-sky-200">
+                <b>Bu teklif sistemde kayıtlı</b> ({dayOf(editQuote!.createdAt).split('-').reverse().join('.')}). PDF'teki bilgiler forma işlendi:
+                {' '}eski tutar <b>{formatQuoteAmount(editQuote!)}</b> → yeni <b>{fmt2(totalQuoteAmount)} {CURRENCY_LABEL[quoteCurrency]}</b>.
+                {' '}Kaydedince mevcut teklif güncellenir, yeni teklif açılmaz.
               </div>
             )}
 

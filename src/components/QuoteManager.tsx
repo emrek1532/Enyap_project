@@ -69,6 +69,8 @@ interface QuoteManagerProps {
   readOnly?: boolean;
   statusFilter: string;
   onStatusFilterChange: (filter: string) => void;
+  /** Bu teklifin detayını aç (ör. kaydedildikten hemen sonra) */
+  focusQuote?: { id: string; n: number } | null;
 }
 
 export const QuoteManager: React.FC<QuoteManagerProps> = ({
@@ -82,6 +84,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   readOnly = false,
   statusFilter,
   onStatusFilterChange: setStatusFilter,
+  focusQuote,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [listLimit, setListLimit] = useState(LIST_PAGE);
@@ -91,6 +94,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [askLost, setAskLost] = useState(false);
   useEffect(() => setAskLost(false), [selectedQuote?.id]);
+  useEffect(() => {
+    const q = focusQuote && quotes.find(x => x.id === focusQuote.id);
+    if (q) setSelectedQuote(q);
+  }, [focusQuote]); // eslint-disable-line react-hooks/exhaustive-deps
   // Müşteri kartı: o müşteriye verilen tüm teklifler
   const [customerView, setCustomerView] = useState<string | null>(null);
   // Tutarlar KDV dahil TL karşılığı (döviz TCMB kuruyla çevrilir)
