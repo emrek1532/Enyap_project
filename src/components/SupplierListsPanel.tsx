@@ -4,7 +4,7 @@ import { MaterialPicker } from './MaterialPicker';
 import { supabase } from '../lib/supabase';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, aiMatchList, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, aiMatchList, aiMatchUploaded, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -40,8 +40,17 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
       if (!data) return;
       const status = data.status === 'bitti' ? 'ok' : data.status === 'hata' ? 'err' : 'run';
       setRows(r => r.map(x => (x.name === name ? { ...x, status, info: data.info || x.info } : x)));
-      if (status !== 'run') { window.clearInterval(t); if (status === 'ok') onImported?.(); }
+      if (status !== 'run') { window.clearInterval(t); if (status === 'ok') { onImported?.(); autoAi(name); } }
     }, 5000);
+  };
+
+  // Liste kaydedilince kural eşleşmesinin bağlayamadığı kalemler yapay zekâyla eşleştirilir (ekran açıkken)
+  const autoAi = (name: string) => {
+    // Mesajlar hep "yapay zekâ" ile başlar: öncekinin yerine yazılır
+    const show = (info: string) => setRows(r => r.map(x => (x.name === name ? { ...x, info: `${(x.info || '').split(' · yapay zekâ')[0]} · ${info}` } : x)));
+    aiMatchUploaded(name, show)
+      .then(res => { if (res) show(`yapay zekâ ${res.linked.toLocaleString('tr-TR')} kalemi daha bağladı`); onImported?.(); })
+      .catch(e => show(e?.message === 'quota' ? 'yapay zekâ kotası doldu; eşleştirmeyi yarın listeden "Yapay zekâ ile eşleştir" ile sürdürün' : 'yapay zekâ eşleştirmesi yapılamadı'));
   };
 
   const run = async (files: File[]) => {
@@ -74,6 +83,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
             info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.replaced ? ' · eski liste yerine geçti (eşleştirmeler, iskonto ve logo taşındı)' : ''}${imp.priceDiff ? ` · ${priceDiffText(imp.priceDiff)}` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit sütunu okunamamış olabilir, kontrol edin` : ''}`,
           } : x)));
           onImported?.();
+          autoAi(f.name);
           continue;
         }
         const res = await uploadSupplierPdf(f, info =>
@@ -95,6 +105,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.failedPages ? ` · ${imp.failedPages} sayfa okunamadı` : ''}${imp.replaced ? ' · eski liste yerine geçti (eşleştirmeler, iskonto ve logo taşındı)' : ''}${imp.priceDiff ? ` · ${priceDiffText(imp.priceDiff)}` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit okunamamış olabilir, kontrol edin` : ''}${res.ocr ? ' (resimden okundu)' : ''}`,
         } : x)));
         onImported?.();
+        autoAi(f.name);
       } catch (e) {
         setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'err', info: `okunamadı${e instanceof Error ? ': ' + e.message : ''}` } : x)));
       }

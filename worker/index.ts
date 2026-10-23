@@ -592,6 +592,20 @@ const MATCH_SCHEMA_LLAMA = {
 /** Yapılandırılmış cevap: Claude anahtarı varsa Claude, yoksa Workers AI (Llama) */
 type Msg = { role: 'user' | 'assistant'; content: string };
 
+const QWEN = '@cf/qwen/qwen3-30b-a3b-fp8';
+
+/** Qwen ile düz yazı cevap (düşünme kapalı, <think> bölümü atılır) */
+async function qwenText(env: Env, system: string, messages: Msg[], maxTokens: number): Promise<string> {
+  const last = messages.length - 1;
+  const r = await env.AI!.run(QWEN, {
+    messages: [{ role: 'system', content: system }, ...messages.map((m, i) => (i === last ? { ...m, content: `${m.content}\n/no_think` } : m))],
+    max_tokens: maxTokens,
+    temperature: 0,
+  });
+  const raw = r?.response ?? r?.choices?.[0]?.message?.content ?? '';
+  return (typeof raw === 'string' ? raw : JSON.stringify(raw)).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+}
+
 async function askModel(env: Env, system: string, user: string | Msg[], schema: { claude: unknown; llama: unknown } | null, maxTokens: number): Promise<string> {
   const messages: Msg[] = typeof user === 'string' ? [{ role: 'user', content: user }] : user;
   if (env.ANTHROPIC_API_KEY) {
@@ -604,6 +618,20 @@ async function askModel(env: Env, system: string, user: string | Msg[], schema: 
       messages,
     } as any);
     return (response.content as any[]).find(b => b.type === 'text')?.text || '';
+  }
+  // Önce ~6 kat ucuz Qwen (ücretsiz günlük kota daha çok işe yeter); cevap biçimi tutmazsa Llama 70B
+  const cheap = await qwenText(env, schema
+    ? `${system}\n\nCEVAP BİÇİMİ: Yalnızca bu JSON şemasına uyan tek bir JSON nesnesi yaz, başka hiçbir şey yazma:\n${JSON.stringify(schema.llama)}`
+    : system, messages, Math.min(maxTokens, 4000)).catch(err => {
+    if (/neuron|quota|4006|429/i.test(String((err as Error)?.message || err))) throw err;
+    return '';
+  });
+  if (cheap) {
+    if (!schema) return cheap;
+    const a = cheap.indexOf('{'), b = cheap.lastIndexOf('}');
+    if (a >= 0 && b > a) {
+      try { return JSON.stringify(JSON.parse(cheap.slice(a, b + 1))); } catch { /* Llama'ya düş */ }
+    }
   }
   const r = await env.AI!.run(LLAMA, {
     messages: [{ role: 'system', content: system }, ...messages],
@@ -718,8 +746,6 @@ const AGENT_SCHEMA_LLAMA = {
   },
   required: ['calls', 'done', 'reply'],
 };
-
-const QWEN = '@cf/qwen/qwen3-30b-a3b-fp8';
 
 /** Ajan adımı Qwen ile: JSON şeması yerine talimatla JSON istenir, cevaptaki ilk { … } alınır; biçim tutmazsa null */
 async function agentWithQwen(env: Env, messages: Msg[]): Promise<Step | null> {
