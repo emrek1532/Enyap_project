@@ -836,7 +836,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         )}
 
         {/* Malzemeler (fiyat kataloğu) */}
-        {activeTab === 'materials' && <MaterialsPanel />}
+        {activeTab === 'materials' && <MaterialsPanel quotes={data.quotes} onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined} />}
 
         {activeTab === 'admin' && profile.isAdmin && <AdminPanel meId={profile.id} activities={data.activities} />}
 
