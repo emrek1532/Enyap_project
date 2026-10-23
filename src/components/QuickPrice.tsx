@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, ChevronRight, Loader2, Search, X } from 'lucide-react';
 import { Customer, Quote } from '../types';
 import { CURRENCY_LABEL } from '../lib/money';
-import { Material, foldTr, searchMaterials } from '../lib/materials';
+import { Material, foldTr, searchMaterials, textMatcher } from '../lib/materials';
 import { SupplierItem, searchSupplierItems, supplierColor } from '../lib/suppliers';
 import { can, useAccess } from '../lib/access';
 import { dayOf } from '../lib/dates';
@@ -46,13 +46,13 @@ export const QuickPrice: React.FC<{
   // Bu ürünü en son kime kaçtan verdik (teklif kalemlerinden, yeniden eskiye)
   const history = useMemo(() => {
     if (term.length < 2) return [];
-    const words = foldTr(term).split(/\s+/).filter(Boolean);
+    const match = textMatcher(term);
     const code = term.toUpperCase();
     const out: { q: Quote; name: string; price: number; disc: number; cur: string }[] = [];
     const sorted = [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     for (const qt of sorted) {
       for (const it of qt.items || []) {
-        const hit = (it.code || '').toUpperCase() === code || words.every(w => foldTr(`${it.productName} ${it.code || ''}`).includes(w));
+        const hit = (it.code || '').toUpperCase() === code || !!match?.(`${it.productName} ${it.code || ''}`);
         if (!hit || !(it.unitPrice > 0)) continue;
         out.push({ q: qt, name: it.productName, price: it.unitPrice, disc: it.discount || 0, cur: it.currency || qt.currency || 'TRY' });
         break;

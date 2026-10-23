@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Loader2, Send, Sparkles } from 'lucide-react';
 import { Quote } from '../types';
-import { foldTr } from '../lib/materials';
+import { foldTr, splitSizes } from '../lib/materials';
 import { dayOf } from '../lib/dates';
 import { supabase } from '../lib/supabase';
 import { STATUS_LABEL } from './CustomerAccount';
@@ -12,20 +12,17 @@ const STOP = new Set(('ne neler kac kaca kactan hangi hangisi verdik verdim veri
   'toplam tum butun hepsi var yok nedir nasil acaba bize biz firmasina firmaya firma para paraya parayla tane adet ' +
   'bugun dun yarin sattik sattim satildi aldi aldik aldilar verildi istedi onaylandi onaylanan iptal bekleyen bekliyor').split(' '));
 
-/** İnç yazımlarını birleştirir: 2 inç, 2'', 1 1/2 parmak → 2", 1 1/2" */
-const normInch = (s: string) => foldTr(s).replace(/''|”|″/g, '"').replace(/(\d(?:\s?\d\/\d)?)\s*(?:inc|parmak)\b/g, '$1"');
-
 /** Soruyla ilgili teklif satırlarını cihazdaki veriden bulur (internet kullanmaz) */
 function findLines(question: string, quotes: Quote[], customers: string[]): string[] {
-  const tokens = normInch(question).replace(/[?!.,;:()]/g, ' ').split(/\s+/).filter(Boolean);
-  // Uzun kelimelerde ek atılır (enerjiye → enerj, dirseği → dirse); inç ölçüsü kendi başına aranır
-  const words = tokens.filter(w => !STOP.has(w) && (/"/.test(w) || /[a-z]/.test(w) && w.length >= 3)).map(w => (/^[a-z]{6,}$/.test(w) ? w.slice(0, 5) : w));
-  if (!words.length) return [];
-  // İnç ölçüsü önünde rakam ya da / olmadan aranır (2" ≠ 1/2")
-  const has = (text: string, w: string) => (w.includes('"')
-    ? new RegExp(`(^|[^0-9/])${w.replace(/[/"]/g, m => `\\${m}`)}`).test(text) : text.includes(w));
+  // İnç ölçüleri ayrı ve tam eşleşir (2" ≠ 1 1/2", 1/2"); 2 inç, 2'', 1 1/2 parmak da olur
+  const { words: tokens, sizes } = splitSizes(question.replace(/[?!,;:()]/g, ' '));
+  // Uzun kelimelerde ek atılır (enerjiye → enerj, dirseği → dirse)
+  const words = tokens.map(w => w.replace(/\.+$/, '')).filter(w => !STOP.has(w) && /[a-z]/.test(w) && w.length >= 3)
+    .map(w => (/^[a-z]{6,}$/.test(w) ? w.slice(0, 5) : w));
+  if (!words.length && !sizes.length) return [];
+  const has = (text: string, w: string) => text.includes(w);
   // Soruda firma adı geçiyorsa yalnızca adı en çok eşleşen firmanın teklifleri
-  const nameHits = (name: string) => words.filter(w => !w.includes('"') && foldTr(name).includes(w)).length;
+  const nameHits = (name: string) => words.filter(w => foldTr(name).includes(w)).length;
   const custHits = (q: Quote) => nameHits(q.customerName);
   const best = Math.max(0, ...quotes.map(custHits));
   // Adı daha iyi eşleşen bir cari varsa ama teklifi yoksa başka firmanın teklifleri gönderilmez
@@ -34,11 +31,12 @@ function findLines(question: string, quotes: Quote[], customers: string[]): stri
   const custWords = best ? words.filter(w => pool.some(q => foldTr(q.customerName).includes(w))) : [];
   // Firmanın hiçbir ürününde geçmeyen kelimeler (zaman, fiil) ürün aramasından çıkarılır
   const itemWords = words.filter(w => !custWords.includes(w)
-    && (!best || pool.some(q => (q.items || []).some(it => has(normInch(`${it.productName} ${it.code || ''}`), w)))));
+    && (!best || pool.some(q => (q.items || []).some(it => has(foldTr(`${it.productName} ${it.code || ''}`), w)))));
   const scored: { score: number; date: string; line: string }[] = [];
   for (const q of pool) {
     for (const it of q.items || []) {
-      const name = normInch(`${it.productName} ${it.code || ''}`);
+      const name = foldTr(`${it.productName} ${it.code || ''}`);
+      if (!sizes.every(r => r.test(name))) continue;
       const hits = itemWords.filter(w => has(name, w)).length;
       if (itemWords.length && !hits) continue;
       const cur = it.currency || q.currency || 'TRY';

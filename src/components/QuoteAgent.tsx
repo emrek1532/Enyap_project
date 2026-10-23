@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bot, Loader2, Send } from 'lucide-react';
 import { Customer, Quote, QuoteItem } from '../types';
-import { MATERIAL_UNITS, Material, foldTr, searchMaterials } from '../lib/materials';
+import { MATERIAL_UNITS, Material, foldTr, searchMaterials, textMatcher } from '../lib/materials';
 import { dayOf, localDay } from '../lib/dates';
 import { supabase } from '../lib/supabase';
 import { STATUS_LABEL } from './CustomerAccount';
@@ -54,11 +54,11 @@ export const QuoteAgent: React.FC<{
 
   const priceHistory = (arg: string) => {
     const code = arg.trim().toUpperCase();
-    const ws = words(arg);
+    const match = textMatcher(arg);
     const out: string[] = [];
     const sorted = [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     for (const q of sorted) {
-      const it = (q.items || []).find(i => (i.code || '').toUpperCase() === code || (ws.length && ws.every(w => foldTr(`${i.productName} ${i.code || ''}`).includes(w))));
+      const it = (q.items || []).find(i => (i.code || '').toUpperCase() === code || match?.(`${i.productName} ${i.code || ''}`));
       if (!it || !(it.unitPrice > 0)) continue;
       out.push(`${dayOf(q.createdAt)} | ${q.customerName} | ${it.code || 'kodsuz'} | ${it.productName} | liste ${it.unitPrice} ${it.currency || q.currency || 'TRY'} | iskonto ${it.discount || 0}`);
       if (out.length >= 6) break;
