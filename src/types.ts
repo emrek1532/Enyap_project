@@ -139,10 +139,23 @@ export interface Expense {
   updatedAt: string;
 }
 
+/** Müşteri ziyareti (sahada "uğradım" kaydı) */
+export interface Visit {
+  id: string;
+  customerName: string;
+  date: string;          // YYYY-MM-DD
+  note?: string;
+  city?: string;
+  createdBy: UserRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppData {
   customers?: Customer[];
   collections?: Collection[];
   expenses?: Expense[];
+  visits?: Visit[];
   quotes: Quote[];
   notes: QuickNote[];
   activities: ActivityLog[];

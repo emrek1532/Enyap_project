@@ -16,7 +16,8 @@ import {
   SyncStatus,
   QuoteStatus,
   Collection,
-  Expense
+  Expense,
+  Visit
 } from './types';
 import {
   loadLocalData,
@@ -132,6 +133,12 @@ const ENTITY_MODULE: Record<string, Module | undefined> = {
 };
 
 function Portal({ session, profile }: { session: Session; profile: Profile }) {
+  // Çevrimdışı katalog: malzeme kataloğu günde bir kez arka planda cihaza indirilir
+  useEffect(() => {
+    if (!can(profile, 'materials')) return;
+    const t = window.setTimeout(() => { import('./lib/offlineCatalog').then(m => m.syncOfflineCatalog()).catch(() => undefined); }, 15000);
+    return () => window.clearTimeout(t);
+  }, [profile]);
   const tabAllowed = (tab: ActiveTab): boolean => {
     switch (tab) {
       case 'home': case 'customers': return true;
@@ -257,7 +264,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           // Kullanıcıya hangi kaydın kaydedilemediği gösterilir (sessizce kaybolmasın)
           const op: any = queue[0];
           const rec = op.record || {};
-          const label = { quotes: 'Teklif', collections: 'Tahsilat', expenses: 'Harcama', customers: 'Müşteri', notes: 'Not', activities: 'İşlem kaydı' }[op.entity as string] || op.entity;
+          const label = { quotes: 'Teklif', collections: 'Tahsilat', expenses: 'Harcama', customers: 'Müşteri', notes: 'Not', visits: 'Ziyaret', activities: 'İşlem kaydı' }[op.entity as string] || op.entity;
           const what = rec.quoteNumber || rec.customerName || rec.name || rec.title || (rec.content ? String(rec.content).slice(0, 30) : '') || op.id || '';
           const why = err?.code === '42501' ? 'yetkiniz yok' : 'sunucu kabul etmedi';
           setRejected(r => [...r, `${label}${what ? ` (${what})` : ''}: ${op.kind === 'delete' ? 'silinemedi' : 'kaydedilemedi'} — ${why}`].slice(-5));
@@ -605,6 +612,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     persist([{ kind: 'upsert', entity: 'collections', record }]);
   };
 
+  const handleSaveVisit = (record: Visit) => {
+    mutate(d => {
+      const list = d.visits || [];
+      const exists = list.some(v => v.id === record.id);
+      return { ...d, visits: exists ? list.map(v => (v.id === record.id ? record : v)) : [record, ...list] };
+    });
+    persist([{ kind: 'upsert', entity: 'visits', record }]);
+  };
+
   const handleDeleteCollection = (id: string) => {
     mutate(d => ({ ...d, collections: (d.collections || []).filter(c => c.id !== id) }));
     persist([{ kind: 'delete', entity: 'collections', id }]);
@@ -731,6 +747,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onFocusHandled={() => setFocusCustomer(null)}
             openMikro={openMikro}
             onMikroHandled={() => setOpenMikro(false)}
+            visits={data.visits || []}
+            onSaveVisit={handleSaveVisit}
             onCreateQuoteForCustomer={(customer) => {
               setQuoteCustomer(customer);
               setIsNewQuoteOpen(true);

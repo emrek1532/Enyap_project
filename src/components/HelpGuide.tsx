@@ -27,6 +27,7 @@ const GUIDE: [string, string[]][] = [
     'Bakiyeler sekmesi: Mikro\'dan yüklenen cari bakiyeler; alacağımız ve borcumuz ayrı toplanır.',
     'Güncel bakiye = Mikro bakiyesi − o tarihten sonra girilen TL tahsilatlar.',
     'Firma kartında ödeme alışkanlığı: son tahsilat, ortalama tahsilat aralığı, ortalama çek vadesi ve ödeme şekli.',
+    'Ziyaret sekmesi: şehir seçilir; bekleyen teklifi veya alacağı olan firmalar önce, sonra en uzun süredir uğranmayanlar listelenir. "Uğradım" ile ziyaret ve kısa not kaydedilir; firma kartında ziyaret geçmişi görünür.',
     'Mikro yükle: Mikro\'dan alınan cari bakiye listesini yükleyin (15 günden eskiyse tarih kırmızı görünür).',
     'Firma pasife veya kara listeye alınabilir; bu firmalar önerilerde çıkmaz.',
   ]],
@@ -34,6 +35,9 @@ const GUIDE: [string, string[]][] = [
     'Malzemeler: kendi katalogumuz; kod veya adla aranır, fiyat ve para birimi buradan güncellenir.',
     'Firma listeleri: tedarikçi fiyat listeleri (PDF/Excel) yüklenir; satırlar katalogdaki ürünlerle eşleştirilir.',
     'Eşleşen ürünlerde liste fiyatı ile katalog fiyatı karşılaştırılır; fiyat değişince bekleyen tekliflerde uyarı çıkar.',
+    'Yeni liste yüklenince önceki fiyatlarla karşılaştırılır: kaç üründe zam/indirim olduğu ve en çok zamlananlar firma kartında görünür.',
+    'Onaylanan teklifte "Tedarikçi siparişi hazırla": kalemler eşleşen firma listelerinden en ucuzuna atanır, firma bazında sipariş metni WhatsApp ile gönderilir.',
+    'Çevrimdışı katalog: malzeme kataloğu günde bir kez cihaza indirilir; internet yokken malzeme ve fiyat araması buradan yapılır.',
   ]],
   ['Tahsilat ve Harcama', [
     'Tahsilat Ekle: müşteri, tutar, ödeme şekli; çek/senet için banka, çek no ve vade girilir.',

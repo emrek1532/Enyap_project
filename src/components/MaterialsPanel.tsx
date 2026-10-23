@@ -374,7 +374,35 @@ export const MaterialsPanel: React.FC = () => {
           <span className={sub}>{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '\u00a0'}</span>
         </button>
       </div>}
+      {tab === 'own' && showOwn && <OfflineInfo />}
       {tab === 'own' ? <OwnMaterials /> : <SupplierListsPanel />}
+    </div>
+  );
+};
+
+/** Çevrimdışı katalog durumu: cihazdaki kopya ve elle yenileme */
+const OfflineInfo: React.FC = () => {
+  const [info, setInfo] = useState<{ at: number; count: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [online, setOnline] = useState(navigator.onLine);
+  const load = () => import('../lib/offlineCatalog').then(m => m.offlineCatalogInfo()).then(setInfo, () => undefined);
+  useEffect(() => {
+    load();
+    const on = () => setOnline(navigator.onLine);
+    window.addEventListener('online', on); window.addEventListener('offline', on);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', on); };
+  }, []);
+  const refresh = async () => {
+    setBusy(true);
+    try { await (await import('../lib/offlineCatalog')).syncOfflineCatalog(true); await load(); } catch { /* yok */ } finally { setBusy(false); }
+  };
+  return (
+    <div className={`flex items-center gap-2 text-[11px] px-1 ${online ? 'text-slate-500' : 'text-amber-700 font-bold'}`}>
+      <span className="flex-1">
+        {!online && 'İnternet yok — arama cihazdaki katalogdan yapılıyor. '}
+        {info ? `Cihazdaki katalog: ${info.count.toLocaleString('tr-TR')} kalem · ${new Date(info.at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : 'Katalog henüz cihaza indirilmedi.'}
+      </span>
+      {online && <button onClick={refresh} disabled={busy} className="font-bold text-brand-700 disabled:opacity-50">{busy ? 'İndiriliyor…' : 'Cihaza indir / yenile'}</button>}
     </div>
   );
 };
