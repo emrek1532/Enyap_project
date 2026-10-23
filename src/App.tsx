@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { dayOf, localDay } from './lib/dates';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import {
@@ -35,7 +34,6 @@ import {
   PendingOp
 } from './lib/db';
 import { findCustomer } from './lib/customers';
-import { PENDING_STATUSES } from './lib/quoteRules';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import type { ActiveTab } from './components/Sections';
@@ -50,7 +48,6 @@ import { BottomNav } from './components/BottomNav';
 import { MaterialsPanel } from './components/MaterialsPanel';
 import { ReportsPanel } from './components/ReportsPanel';
 import { NewQuoteModal } from './components/NewQuoteModal';
-import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './components/LedgerPanel';
 import { CustomersPanel } from './components/CustomersPanel';
 import { readQuotePdf } from './lib/pdfQuote';
 import { AccessContext, Module, Profile, can, fetchMyProfile } from './lib/access';
@@ -556,7 +553,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const handleUpdateQuoteStatus = (id: string, status: QuoteStatus, lostReason?: string) => {
     const target = data.quotes.find(q => q.id === id);
     if (!target) return;
-    const updated: Quote = { ...target, status, lostReason: status === 'iptal' ? (lostReason ?? target.lostReason) : undefined, updatedAt: new Date().toISOString() };
+    // Bekleme nedeni: onaylanınca silinir, diğer durumlarda (ve iptalde) kalır
+    const updated: Quote = { ...target, status, lostReason: lostReason !== undefined ? (lostReason || undefined) : status === 'onaylandi' ? undefined : target.lostReason, updatedAt: new Date().toISOString() };
     const activity = logActivity(
       'Teklif Durumu Değişti',
       `${target.customerName} teklifi "${status}" durumuna alındı.`,
@@ -635,9 +633,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     await supabase.auth.signOut();
   };
 
-  // Counts for alerts & badges
-  const todayStr = localDay();
-  const pendingQuotesCount = data.quotes.filter(q => PENDING_STATUSES.includes(q.status)).length;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-24 md:pb-8">

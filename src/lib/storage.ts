@@ -12,7 +12,7 @@ export function loadLocalData(): AppData | null {
       const data: AppData = JSON.parse(raw);
       // Arşiv durumu kaldırıldı; eski önbellekte kalanlar Beklemede sayılır
       data.quotes = (data.quotes || []).map((q: Quote) =>
-        q.status === 'arsiv' ? { ...q, status: 'gonderildi' } : q);
+        (q.status as string) === 'arsiv' ? { ...q, status: 'gonderildi' } : q);
       return data;
     }
   } catch (err) {
@@ -37,7 +37,7 @@ export function loadOutbox(): PendingOp[] {
       const ops: PendingOp[] = JSON.parse(raw);
       // Eski sürümün otomatik arşivleme işlemleri artık gönderilmez
       const kept = ops.filter(op =>
-        !(op.kind === 'upsert' && op.entity === 'quotes' && (op.record as Quote)?.status === 'arsiv'));
+        !(op.kind === 'upsert' && op.entity === 'quotes' && ((op.record as Quote)?.status as string) === 'arsiv'));
       if (kept.length !== ops.length) saveOutbox(kept);
       return kept;
     }

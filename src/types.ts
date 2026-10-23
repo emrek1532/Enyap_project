@@ -1,14 +1,9 @@
 export type UserRole = 'isparta' | 'istanbul';
 
-export type QuoteStatus = 
-  | 'yeni_talep'      // Isparta'dan iletildi, ofis teklif hazırlığı bekliyor
-  | 'hazirlaniyor'    // Ofis üzerinde çalışıyor (fiyatlandırma/maliyet)
-  | 'gonderildi'      // Müşteriye WhatsApp/Mail ile iletildi, karar bekleniyor
-  | 'onaylandi'       // Müşteri onayladı! (Siparişe aktarılabilir)
-  | 'revizyon'        // Revizyon / İskonto pazarlığı
-  | 'iptal'           // İptal / Başka firmadan alındı
-  | 'siparis'         // Siparişe dönüştürüldü (teklif listesinden düşer)
-  | 'arsiv';          // 7 günden uzun süre beklemede kalan teklif
+export type QuoteStatus =
+  | 'gonderildi'      // Müşteriye iletildi, karar bekleniyor
+  | 'onaylandi'       // Müşteri onayladı
+  | 'iptal';          // Sipariş olup sonradan iptal edildi
 
 export type UrgencyLevel = 'acil' | 'yuksek' | 'normal' | 'dusuk';
 

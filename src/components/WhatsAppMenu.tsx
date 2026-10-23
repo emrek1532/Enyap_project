@@ -25,7 +25,7 @@ export function waTemplates(c: WaContext): { key: string; label: string; text: s
     const q = c.quote;
     out.push({ key: 'takip', label: 'Teklif takibi', text: `${hi}\n${day(q.createdAt)} tarihli ${q.quoteNumber} numaralı teklifimizle ilgili değerlendirmeniz oldu mu? Sorunuz veya revize isteğiniz varsa yardımcı olmaktan memnuniyet duyarız.${SIGN}` });
     out.push({ key: 'gonderildi', label: 'Teklif iletildi', text: `${hi}\n${q.quoteNumber} numaralı teklifimizi ilettik${c.quoteValue ? ` (toplam ${tl(c.quoteValue)}, KDV dahil)` : ''}. İncelemenizin ardından dönüşünüzü bekliyoruz.${SIGN}` });
-    if (q.status === 'onaylandi' || q.status === 'siparis') out.push({ key: 'tesekkur', label: 'Sipariş teşekkürü', text: `${hi}\n${q.quoteNumber} numaralı siparişiniz için teşekkür ederiz. Teslimat planını en kısa sürede sizinle paylaşacağız.${SIGN}` });
+    if (q.status === 'onaylandi') out.push({ key: 'tesekkur', label: 'Sipariş teşekkürü', text: `${hi}\n${q.quoteNumber} numaralı siparişiniz için teşekkür ederiz. Teslimat planını en kısa sürede sizinle paylaşacağız.${SIGN}` });
   }
   if (c.balance != null && c.balance > 0) out.push({ key: 'odeme', label: 'Ödeme hatırlatma', text: `${hi}\n${c.balanceDate ? `${day(c.balanceDate)} itibarıyla ` : ''}cari hesap bakiyeniz ${tl(c.balance)}'dir. Ödeme planınızı paylaşabilirseniz seviniriz. Ekstre isterseniz hemen gönderebiliriz.${SIGN}` });
   out.push({ key: 'yeniden', label: 'Uzun süredir görüşmedik', text: `${hi}\nUzun süredir görüşemedik. Yeni projeleriniz veya ihtiyaçlarınız için güncel fiyat ve ürün bilgisi paylaşmaktan memnuniyet duyarız.${SIGN}` });

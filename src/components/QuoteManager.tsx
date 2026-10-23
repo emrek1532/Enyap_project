@@ -1,30 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { dayOf, localDay } from '../lib/dates';
-import { 
-  FileText, 
-  Search, 
-  Filter, 
-  Plus, 
-  MessageCircle, 
-  Phone, 
-  MapPin, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  ChevronRight, 
-  Printer,
-  Share2,
-  Truck, 
-  Trash2, 
-  Edit3, 
-  Layers, 
-  List, 
-  Sparkles,
-  ExternalLink,
-  Copy,
-  Check,
-  Pencil
-} from 'lucide-react';
+import { dayOf } from '../lib/dates';
+import { Search, Plus, MapPin, ChevronRight, Printer, Share2, Trash2, Pencil } from 'lucide-react';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
@@ -32,17 +8,15 @@ import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
 import { WhatsAppMenu } from './WhatsAppMenu';
 import { usePriceChanges } from '../lib/priceWatch';
-import { LOST_REASONS } from '../lib/quoteRules';
+import { PENDING_REASONS, splitReason } from '../lib/quoteRules';
 import { DateInput } from './DateInput';
 
-const KANBAN_LIMIT = 30;
 const LIST_PAGE = 50;
 
 const fold = (s: string) =>
   s.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
     .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
 
-const fmt = (n: number) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
 type QuoteSortKey = 'number' | 'customer' | 'amount' | 'status' | 'date' | 'added';
 
@@ -55,7 +29,7 @@ const addedKey = (q: Quote) => {
 };
 const SORT_KEY = 'enyap-quote-sort';
 /** Durum sırası: Beklemede → Onaylandı → İptal */
-const STATUS_RANK: Record<string, number> = { yeni_talep: 0, hazirlaniyor: 0, gonderildi: 0, revizyon: 0, onaylandi: 1, siparis: 1, iptal: 2 };
+const STATUS_RANK: Record<string, number> = { gonderildi: 0, onaylandi: 1, iptal: 2 };
 
 interface QuoteManagerProps {
   quotes: Quote[];
@@ -92,8 +66,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
-  const [askLost, setAskLost] = useState(false);
-  useEffect(() => setAskLost(false), [selectedQuote?.id]);
+  const [reasonNote, setReasonNote] = useState('');
+  useEffect(() => setReasonNote(splitReason(selectedQuote?.lostReason).note), [selectedQuote?.id]);
   useEffect(() => {
     const q = focusQuote && quotes.find(x => x.id === focusQuote.id);
     if (q) setSelectedQuote(q);
@@ -199,31 +173,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
   const getStatusBadge = (status: QuoteStatus) => {
     switch (status) {
-      case 'yeni_talep':
-        return { label: 'Yeni Talep', color: 'bg-amber-100 text-amber-800 border-amber-200' };
-      case 'hazirlaniyor':
-        return { label: 'Ofiste Hazırlanıyor', color: 'bg-blue-100 text-blue-800 border-blue-200' };
       case 'gonderildi':
         return { label: 'Beklemede', color: 'bg-purple-100 text-purple-800 border-purple-200' };
       case 'onaylandi':
         return { label: 'Onaylandı', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
-      case 'siparis':
-        return { label: 'Siparişe Dönüştü', color: 'bg-accent-100 text-accent-800 border-accent-200' };
-      case 'arsiv':
-        return { label: 'Arşiv', color: 'bg-slate-100 text-slate-500 border-slate-200' };
-      case 'revizyon':
-        return { label: 'Revizyon Bekliyor', color: 'bg-brand-100 text-brand-800 border-brand-200' };
       case 'iptal':
         return { label: 'İptal', color: 'bg-slate-100 text-slate-700 border-slate-200' };
     }
   };
-
-  const kanbanColumns: { status: QuoteStatus; title: string; hint: string; border: string }[] = [
-    { status: 'yeni_talep', title: 'Yeni Talep', hint: 'Fiyatlandırma bekliyor', border: 'border-t-amber-500' },
-    { status: 'hazirlaniyor', title: 'Hazırlanıyor', hint: 'İstanbul fiyatlandırıyor', border: 'border-t-blue-500' },
-    { status: 'gonderildi', title: 'Teklif Gönderildi', hint: 'Müşteri onayı bekleniyor', border: 'border-t-purple-500' },
-    { status: 'onaylandi', title: 'Onaylandı', hint: 'Siparişe çevrilmeyi bekliyor', border: 'border-t-emerald-500' },
-  ];
 
   return (
     <div className="space-y-4">
@@ -358,6 +315,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>{statusBadge.label}</span>
                       {priceBadge(quote.id)}
+                      {quote.status === 'gonderildi' && quote.lostReason && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {pending && !readOnly && (
@@ -420,6 +378,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                             {statusBadge.label}
                           </span>
                           {priceChanges.has(quote.id) && <span className="mt-1 block w-fit">{priceBadge(quote.id)}</span>}
+                          {quote.status === 'gonderildi' && quote.lostReason && <span className="mt-1 block w-fit"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span></span>}
                           {needsFollowUp(quote) && (
                             <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
                               ⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)
@@ -549,10 +508,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                       <button
                         key={st}
                         onClick={() => {
-                          if (st === 'iptal') { setAskLost(true); return; }
-                          setAskLost(false);
                           onUpdateQuoteStatus(selectedQuote.id, st);
-                          setSelectedQuote({ ...selectedQuote, status: st, lostReason: undefined });
+                          setSelectedQuote({ ...selectedQuote, status: st, lostReason: st === 'onaylandi' ? undefined : selectedQuote.lostReason });
                         }}
                         className={`p-2 rounded-lg text-xs font-bold border transition-all text-center ${
                           isCurrent
@@ -565,23 +522,33 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     );
                   })}
                 </div>
-                {(askLost || selectedQuote.status === 'iptal') && (
-                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-                    <div className="text-[11px] font-bold text-slate-600 mb-1.5">{askLost ? 'Neden kaybedildi? (seçince iptal edilir)' : 'Kaybedilme nedeni'}</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {LOST_REASONS.map(r => (
-                        <button key={r} onClick={() => {
-                          onUpdateQuoteStatus(selectedQuote.id, 'iptal', r);
-                          setSelectedQuote({ ...selectedQuote, status: 'iptal', lostReason: r });
-                          setAskLost(false);
-                        }}
-                          className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${selectedQuote.status === 'iptal' && selectedQuote.lostReason === r ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
-                          {r}
-                        </button>
-                      ))}
+                {selectedQuote.status === 'gonderildi' && (() => {
+                  const cur = splitReason(selectedQuote.lostReason);
+                  const save = (reason: string, note: string) => {
+                    const v = reason ? [reason, note.trim()].filter(Boolean).join(' · ') : '';
+                    onUpdateQuoteStatus(selectedQuote.id, selectedQuote.status, v);
+                    setSelectedQuote({ ...selectedQuote, lostReason: v || undefined });
+                  };
+                  return (
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 space-y-2">
+                      <div className="text-[11px] font-bold text-slate-600">Neden bekliyor?</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {PENDING_REASONS.map(r => (
+                          <button key={r} onClick={() => save(cur.reason === r ? '' : r, reasonNote)}
+                            className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${cur.reason === r ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                      {cur.reason && (
+                        <input value={reasonNote} onChange={e => setReasonNote(e.target.value)}
+                          onBlur={() => reasonNote.trim() !== cur.note && save(cur.reason, reasonNote)}
+                          placeholder={cur.reason === 'Rakip daha ucuz' ? 'Rakip firma ve fiyatı (ör. ABC Isı 45.000 TL)' : 'Kısa not (isteğe bağlı)'}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" />
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {priceChanges.get(selectedQuote.id) && (
@@ -720,7 +687,7 @@ export const CustomerQuotes: React.FC<{
     [quotes, name],
   );
   const sum = (xs: Quote[]) => xs.reduce((t, q) => t + (netTry.get(q.id) || 0), 0);
-  const approved = list.filter(q => q.status === 'onaylandi' || q.status === 'siparis');
+  const approved = list.filter(q => q.status === 'onaylandi');
   const pending = list.filter(q => PENDING_STATUSES.includes(q.status));
   const cancelled = list.filter(q => q.status === 'iptal');
   const city = list.find(q => q.city)?.city;

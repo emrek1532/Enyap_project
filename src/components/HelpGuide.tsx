@@ -15,7 +15,8 @@ const GUIDE: [string, string[]][] = [
     'Yeni Teklif ile müşteri seçilir, malzemeler katalogdan aranarak eklenir; iskonto ve para birimi kalem bazında girilebilir.',
     'Listede arama (müşteri, teklif no, şehir, ürün), durum ve şehir filtresi vardır.',
     'Bugün / Bu hafta / Bu ay / Geçen ay / Bu yıl düğmeleri tarih aralığını tek dokunuşla seçer; tekrar basınca kaldırır.',
-    'Bir teklife dokununca ayrıntısı açılır: PDF önizleme, WhatsApp/e-posta ile gönderme, düzenleme, onaylama veya iptal (neden seçilerek).',
+    'Bir teklife dokununca ayrıntısı açılır: PDF önizleme, WhatsApp/e-posta ile gönderme, düzenleme, onaylama veya iptal (iptal = sipariş olup sonradan iptal).',
+    'Bekleyen teklifte "Neden bekliyor?" seçilir (Fiyat yüksek, Rakip daha ucuz…); rakip firma ve fiyatı not düşülebilir. Raporda nedenlere göre dağılım görünür.',
     '"Tekrar görüşülecek" filtresi uzun süredir cevap bekleyen teklifleri gösterir.',
   ]],
   ['Müşteriler', [

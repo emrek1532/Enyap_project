@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, MapPin, Pencil, Trash2, FilePlus2, X, Building2, List, FileUp, Wallet } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, FilePlus2, X, Building2, List, FileUp, Wallet } from 'lucide-react';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
-import { CustomerAccount, STATUS_LABEL } from './CustomerAccount';
+import { CustomerAccount } from './CustomerAccount';
 import { CityInput } from './TextSuggest';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
@@ -45,7 +45,7 @@ const fold = (s: string) =>
     .replace(/ç/g, 'c');
 const normalize = (s: string) => s.toLocaleLowerCase('tr');
 
-const isApproved = (q: Quote) => q.status === 'onaylandi' || q.status === 'siparis';
+const isApproved = (q: Quote) => q.status === 'onaylandi';
 const tl = (n: number) => `${n.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} TL`;
 
 type CustomerSortKey = 'name' | 'city' | 'quotes' | 'approved' | 'pending' | 'total' | 'last' | 'balance';
@@ -85,7 +85,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [viewing, setViewing] = useState<Customer | null>(null);
-  const [onlyApproved, setOnlyApproved] = useState(true);
 
   // Firma adına göre (büyük/küçük harf ve Türkçe karakter farkı gözetmeden) teklifleri grupla
   const quotesByCustomer = useMemo(() => {
@@ -121,7 +120,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   useEffect(() => {
     if (!focusName) return;
     const c = customers.find(x => fold(x.name.trim()) === fold(focusName.trim()));
-    if (c) { setViewing(c); setOnlyApproved(true); }
+    if (c) { setViewing(c); }
     onFocusHandled?.();
   }, [focusName]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -232,7 +231,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
       {mode === 'balance' && showCollections && (
         <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
-          onOpen={c => { setViewing(c); setOnlyApproved(true); }} onMikro={onSaveCollection ? () => setMikroOpen(true) : undefined} />
+          onOpen={c => { setViewing(c); }} onMikro={onSaveCollection ? () => setMikroOpen(true) : undefined} />
       )}
 
       {mode === 'list' && (<>
@@ -342,7 +341,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           <div className="md:hidden divide-y divide-slate-100">
             {filtered.slice(0, limit).map(({ c, st }) => (
               <div key={c.id} className="p-3">
-                <button onClick={() => { setViewing(c); setOnlyApproved(true); }} className="w-full text-left flex items-start justify-between gap-3">
+                <button onClick={() => { setViewing(c); }} className="w-full text-left flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}<StatusBadge c={c} /></div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
@@ -396,7 +395,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 {filtered.slice(0, limit).map(({ c, st }) => (
                   <tr
                     key={c.id}
-                    onClick={() => { setViewing(c); setOnlyApproved(true); }}
+                    onClick={() => { setViewing(c); }}
                     className="hover:bg-brand-50/40 cursor-pointer"
                   >
                     <td className="py-2.5 px-3">
