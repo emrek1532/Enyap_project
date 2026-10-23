@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, Search, X } from 'lucide-react';
-import { Quote } from '../types';
+import { Building2, ChevronRight, Loader2, Search, X } from 'lucide-react';
+import { Customer, Quote } from '../types';
 import { CURRENCY_LABEL } from '../lib/money';
 import { Material, foldTr, searchMaterials } from '../lib/materials';
 import { SupplierItem, searchSupplierItems, supplierColor } from '../lib/suppliers';
@@ -11,10 +11,15 @@ const money = (v: number, c: string) => `${v.toLocaleString('tr-TR', { maximumFr
 const trDay = (s: string) => dayOf(s).split('-').reverse().join('.');
 
 /**
- * Hızlı fiyat sorgusu: ürün adı veya kodu yazılınca katalog fiyatı, firma listelerindeki fiyatlar
- * ve bu ürünü en son kime kaçtan verdiğimiz tek ekranda görünür (müşteri telefonda sorduğunda).
+ * Hızlı arama: firma adı yazılınca firmalar (cihazdaki veriden, internet kullanmaz); ürün adı veya kodu yazılınca
+ * katalog fiyatı, firma listelerindeki fiyatlar ve bu ürünü en son kime kaçtan verdiğimiz tek ekranda görünür.
  */
-export const QuickPrice: React.FC<{ quotes: Quote[]; onOpenQuote: (q: Quote) => void }> = ({ quotes, onOpenQuote }) => {
+export const QuickPrice: React.FC<{
+  quotes: Quote[];
+  customers: Customer[];
+  onOpenQuote: (q: Quote) => void;
+  onOpenCustomer?: (name: string) => void;
+}> = ({ quotes, customers, onOpenQuote, onOpenCustomer }) => {
   const me = useAccess();
   const showOwn = can(me, 'materials'), showSup = can(me, 'suppliers');
   const [q, setQ] = useState('');
@@ -57,19 +62,46 @@ export const QuickPrice: React.FC<{ quotes: Quote[]; onOpenQuote: (q: Quote) => 
     return out;
   }, [term, quotes]);
 
-  const empty = term.length >= 2 && !busy && !own.length && !sup.length && !history.length;
+  // Firmalar: ada (ya da şehre) göre; bekleyen teklif ve son teklif tarihiyle
+  const firms = useMemo(() => {
+    if (term.length < 2) return [];
+    const words = foldTr(term).split(/\s+/).filter(Boolean);
+    return customers
+      .filter(c => words.every(w => foldTr(`${c.name} ${c.city || ''}`).includes(w)))
+      .map(c => {
+        const k = foldTr(c.name.trim());
+        const qs = quotes.filter(x => foldTr(x.customerName.trim()) === k);
+        const last = qs.reduce((m, x) => (x.createdAt > m ? x.createdAt : m), '');
+        return { c, pending: qs.filter(x => x.status === 'gonderildi').length, last, starts: foldTr(c.name).startsWith(words[0]) };
+      })
+      .sort((a, b) => Number(b.starts) - Number(a.starts) || (b.last || '').localeCompare(a.last || ''))
+      .slice(0, 5);
+  }, [term, customers, quotes]);
+
+  const empty = term.length >= 2 && !busy && !firms.length && !own.length && !sup.length && !history.length;
 
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3 space-y-2.5">
       <div className="relative">
         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Hızlı fiyat sor: ürün adı veya kodu…"
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Ara: firma, ürün adı veya kodu…"
           className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
         {busy ? <Loader2 className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 animate-spin" />
           : q && <button onClick={() => setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400" aria-label="Temizle"><X className="w-4 h-4" /></button>}
       </div>
 
       {empty && <p className="text-xs text-slate-500 px-1">Sonuç bulunamadı.</p>}
+
+      {firms.length > 0 && (
+        <Group title="Firmalar">
+          {firms.map(f => (
+            <button key={f.c.id} onClick={() => onOpenCustomer?.(f.c.name)} className="w-full text-left">
+              <Row left={<span className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="min-w-0"><b className="text-slate-800">{f.c.name}</b>{f.c.city && <span className="text-slate-400"> · {f.c.city}</span>}<span className="block text-[11px] text-slate-500">{f.pending ? `${f.pending} bekleyen teklif` : 'Bekleyen teklif yok'}{f.last ? ` · son teklif ${trDay(f.last)}` : ''}</span></span></span>}
+                right={<ChevronRight className="w-4 h-4 text-slate-400" />} />
+            </button>
+          ))}
+        </Group>
+      )}
 
       {own.length > 0 && (
         <Group title="Katalog fiyatı">

@@ -155,8 +155,8 @@ export const SimpleHome: React.FC<{
         <VoiceCommand customers={customers.map(c => c.name)} allow={canAdd} onResult={onVoice} />
       )}
 
-      {/* Hızlı fiyat sorgusu */}
-      {canQuotes && <QuickPrice quotes={quotes} onOpenQuote={onOpenQuote} />}
+      {/* Hızlı arama: firma, ürün fiyatı */}
+      <QuickPrice quotes={quotes} customers={customers} onOpenQuote={onOpenQuote} onOpenCustomer={onOpenCustomer} />
 
       {/* Bu ay: özet ve son 6 ay grafiği */}
       {(canQuotes || canMoney) && <MonthPanel stats={stats} canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} onOpen={onOpen} />}

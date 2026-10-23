@@ -9,7 +9,7 @@ const GUIDE: [string, string[]][] = [
     '"Sesle kayıt gir": örn. "Ahmet Isı\'dan 50 bin çek aldım, vade 30 Kasım" deyin; tahsilat, harcama ya da teklif formu dolu açılır, kontrol edip kaydedin.',
     '"Bu ay nasıl gidiyor?" kartı ayın 1\'inden bugüne verilen teklif, onaylanan, tahsilat ve harcamayı gösterir.',
     'Kutulardaki yüzdeler geçen ayın aynı günlerine göre değişimdir (ör. 1–17 Ekim ile 1–17 Eylül).',
-    'Hızlı fiyat sor: ürün adı veya kodu yazılınca katalog fiyatı, firma listelerindeki iskontolu fiyatlar ve en son kime kaçtan verildiği görünür.',
+    'Arama kutusu: firma adı yazılınca firmalar (bekleyen teklif, son teklif tarihi; dokununca cari kartı açılır), ürün adı veya kodu yazılınca katalog fiyatı, firma listelerindeki iskontolu fiyatlar ve en son kime kaçtan verildiği görünür.',
     '"+ Aylık hedef koy": aylık satış ve tahsilat hedefi girilir; çubuktaki beyaz çizgi ayın geçen kısmıdır (çubuk çizginin gerisindeyse sarı).',
     'Onaylanan kutusundaki % satış oranıdır: onaylanan tutar ÷ verilen teklif tutarı.',
     '"Ayın detayını göster": ay sonu tahmini, teklif durumları, en çok teklif verilen firmalar, haftalık dağılım, ödeme şekli ve harcama kategorileri.',
