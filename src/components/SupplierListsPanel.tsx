@@ -59,7 +59,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           const imp = await importListFromSheet(f, info => setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
           setRows(r => r.map(x => (x.name === f.name ? {
             ...x, status: 'ok',
-            info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.priceDiff ? ` · ${priceDiffText(imp.priceDiff)}` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit sütunu okunamamış olabilir, kontrol edin` : ''}`,
+            info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.replaced ? ' · eski liste yerine geçti (eşleştirmeler, iskonto ve logo taşındı)' : ''}${imp.priceDiff ? ` · ${priceDiffText(imp.priceDiff)}` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit sütunu okunamamış olabilir, kontrol edin` : ''}`,
           } : x)));
           onImported?.();
           continue;
@@ -75,7 +75,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
         setRows(r => r.map(x => (x.name === f.name ? {
           ...x, status: 'ok',
-          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.failedPages ? ` · ${imp.failedPages} sayfa okunamadı` : ''}${imp.priceDiff ? ` · ${priceDiffText(imp.priceDiff)}` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit okunamamış olabilir, kontrol edin` : ''}${res.ocr ? ' (resimden okundu)' : ''}`,
+          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.failedPages ? ` · ${imp.failedPages} sayfa okunamadı` : ''}${imp.replaced ? ' · eski liste yerine geçti (eşleştirmeler, iskonto ve logo taşındı)' : ''}${imp.priceDiff ? ` · ${priceDiffText(imp.priceDiff)}` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit okunamamış olabilir, kontrol edin` : ''}${res.ocr ? ' (resimden okundu)' : ''}`,
         } : x)));
         onImported?.();
       } catch (e) {

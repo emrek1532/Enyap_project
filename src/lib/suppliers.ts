@@ -73,7 +73,7 @@ type PItemRaw = [string, number, number, number, number];
 
 export async function importListFromText(
   fileName: string, pages: string[][], onInfo?: (info: string) => void,
-): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; ambiguous: number; priceDiff: PriceDiff | null }> {
+): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; ambiguous: number; priceDiff: PriceDiff | null; replaced: string | null }> {
   const { parsePriceLines, detectCurrency } = await import('./priceParse');
   const { parsePositionedPage } = await import('./tableParse');
   const { parseMatrixPage } = await import('./matrixParse');
@@ -197,18 +197,33 @@ export function markAmbiguous(items: { name: string; price: number; code?: strin
   return n;
 }
 
-/** Kalemleri firma listesi olarak kaydeder (aynı liste varsa üzerine yazar, eski bağlantılar korunur) ve eşleştirir */
+/**
+ * Kalemleri firma listesi olarak kaydeder ve eşleştirir. Aynı liste varsa üzerine yazar; aynı firmanın başka tarihli
+ * listesi varsa yeni liste onun yerine geçer (eşleştirmeler, iskonto, logo ve firma adı taşınır, eski liste kaldırılır).
+ */
 async function saveSupplierList(fileName: string, parsed: ListItem[], currency: Currency, onInfo?: (info: string) => void) {
   const { guessListInfo, listIdFor } = await import('./priceParse');
   const { name, listDate } = guessListInfo(fileName);
   const listId = listIdFor(name, listDate);
   const ambiguous = markAmbiguous(parsed);
+  const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
+
+  // Aynı firmanın eski listesi (firma adı ya da eski dosya adından çıkan ad aynıysa, büyük/küçük harf farkı gözetmeden)
+  let old: { id: string; name: string; discount: number; logo: string | null; title: string | null } | null = null;
+  if (!existing) {
+    const low = (s: string) => s.trim().toLocaleLowerCase('tr');
+    const { data: all } = await supabase.from('supplier_lists').select('id,name,discount,logo,title,source_file,list_date');
+    const same = (all || []).filter((l: any) => low(l.name || '') === low(name) || (l.source_file && low(guessListInfo(l.source_file).name) === low(name)));
+    same.sort((a: any, b: any) => String(b.list_date || '').localeCompare(String(a.list_date || '')));
+    old = same[0] ? { id: same[0].id, name: same[0].name, discount: Number(same[0].discount || 0), logo: same[0].logo, title: same[0].title } : null;
+  }
+  const linkSource = existing ? listId : old?.id;
 
   // Eski bağlantılar (aynı ürün adı) yeni kalemlere taşınır; elle kaldırılan bağlar da kaldırılmış kalır
   const keep = new Map<string, { code: string | null; manual: boolean }>();
-  for (let from = 0; ; from += 1000) {
+  for (let from = 0; linkSource; from += 1000) {
     const { data, error } = await supabase.from('supplier_items').select('code,name,our_code,match_manual')
-      .eq('list_id', listId).or('our_code.not.is.null,match_manual.eq.true').range(from, from + 999);
+      .eq('list_id', linkSource).or('our_code.not.is.null,match_manual.eq.true').range(from, from + 999);
     // Eski bağlantılar okunamazsa liste silinmez (bağlar kaybolmasın)
     if (error) throw error;
     if (!data?.length) break;
@@ -221,17 +236,14 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     });
     if (data.length < 1000) break;
   }
-  const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
-  // Zam özeti: aynı liste yeniden yükleniyorsa onun, değilse aynı firmanın en yeni listesinin fiyatlarıyla karşılaştır
-  let prevId: string | null = existing ? listId : null;
-  if (!prevId) {
-    const { data: same } = await supabase.from('supplier_lists').select('id,list_date').eq('name', name).order('list_date', { ascending: false }).limit(1);
-    prevId = same?.[0]?.id ?? null;
-  }
+  // Zam özeti: aynı liste yeniden yükleniyorsa onun, değilse aynı firmanın eski listesinin fiyatlarıyla karşılaştır
+  const prevId = linkSource ?? null;
   const priceDiff = prevId ? await diffPrices(prevId, parsed).catch(() => null) : null;
   const listRow: any = { id: listId, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString(), price_diff: priceDiff };
   // Var olan liste yeniden yüklenince kullanıcının verdiği firma adı / tarih korunur
-  if (!existing) Object.assign(listRow, { title: '', name, list_date: listDate });
+  if (!existing) Object.assign(listRow, old
+    ? { title: old.title || '', name: old.name, list_date: listDate, discount: old.discount, logo: old.logo }
+    : { title: '', name, list_date: listDate });
   const { error: le } = await supabase.from('supplier_lists').upsert(listRow);
   if (le) throw le;
   const { error: de } = await supabase.from('supplier_items').delete().eq('list_id', listId);
@@ -249,7 +261,14 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     if (error) throw error;
   }
   const matched = await autoMatchList(listId, parsed.length, onInfo);
-  return { listId, name, items: parsed.length, matched, ambiguous, priceDiff };
+  // Yeni liste kaydedildi: aynı firmanın eski listesi kaldırılır (kalemleriyle birlikte)
+  let replaced: string | null = null;
+  if (old && old.id !== listId) {
+    onInfo?.('eski liste kaldırılıyor');
+    // Kaldırılamazsa yeni liste yine de kayıtlı kalır; eski liste elle silinebilir
+    replaced = await deleteSupplierList(old.id).then(() => old!.id, () => null);
+  }
+  return { listId, name: old?.name || name, items: parsed.length, matched, ambiguous, priceDiff, replaced };
 }
 
 /** Önceki listedeki fiyatlarla yeni kalemleri karşılaştırır (firma koduna, yoksa ürün adına göre; aynı para birimi) */
