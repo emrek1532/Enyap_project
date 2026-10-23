@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Search, Plus, MapPin, ChevronRight, Printer, Share2, Trash2, Pencil } from 'lucide-react';
+import { Search, Plus, MapPin, ChevronRight, Printer, Share2, Trash2, Pencil, FileSearch } from 'lucide-react';
+import { QuoteCheck } from './QuoteCheck';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
@@ -64,6 +65,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   initialRange,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [checkOpen, setCheckOpen] = useState(false);
   const [listLimit, setListLimit] = useState(LIST_PAGE);
   const [cityFilter, setCityFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState(initialRange?.from || '');
@@ -188,7 +190,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
   return (
     <div className="space-y-4">
-      
+      {checkOpen && <QuoteCheck onClose={() => setCheckOpen(false)} />}
+
       {/* Top Filter & Action Bar */}
       <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col xl:flex-row xl:flex-wrap items-stretch xl:items-center justify-between gap-3">
         
@@ -242,6 +245,13 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               Filtreleri temizle
             </button>
           )}
+
+          <button onClick={() => setCheckOpen(true)} title="Mikro teklifini fiyat listeleri ve iskontolarla karşılaştır"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand-200 text-brand-700 bg-white hover:bg-brand-50 text-xs sm:text-sm font-bold shrink-0">
+            <FileSearch className="w-4 h-4" />
+            <span className="hidden sm:inline">Teklif kontrol</span>
+            <span className="sm:hidden">Kontrol</span>
+          </button>
 
           {/* Add New Quote Button */}
           <button
