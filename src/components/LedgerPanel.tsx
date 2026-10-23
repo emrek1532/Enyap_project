@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, Send, Loader2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, Send, Loader2, Camera } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { findCustomer } from '../lib/customers';
@@ -975,6 +975,30 @@ const MultiExpenseForm: React.FC<{
     addRow();
   };
 
+  // Fiş fotoğrafından satır doldurma (cihazda yazı tanıma)
+  const [scan, setScan] = useState('');
+  const fromReceipts = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const list = Array.from(files);
+    const { parseReceipt, readReceiptImage } = await import('../lib/receipt');
+    let ok = 0;
+    for (const file of list) {
+      try {
+        const d = parseReceipt(await readReceiptImage(file, st => setScan(`${file.name}: ${st}`)), methods);
+        if (!d.amount) continue;
+        ok++;
+        setRows(rs => {
+          const patch = { amount: d.amount, ...(d.date ? { date: d.date } : {}), ...(d.category ? { category: d.category } : {}), ...(d.method ? { method: d.method } : {}), ...(d.region ? { region: d.region } : {}), description: d.description || '' };
+          const empty = rs.findIndex(r => !(r.amount > 0));
+          if (empty >= 0) return rs.map((r, j) => (j === empty ? { ...r, ...patch } : r));
+          const l = rs[rs.length - 1];
+          return [...rs, { key: newKey(), date: l.date, category: '', region: l.region, method: l.method, amount: 0, currency: l.currency, description: '', ...patch }];
+        });
+      } catch { /* bu fiş okunamadı */ }
+    }
+    setScan(ok ? `${ok}/${list.length} fiş okundu — tutar, tarih ve türü kontrol edin.` : 'Fişten tutar okunamadı; daha net ve düz bir fotoğraf deneyin.');
+  };
+
   const filled = rows.filter(r => r.amount > 0);
   const totals = filled.reduce<Record<Currency, number>>((a, r) => { a[r.currency || 'TRY'] += r.amount; return a; }, { TRY: 0, USD: 0, EUR: 0 });
   const t = (v?: string) => (v && v.trim() ? v.trim() : undefined);
@@ -1002,10 +1026,15 @@ const MultiExpenseForm: React.FC<{
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-6xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
         <div className="p-4 bg-brand-600 text-white flex items-center justify-between">
-          <h3 className="font-black text-base">Yeni Harcama</h3>
+          <h3 className="font-black text-base flex-1">Yeni Harcama</h3>
+          <label className="mr-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold cursor-pointer" title="Fişin fotoğrafını çekin: tutar, tarih ve tür kendiliğinden dolar">
+            <Camera className="w-4 h-4" /> Fişten oku
+            <input type="file" accept="image/*" capture="environment" multiple hidden onChange={e => { fromReceipts(e.target.files); e.target.value = ''; }} />
+          </label>
           <button type="button" onClick={onCancel} className="p-1 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-3 sm:p-4 space-y-3 overflow-y-auto text-sm">
+          {scan && <p className="text-xs rounded-lg px-3 py-2 bg-sky-50 text-sky-900 border border-sky-200">{scan}</p>}
           <div className="rounded-xl border border-slate-200 overflow-hidden">
             <div className="hidden md:grid erow px-2 py-1.5 bg-slate-100 text-[11px] font-bold text-slate-600 uppercase tracking-wide">
               <span>#</span><span>Tarih</span><span>Kategori</span><span>Şehir</span><span>Ödeme</span><span className="text-right">Tutar</span><span>Dvz</span><span>Açıklama</span><span />

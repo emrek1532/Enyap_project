@@ -698,6 +698,12 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
               onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
               onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
+              onVoice={r => {
+                if (r.kind === 'quote') { setQuoteDraft(r.draft); setIsNewQuoteOpen(true); return; }
+                setLedgerDraft(r.draft);
+                setLedgerStartNew(r.kind === 'collection' ? 'collections' : 'expenses');
+                setActiveTab(r.kind === 'collection' ? 'collections' : 'expenses');
+              }}
             />
           </>
         )}
