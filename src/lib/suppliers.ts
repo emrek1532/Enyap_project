@@ -246,6 +246,13 @@ export async function setSupplierOurCode(id: number, ourCode: string | null) {
   if (error) throw error;
 }
 
+/** Elle bağlanan kalemden öğrenir: listede aynı adlı (ölçüsü farklı) bağsız kalemleri aynı kod ailesine bağlar */
+export async function learnFromLinked(id: number): Promise<number> {
+  const { data, error } = await supabase.rpc('supplier_learn', { p_item: id });
+  if (error) throw error;
+  return Number(data) || 0;
+}
+
 /** Bir gruptaki (grp boşsa tüm listedeki) bağları toplu kaldırır */
 export async function clearSupplierMatches(listId: string, grp: string | null) {
   let q = supabase.from('supplier_items').update({ our_code: null, match_manual: true, match_tried: true }).eq('list_id', listId);
