@@ -8,11 +8,14 @@ const GUIDE: [string, string[]][] = [
     'Üstteki düğmelerle hızlıca Yeni Teklif, Tahsilat veya Harcama eklenir.',
     '"Bu ay nasıl gidiyor?" kartı ayın 1\'inden bugüne verilen teklif, onaylanan, tahsilat ve harcamayı gösterir.',
     'Kutulardaki yüzdeler geçen ayın aynı günlerine göre değişimdir (ör. 1–17 Ekim ile 1–17 Eylül).',
+    'Hızlı fiyat sor: ürün adı veya kodu yazılınca katalog fiyatı, firma listelerindeki iskontolu fiyatlar ve en son kime kaçtan verildiği görünür.',
+    '"+ Aylık hedef koy": aylık satış ve tahsilat hedefi girilir; çubuktaki beyaz çizgi ayın geçen kısmıdır (çubuk çizginin gerisindeyse sarı).',
     'Onaylanan kutusundaki % satış oranıdır: onaylanan tutar ÷ verilen teklif tutarı.',
     '"Ayın detayını göster": ay sonu tahmini, teklif durumları, en çok teklif verilen firmalar, haftalık dağılım, ödeme şekli ve harcama kategorileri.',
   ]],
   ['Teklifler', [
     'Yeni Teklif ile müşteri seçilir, malzemeler katalogdan aranarak eklenir; iskonto ve para birimi kalem bazında girilebilir.',
+    'İskonto hafızası: firma seçiliyken katalogdan eklenen üründe o firmaya en son verilen iskonto (aynı ürün, yoksa aynı marka) otomatik gelir.',
     'Listede arama (müşteri, teklif no, şehir, ürün), durum ve şehir filtresi vardır.',
     'Bugün / Bu hafta / Bu ay / Geçen ay / Bu yıl düğmeleri tarih aralığını tek dokunuşla seçer; tekrar basınca kaldırır.',
     'Bir teklife dokununca ayrıntısı açılır: PDF önizleme, WhatsApp/e-posta ile gönderme, düzenleme, onaylama veya iptal (iptal = sipariş olup sonradan iptal).',
@@ -23,6 +26,7 @@ const GUIDE: [string, string[]][] = [
     'Liste sekmesi: firmalar, teklif/onay/bekleyen sayıları ve onaylı toplam tutar. Firmaya dokununca cari kartı açılır.',
     'Bakiyeler sekmesi: Mikro\'dan yüklenen cari bakiyeler; alacağımız ve borcumuz ayrı toplanır.',
     'Güncel bakiye = Mikro bakiyesi − o tarihten sonra girilen TL tahsilatlar.',
+    'Firma kartında ödeme alışkanlığı: son tahsilat, ortalama tahsilat aralığı, ortalama çek vadesi ve ödeme şekli.',
     'Mikro yükle: Mikro\'dan alınan cari bakiye listesini yükleyin (15 günden eskiyse tarih kırmızı görünür).',
     'Firma pasife veya kara listeye alınabilir; bu firmalar önerilerde çıkmaz.',
   ]],
@@ -40,6 +44,7 @@ const GUIDE: [string, string[]][] = [
   ['Rapor', [
     'Dönem seçilir (Bu ay, Son 3 ay, Bu yıl, Tarih seç); tarihler elle de yazılabilir.',
     'Özet kutuları, aylık grafikler, teklif durumu, ödeme şekli ve en çok onay alan firmalar görünür.',
+    'En çok satan ürünler ve marka/ürün grubu (kodun ilk 3 harfi) onaylanan teklif kalemlerinden hesaplanır.',
     '"Raporu Gör ve Gönder": grafikli PDF önce önizlenir, sonra gönderilir veya indirilir.',
   ]],
   ['Notlar ve Bildirimler', [

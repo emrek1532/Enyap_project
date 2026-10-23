@@ -121,6 +121,28 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     });
   };
 
+  // Firmaya özel iskonto hafızası: bu firmaya en son verilen tekliflerdeki iskontolar
+  // (aynı ürün koduna göre, yoksa aynı marka önekine göre: kodun ilk 3 harfi)
+  const discMemory = useMemo(() => {
+    const key = foldTr(customerName.trim());
+    const byCode = new Map<string, number>(), byBrand = new Map<string, number>();
+    if (!key) return { byCode, byBrand };
+    const past = quotes.filter(q => q.id !== editQuote?.id && foldTr(q.customerName.trim()) === key)
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    for (const q of past) for (const it of q.items || []) {
+      if (!it.code || !(it.discount > 0)) continue;
+      const code = it.code.trim().toUpperCase();
+      if (!byCode.has(code)) byCode.set(code, it.discount);
+      const brand = code.slice(0, 3);
+      if (!byBrand.has(brand)) byBrand.set(brand, it.discount);
+    }
+    return { byCode, byBrand };
+  }, [customerName, quotes, editQuote?.id]);
+  const rememberedDisc = (code?: string) => {
+    const c = (code || '').trim().toUpperCase();
+    return c ? discMemory.byCode.get(c) ?? discMemory.byBrand.get(c.slice(0, 3)) : undefined;
+  };
+
   // Katalogdan seçilen malzemenin birimi, fiyatı ve para birimi kaleme aktarılır
   const handlePickMaterial = (index: number, m: Material) => {
     if (!m.supplier) rememberMaterial(m);
@@ -135,8 +157,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         unitPrice: m.price || 0,
         currency: m.currency,
         vatRate: m.vatRate ?? 20,
-        // Firma listesinden seçildiyse o firmanın standart iskontosu gelir
-        ...(m.supplier && m.supplierDiscount ? { discount: m.supplierDiscount } : {}),
+        // Firma listesinden seçildiyse o firmanın standart iskontosu, değilse bu müşteriye son verilen iskonto gelir
+        ...(m.supplier && m.supplierDiscount ? { discount: m.supplierDiscount }
+          : rememberedDisc(m.code) !== undefined ? { discount: rememberedDisc(m.code)! } : {}),
       };
       const qty = Number(target.quantity) || 0;
       const net = qty * target.unitPrice * (1 - (Number(target.discount) || 0) / 100);
@@ -562,6 +585,11 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 <span className="text-[11px] font-black text-slate-700 uppercase tracking-wide">
                   Kalemler ({items.filter(it => it.productName.trim()).length})
                 </span>
+                {discMemory.byCode.size > 0 && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5" title="Katalogdan seçilen üründe bu firmaya en son verilen iskonto otomatik gelir">
+                    İskonto hafızası açık
+                  </span>
+                )}
                 <span className="hidden md:inline text-[10px] text-slate-400 flex-1 text-right">
                   Son kutuda Tab → yeni kalem · Alt+↑↓ → taşı · Ctrl+Enter → Not / Kaydet
                 </span>
