@@ -45,6 +45,8 @@ interface QuoteManagerProps {
   onStatusFilterChange: (filter: string) => void;
   /** Bu teklifin detayını aç (ör. kaydedildikten hemen sonra) */
   focusQuote?: { id: string; n: number } | null;
+  /** Açılışta tarih aralığı (ör. ana sayfada "bu ay onaylanan"a dokununca) */
+  initialRange?: { from?: string; to?: string } | null;
 }
 
 export const QuoteManager: React.FC<QuoteManagerProps> = ({
@@ -59,12 +61,13 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   statusFilter,
   onStatusFilterChange: setStatusFilter,
   focusQuote,
+  initialRange,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [listLimit, setListLimit] = useState(LIST_PAGE);
   const [cityFilter, setCityFilter] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(initialRange?.from || '');
+  const [dateTo, setDateTo] = useState(initialRange?.to || '');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [reasonNote, setReasonNote] = useState('');
   useEffect(() => setReasonNote(splitReason(selectedQuote?.lostReason).note), [selectedQuote?.id]);
