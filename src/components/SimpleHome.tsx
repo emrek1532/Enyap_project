@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Bot, ChevronRight, FilePlus2, MessageCircleQuestion, Mic, Receipt, Search, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { Bot, ChevronRight, ClipboardList, FilePlus2, MessageCircleQuestion, Mic, Receipt, Search, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { Collection, Customer, Expense, Quote } from '../types';
 import { foldName } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
@@ -9,6 +9,7 @@ import type { ActiveTab } from './Sections';
 import { QuickPrice } from './QuickPrice';
 import { AskQuotes } from './AskQuotes';
 import { QuoteAgent } from './QuoteAgent';
+import { RequestReader } from './RequestReader';
 import { VoiceCommand, VoiceResult } from './VoiceCommand';
 import { Targets, useSetting } from '../lib/settings';
 
@@ -343,9 +344,9 @@ const StatusBox: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count: n
   );
 };
 
-type Mode = 'search' | 'ask' | 'agent' | 'voice';
+type Mode = 'search' | 'ask' | 'request' | 'agent' | 'voice';
 
-/** Tek kutu: ürün/firma arama, tekliflere soru, teklif taslağı (ajan), sesle kayıt */
+/** Tek kutu: ürün/firma arama, tekliflere soru, müşteri talebi okuma, teklif taslağı (ajan), sesle kayıt */
 const Assistant: React.FC<{
   quotes: Quote[]; customers: Customer[]; canQuotes: boolean;
   canAdd: { quote: boolean; collection: boolean; expense: boolean };
@@ -354,6 +355,7 @@ const Assistant: React.FC<{
   const modes = [
     { key: 'search' as Mode, label: 'Ara', short: 'Ara', icon: Search },
     canQuotes && { key: 'ask' as Mode, label: 'Tekliflere sor', short: 'Sor', icon: MessageCircleQuestion },
+    onVoice && canAdd.quote && { key: 'request' as Mode, label: 'Talep oku', short: 'Talep', icon: ClipboardList },
     onVoice && canAdd.quote && { key: 'agent' as Mode, label: 'Teklif hazırla', short: 'Taslak', icon: Bot },
     onVoice && (canAdd.quote || canAdd.collection || canAdd.expense) && { key: 'voice' as Mode, label: 'Sesle kayıt', short: 'Sesle', icon: Mic },
   ].filter(Boolean) as { key: Mode; label: string; short: string; icon: React.ElementType }[];
@@ -372,6 +374,7 @@ const Assistant: React.FC<{
       </div>
       {active === 'search' && <QuickPrice quotes={quotes} customers={customers} onOpenQuote={onOpenQuote} onOpenCustomer={onOpenCustomer} />}
       {active === 'ask' && <AskQuotes quotes={quotes} customers={customers.map(c => c.name)} />}
+      {active === 'request' && onVoice && <RequestReader customers={customers} onDraft={draft => onVoice({ kind: 'quote', draft })} />}
       {active === 'agent' && onVoice && <QuoteAgent quotes={quotes} customers={customers} onDraft={draft => onVoice({ kind: 'quote', draft })} />}
       {active === 'voice' && onVoice && <VoiceCommand customers={customers.map(c => c.name)} allow={canAdd} onResult={onVoice} />}
     </section>
