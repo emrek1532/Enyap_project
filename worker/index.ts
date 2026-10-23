@@ -719,6 +719,33 @@ const AGENT_SCHEMA_LLAMA = {
   required: ['calls', 'done', 'reply'],
 };
 
+const QWEN = '@cf/qwen/qwen3-30b-a3b-fp8';
+
+/** Ajan adımı Qwen ile: JSON şeması yerine talimatla JSON istenir, cevaptaki ilk { … } alınır; biçim tutmazsa null */
+async function agentWithQwen(env: Env, messages: Msg[]): Promise<Step | null> {
+  const last = messages.length - 1;
+  const r = await env.AI!.run(QWEN, {
+    messages: [
+      { role: 'system', content: `${AGENT_PROMPT}\n\nCEVAP BİÇİMİ: Yalnızca tek bir JSON nesnesi yaz, başka hiçbir şey yazma: {"calls":[{"tool":"...","arg":"..."}],"done":false,"reply":"...","draft":null} — bitince done=true ve draft={"customerName":"","paymentTerm":"","notes":"","items":[{"code":"","name":"","quantity":1,"unit":"Adet","unitPrice":0,"currency":"TRY","discount":0}]}` },
+      ...messages.map((m, i) => (i === last ? { ...m, content: `${m.content}\n/no_think` } : m)),
+    ],
+    max_tokens: 2000,
+    temperature: 0,
+  });
+  const raw = r?.response ?? r?.choices?.[0]?.message?.content ?? '';
+  const text = (typeof raw === 'string' ? raw : JSON.stringify(raw)).replace(/<think>[\s\S]*?<\/think>/g, '');
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  try {
+    const step = JSON.parse(text.slice(a, b + 1));
+    return Array.isArray(step?.calls) && typeof step?.done === 'boolean' ? step : null;
+  } catch {
+    return null;
+  }
+}
+
+type Step = { calls: { tool: string; arg: string }[]; done: boolean; reply?: string; draft?: unknown };
+
 async function handleAgent(req: Request, env: Env): Promise<Response> {
   if (!env.ANTHROPIC_API_KEY && !env.AI) return json({ error: 'no_ai' }, 503);
   if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
@@ -735,6 +762,14 @@ async function handleAgent(req: Request, env: Env): Promise<Response> {
   // Son adımda araç kullanmadan bitirmesi istenir
   if (steps.length >= 6) messages[messages.length - 1].content += '\n\nARTIK ARAÇ ÇAĞIRMA: done = true yap ve eldeki bilgiyle taslağı ver.';
   try {
+    // Claude anahtarı yoksa önce ~6 kat ucuz Qwen denenir (günlük ücretsiz kota daha çok taslağa yeter); olmazsa Llama 70B
+    if (!env.ANTHROPIC_API_KEY) {
+      const cheap = await agentWithQwen(env, messages).catch(err => {
+        if (/neuron|quota|4006|429/i.test(String((err as Error)?.message || err))) throw err;
+        return null;
+      });
+      if (cheap) return json({ answer: JSON.stringify(cheap), step: cheap });
+    }
     const out = await askModel(env, AGENT_PROMPT, messages, { claude: AGENT_SCHEMA, llama: AGENT_SCHEMA_LLAMA }, 3000);
     const parsed = JSON.parse(out || '{}');
     return json({ answer: out, step: parsed });
