@@ -239,7 +239,8 @@ export async function saveSupplierList(fileName: string, parsed: ListItem[], cur
     const { error } = await supabase.from('supplier_items').insert(rows);
     if (error) throw error;
   }
-  const matched = await autoMatchList(listId, parsed.length, onInfo);
+  // Eşleştirme yarıda kalsa da liste kayıtlıdır (eksik kalanlar sonra "Yeniden eşleştir" ile tamamlanır)
+  const matched = await autoMatchList(listId, parsed.length, onInfo).catch(() => 0);
   // Yeni liste kaydedildi: aynı firmanın eski listesi kaldırılır (kalemleriyle birlikte)
   let replaced: string | null = null;
   if (old && old.id !== listId) {
@@ -285,8 +286,9 @@ async function diffPrices(prevId: string, parsed: ListItem[]): Promise<PriceDiff
 }
 
 export async function autoMatchList(listId: string, total: number, onInfo?: (info: string) => void): Promise<number> {
-  for (let guard = 0; guard < 400; guard++) {
-    const { data, error } = await supabase.rpc('auto_match_supplier_items', { p_list: listId, lim: 120 });
+  for (let guard = 0; guard < 2000; guard++) {
+    // Küçük partiler: her çağrı veritabanının sorgu süresi sınırı (8 sn) içinde kalsın
+    const { data, error } = await supabase.rpc('auto_match_supplier_items', { p_list: listId, lim: 30 });
     if (error) throw error;
     const left = Number(data) || 0;
     onInfo?.(total ? `bizim kodlarla eşleştiriliyor ${total - left}/${total}` : `bizim kodlarla eşleştiriliyor · ${left} kalem kaldı`);

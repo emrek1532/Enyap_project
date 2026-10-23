@@ -85,7 +85,8 @@ Deno.serve(async req => {
       await set({ status: 'bitti', result: res, state: null, info: text });
       await notify(u.user.email!, 'Fiyat listesi yüklendi', text);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      // Veritabanı hataları Error değil, { message } nesnesi olarak gelir
+      const msg = e instanceof Error ? e.message : String((e as any)?.message || JSON.stringify(e));
       await set({ status: 'hata', error: msg, info: `okunamadı: ${msg}` });
       await notify(u.user.email!, 'Fiyat listesi yüklenemedi', `${file}: ${msg}`);
     }
