@@ -12,6 +12,7 @@ import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
 import { catalogCode, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
+import { CheckRow, checkQuote } from '../lib/quoteCheck';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -323,12 +324,14 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfMsg, setPdfMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pdfMeta, setPdfMeta] = useState<{ preparedBy?: string; date?: string } | null>(null);
+  // PDF'teki kalemlerin liste fiyatı ve liste iskontosuyla kontrolü (uyarı verir, kaydı engellemez)
+  const [pdfCheck, setPdfCheck] = useState<CheckRow[] | null>(null);
   // PDF'teki teklif no sistemde zaten var mı (yeni teklif açarken)
   const [existing, setExisting] = useState<{ q: Quote; file: File } | null>(null);
   const normNo = (s?: string) => (s || '').trim().toLocaleUpperCase('tr');
 
   const fillFromPdf = async (file: File) => {
-    setPdfBusy(true); setPdfMsg(null);
+    setPdfBusy(true); setPdfMsg(null); setPdfCheck(null);
     try {
       const pdf = await readQuotePdf(file);
       if (!pdf.items.length && !pdf.quoteNumber) {
@@ -356,7 +359,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         let i = 0;
         const work = async () => { while (i < pdf.items.length) { const it = pdf.items[i++]; const c = await catalogCode(it.productName); if (c) it.code = c; } };
         await Promise.all([work(), work(), work(), work()]);
-        setItems(pdf.items.map((it, k) => ({ ...it, id: `it-${Date.now()}-${k}` })));
+        const ids = pdf.items.map((_, k) => `it-${Date.now()}-${k}`);
+        setItems(pdf.items.map((it, k) => ({ ...it, id: ids[k] })));
+        const rows = await checkQuote(pdf).catch(() => null);
+        setPdfCheck(rows ? rows.map((r, k) => ({ ...r, item: { ...r.item, id: ids[k] } })) : null);
       }
       setPdfMeta({ preparedBy: pdf.preparedBy || undefined, date: pdf.date || undefined });
       setPdfMsg({ ok: true, text: `${pdf.items.length} kalem PDF'ten aktarıldı${pdf.warnings.length ? ' · ' + pdf.warnings.join(', ') : ''}. Kontrol edip kaydedin.` });
@@ -493,6 +499,34 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 {pdfMsg.text}
               </div>
             )}
+            {pdfCheck && (() => {
+              const bad = pdfCheck.filter(r => r.issues.length);
+              const discFix = pdfCheck.filter(r => r.list && r.list.discount > 0 && r.issues.some(x => /iskonto: /.test(x.text)));
+              if (!bad.length) return (
+                <div className="text-xs rounded-md px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200">✓ Fiyatlar ve iskontolar fiyat listeleriyle uyumlu.</div>
+              );
+              return (
+                <div className="text-xs rounded-md px-3 py-2.5 bg-rose-50 text-rose-900 border border-rose-200 space-y-1.5">
+                  <div className="font-bold">Liste kontrolü: {bad.length} kalemde uyarı</div>
+                  {bad.map(r => (
+                    <div key={r.item.id}>
+                      <span className="font-semibold">{r.item.productName}</span>
+                      {r.issues.map(x => <div key={x.text} className={x.level === 'error' ? 'text-rose-700' : 'text-amber-700'}>· {x.text}</div>)}
+                    </div>
+                  ))}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {discFix.length > 0 && (
+                      <button type="button" onClick={() => {
+                        const want = new Map(discFix.map(r => [r.item.id, r.list!.discount]));
+                        setItems(prev => prev.map(it => (want.has(it.id) ? { ...it, discount: want.get(it.id)! } : it)));
+                        setPdfCheck(prev => prev && prev.map(r => (want.has(r.item.id) ? { ...r, issues: r.issues.filter(x => !/iskonto: /.test(x.text)) } : r)));
+                      }} className="px-2.5 py-1 rounded-md bg-rose-600 text-white font-bold">İskontoları listeye göre düzelt</button>
+                    )}
+                    <span className="text-rose-800/80">Mikro'daki gibi kalması gerekiyorsa doğrudan kaydedebilirsiniz.</span>
+                  </div>
+                </div>
+              );
+            })()}
             {existing && !isEdit && (
               <div className="text-xs rounded-md px-3 py-2.5 bg-amber-50 text-amber-900 border border-amber-300 space-y-2">
                 <div>

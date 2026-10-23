@@ -1,6 +1,7 @@
 /**
  * Enyap Worker: statik siteyi sunar, /api/* isteklerini burada karşılar.
  * POST /api/ai/voice — kaydedilen sesi Whisper ile yazıya çevirir, sonra yapılandırılmış taslağa çevirir.
+ * POST /api/ai/request — müşteri talebini (el yazısı fotoğrafı ya da yazı) ürün satırlarına ayırır.
  * Anlama: ANTHROPIC_API_KEY tanımlıysa Claude, değilse Cloudflare Workers AI (ücretsiz kota) kullanılır.
  * Anahtarlar tarayıcıya hiç gitmez.
  */
@@ -688,6 +689,87 @@ async function handleAsk(req: Request, env: Env): Promise<Response> {
   }
 }
 
+// ---- Müşteri talebi okuma (el yazısı fotoğrafı, WhatsApp yazısı, Excel metni) ----
+// Model yalnızca talebi satırlara çevirir; doğru ürünü seçmek uygulamada kurallarla ve kullanıcı onayıyla yapılır.
+const VISION = '@cf/mistralai/mistral-small-3.1-24b-instruct';
+const VISION_BACKUP = '@cf/meta/llama-3.2-11b-vision-instruct';
+
+const REQUEST_PROMPT = `Isıtma/tesisat malzemesi satan bir firmaya gelen müşteri talebini satırlara ayırırsın.
+Her ürün için bir satır yaz:
+- "text": talepte yazdığı haliyle (okuduğun gibi, düzeltmeden)
+- "item": ürünün açık hali, Türkçe (ör. "200 lt genleşme tankı", "1000 lt tek serpantinli boyler", "2\\" küresel vana")
+- "qty": adet sayısı. "1+1+1+1" ya da "=4" gibi toplamları hesapla. Adet yazmıyorsa 1.
+- "unit": "Adet", "Metre", "Takım", "Paket", "Kg" ya da "Set"
+- "unsure": okumadığın ya da emin olmadığın satırda true
+KURALLAR:
+- Tırnak/aynen işaretleri (", 〃, "aynı", "aynen") üstteki satırın o sütundaki kelimesi demektir; yerine koy.
+- El yazısında "lt" harfleri "Ct", "lf" gibi görünebilir; litre sayısı olan tank/boyler satırlarında "lt" kabul et.
+- Marka yazılmamışsa marka EKLEME. Ölçü, basınç (bar), adet uydurma.
+- Ürün olmayan şeyleri (tarih, imza, logo, başlık, toplam çizgisi) satır yapma.
+CEVAP: Yalnızca şu JSON: {"customer": "talepte firma adı geçiyorsa, yoksa boş", "lines": [{"text": "", "item": "", "qty": 1, "unit": "Adet", "unsure": false}]}`;
+
+const parseLoose = (raw: unknown) => {
+  if (raw && typeof raw === 'object') return raw as any;
+  const s = String(raw || '').replace(/<think>[\s\S]*?<\/think>/g, '');
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; }
+};
+
+async function readImageRequest(env: Env, image: string): Promise<any> {
+  try {
+    const r = await env.AI!.run(VISION, {
+      messages: [
+        { role: 'system', content: REQUEST_PROMPT },
+        { role: 'user', content: [{ type: 'text', text: 'Bu talebi satırlara ayır.' }, { type: 'image_url', image_url: { url: image } }] },
+      ],
+      max_tokens: 2000,
+      temperature: 0,
+    });
+    const out = parseLoose(r?.response ?? r?.choices?.[0]?.message?.content);
+    if (out?.lines) return out;
+  } catch (err) {
+    if (/neuron|quota|4006|429/i.test(String((err as Error)?.message || err))) throw err;
+  }
+  // Yedek model: ilk kullanımda Meta lisansının kabulü istenir
+  const run = () => env.AI!.run(VISION_BACKUP, {
+    messages: [{ role: 'system', content: REQUEST_PROMPT }, { role: 'user', content: 'Bu talebi satırlara ayır.' }],
+    image,
+    max_tokens: 2000,
+    temperature: 0,
+  });
+  let r: any;
+  try { r = await run(); } catch (err) {
+    if (!/agree/i.test(String((err as Error)?.message || err))) throw err;
+    await env.AI!.run(VISION_BACKUP, { prompt: 'agree' }).catch(() => undefined);
+    r = await run();
+  }
+  return parseLoose(r?.response);
+}
+
+async function handleRequestRead(req: Request, env: Env): Promise<Response> {
+  if (!env.AI) return json({ error: 'no_ai' }, 503);
+  if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
+  const body = await req.json().catch(() => null) as { image?: string; text?: string } | null;
+  const image = String(body?.image || '');
+  const text = String(body?.text || '').slice(0, 12000);
+  if (!image && !text.trim()) return json({ lines: [] });
+  if (image && (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 4_000_000)) return json({ error: 'bad_image' }, 400);
+  try {
+    const out = image ? await readImageRequest(env, image) : parseLoose(await qwenText(env, REQUEST_PROMPT, [{ role: 'user', content: text }], 3000));
+    const lines = (Array.isArray(out?.lines) ? out.lines : []).slice(0, 80).map((l: any) => ({
+      text: String(l?.text || l?.item || '').slice(0, 200),
+      item: String(l?.item || l?.text || '').slice(0, 200),
+      qty: Number(l?.qty) > 0 ? Number(l.qty) : 1,
+      unit: ['Adet', 'Metre', 'Takım', 'Paket', 'Kg', 'Set'].includes(l?.unit) ? l.unit : 'Adet',
+      unsure: !!l?.unsure,
+    })).filter((l: any) => l.item.trim());
+    return json({ customer: String(out?.customer || '').slice(0, 120), lines });
+  } catch (err) {
+    return aiError(err);
+  }
+}
+
 // ---- Teklif taslağı ajanı ----
 // Döngü cihazda döner: model her adımda araç ister, araçları uygulama cihazdaki veriyle (ve katalog aramasıyla) çalıştırır,
 // sonuçları geri yollar; model yeterli bilgiyi toplayınca taslağı verir. Worker sadece modele aracılık eder, veri tutmaz.
@@ -809,6 +891,7 @@ export default {
     const url = new URL(req.url);
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
+    if (url.pathname === '/api/ai/request' && req.method === 'POST') return handleRequestRead(req, env);
     if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env);
     if (url.pathname === '/api/ai/match' && req.method === 'POST') return handleMatch(req, env);
     if (url.pathname === '/api/ai/ask' && req.method === 'POST') return handleAsk(req, env);

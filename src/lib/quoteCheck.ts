@@ -91,16 +91,3 @@ export async function checkQuote(pdf: PdfQuote): Promise<CheckRow[]> {
     return { item, code, list, issues, loss, level };
   });
 }
-
-/** Satırların toplamı PDF'teki genel toplamla tutuyor mu (KDV dahil, para birimi bazında) */
-export function totalsMismatch(pdf: PdfQuote): string[] {
-  if (!pdf.totals) return [];
-  const sum: Record<string, number> = { USD: 0, EUR: 0, TRY: 0 };
-  for (const it of pdf.items) sum[it.currency || 'TRY'] += it.totalPrice;
-  const out: string[] = [];
-  for (const k of ['TRY', 'USD', 'EUR'] as const) {
-    const want = pdf.totals[k];
-    if (Math.abs(sum[k] - want) > Math.max(0.05, want * 0.001)) out.push(`${k === 'TRY' ? 'TL' : k} genel toplamı ${fmt(want)}, satırların toplamı ${fmt(Math.round(sum[k] * 100) / 100)}`);
-  }
-  return out;
-}
