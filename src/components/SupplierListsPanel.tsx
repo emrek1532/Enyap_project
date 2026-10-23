@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, FileUp, ImagePlus, Link2, Pencil, Loader2, Plus, Search, X, XCircle } from 'lucide-react';
 import { MaterialPicker } from './MaterialPicker';
+import { supabase } from '../lib/supabase';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
 import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
@@ -31,6 +32,17 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
   const [uploaded, setUploaded] = useState<number | null>(null);
 
   useEffect(() => { uploadedSupplierFiles().then(m => setUploaded(Object.keys(m).length), () => setUploaded(null)); }, []);
+
+  // Sunucudaki yükleme işinin durumunu ekran açıkken takip et (5 sn'de bir, küçük sorgu)
+  const watchJob = (name: string) => {
+    const t = window.setInterval(async () => {
+      const { data } = await supabase.from('pricelist_jobs').select('status,info').eq('file_name', name).maybeSingle();
+      if (!data) return;
+      const status = data.status === 'bitti' ? 'ok' : data.status === 'hata' ? 'err' : 'run';
+      setRows(r => r.map(x => (x.name === name ? { ...x, status, info: data.info || x.info } : x)));
+      if (status !== 'run') { window.clearInterval(t); if (status === 'ok') onImported?.(); }
+    }, 5000);
+  };
 
   const run = async (files: File[]) => {
     // Toplu yüklemede daha önce yüklenmiş dosyalar atlanır (yarıda kalan yükleme kaldığı yerden sürer);
@@ -70,7 +82,12 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'err', info: `${res.pages} sayfa ama yazı okunamadı` } : x)));
           continue;
         }
-        // Yazı okundu: listeye dönüştür ve bizim kodlarla eşleştir (kendiliğinden)
+        // Yazı kaydedildi: kalemlere ayırma ve eşleştirme sunucuda sürer (uygulamadan çıkılsa da); olmazsa burada yapılır
+        if (await startServerImport(f.name)) {
+          setRows(r => r.map(x => (x.name === f.name ? { ...x, status: 'run', info: 'sunucuda işleniyor — uygulamadan çıkabilirsiniz, bitince bildirim gelir' } : x)));
+          watchJob(f.name);
+          continue;
+        }
         const imp = await importListFromText(f.name, res.text, info =>
           setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
         setRows(r => r.map(x => (x.name === f.name ? {
@@ -592,3 +609,17 @@ export const SupplierListsPanel: React.FC = () => {
     </div>
   );
 };
+
+/** Yüklemeyi sunucuya devreder; başaramazsa false (uygulama içinde yapılır) */
+async function startServerImport(fileName: string): Promise<boolean> {
+  try {
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await supabase.from('pricelist_jobs').upsert({
+      file_name: fileName, status: 'kuyrukta', info: 'sunucuya gönderildi', state: null, result: null, error: null,
+      user_email: u.user?.email ?? null, updated_at: new Date().toISOString(),
+    });
+    if (error) return false;
+    const { error: fe } = await supabase.functions.invoke('pricelist-import', { body: { file: fileName } });
+    return !fe;
+  } catch { return false; }
+}
