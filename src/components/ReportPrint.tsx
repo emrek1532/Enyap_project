@@ -34,7 +34,7 @@ const CSS = `
 #rp-print{display:none}
 .rp-doc{color:#0f172a;font-family:Arial,Arimo,'Liberation Sans',Helvetica,sans-serif;font-size:8.5pt;line-height:1.35;
   -webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff}
-.rp-doc .rp-head{display:flex;align-items:center;justify-content:space-between;gap:6mm;border-bottom:0.5mm solid #006ec6;padding-bottom:3.5mm;margin-bottom:3.5mm}
+.rp-doc .rp-head{display:flex;align-items:center;justify-content:space-between;gap:6mm;border-bottom:0.5mm solid #006ec6;padding:4mm 5mm 3.5mm;margin-bottom:3.5mm}
 .rp-doc .rp-head img{height:15mm;display:block}
 .rp-doc .rp-head h1{margin:0;font-size:16pt;font-weight:800;text-align:right;color:#0f172a}
 .rp-doc .rp-meta{display:flex;justify-content:space-between;align-items:stretch;gap:6mm;background:#f1f6fb;border-radius:2mm;padding:3mm 4mm;margin-bottom:6mm}

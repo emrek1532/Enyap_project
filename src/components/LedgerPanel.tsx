@@ -203,12 +203,6 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       period,
       fileName: `${isCollection ? 'Tahsilatlar' : 'Harcamalar'} ${period.replace(/[^\d.–… a-zA-ZçğıöşüÇĞİÖŞÜ]/g, '').trim()}`,
       hideFooter: true,
-      summary: [
-        ['Toplam', tot, `${rows.length} kayıt`],
-        ['Dönem', period],
-        ...(!isCollection && spender.trim() ? [['Harcamayı Yapan', spender.trim()] as [string, string]] : []),
-        ...(search ? [['Arama', search] as [string, string]] : []),
-      ],
       sections: [
         detail,
       ],
