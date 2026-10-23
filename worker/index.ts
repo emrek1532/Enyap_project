@@ -572,12 +572,80 @@ caches.open('enyap-share')
   return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
+// ---- RAG: veritabanının bulduğu adaylardan doğru malzemeyi seçme ve teklif geçmişine soru sorma ----
+const MATCH_PROMPT = `Bir tesisat malzemesi satıcısının firma fiyat listesi kalemlerini kendi malzeme kodlarıyla eşleştiriyorsun.
+Her kalem için verilen ADAYLAR arasından AYNI ürünü seç: ürün tipi, model/seri (Model 67 ≠ 77, F4 ≠ F5, MKSF ≠ MKTY), ölçü (DN, inç; "Q 50" = DN50, 2" = DN50), PN/bar, bağlantı (flanşlı/dişli/yivli), alt tip (lug/wafer, kauçuk/metal, şamandıralı/ters kovalı) ve renk/kaplama aynı olmalı.
+Malzeme adlarında kısaltma olur (KÜR. = küresel, FLŞ. = flanşlı, KOMP. = kompansatör). Emin değilsen ya da adaylarda aynı ürün yoksa code = null ver. Yakın ama farklı ürünü ASLA seçme.`;
+
+const MATCH_SCHEMA = obj({
+  matches: { type: 'array', items: obj({ id: num, code: nullable(str) }) },
+});
+
+async function handleMatch(req: Request, env: Env): Promise<Response> {
+  if (!env.ANTHROPIC_API_KEY) return json({ error: 'no_ai' }, 503);
+  if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
+  const body = await req.json().catch(() => null) as { items?: { id: number; name: string; code?: string; candidates: { code: string; name: string }[] }[] } | null;
+  const items = (body?.items || []).slice(0, 25);
+  if (!items.length) return json({ matches: [] });
+  const text = items.map(it => `KALEM ${it.id}: ${it.name}${it.code ? ` [kod ${it.code}]` : ''}\n` +
+    it.candidates.slice(0, 10).map(c => `  - ${c.code}: ${c.name}`).join('\n')).join('\n\n');
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  try {
+    const response = await client.messages.create({
+      model: PRICELIST_MODEL,
+      max_tokens: 4000,
+      output_config: { format: { type: 'json_schema', schema: MATCH_SCHEMA } },
+      system: MATCH_PROMPT,
+      messages: [{ role: 'user', content: text }],
+    } as any);
+    const out = (response.content as any[]).find(b => b.type === 'text');
+    const parsed = out ? JSON.parse(out.text) : null;
+    // Sadece o kalemin adaylarından biri kabul edilir
+    const allowed = new Map(items.map(it => [Number(it.id), new Set(it.candidates.map(c => c.code))]));
+    const matches = (parsed?.matches || [])
+      .filter((m: any) => allowed.has(Number(m.id)))
+      .map((m: any) => ({ id: Number(m.id), code: m.code && allowed.get(Number(m.id))!.has(m.code) ? m.code : null }));
+    return json({ matches });
+  } catch (err) {
+    if (err instanceof Anthropic.RateLimitError) return json({ error: 'quota' }, 429);
+    return json({ error: 'ai', message: String((err as Error)?.message || err).slice(0, 200) }, 502);
+  }
+}
+
+const ASK_PROMPT = `Enyap Isı'nın teklif ve satış asistanısın. Kullanıcının sorusunu YALNIZCA verilen teklif satırlarına dayanarak Türkçe, kısa ve net cevapla.
+Fiyatları para birimiyle yaz, tarih ve firma adını belirt. Satırlarda cevap yoksa "Kayıtlarda bulamadım" de; tahmin etme, uydurma.`;
+
+async function handleAsk(req: Request, env: Env): Promise<Response> {
+  if (!env.ANTHROPIC_API_KEY) return json({ error: 'no_ai' }, 503);
+  if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
+  const body = await req.json().catch(() => null) as { question?: string; context?: string } | null;
+  const question = String(body?.question || '').slice(0, 500);
+  const context = String(body?.context || '').slice(0, 30000);
+  if (!question.trim()) return json({ answer: '' });
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  try {
+    const response = await client.messages.create({
+      model: PRICELIST_MODEL,
+      max_tokens: 1000,
+      system: ASK_PROMPT,
+      messages: [{ role: 'user', content: `TEKLİF SATIRLARI:\n${context || '(bulunamadı)'}\n\nSORU: ${question}` }],
+    } as any);
+    const out = (response.content as any[]).find(b => b.type === 'text');
+    return json({ answer: out?.text || '' });
+  } catch (err) {
+    if (err instanceof Anthropic.RateLimitError) return json({ error: 'quota' }, 429);
+    return json({ error: 'ai', message: String((err as Error)?.message || err).slice(0, 200) }, 502);
+  }
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
     if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env);
+    if (url.pathname === '/api/ai/match' && req.method === 'POST') return handleMatch(req, env);
+    if (url.pathname === '/api/ai/ask' && req.method === 'POST') return handleAsk(req, env);
     if (url.pathname === '/api/push/send' && req.method === 'POST') return handlePushSend(req);
     if (url.pathname === '/api/rates') return handleRates();
     if (url.pathname === '/share-target') return handleShare(req, url);
