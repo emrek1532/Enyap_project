@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Search, Plus, MapPin, ChevronRight, Printer, Share2, Trash2, Pencil } from 'lucide-react';
+import { Search, Plus, MapPin, ChevronRight, Printer, Share2, Trash2, Pencil, Truck } from 'lucide-react';
+import { SupplierOrder } from './SupplierOrder';
+import { can, useAccess } from '../lib/access';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
@@ -67,6 +69,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [dateTo, setDateTo] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [reasonNote, setReasonNote] = useState('');
+  const [orderFor, setOrderFor] = useState<Quote | null>(null);
+  const canSuppliers = can(useAccess(), 'suppliers');
   useEffect(() => setReasonNote(splitReason(selectedQuote?.lostReason).note), [selectedQuote?.id]);
   useEffect(() => {
     const q = focusQuote && quotes.find(x => x.id === focusQuote.id);
@@ -642,6 +646,13 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <Printer className="w-3.5 h-3.5" />
                   <span>Resmi Teklif</span>
                 </button>
+                {canSuppliers && selectedQuote.status === 'onaylandi' && (selectedQuote.items?.length || 0) > 0 && (
+                  <button onClick={() => setOrderFor(selectedQuote)}
+                    className="col-span-2 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition-colors">
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Tedarikçi siparişi hazırla</span>
+                  </button>
+                )}
 
               </div>
 
@@ -669,6 +680,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div>
       )}
 
+      {orderFor && <SupplierOrder quote={orderFor} onClose={() => setOrderFor(null)} />}
     </div>
   );
 };

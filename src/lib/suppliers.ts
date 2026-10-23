@@ -17,6 +17,21 @@ export interface SupplierList {
   updatedAt?: string;
   /** Firma logosu: resim adresi veya küçültülmüş resim (data URL) */
   logo?: string;
+  /** Son yüklemede önceki fiyatlara göre değişim özeti */
+  priceDiff?: PriceDiff | null;
+}
+
+/** Yeni liste yüklenince önceki fiyatlarla karşılaştırma */
+export interface PriceDiff {
+  at: string;
+  compared: number;
+  up: number;
+  down: number;
+  /** Zamlanan kalemlerde ortalama artış (%) */
+  avgUp: number;
+  /** Değişmeyenler dahil tüm karşılaştırılan kalemlerde ortalama değişim (%) */
+  avgAll: number;
+  top: { name: string; old: number; now: number; pct: number }[];
 }
 
 export interface SupplierItem {
@@ -41,7 +56,7 @@ export async function fetchSupplierLists(): Promise<SupplierList[]> {
   return (data || []).map((r: any) => ({
     id: r.id, name: r.name, title: r.title || '', listDate: r.list_date || '', currency: r.currency || 'TRY',
     discount: Number(r.discount || 0), itemCount: Number(r.item_count || 0), sourceFile: r.source_file || undefined,
-    updatedAt: r.updated_at || undefined, logo: r.logo || undefined,
+    updatedAt: r.updated_at || undefined, logo: r.logo || undefined, priceDiff: r.price_diff || null,
   }));
 }
 
@@ -58,7 +73,7 @@ type PItemRaw = [string, number, number, number, number];
 
 export async function importListFromText(
   fileName: string, pages: string[][], onInfo?: (info: string) => void,
-): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; ambiguous: number }> {
+): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; ambiguous: number; priceDiff: PriceDiff | null }> {
   const { parsePriceLines, detectCurrency } = await import('./priceParse');
   const { parsePositionedPage } = await import('./tableParse');
   const { parseMatrixPage } = await import('./matrixParse');
@@ -207,7 +222,14 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     if (data.length < 1000) break;
   }
   const { data: existing } = await supabase.from('supplier_lists').select('id').eq('id', listId).maybeSingle();
-  const listRow: any = { id: listId, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString() };
+  // Zam özeti: aynı liste yeniden yükleniyorsa onun, değilse aynı firmanın en yeni listesinin fiyatlarıyla karşılaştır
+  let prevId: string | null = existing ? listId : null;
+  if (!prevId) {
+    const { data: same } = await supabase.from('supplier_lists').select('id,list_date').eq('name', name).order('list_date', { ascending: false }).limit(1);
+    prevId = same?.[0]?.id ?? null;
+  }
+  const priceDiff = prevId ? await diffPrices(prevId, parsed).catch(() => null) : null;
+  const listRow: any = { id: listId, currency, item_count: parsed.length, source_file: fileName, updated_at: new Date().toISOString(), price_diff: priceDiff };
   // Var olan liste yeniden yüklenince kullanıcının verdiği firma adı / tarih korunur
   if (!existing) Object.assign(listRow, { title: '', name, list_date: listDate });
   const { error: le } = await supabase.from('supplier_lists').upsert(listRow);
@@ -227,8 +249,48 @@ async function saveSupplierList(fileName: string, parsed: ListItem[], currency: 
     if (error) throw error;
   }
   const matched = await autoMatchList(listId, parsed.length, onInfo);
-  return { listId, name, items: parsed.length, matched, ambiguous };
+  return { listId, name, items: parsed.length, matched, ambiguous, priceDiff };
 }
+
+/** Önceki listedeki fiyatlarla yeni kalemleri karşılaştırır (firma koduna, yoksa ürün adına göre; aynı para birimi) */
+async function diffPrices(prevId: string, parsed: ListItem[]): Promise<PriceDiff | null> {
+  const old = new Map<string, { price: number; currency: string }>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('supplier_items').select('code,name,price,currency').eq('list_id', prevId).range(from, from + 999);
+    if (error) throw error;
+    (data || []).forEach((r: any) => { const k = r.code ? `c:${r.code}` : `n:${r.name}`; if (!old.has(k)) old.set(k, { price: Number(r.price || 0), currency: r.currency || 'TRY' }); });
+    if (!data || data.length < 1000) break;
+  }
+  if (!old.size) return null;
+  let compared = 0, up = 0, down = 0, sumUp = 0, sumAll = 0;
+  const changes: PriceDiff['top'] = [];
+  const seen = new Set<string>();
+  for (const p of parsed) {
+    const k = p.code ? `c:${p.code}` : `n:${p.name}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const o = old.get(k);
+    if (!o || !(o.price > 0) || !(p.price > 0) || o.currency !== p.currency) continue;
+    const pct = (p.price / o.price - 1) * 100;
+    if (Math.abs(pct) > 300) continue; // okuma hatası olabilir
+    compared++; sumAll += pct;
+    if (pct > 0.5) { up++; sumUp += pct; changes.push({ name: p.name, old: o.price, now: p.price, pct: Math.round(pct * 10) / 10 }); }
+    else if (pct < -0.5) down++;
+  }
+  if (!compared) return null;
+  return {
+    at: new Date().toISOString(), compared, up, down,
+    avgUp: up ? Math.round((sumUp / up) * 10) / 10 : 0,
+    avgAll: Math.round((sumAll / compared) * 10) / 10,
+    top: changes.sort((a, b) => b.pct - a.pct).slice(0, 8),
+  };
+}
+
+/** Zam özeti tek satır: "Önceki listeye göre 45 üründe zam (ort. %12), 3 üründe indirim" */
+export const priceDiffText = (d: PriceDiff) =>
+  d.up || d.down
+    ? `Önceki listeye göre ${d.up ? `${d.up.toLocaleString('tr-TR')} üründe zam (ort. %${d.avgUp.toLocaleString('tr-TR')})` : 'zam yok'}${d.down ? `, ${d.down.toLocaleString('tr-TR')} üründe indirim` : ''} · ${d.compared.toLocaleString('tr-TR')} ürün karşılaştırıldı`
+    : `Önceki listeye göre fiyat değişmedi (${d.compared.toLocaleString('tr-TR')} ürün)`;
 
 /** Tırnak içindeki ayırıcıları bölmeden CSV satırını hücrelere ayırır ("1.234,56" ve "Vana, DN25" tek hücre kalır) */
 function splitCsvLine(line: string, sep: string): string[] {
@@ -514,5 +576,35 @@ export async function uploadedSupplierFiles(): Promise<Record<string, number>> {
   const { data, error } = await supabase.from('supplier_lists').select('source_file').not('source_file', 'is', null);
   if (error) throw error;
   (data || []).forEach((r: any) => { out[r.source_file] = 1; });
+  return out;
+}
+
+/** Bizim ürün kodlarıyla eşleşmiş firma listesi fiyatları (aynı firmanın birden çok listesi varsa en yenisi) */
+export interface SupplierOffer { supplier: string; listId: string; code: string; name: string; price: number; discount: number; net: number; currency: Currency; listDate: string }
+
+export async function supplierOffersFor(codes: string[]): Promise<Map<string, SupplierOffer[]>> {
+  const out = new Map<string, SupplierOffer[]>();
+  const uniq = [...new Set(codes.map(c => c.trim()).filter(Boolean))];
+  if (!uniq.length) return out;
+  const lists = new Map((await fetchSupplierLists()).map(l => [l.id, l]));
+  // Firma adı → en yeni listesi
+  const latest = new Map<string, string>();
+  for (const l of lists.values()) {
+    const cur = latest.get(l.name);
+    if (!cur || (l.listDate || '') > (lists.get(cur)!.listDate || '')) latest.set(l.name, l.id);
+  }
+  for (let i = 0; i < uniq.length; i += 200) {
+    const { data, error } = await supabase.from('supplier_items').select('list_id,code,name,price,currency,our_code').in('our_code', uniq.slice(i, i + 200));
+    if (error) throw error;
+    for (const r of (data || []) as any[]) {
+      const l = lists.get(r.list_id);
+      if (!l || latest.get(l.name) !== l.id || !(Number(r.price) > 0)) continue;
+      const price = Number(r.price), discount = Number(l.discount || 0);
+      const o: SupplierOffer = { supplier: l.name, listId: l.id, code: r.code || '', name: r.name || '', price, discount,
+        net: price * (1 - discount / 100), currency: (r.currency || l.currency || 'TRY') as Currency, listDate: l.listDate || '' };
+      out.set(r.our_code, [...(out.get(r.our_code) || []), o]);
+    }
+  }
+  for (const [k, v] of out) out.set(k, v.sort((a, b) => a.net - b.net));
   return out;
 }

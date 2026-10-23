@@ -3,7 +3,7 @@ import { CheckCircle2, FileUp, ImagePlus, Link2, Pencil, Loader2, Plus, Search, 
 import { MaterialPicker } from './MaterialPicker';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, supplierColor, uploadSupplierPdf, uploadedSupplierFiles } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, clearSupplierMatches, rematchSupplierItems, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -59,7 +59,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           const imp = await importListFromSheet(f, info => setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
           setRows(r => r.map(x => (x.name === f.name ? {
             ...x, status: 'ok',
-            info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit sütunu okunamamış olabilir, kontrol edin` : ''}`,
+            info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.priceDiff ? ` · ${priceDiffText(imp.priceDiff)}` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit sütunu okunamamış olabilir, kontrol edin` : ''}`,
           } : x)));
           onImported?.();
           continue;
@@ -75,7 +75,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           setRows(r => r.map(x => (x.name === f.name ? { ...x, info } : x))));
         setRows(r => r.map(x => (x.name === f.name ? {
           ...x, status: 'ok',
-          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.failedPages ? ` · ${imp.failedPages} sayfa okunamadı` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit okunamamış olabilir, kontrol edin` : ''}${res.ocr ? ' (resimden okundu)' : ''}`,
+          info: `${imp.name}: ${imp.items.toLocaleString('tr-TR')} kalem · ${imp.matched.toLocaleString('tr-TR')} bizim koda bağlandı${imp.failedPages ? ` · ${imp.failedPages} sayfa okunamadı` : ''}${imp.priceDiff ? ` · ${priceDiffText(imp.priceDiff)}` : ''}${imp.ambiguous ? ` · ⚠ ${imp.ambiguous} kalemde aynı ad farklı fiyat: renk/çeşit okunamamış olabilir, kontrol edin` : ''}${res.ocr ? ' (resimden okundu)' : ''}`,
         } : x)));
         onImported?.();
       } catch (e) {
@@ -450,6 +450,23 @@ export const SupplierListsPanel: React.FC = () => {
                   <span className="mt-0.5">{ageBadge(l.listDate)}</span>
                 </button>
               ))}
+            </div>
+          )}
+
+          {current?.priceDiff && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-3.5 text-xs space-y-1.5">
+              <div className={`font-bold ${current.priceDiff.up ? 'text-rose-700' : 'text-emerald-700'}`}>{priceDiffText(current.priceDiff)}</div>
+              <div className="text-slate-500">Son yükleme {new Date(current.priceDiff.at).toLocaleDateString('tr-TR')} · tüm kalemlerde ortalama değişim %{current.priceDiff.avgAll.toLocaleString('tr-TR')}</div>
+              {current.priceDiff.top.length > 0 && (
+                <ul className="divide-y divide-slate-100">
+                  {current.priceDiff.top.map(t => (
+                    <li key={t.name} className="flex justify-between gap-2 py-1">
+                      <span className="min-w-0 truncate text-slate-700">{t.name}</span>
+                      <span className="shrink-0 tabular-nums text-slate-500">{t.old.toLocaleString('tr-TR')} → <b className="text-slate-900">{t.now.toLocaleString('tr-TR')}</b> <b className="text-rose-600">+%{t.pct.toLocaleString('tr-TR')}</b></span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 

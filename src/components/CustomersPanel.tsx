@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Pencil, Trash2, FilePlus2, X, Building2, List, FileUp, Wallet } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, FilePlus2, X, Building2, List, FileUp, Wallet, Footprints } from 'lucide-react';
+import { VisitPlan } from './VisitPlan';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
-import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
+import { Collection, Customer, CustomerStatus, Quote, UserRole, Visit } from '../types';
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { CustomerAccount } from './CustomerAccount';
 import { CityInput } from './TextSuggest';
@@ -27,6 +28,8 @@ interface CustomersPanelProps {
   /** Ana sayfadan "Mikro bakiyesi yükle" ile gelindiyse yükleme penceresi açılır */
   openMikro?: boolean;
   onMikroHandled?: () => void;
+  visits?: Visit[];
+  onSaveVisit?: (v: Visit) => void;
 }
 
 const emptyForm = { name: '', city: 'Isparta' };
@@ -65,13 +68,15 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   onFocusHandled,
   openMikro,
   onMikroHandled,
+  visits = [],
+  onSaveVisit,
 }) => {
   const [mikroOpen, setMikroOpen] = useState(false);
   useEffect(() => { if (openMikro) { setMikroOpen(true); onMikroHandled?.(); } }, [openMikro]); // eslint-disable-line react-hooks/exhaustive-deps
   const balanceOf = (c: Customer) => (showCollections ? estimatedBalance(c, collections) : null);
   const lastMikro = useMemo(() => customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), ''), [customers]);
   const rates = useRates(quotes);
-  const [mode, setMode] = useState<'list' | 'balance'>('list');
+  const [mode, setMode] = useState<'list' | 'balance' | 'visit'>('list');
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
@@ -220,8 +225,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className={`grid ${showCollections ? 'grid-cols-2' : 'grid-cols-1'} sm:flex gap-1 p-1 rounded-xl bg-slate-200/70 sm:w-fit`}>
-        {([['list', 'Müşteri listesi', 'Liste', List], ...(showCollections ? [['balance', 'Cari bakiyeler', 'Bakiyeler', Wallet]] as const : [])] as const).map(([k, label, shortLabel, Icon]) => (
+      <div className={`grid ${showCollections ? 'grid-cols-3' : 'grid-cols-2'} sm:flex gap-1 p-1 rounded-xl bg-slate-200/70 sm:w-fit`}>
+        {([['list', 'Müşteri listesi', 'Liste', List], ...(showCollections ? [['balance', 'Cari bakiyeler', 'Bakiyeler', Wallet]] as const : []), ['visit', 'Ziyaret planı', 'Ziyaret', Footprints]] as const).map(([k, label, shortLabel, Icon]) => (
           <button key={k} onClick={() => setMode(k)}
             className={`flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-lg text-sm font-extrabold whitespace-nowrap ${mode === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
             <Icon className="w-4 h-4 shrink-0" /> <span className="sm:hidden">{shortLabel}</span><span className="hidden sm:inline">{label}</span>
@@ -232,6 +237,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       {mode === 'balance' && showCollections && (
         <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
           onOpen={c => { setViewing(c); }} onMikro={onSaveCollection ? () => setMikroOpen(true) : undefined} />
+      )}
+
+      {mode === 'visit' && (
+        <VisitPlan customers={customers} quotes={quotes} visits={visits} rates={rates} balanceOf={balanceOf}
+          onOpen={c => setViewing(c)} onSaveVisit={onSaveVisit} currentRole={currentRole || 'isparta'} />
       )}
 
       {mode === 'list' && (<>
@@ -488,6 +498,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           maxWon={evals.max}
           onSetStatus={(st, note) => setStatus(viewing, st, note)}
           balance={balanceOf(viewing)}
+          visits={visits}
+          onSaveVisit={onSaveVisit}
         />
       )}
 

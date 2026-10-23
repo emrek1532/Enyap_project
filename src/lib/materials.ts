@@ -33,14 +33,26 @@ const fromRow = (r: any): Material => ({
 });
 
 export async function searchMaterials(q: string, opts: { limit?: number; offset?: number; onlyPriced?: boolean; field?: MaterialField } = {}) {
+  // İnternet yoksa (ya da sunucuya ulaşılamazsa) cihazdaki katalogdan aranır
+  const offline = async () => {
+    const { searchOffline } = await import('./offlineCatalog');
+    const items = (await searchOffline(q, opts.field ?? 'all', (opts.limit ?? 20) + (opts.offset ?? 0)))
+      .filter(m => !opts.onlyPriced || m.price > 0).slice(opts.offset ?? 0);
+    return { items, total: items.length };
+  };
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return offline();
   const { data, error } = await supabase.rpc('search_materials', {
     q,
     lim: opts.limit ?? 20,
     off: opts.offset ?? 0,
     only_priced: opts.onlyPriced ?? false,
     field: opts.field ?? 'all',
-  });
-  if (error) throw error;
+  }).then(r => r, e => ({ data: null, error: e }));
+  if (error) {
+    const off = await offline().catch(() => null);
+    if (off?.items.length) return off;
+    throw error;
+  }
   const rows = (data || []) as any[];
   return { items: rows.map(fromRow), total: rows.length ? Number(rows[0].total) : 0 };
 }
@@ -59,6 +71,13 @@ export async function listMaterials(q: string, opts: {
   filters?: MaterialFilters; sortKey?: MaterialSortKey; sortDir?: 'asc' | 'desc';
 } = {}) {
   const f = opts.filters || {};
+  // İnternet yokken cihazdaki katalogdan (filtresiz, basit arama)
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const { searchOffline } = await import('./offlineCatalog');
+    const all = await searchOffline(q, opts.field ?? 'all', (opts.limit ?? 50) + (opts.offset ?? 0));
+    const items = all.slice(opts.offset ?? 0);
+    return { items, total: items.length };
+  }
   const { data, error } = await supabase.rpc('list_materials', {
     q,
     field: opts.field ?? 'all',
