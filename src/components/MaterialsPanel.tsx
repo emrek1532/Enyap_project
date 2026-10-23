@@ -8,6 +8,9 @@ import { SupplierListsPanel } from './SupplierListsPanel';
 import { supabase } from '../lib/supabase';
 import { fetchSupplierLists } from '../lib/suppliers';
 import { can, useAccess } from '../lib/access';
+import { Quote } from '../types';
+import { STATUS_LABEL } from './CustomerAccount';
+import { dayOf } from '../lib/dates';
 
 const PAGE = 50;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
@@ -17,7 +20,7 @@ const selectCls = 'w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('tr-TR') : '-');
 const fmtStock = (v?: number | null) => (v == null ? '-' : v.toLocaleString('tr-TR', { maximumFractionDigits: 2 }));
 
-const OwnMaterials: React.FC = () => {
+const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void }> = ({ quotes, onOpenQuote }) => {
   const [query, setQuery] = useState('');
   const [codeQuery, setCodeQuery] = useState('');
   const [filters, setFilters] = useState<MaterialFilters>({ currency: '', unit: '', price: '', stock: '' });
@@ -28,6 +31,7 @@ const OwnMaterials: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [history, setHistory] = useState<Material | null>(null);
   const [reload, setReload] = useState(0);
   const [editing, setEditing] = useState<{ m: Material; originalCode?: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -179,7 +183,7 @@ const OwnMaterials: React.FC = () => {
       <div className="md:hidden bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
               <div className="text-sm font-semibold text-slate-800 leading-snug">{m.name || '-'}</div>
               <div className="text-[11px] text-slate-500 mt-0.5">
                 <span className="font-mono">{m.code}</span> · {m.unit} · stok {fmtStock(m.stock)}
@@ -213,7 +217,9 @@ const OwnMaterials: React.FC = () => {
             {items.map(m => (
               <tr key={m.code} className="hover:bg-slate-50">
                 <td className="py-2.5 px-3 font-mono text-xs text-slate-600 whitespace-nowrap">{m.code}</td>
-                <td className="py-2.5 px-3 text-slate-800 font-medium">{m.name || '-'}</td>
+                <td className="py-2.5 px-3 text-slate-800 font-medium">
+                  <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-brand-700 hover:underline">{m.name || '-'}</button>
+                </td>
                 <td className="py-2.5 px-3 text-slate-600">{m.unit}</td>
                 <td className={`py-2.5 px-3 text-right font-bold tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>{priceText(m)}</td>
                 <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">%{m.vatRate}</td>
@@ -241,6 +247,8 @@ const OwnMaterials: React.FC = () => {
         </div>
       )}
 
+      {history && <MaterialHistory m={history} quotes={quotes} onClose={() => setHistory(null)}
+        onOpenQuote={onOpenQuote ? q => { setHistory(null); onOpenQuote(q); } : undefined} />}
       {editing && (
         <MaterialForm
           initial={editing.m}
@@ -249,6 +257,58 @@ const OwnMaterials: React.FC = () => {
           onSaved={() => { setEditing(null); setReload(n => n + 1); }}
         />
       )}
+    </div>
+  );
+};
+
+const money = (v: number, c: string) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as Currency] || c}`;
+
+/** Malzemeye tıklayınca: bu malzemeyi kime, ne zaman, kaç adet, kaçtan teklif ettik / sattık (yeni → eski) */
+const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => void; onOpenQuote?: (q: Quote) => void }> = ({ m, quotes, onClose, onOpenQuote }) => {
+  const code = m.code.trim().toUpperCase();
+  const name = m.name.trim().toLocaleLowerCase('tr');
+  const rows = quotes.flatMap(q => (q.items || [])
+    .filter(it => ((it.code || '').trim().toUpperCase() === code) || (!it.code && it.productName.trim().toLocaleLowerCase('tr') === name))
+    .map(it => ({ q, it, cur: it.currency || q.currency || 'TRY' })))
+    .sort((a, b) => (b.q.createdAt || '').localeCompare(a.q.createdAt || ''));
+  const sold = rows.filter(r => r.q.status === 'onaylandi');
+  const sum = (list: typeof rows) => list.reduce((t, r) => t + (r.it.quantity || 0), 0);
+  const firms = new Set(sold.map(r => r.q.customerName.trim().toLocaleLowerCase('tr'))).size;
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-2xl max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-slate-100 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="font-mono text-[11px] text-slate-500">{m.code}</div>
+            <h3 className="font-black text-slate-900 leading-snug">{m.name}</h3>
+            <div className="text-xs text-slate-500 mt-1">
+              Satılan <b className="text-emerald-700">{sum(sold).toLocaleString('tr-TR')} {m.unit.toLocaleLowerCase('tr')}</b> ({sold.length} teklif, {firms} firma)
+              {' · '}teklif edilen <b className="text-slate-800">{sum(rows).toLocaleString('tr-TR')}</b> ({rows.length} teklif)
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="overflow-y-auto divide-y divide-slate-100">
+          {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-500">Bu malzeme henüz hiçbir teklifte yok.</p>}
+          {rows.map(({ q, it, cur }, i) => {
+            const net = (it.unitPrice || 0) * (1 - (it.discount || 0) / 100);
+            const st = STATUS_LABEL[q.status];
+            return (
+              <button key={`${q.id}-${i}`} type="button" disabled={!onOpenQuote} onClick={() => onOpenQuote?.(q)}
+                className="w-full text-left px-4 py-2.5 flex items-start gap-3 hover:bg-slate-50 disabled:hover:bg-transparent">
+                <div className="min-w-0 flex-1 text-xs">
+                  <div><b className="text-slate-800 text-sm">{q.customerName}</b> <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${st?.cls || ''}`}>{st?.label || q.status}</span></div>
+                  <div className="text-slate-500 mt-0.5">{dayOf(q.createdAt).split('-').reverse().join('.')} · {q.quoteNumber}</div>
+                </div>
+                <div className="text-right text-xs shrink-0 tabular-nums">
+                  <div className="font-black text-slate-900 text-sm">{(it.quantity || 0).toLocaleString('tr-TR')} {it.unit.toLocaleLowerCase('tr')}</div>
+                  <div className="text-slate-600">{money(net, cur)}{it.discount ? <span className="text-slate-400"> · liste {money(it.unitPrice, cur)} %{it.discount}</span> : null}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };
@@ -340,7 +400,7 @@ const MaterialForm: React.FC<{
 };
 
 /** Malzemeler: bizim kataloğumuz ve firma fiyat listeleri ayrı sekmelerde (birbirine karışmaz) */
-export const MaterialsPanel: React.FC = () => {
+export const MaterialsPanel: React.FC<{ quotes?: Quote[]; onOpenQuote?: (q: Quote) => void }> = ({ quotes = [], onOpenQuote }) => {
   const me = useAccess();
   const showOwn = can(me, 'materials'), showSup = can(me, 'suppliers');
   const [tab, setTab] = useState<'own' | 'suppliers'>(() => {
@@ -375,7 +435,7 @@ export const MaterialsPanel: React.FC = () => {
         </button>
       </div>}
       {tab === 'own' && showOwn && <OfflineInfo />}
-      {tab === 'own' ? <OwnMaterials /> : <SupplierListsPanel />}
+      {tab === 'own' ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} /> : <SupplierListsPanel />}
     </div>
   );
 };

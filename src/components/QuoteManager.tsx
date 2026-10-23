@@ -6,7 +6,6 @@ import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRul
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
-import { WhatsAppMenu } from './WhatsAppMenu';
 import { usePriceChanges } from '../lib/priceWatch';
 import { textMatcher } from '../lib/materials';
 import { PENDING_REASONS, splitReason } from '../lib/quoteRules';
@@ -567,11 +566,6 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <p className="text-[11px] text-slate-600 mt-2">Müşteri onaylamadan önce revize teklif göndermeyi düşünün (Düzenle / Revize Et).</p>
                 </div>
               )}
-
-              <div className="flex justify-end">
-                <WhatsAppMenu phone={selectedQuote.customerPhone} label="WhatsApp mesajı"
-                  ctx={{ name: selectedQuote.customerName, contact: selectedQuote.customerContact, quote: selectedQuote, quoteValue: netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates) }} />
-              </div>
 
               {/* Items Table */}
               {(selectedQuote.items?.length || 0) > 0 && (

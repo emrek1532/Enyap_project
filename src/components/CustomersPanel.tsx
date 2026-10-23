@@ -34,6 +34,7 @@ interface CustomersPanelProps {
 
 const emptyForm = { name: '', city: 'Isparta' };
 const PAGE = 50;
+const DEFAULT_SORT: SortState<CustomerSortKey> = { key: 'total', dir: 'desc' };
 
 const trCompare = (a: string, b: string) => a.localeCompare(b, 'tr');
 // Arama için Türkçe karakterleri sadeleştir: "isparta", "ISPARTA" ve "Isparta" aynı sonucu versin
@@ -81,8 +82,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
   const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
-  // Sütun başlığına tıklayarak sıralama (varsayılan: firma adı A → Z)
-  const [sort, setSort] = useState<SortState<CustomerSortKey>>({ key: 'name', dir: 'asc' });
+  // Sütun başlığına tıklayarak sıralama (varsayılan: onaylı toplamı en yüksek en üstte)
+  const [sort, setSort] = useState<SortState<CustomerSortKey>>(DEFAULT_SORT);
   const sortBy = (key: CustomerSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setLimit(PAGE); };
   const [limit, setLimit] = useState(PAGE);
   const [editing, setEditing] = useState<Customer | null>(null);
@@ -180,9 +181,9 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, statusFilter, sort, rates, collections]);
 
-  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || sort.key !== 'name' || sort.dir !== 'asc';
+  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
   const resetFilters = () => {
-    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setSort({ key: 'name', dir: 'asc' }); setLimit(PAGE);
+    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setSort(DEFAULT_SORT); setLimit(PAGE);
   };
 
   const openNew = () => {

@@ -234,7 +234,7 @@ const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string;
 };
 
 // ---------- Yatay çubuklar (en iyi firmalar) ----------
-const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; value: number; sub?: string }[]; color: string }> = ({ title, subtitle, rows, color }) => {
+const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; value: number; sub?: string }[]; color: string; fmt?: (v: number) => string }> = ({ title, subtitle, rows, color, fmt = tl }) => {
   const max = Math.max(1, ...rows.map(r => r.value));
   return (
     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
@@ -246,7 +246,7 @@ const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; 
             <div key={r.label} className="text-xs">
               <div className="flex justify-between gap-2 mb-0.5">
                 <span className="font-semibold text-slate-700 truncate"><span className="text-slate-400 mr-1">{i + 1}.</span>{r.label}</span>
-                <span className="tabular-nums font-bold text-slate-900 whitespace-nowrap">{tl(r.value)}</span>
+                <span className="tabular-nums font-bold text-slate-900 whitespace-nowrap">{fmt(r.value)}</span>
               </div>
               <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: color }} />
@@ -424,10 +424,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   const cityRows = useMemo(() => groupQuotes(q => q.city || '').filter(([, g]) => g.totalAmt > 0).slice(0, 8)
     .map(([name, g]) => ({ label: name, value: g.approvedAmt, sub: `${g.total} teklif · ${tl(g.totalAmt)} · satış oranı ${pct(g.approvedAmt, g.totalAmt)}` })), [pQuotes, rates]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Ürün ve marka bazında satış: onaylanan tekliflerin kalemlerinden (KDV dahil TL; marka = kodun ilk 3 harfi)
+  // Ürün bazında satış: onaylanan tekliflerin kalemlerinden (KDV dahil TL ve adet)
   const productStats = useMemo(() => {
-    const prod = new Map<string, { label: string; value: number; qty: number; quotes: Set<string> }>();
-    const brand = new Map<string, { label: string; value: number; items: number; sample: string }>();
+    const prod = new Map<string, { label: string; value: number; qty: number; unit: string; quotes: Set<string> }>();
     pQuotes.filter(isApproved).forEach(q => (q.items || []).forEach(it => {
       const cur = it.currency || q.currency || 'TRY';
       const r = cur === 'USD' ? rates.USD : cur === 'EUR' ? rates.EUR : 1;
@@ -435,17 +434,15 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       if (!(v > 0)) return;
       const code = (it.code || '').trim().toUpperCase();
       const k = code || it.productName.trim().toLocaleLowerCase('tr');
-      const p = prod.get(k) || { label: it.productName.trim(), value: 0, qty: 0, quotes: new Set<string>() };
+      const p = prod.get(k) || { label: it.productName.trim(), value: 0, qty: 0, unit: it.unit || 'Adet', quotes: new Set<string>() };
       p.value += v; p.qty += it.quantity || 0; p.quotes.add(q.id); prod.set(k, p);
-      const bk = code ? code.slice(0, 3) : 'Kodsuz';
-      const b = brand.get(bk) || { label: bk, value: 0, items: 0, sample: it.productName.trim() };
-      b.value += v; b.items++; brand.set(bk, b);
     }));
+    const all = [...prod.values()];
     return {
-      products: [...prod.values()].sort((a, b) => b.value - a.value).slice(0, 10)
-        .map(p => ({ label: p.label, value: p.value, sub: `${p.qty.toLocaleString('tr-TR')} adet · ${p.quotes.size} teklif` })),
-      brands: [...brand.values()].sort((a, b) => b.value - a.value).slice(0, 8)
-        .map(b => ({ label: b.label, value: b.value, sub: `${b.items} kalem · ör. ${b.sample}` })),
+      products: [...all].sort((a, b) => b.value - a.value).slice(0, 10)
+        .map(p => ({ label: p.label, value: p.value, sub: `${p.qty.toLocaleString('tr-TR')} ${p.unit.toLocaleLowerCase('tr')} · ${p.quotes.size} teklif` })),
+      byQty: [...all].sort((a, b) => b.qty - a.qty).slice(0, 10)
+        .map(p => ({ label: p.label, value: p.qty, sub: `${p.unit.toLocaleLowerCase('tr')} · ${tl(p.value)} · ${p.quotes.size} teklif` })),
     };
   }, [pQuotes, rates]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -678,8 +675,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <HBars title="En Çok Satan Ürünler" subtitle="Onaylanan tekliflerin kalemlerinden, KDV dahil TL · ilk 10" color={C_APPROVED} rows={productStats.products} />
-        <HBars title="Marka / Ürün Grubu" subtitle="Ürün kodunun ilk 3 harfine göre (ör. KLS, FAF) · ilk 8" color={C_QUOTE} rows={productStats.brands} />
+        <HBars title="En Çok Satan Ürünler · Tutar" subtitle="Onaylanan tekliflerin kalemlerinden, KDV dahil TL · ilk 10" color={C_APPROVED} rows={productStats.products} />
+        <HBars title="En Çok Satan Ürünler · Adet" subtitle="Onaylanan tekliflerin kalemlerinden, satılan miktar · ilk 10" color={C_QUOTE}
+          rows={productStats.byQty} fmt={v => v.toLocaleString('tr-TR')} />
       </div>
       <HBars title="Şehirlere Göre Satış" subtitle="Onaylanan teklif tutarına göre ilk 8 şehir (yanında verilen teklif ve satış oranı)" color={C_APPROVED} rows={cityRows} />
 
