@@ -78,7 +78,7 @@ export const QuoteAgent: React.FC<{
       setLog(['Kurallarla hazırlanıyor (geçmiş teklifler ve katalog)']);
       local = await quickDraft(request, quotes, customers);
       if (local.complete) {
-        setReply('Taslak geçmiş tekliflerden ve katalogdan hazırlandı (yapay zekâ kullanılmadı). Kontrol edip kaydedin.');
+        setReply(`Taslak geçmiş tekliflerden ve katalogdan hazırlandı (yapay zekâ kullanılmadı). Kontrol edip kaydedin.${local.notes.length ? ` · ${local.notes.join(' · ')}` : ''}`);
         onDraft(local.draft);
         setBusy(false);
         return;

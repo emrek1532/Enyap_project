@@ -129,6 +129,8 @@ const SPARE = /membran|conta|yedek|tamir|kit\b|takim/;
 export function searchTerms(item: string): string {
   let s = foldTr(item).replace(/(\d)\s*(''|”|″)/g, '$1"');
   for (const [re, to] of SYN) s = s.replace(re, to);
+  // "dn32" / "q32" → "32" (katalogda "Q 32", "DN 32"); "pn25" aramadan çıkar (katalogda "PN 25", "PN-25", "PN10-16")
+  s = s.replace(/\b(dn|q)\s*-?\s*(\d+)/g, ' $2 ').replace(/\bpn\s*-?\s*\d+(\s*-\s*\d+)?/g, ' ');
   return s.replace(/[^a-z0-9"/ ]+/g, ' ').split(/\s+/).filter(w => w && !STOP.has(w))
     .map(w => (/^[a-z]{6,}$/.test(w) ? w.slice(0, 4) : w)).join(' ');
 }
