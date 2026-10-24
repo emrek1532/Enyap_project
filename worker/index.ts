@@ -47,6 +47,36 @@ async function isLoggedIn(req: Request, env: Env): Promise<boolean> {
   return res.ok && (await res.json().catch(() => false)) === true;
 }
 
+/**
+ * Her yapay zekâ çağrısını Supabase'teki ai_usage tablosuna yazar (uç, model, başarılı mı):
+ * ücretsiz günlük kotayı neyin harcadığı buradan görülür. Kayıt cevabı bekletmez.
+ */
+function withUsage(req: Request, env: Env, ctx: { waitUntil: (p: Promise<unknown>) => void }, endpoint: string): Env {
+  const ai = env.AI;
+  const auth = req.headers.get('authorization') || '';
+  if (!ai || !auth) return env;
+  const log = (model: string, ok: boolean, err?: string) => ctx.waitUntil(fetch(`${env.SUPABASE_URL || SUPABASE_URL}/rest/v1/rpc/log_ai_usage`, {
+    method: 'POST',
+    headers: { authorization: auth, apikey: env.SUPABASE_PUBLISHABLE_KEY || SUPABASE_KEY, 'content-type': 'application/json' },
+    body: JSON.stringify({ p_endpoint: endpoint, p_model: model, p_ok: ok, p_err: err ?? null }),
+  }).catch(() => undefined));
+  return {
+    ...env,
+    AI: {
+      run: async (model, input) => {
+        try {
+          const r = await ai.run(model, input);
+          log(model, true);
+          return r;
+        } catch (e) {
+          log(model, false, String((e as Error)?.message || e).slice(0, 300));
+          throw e;
+        }
+      },
+    },
+  };
+}
+
 // ---- Çıktı şeması: model her zaman bu yapıda cevap verir ----
 const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: 'null' }] });
 const str = { type: 'string' };
@@ -887,8 +917,9 @@ async function handleAgent(req: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: { waitUntil: (p: Promise<unknown>) => void }): Promise<Response> {
     const url = new URL(req.url);
+    if (url.pathname.startsWith('/api/ai/') && req.method === 'POST') env = withUsage(req, env, ctx, url.pathname.slice(8));
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
     if (url.pathname === '/api/ai/request' && req.method === 'POST') return handleRequestRead(req, env);

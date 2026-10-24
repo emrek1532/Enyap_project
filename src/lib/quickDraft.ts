@@ -4,7 +4,7 @@
  * yoksa katalogda (tek aday varsa). Her şey kesinse ajan (yapay zekâ) hiç çağrılmaz; değilse eksikler ajana kalır.
  */
 import { Customer, Quote, QuoteItem } from '../types';
-import { Material, foldTr, splitSizes } from './materials';
+import { Material, foldTr, searchMaterials, splitSizes } from './materials';
 import { PREF_KEY, PrefRule, listDiscounts, matchLine } from './requestRead';
 
 const STOP = /^(son|fiyat\w*|hazirla\w*|teklif\w*|ver|verin|verelim|icin|olarak|ile|gecen|sefer\w*|iskonto\w*|ayni\w*|eski|onceki|gecenki|en|gibi|lutfen|yap\w*|cikar\w*|gonder\w*|firma\w*|musteri\w*|bize|ona|kdv\w*|dahil|haric|olsun)$/;
@@ -102,7 +102,12 @@ export async function quickDraft(request: string, quotes: Quote[], customers: Cu
     if (other) {
       const code = other.it.code;
       const disc = code ? (await listDiscounts([code]).catch(() => new Map<string, number>())).get(code) || 0 : 0;
-      items.push({ ...other.it, id, quantity: qty, discount: disc, totalPrice: 0, currency: other.it.currency || other.q.currency || 'TRY' });
+      // Fiyat katalogdaki güncel fiyattan (eski teklifteki fiyat zamdan önce kalmış olabilir)
+      const cat = code ? (await searchMaterials(code, { field: 'code', limit: 5 }).catch(() => ({ items: [] as Material[] }))).items.find(x => x.code === code) : undefined;
+      items.push({
+        ...other.it, id, quantity: qty, discount: disc, totalPrice: 0,
+        ...(cat && cat.price > 0 ? { unitPrice: cat.price, currency: cat.currency } : { currency: other.it.currency || other.q.currency || 'TRY' }),
+      });
       notes.push(`"${other.it.productName}" başka firmanın teklifinden alındı, fiyatı kontrol edin`);
       resolved++;
       continue;

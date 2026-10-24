@@ -11,7 +11,7 @@ import { SuggestInput } from './SuggestInput';
 import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
-import { catalogCode, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
+import { catalogCode, logPdfItemLoss, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
 import { CheckRow, checkQuote, compareWithHistory, totalsMismatch } from '../lib/quoteCheck';
 
 interface NewQuoteModalProps {
@@ -330,6 +330,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const [existing, setExisting] = useState<{ q: Quote; file: File } | null>(null);
   const normNo = (s?: string) => (s || '').trim().toLocaleUpperCase('tr');
 
+  // PDF'ten okunan kalem adları: kayıtta eksik kalem varsa tanı kaydı için
+  const pdfRead = useRef<string[] | null>(null);
+
   const fillFromPdf = async (file: File) => {
     setPdfBusy(true); setPdfMsg(null); setPdfCheck(null);
     try {
@@ -361,6 +364,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         await Promise.all([work(), work(), work(), work()]);
         const ids = pdf.items.map((_, k) => `it-${Date.now()}-${k}`);
         setItems(pdf.items.map((it, k) => ({ ...it, id: ids[k] })));
+        pdfRead.current = pdf.items.map(it => it.productName.trim());
         const listed = await checkQuote(pdf).catch(() => null);
         // Aynı ürünün daha önceki tekliflerdeki iskontosuyla karşılaştır (önce aynı firma)
         const rows = listed && compareWithHistory(listed, quotes, pdf.customerName, pdf.quoteNumber);
@@ -404,6 +408,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     if (!paymentTerm && !isEdit) return; // yeni teklifte vade zorunlu (tarayıcı da uyarır)
 
     const filledItems = savedItems;
+    if (pdfRead.current && filledItems.length < pdfRead.current.length) {
+      logPdfItemLoss(typedNo || editQuote?.quoteNumber || '', pdfRead.current, filledItems.map(it => it.productName.trim()));
+    }
 
     // Düzenleme: numara, durum ve oluşturma tarihi korunur
     if (editQuote) {

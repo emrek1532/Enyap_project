@@ -307,6 +307,21 @@ function logPdfRead(file: File, q: PdfQuote, lineCount: number) {
   }).then(() => undefined, () => undefined);
 }
 
+/**
+ * PDF'ten doldurulan teklif, PDF'teki kalemlerden azıyla kaydedilirse tanı kaydı (kaybolan kalemin kökünü bulmak için).
+ * Kullanıcı kalemi bilerek silmiş de olabilir; kayıt yalnızca hangi kalemlerin eksik olduğunu yazar.
+ */
+export function logPdfItemLoss(quoteNo: string, read: string[], saved: string[]) {
+  const left = [...saved];
+  const lost = read.filter(n => { const k = left.indexOf(n); if (k < 0) return true; left.splice(k, 1); return false; });
+  if (!lost.length) return;
+  supabase.from('activities').insert({
+    id: `diag-loss-${Date.now()}`, action: 'PDF kalemi eksik kaydedildi (tanı)',
+    description: `no=${quoteNo} · PDF ${read.length} kalem, kaydedilen ${saved.length} · eksik: ${lost.join(' | ')}`.slice(0, 2000),
+    author: 'isparta', timestamp: new Date().toISOString(), badge_color: 'slate',
+  }).then(() => undefined, () => undefined);
+}
+
 /** Okunamayan PDF'in metnini tanı için kaydeder (okuyucuyu bu formata göre düzeltebilmek için) */
 function logUnreadPdf(name: string, lines: string[]) {
   const id = `diag-pdf-${Date.now()}`;
