@@ -39,19 +39,25 @@ function findCustomer(words: string[], customers: Customer[], quotes: Quote[]): 
  * ("22-36 kelepçe" → "22-36 C TİPİ 14 MM AYARLI KELEPÇE TORK"). En çok kelimesi tutan, eşitse en yeni teklif seçilir.
  */
 function findInHistory(product: string, history: Quote[]): { it: QuoteItem; q: Quote } | null {
-  const { sizes } = splitSizes(product);
-  const toks = product.replace(/\d[\d\s/]*"/g, ' ').split(/\s+/).filter(Boolean);
-  const nums = toks.filter(t => /\d/.test(t)).map(t => new RegExp(`(^|[^0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^0-9]|$)`));
+  const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // DN/PN bitişik ya da ayrı yazılabilir: "dn32" = "Q 32" = "DN 32", "pn25" = "PN 25" = "PN-25"
+  const pns = [...product.matchAll(/\bpn\s*-?\s*(\d+)/g)].map(m => new RegExp(`pn\\s*-?\\s*(\\d+\\s*-\\s*)?${m[1]}([^0-9]|$)`));
+  const rest = product.replace(/\bpn\s*-?\s*\d+/g, ' ').replace(/\b(dn|q|ø)\s*-?\s*(\d+)/g, ' $2 ');
+  const { sizes } = splitSizes(rest);
+  const toks = rest.replace(/\d[\d\s/]*"/g, ' ').split(/\s+/).filter(Boolean);
+  const nums = toks.filter(t => /\d/.test(t)).map(t => new RegExp(`(^|[^0-9])${esc(t)}([^0-9]|$)`));
   const words = toks.filter(t => !/\d/.test(t) && t.length >= 2);
   const need = Math.max(1, Math.ceil(words.length / 2));
-  let best: { it: QuoteItem; q: Quote; score: number } | null = null;
+  let best: { it: QuoteItem; q: Quote; score: number; len: number } | null = null;
   for (const q of history) {
     for (const it of q.items || []) {
       if (!(it.unitPrice > 0)) continue;
       const name = foldTr(`${it.productName} ${it.code || ''}`);
-      if (!sizes.every(r => r.test(name)) || !nums.every(r => r.test(name))) continue;
+      if (!sizes.every(r => r.test(name)) || !nums.every(r => r.test(name)) || !pns.every(r => r.test(name))) continue;
       const score = words.filter(w => name.includes(w) || (w.length >= 5 && name.includes(w.slice(0, 4)))).length;
-      if (score >= need && (!best || score > best.score)) best = { it, q, score };
+      // Eşit puanda adı kısa olan (fazladan kelimesi az) seçilir: "flanş" → "düz flanş", "flanşlı pislik tutucu" değil
+      const len = foldTr(it.productName).split(/\s+/).length;
+      if (score >= need && (!best || score > best.score || (score === best.score && len < best.len))) best = { it, q, score, len };
     }
   }
   return best;
@@ -66,8 +72,8 @@ export async function quickDraft(request: string, quotes: Quote[], customers: Cu
 
   // Kalemler: "ve", virgül ya da satır sonuyla ayrılır
   const segs = f.split(/\n|,(?!\d)|;|\sve\s|\s\+\s/).map(s => s.trim()).filter(Boolean);
-  const history = [...quotes].filter(q => !cust || foldTr(q.customerName.trim()) === foldTr(cust.name.trim()))
-    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const allQuotes = [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const history = allQuotes.filter(q => !cust || foldTr(q.customerName.trim()) === foldTr(cust.name.trim()));
 
   // Tercihli ürün kuralları ("genleşme" → VTSKGD…): talep okumadaki ayarın cihazdaki kopyası
   let prefs: PrefRule[] = [];
@@ -88,6 +94,16 @@ export async function quickDraft(request: string, quotes: Quote[], customers: Cu
     const hit = cust ? findInHistory(product, history) : null;
     if (hit) {
       items.push({ ...hit.it, id, quantity: qty, totalPrice: 0, currency: hit.it.currency || hit.q.currency || 'TRY' });
+      resolved++;
+      continue;
+    }
+    // 1b) Diğer firmalara verilmiş aynı ürün: kod ve liste fiyatı oradan, iskonto fiyat listesinden (firmaya özel iskonto taşınmaz)
+    const other = findInHistory(product, allQuotes);
+    if (other) {
+      const code = other.it.code;
+      const disc = code ? (await listDiscounts([code]).catch(() => new Map<string, number>())).get(code) || 0 : 0;
+      items.push({ ...other.it, id, quantity: qty, discount: disc, totalPrice: 0, currency: other.it.currency || other.q.currency || 'TRY' });
+      notes.push(`"${other.it.productName}" başka firmanın teklifinden alındı, fiyatı kontrol edin`);
       resolved++;
       continue;
     }

@@ -86,7 +86,6 @@ export const SimpleHome: React.FC<{
     const curKey = keys[5];
     const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const mq = quotes.filter(q => dayOf(q.createdAt).startsWith(curKey));
-    const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status));
     // Haftalar: verilen ve onaylanan (teklif tarihine göre)
     const weekOf = (x: string) => Math.floor((Number(dayOf(x).slice(8, 10)) - 1) / 7);
     const weeks = Array.from({ length: Math.ceil(dim / 7) }, (_, w) => {
@@ -110,7 +109,6 @@ export const SimpleHome: React.FC<{
       months, cur: months[5], prev: months[4], prevSame, curKey, dim, weeks,
       firms: [...firms.values()].sort((a, b) => b.onay - a.onay || b.teklif - a.teklif).slice(0, 6),
       status: { onay: st(q => q.status === 'onaylandi'), bekleyen: st(q => PENDING_STATUSES.includes(q.status)), iptal: st(q => q.status === 'iptal') },
-      pendingCount: pending.length, pendingAmt: pending.reduce((a, q) => a + qv(q), 0),
     };
   }, [quotes, collections, expenses, rates, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -129,11 +127,12 @@ export const SimpleHome: React.FC<{
       tone: 'text-brand-700', on: () => openQuotes({ status: 'all', from: monthFrom, to: monthTo }) },
     canQuotes && { label: 'Onaylanan', value: tl(s.cur.onay), sub: `${s.cur.onayAdet} teklif · satış oranı %${rate}`, cur: s.cur.onay, prev: s.prevSame.onay,
       tone: 'text-emerald-700', on: () => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo }) },
-    canQuotes && { label: 'Bekleyen (tümü)', value: tl(s.pendingAmt), sub: `${s.pendingCount} teklif karar bekliyor`,
-      tone: 'text-amber-700', on: () => openQuotes({ status: 'aktif' }) },
-    canMoney && { label: 'Tahsilat', value: tl(s.cur.tahsilat), sub: canExp ? `harcama ${short(s.cur.harcama)} TL` : `geçen ay ${short(s.prev.tahsilat)} TL`, cur: s.cur.tahsilat, prev: s.prevSame.tahsilat,
+    canMoney && { label: 'Tahsilat', value: tl(s.cur.tahsilat), sub: `geçen ay ${short(s.prev.tahsilat)} TL`, cur: s.cur.tahsilat, prev: s.prevSame.tahsilat,
       tone: 'text-accent-700', on: () => onOpen('collections') },
-  ].filter(Boolean) as { label: string; value: string; sub: string; cur?: number; prev?: number; tone: string; on: () => void }[];
+    // Harcamada artış kötü: ok kırmızı
+    canExp && { label: 'Harcama', value: tl(s.cur.harcama), sub: `geçen ay ${short(s.prev.harcama)} TL`, cur: s.cur.harcama, prev: s.prevSame.harcama,
+      tone: 'text-rose-700', on: () => onOpen('expenses'), lowerIsBetter: true },
+  ].filter(Boolean) as { label: string; value: string; sub: string; cur?: number; prev?: number; tone: string; on: () => void; lowerIsBetter?: boolean }[];
 
   return (
     <div className="space-y-4 pb-4">
@@ -169,7 +168,7 @@ export const SimpleHome: React.FC<{
               {tiles.map(k => (
                 <button key={k.label} onClick={k.on} className="group text-left bg-white rounded-2xl border border-slate-200 shadow-xs px-3.5 py-3 min-w-0 hover:border-brand-300 hover:shadow-md transition">
                   <span className="flex items-center justify-between gap-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    {k.label} {k.prev !== undefined && <Change cur={k.cur || 0} prev={k.prev} />}
+                    {k.label} {k.prev !== undefined && <Change cur={k.cur || 0} prev={k.prev} lowerIsBetter={k.lowerIsBetter} />}
                   </span>
                   <span className={`block text-lg sm:text-xl font-black tabular-nums truncate mt-0.5 ${k.tone}`}>{k.value}</span>
                   <span className="flex items-center justify-between text-[11px] text-slate-500">
@@ -265,12 +264,13 @@ const Legend: React.FC<{ items: [string, string][] }> = ({ items }) => (
 );
 
 /** Geçen ayın aynı günlerine göre değişim */
-const Change: React.FC<{ cur: number; prev: number }> = ({ cur, prev }) => {
+const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean }> = ({ cur, prev, lowerIsBetter }) => {
   if (!prev) return null;
   const pct = Math.round(((cur - prev) / prev) * 100);
   const up = pct >= 0;
   const Icon = up ? TrendingUp : TrendingDown;
-  return <span className={`inline-flex items-center gap-0.5 normal-case tracking-normal ${up ? 'text-emerald-600' : 'text-rose-600'}`}><Icon className="w-3 h-3" />%{Math.abs(pct)}</span>;
+  const good = lowerIsBetter ? !up : up;
+  return <span className={`inline-flex items-center gap-0.5 normal-case tracking-normal ${good ? 'text-emerald-600' : 'text-rose-600'}`}><Icon className="w-3 h-3" />%{Math.abs(pct)}</span>;
 };
 
 /** Son 6 ay: her ay için verilen ve onaylanan sütunu; altında tutarlar ve satış oranı; aya dokununca o ayın onaylananları */
