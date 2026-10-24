@@ -98,6 +98,7 @@ export const HelpGuide: React.FC<{ variant: 'icon' | 'wide'; className?: string;
                   </ul>
                 </section>
               ))}
+              <p className="pt-2 text-[11px] text-slate-400">Sürüm: {__APP_BUILD__}</p>
             </div>
           </div>
         </div>,

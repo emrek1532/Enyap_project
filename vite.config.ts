@@ -26,7 +26,11 @@ function pdfjsAssets(): Plugin {
 }
 
 export default defineConfig(() => {
+  // Sürüm etiketi: hangi commit'in yayında olduğu uygulamada (Kullanım kılavuzu altında) görünür
+  const sha = (process.env.WORKERS_CI_COMMIT_SHA || '').slice(0, 7);
+  const built = new Date().toLocaleString('tr-TR', {timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
   return {
+    define: {__APP_BUILD__: JSON.stringify([sha, built].filter(Boolean).join(' · '))},
     plugins: [react(), tailwindcss(), pdfjsAssets()],
     resolve: {
       alias: {
