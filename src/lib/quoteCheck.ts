@@ -91,3 +91,23 @@ export async function checkQuote(pdf: PdfQuote): Promise<CheckRow[]> {
     return { item, code, list, issues, loss, level };
   });
 }
+
+/**
+ * Okunan kalemlerin toplamı PDF'teki genel toplamla tutuyor mu (para birimi bazında, KDV dahil).
+ * Tutmuyorsa bir satır okunamamış olabilir: son satır atlanınca sıra numarasında boşluk olmadığı için
+ * başka türlü fark edilmez.
+ */
+export function totalsMismatch(pdf: PdfQuote): string[] {
+  if (!pdf.totals) return [];
+  const sum: Record<string, number> = { USD: 0, EUR: 0, TRY: 0 };
+  for (const it of pdf.items) sum[it.currency || 'TRY'] = (sum[it.currency || 'TRY'] || 0) + it.totalPrice;
+  const fmt = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const out: string[] = [];
+  for (const k of ['TRY', 'USD', 'EUR'] as const) {
+    const want = pdf.totals[k];
+    if (Math.abs(sum[k] - want) > Math.max(0.05, want * 0.002)) {
+      out.push(`PDF'teki ${k === 'TRY' ? 'TL' : k} genel toplamı ${fmt(want)}, okunan kalemlerin toplamı ${fmt(Math.round(sum[k] * 100) / 100)}: eksik okunan kalem olabilir, PDF ile karşılaştırın`);
+    }
+  }
+  return out;
+}

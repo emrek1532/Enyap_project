@@ -12,7 +12,7 @@ import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
 import { catalogCode, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
-import { CheckRow, checkQuote } from '../lib/quoteCheck';
+import { CheckRow, checkQuote, totalsMismatch } from '../lib/quoteCheck';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -365,7 +365,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         setPdfCheck(rows ? rows.map((r, k) => ({ ...r, item: { ...r.item, id: ids[k] } })) : null);
       }
       setPdfMeta({ preparedBy: pdf.preparedBy || undefined, date: pdf.date || undefined });
-      setPdfMsg({ ok: true, text: `${pdf.items.length} kalem PDF'ten aktarıldı${pdf.warnings.length ? ' · ' + pdf.warnings.join(', ') : ''}. Kontrol edip kaydedin.` });
+      // Kalem okunamadıysa (sıra boşluğu ya da genel toplam tutmuyor) uyarı kırmızı gösterilir
+      const missing = [...pdf.warnings.filter(w => /okunamad/.test(w)), ...totalsMismatch(pdf)];
+      const other = pdf.warnings.filter(w => !/okunamad/.test(w));
+      setPdfMsg(missing.length
+        ? { ok: false, text: `${pdf.items.length} kalem aktarıldı ama ⚠ ${missing.join(' · ')}${other.length ? ' · ' + other.join(', ') : ''}` }
+        : { ok: true, text: `${pdf.items.length} kalem PDF'ten aktarıldı${other.length ? ' · ' + other.join(', ') : ''}. Kontrol edip kaydedin.` });
     } catch {
       setPdfMsg({ ok: false, text: 'PDF açılamadı.' });
     } finally {
