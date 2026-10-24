@@ -4,10 +4,10 @@
  * yoksa katalogda (tek aday varsa). Her şey kesinse ajan (yapay zekâ) hiç çağrılmaz; değilse eksikler ajana kalır.
  */
 import { Customer, Quote, QuoteItem } from '../types';
-import { Material, foldTr, textMatcher } from './materials';
+import { Material, foldTr, splitSizes } from './materials';
 import { PREF_KEY, PrefRule, listDiscounts, matchLine } from './requestRead';
 
-const STOP = /^(son|fiyat\w*|hazirla\w*|teklif\w*|ver|verin|verelim|icin|olarak|ile|gecen|sefer\w*|iskonto\w*|ayni\w*|lutfen|yap\w*|cikar\w*|gonder\w*|firma\w*|musteri\w*|bize|ona|kdv\w*|dahil|haric|olsun)$/;
+const STOP = /^(son|fiyat\w*|hazirla\w*|teklif\w*|ver|verin|verelim|icin|olarak|ile|gecen|sefer\w*|iskonto\w*|ayni\w*|eski|onceki|gecenki|en|gibi|lutfen|yap\w*|cikar\w*|gonder\w*|firma\w*|musteri\w*|bize|ona|kdv\w*|dahil|haric|olsun)$/;
 const QTY = /(\d+(?:[.,]\d+)?)\s*(adet|ad\.?|tane|mt|metre|m|takim|paket|kg|set)\b/;
 const UNIT: Record<string, QuoteItem['unit']> = { mt: 'Metre', metre: 'Metre', m: 'Metre', takim: 'Takım', paket: 'Paket', kg: 'Kg', set: 'Set' };
 
@@ -30,6 +30,29 @@ function findCustomer(words: string[], customers: Customer[], quotes: Quote[]): 
     if (!first || first.length < 4) continue;
     const w = words.find(x => x.startsWith(first) && x.length - first.length <= 4);
     if (w && (!best || first.length > best.len)) best = { ...v, word: w, parts: k.split(/\s+/).filter(p => p.length >= 3), len: first.length };
+  }
+  return best;
+}
+
+/**
+ * Firmanın geçmiş tekliflerinde ürünü bulur. Ölçüler (2", 22-36, 14 mm) birebir tutmalı; kelimelerin çoğu tutmalı
+ * ("22-36 kelepçe" → "22-36 C TİPİ 14 MM AYARLI KELEPÇE TORK"). En çok kelimesi tutan, eşitse en yeni teklif seçilir.
+ */
+function findInHistory(product: string, history: Quote[]): { it: QuoteItem; q: Quote } | null {
+  const { sizes } = splitSizes(product);
+  const toks = product.replace(/\d[\d\s/]*"/g, ' ').split(/\s+/).filter(Boolean);
+  const nums = toks.filter(t => /\d/.test(t)).map(t => new RegExp(`(^|[^0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^0-9]|$)`));
+  const words = toks.filter(t => !/\d/.test(t) && t.length >= 2);
+  const need = Math.max(1, Math.ceil(words.length / 2));
+  let best: { it: QuoteItem; q: Quote; score: number } | null = null;
+  for (const q of history) {
+    for (const it of q.items || []) {
+      if (!(it.unitPrice > 0)) continue;
+      const name = foldTr(`${it.productName} ${it.code || ''}`);
+      if (!sizes.every(r => r.test(name)) || !nums.every(r => r.test(name))) continue;
+      const score = words.filter(w => name.includes(w) || (w.length >= 5 && name.includes(w.slice(0, 4)))).length;
+      if (score >= need && (!best || score > best.score)) best = { it, q, score };
+    }
   }
   return best;
 }
@@ -62,12 +85,7 @@ export async function quickDraft(request: string, quotes: Quote[], customers: Cu
     if (!/[a-z]{2}/.test(product)) continue;
     const id = `it-${Date.now()}-${items.length}`;
     // 1) Bu firmaya en son verilen aynı ürün (fiyat ve iskontosuyla)
-    const match = textMatcher(product);
-    let hit: { it: QuoteItem; q: Quote } | null = null;
-    for (const q of cust ? history : []) {
-      const it = (q.items || []).find(i => i.unitPrice > 0 && match?.(`${i.productName} ${i.code || ''}`));
-      if (it) { hit = { it, q }; break; }
-    }
+    const hit = cust ? findInHistory(product, history) : null;
     if (hit) {
       items.push({ ...hit.it, id, quantity: qty, totalPrice: 0, currency: hit.it.currency || hit.q.currency || 'TRY' });
       resolved++;
