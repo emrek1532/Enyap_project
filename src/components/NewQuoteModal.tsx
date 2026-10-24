@@ -12,7 +12,7 @@ import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
 import { catalogCode, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
-import { CheckRow, checkQuote, totalsMismatch } from '../lib/quoteCheck';
+import { CheckRow, checkQuote, compareWithHistory, totalsMismatch } from '../lib/quoteCheck';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -361,7 +361,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         await Promise.all([work(), work(), work(), work()]);
         const ids = pdf.items.map((_, k) => `it-${Date.now()}-${k}`);
         setItems(pdf.items.map((it, k) => ({ ...it, id: ids[k] })));
-        const rows = await checkQuote(pdf).catch(() => null);
+        const listed = await checkQuote(pdf).catch(() => null);
+        // Aynı ürünün daha önceki tekliflerdeki iskontosuyla karşılaştır (önce aynı firma)
+        const rows = listed && compareWithHistory(listed, quotes, pdf.customerName, pdf.quoteNumber);
         setPdfCheck(rows ? rows.map((r, k) => ({ ...r, item: { ...r.item, id: ids[k] } })) : null);
       }
       setPdfMeta({ preparedBy: pdf.preparedBy || undefined, date: pdf.date || undefined });
@@ -506,29 +508,39 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             )}
             {pdfCheck && (() => {
               const bad = pdfCheck.filter(r => r.issues.length);
+              const hasError = pdfCheck.some(r => r.level === 'error');
               const discFix = pdfCheck.filter(r => r.list && r.list.discount > 0 && r.issues.some(x => /iskonto: /.test(x.text)));
-              if (!bad.length) return (
-                <div className="text-xs rounded-md px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200">✓ Fiyatlar ve iskontolar fiyat listeleriyle uyumlu.</div>
-              );
+              const day = (iso: string) => (iso || '').slice(0, 10).split('-').reverse().join('.');
+              const tone = hasError ? 'bg-rose-50 text-rose-900 border-rose-200' : bad.length ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-emerald-50 text-emerald-900 border-emerald-200';
               return (
-                <div className="text-xs rounded-md px-3 py-2.5 bg-rose-50 text-rose-900 border border-rose-200 space-y-1.5">
-                  <div className="font-bold">Liste kontrolü: {bad.length} kalemde uyarı</div>
-                  {bad.map(r => (
+                <div className={`text-xs rounded-md px-3 py-2.5 border space-y-1.5 ${tone}`}>
+                  <div className="font-bold">
+                    {bad.length ? `Kontrol: ${bad.length} kalemde uyarı` : '✓ Fiyatlar ve iskontolar fiyat listeleriyle ve önceki tekliflerle uyumlu'}
+                  </div>
+                  {/* Her kalem: bu teklifteki iskonto ve aynı ürüne en son verilen iskonto (önce aynı firma) */}
+                  {pdfCheck.map(r => (
                     <div key={r.item.id}>
                       <span className="font-semibold">{r.item.productName}</span>
+                      <span className="text-slate-600"> · bu teklifte %{(r.item.discount || 0).toLocaleString('tr-TR')}
+                        {r.history
+                          ? ` · önceki %${r.history.discount.toLocaleString('tr-TR')} (${r.history.own ? 'bu firma' : r.history.customer}, ${day(r.history.date)}, ${r.history.quoteNumber})`
+                          : ' · daha önce teklif edilmemiş'}
+                      </span>
                       {r.issues.map(x => <div key={x.text} className={x.level === 'error' ? 'text-rose-700' : 'text-amber-700'}>· {x.text}</div>)}
                     </div>
                   ))}
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    {discFix.length > 0 && (
-                      <button type="button" onClick={() => {
-                        const want = new Map(discFix.map(r => [r.item.id, r.list!.discount]));
-                        setItems(prev => prev.map(it => (want.has(it.id) ? { ...it, discount: want.get(it.id)! } : it)));
-                        setPdfCheck(prev => prev && prev.map(r => (want.has(r.item.id) ? { ...r, issues: r.issues.filter(x => !/iskonto: /.test(x.text)) } : r)));
-                      }} className="px-2.5 py-1 rounded-md bg-rose-600 text-white font-bold">İskontoları listeye göre düzelt</button>
-                    )}
-                    <span className="text-rose-800/80">Mikro'daki gibi kalması gerekiyorsa doğrudan kaydedebilirsiniz.</span>
-                  </div>
+                  {bad.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      {discFix.length > 0 && (
+                        <button type="button" onClick={() => {
+                          const want = new Map(discFix.map(r => [r.item.id, r.list!.discount]));
+                          setItems(prev => prev.map(it => (want.has(it.id) ? { ...it, discount: want.get(it.id)! } : it)));
+                          setPdfCheck(prev => prev && prev.map(r => (want.has(r.item.id) ? { ...r, issues: r.issues.filter(x => !/iskonto: /.test(x.text)) } : r)));
+                        }} className="px-2.5 py-1 rounded-md bg-rose-600 text-white font-bold">İskontoları listeye göre düzelt</button>
+                      )}
+                      <span className="opacity-80">Mikro'daki gibi kalması gerekiyorsa doğrudan kaydedebilirsiniz.</span>
+                    </div>
+                  )}
                 </div>
               );
             })()}

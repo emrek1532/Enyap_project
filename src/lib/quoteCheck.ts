@@ -5,7 +5,7 @@
  */
 import { supabase } from './supabase';
 import { PdfQuote, catalogCode } from './pdfQuote';
-import { QuoteItem } from '../types';
+import { Quote, QuoteItem } from '../types';
 
 export type CheckLevel = 'ok' | 'warn' | 'error';
 
@@ -20,6 +20,8 @@ export interface CheckRow {
   /** Doğru iskontoyla net tutar farkı (+: müşteriye fazla indirim) */
   loss?: number;
   level: CheckLevel;
+  /** Aynı ürünün en son verildiği teklif (önce aynı firma) */
+  history?: { customer: string; date: string; quoteNumber: string; discount: number; own: boolean };
 }
 
 interface ListHit { list_id: string; price: number; currency: string; our_code: string }
@@ -110,4 +112,43 @@ export function totalsMismatch(pdf: PdfQuote): string[] {
     }
   }
   return out;
+}
+
+/**
+ * Geçmişle karşılaştırma: PDF'teki her kalemin iskontosu, aynı ürünün daha önceki tekliflerdeki iskontosuyla
+ * kıyaslanır (ayrı bir hafıza tutulmaz; sistemdeki teklifler kullanılır). Önce aynı firmaya en son verilen,
+ * o yoksa herhangi bir firmaya en son verilen esas alınır. Aynı teklif numarası (revizyon) hariç.
+ */
+export function compareWithHistory(rows: CheckRow[], quotes: Quote[], customerName: string | null, quoteNumber: string | null): CheckRow[] {
+  const fold = (s: string) => s.toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim();
+  const custKey = customerName ? fold(customerName).split(' ')[0] : '';
+  const sameCust = (name: string) => !!custKey && custKey.length >= 3 && fold(name).startsWith(custKey);
+  const sorted = quotes.filter(q => !quoteNumber || q.quoteNumber !== quoteNumber)
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const day = (iso: string) => (iso || '').slice(0, 10).split('-').reverse().join('.');
+  return rows.map(r => {
+    const key = r.code || r.item.code;
+    const nameKey = fold(r.item.productName);
+    const same = (it: QuoteItem) => (key ? it.code === key : fold(it.productName) === nameKey);
+    let own: { q: Quote; it: QuoteItem } | null = null;
+    let any: { q: Quote; it: QuoteItem } | null = null;
+    for (const q of sorted) {
+      const it = (q.items || []).find(same);
+      if (!it) continue;
+      if (!any) any = { q, it };
+      if (sameCust(q.customerName)) { own = { q, it }; break; }
+    }
+    const issues = [...r.issues];
+    const now = r.item.discount || 0;
+    const ref = own || any;
+    if (ref) {
+      const was = ref.it.discount || 0;
+      const who = own ? 'Bu firmaya' : `${ref.q.customerName} firmasına`;
+      if (Math.abs(was - now) >= 0.05) {
+        issues.push({ level: 'warn', text: `${who} en son ${day(ref.q.createdAt)} tarihli ${ref.q.quoteNumber} teklifinde ${pct(was)} iskonto verilmiş, bu teklifte ${pct(now)}` });
+      }
+    }
+    const level: CheckLevel = issues.some(x => x.level === 'error') ? 'error' : issues.length ? 'warn' : 'ok';
+    return { ...r, issues, level, history: ref ? { customer: ref.q.customerName, date: ref.q.createdAt, quoteNumber: ref.q.quoteNumber, discount: ref.it.discount || 0, own: !!own } : undefined };
+  });
 }
