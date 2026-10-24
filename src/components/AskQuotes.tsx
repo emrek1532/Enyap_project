@@ -15,7 +15,9 @@ const STOP = new Set(('ne neler kac kaca kactan hangi hangisi verdik verdim veri
 /** Soruyla ilgili teklif satırlarını cihazdaki veriden bulur (internet kullanmaz) */
 function findLines(question: string, quotes: Quote[], customers: string[]): string[] {
   // İnç ölçüleri ayrı ve tam eşleşir (2" ≠ 1 1/2", 1/2"); 2 inç, 2'', 1 1/2 parmak da olur
-  const { words: tokens, sizes } = splitSizes(question.replace(/[?!,;:()]/g, ' '));
+  // Kesme işaretinden sonraki ek atılır: "Gemfa'ya" → "Gemfa" (inç işareti olan '' dokunulmaz)
+  const clean = question.replace(/(\p{L})['’](\p{L}+)/gu, '$1').replace(/[?!,;:()]/g, ' ');
+  const { words: tokens, sizes } = splitSizes(clean);
   // Uzun kelimelerde ek atılır (enerjiye → enerj, dirseği → dirse)
   const words = tokens.map(w => w.replace(/\.+$/, '')).filter(w => !STOP.has(w) && /[a-z]/.test(w) && w.length >= 3)
     .map(w => (/^[a-z]{6,}$/.test(w) ? w.slice(0, 5) : w));
@@ -60,12 +62,14 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[] }> = ({ 
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState('');
   const [used, setUsed] = useState(0);
+  // Yapay zekâ cevap veremezse (kota) bulunan satırlar doğrudan gösterilir
+  const [found, setFound] = useState<string[]>([]);
 
   const ask = async (e: React.FormEvent) => {
     e.preventDefault();
     const question = q.trim();
     if (!question || busy) return;
-    setBusy(true); setAnswer('');
+    setBusy(true); setAnswer(''); setFound([]);
     try {
       const lines = findLines(question, quotes, customers);
       setUsed(lines.length);
@@ -79,10 +83,15 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[] }> = ({ 
         body: JSON.stringify({ question, context: lines.join('\n') }),
       });
       const out = await res.json().catch(() => null);
-      setAnswer(res.status === 429 ? 'Yapay zekâ kotası doldu, biraz sonra tekrar deneyin.'
-        : res.ok ? out?.answer || 'Cevap alınamadı.' : `Şu an cevap verilemiyor (${res.status}${out?.message ? `: ${out.message}` : out?.error ? `: ${out.error}` : ''}).`);
+      if (res.ok && out?.answer) { setAnswer(out.answer); return; }
+      // Kota dolu ya da yapay zekâ cevap veremedi: cihazda bulunan en ilgili satırlar (en yeni önce) listelenir
+      setAnswer(res.status === 429
+        ? "Yapay zekâ kotası dolu (her gece 03:00'te yenilenir). Kayıtlarda bulduklarım:"
+        : 'Yapay zekâ şu an cevap veremedi. Kayıtlarda bulduklarım:');
+      setFound(lines.slice(0, 10));
     } catch {
-      setAnswer('Bağlantı kurulamadı.');
+      setAnswer('Bağlantı kurulamadı. Kayıtlarda bulduklarım:');
+      setFound(findLines(question, quotes, customers).slice(0, 10));
     } finally {
       setBusy(false);
     }
@@ -101,6 +110,22 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[] }> = ({ 
       {answer && (
         <div className="text-sm text-slate-800 whitespace-pre-wrap bg-violet-50 rounded-xl px-3 py-2">
           {answer}
+          {found.length > 0 && (
+            <ul className="mt-1.5 divide-y divide-violet-100 whitespace-normal">
+              {found.map(l => {
+                // satır: tarih | firma | teklif no | durum | ürün | miktar | birim fiyat | iskonto
+                const [d, firm, no, st, prod, qty, ...rest] = l.split(' | ');
+                return (
+                  <li key={l} className="py-1.5">
+                    <div className="font-semibold text-slate-900">{prod}</div>
+                    <div className="text-xs text-slate-600 tabular-nums">
+                      {d.split('-').reverse().join('.')} · {firm} · {no} ({st}) · {qty} · {rest.join(' · ').replace('birim ', '').replace(/ TRY\b/, ' TL')}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <p className="mt-1 text-[11px] text-slate-500">{used} teklif satırına bakıldı</p>
         </div>
       )}
