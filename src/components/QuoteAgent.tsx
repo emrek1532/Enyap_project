@@ -6,6 +6,7 @@ import { dayOf, localDay } from '../lib/dates';
 import { supabase } from '../lib/supabase';
 import { STATUS_LABEL } from './CustomerAccount';
 import { PAYMENT_TERMS } from './NewQuoteModal';
+import { QuickDraft, quickDraft } from '../lib/quickDraft';
 
 type Call = { tool: string; arg: string };
 type Step = { calls?: Call[]; done?: boolean; reply?: string; draft?: any };
@@ -71,6 +72,18 @@ export const QuoteAgent: React.FC<{
     const request = text.trim();
     if (!request || busy) return;
     setBusy(true); setLog([]); setReply('');
+    // Önce kurallarla (yapay zekâsız): firma + geçmiş fiyat / katalog kesinse ajana hiç gidilmez
+    let local: QuickDraft | null = null;
+    try {
+      setLog(['Kurallarla hazırlanıyor (geçmiş teklifler ve katalog)']);
+      local = await quickDraft(request, quotes, customers);
+      if (local.complete) {
+        setReply('Taslak geçmiş tekliflerden ve katalogdan hazırlandı (yapay zekâ kullanılmadı). Kontrol edip kaydedin.');
+        onDraft(local.draft);
+        setBusy(false);
+        return;
+      }
+    } catch { /* ajana devam */ }
     const materials = new Map<string, Material>();
     let seen = request; // araç sonuçlarında ve istekte geçen her şey (doğrulama için)
     const steps: { answer: string; results: string }[] = [];
@@ -84,7 +97,13 @@ export const QuoteAgent: React.FC<{
           body: JSON.stringify({ request, today: localDay(), steps }),
         });
         const out = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(res.status === 429 ? 'Yapay zekâ kotası doldu, biraz sonra tekrar deneyin.' : `Ajan çalışamadı (${res.status}${out?.message ? `: ${out.message}` : ''}).`);
+        if (res.status === 429 && local && (local.draft.customerName || local.draft.items?.length)) {
+          // Kota dolu: kurallarla bulunabilenlerle taslak açılır, eksikler formda tamamlanır
+          setReply(`Yapay zekâ kotası dolu (her gece 03:00'te yenilenir). Bulabildiklerimle taslak açtım: ${local.notes.join(', ') || 'kontrol edin'}.`);
+          onDraft(local.draft);
+          return;
+        }
+        if (!res.ok) throw new Error(res.status === 429 ? 'Yapay zekâ kotası doldu (her gece 03:00\'te yenilenir). Firmayı ve ürünü daha açık yazarsanız kurallarla hazırlanabilir.' : `Ajan çalışamadı (${res.status}${out?.message ? `: ${out.message}` : ''}).`);
         const step: Step = out?.step || {};
         const calls = (step.calls || []).filter(c => TOOL_LABEL[c.tool] && c.arg).slice(0, 6);
         if (step.done || !calls.length || i === MAX_STEPS - 1) {
