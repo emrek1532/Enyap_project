@@ -1,0 +1,94 @@
+/**
+ * Yapay zekâsız teklif taslağı: "gemfaya 2000 adet c tipi 14 mm kelepçe son fiyattan" gibi bir istekten
+ * firma, adet ve ürünü kurallarla çıkarır. Ürün önce o firmanın geçmiş tekliflerinde aranır (en son fiyat ve iskonto),
+ * yoksa katalogda (tek aday varsa). Her şey kesinse ajan (yapay zekâ) hiç çağrılmaz; değilse eksikler ajana kalır.
+ */
+import { Customer, Quote, QuoteItem } from '../types';
+import { Material, foldTr, textMatcher } from './materials';
+import { PREF_KEY, PrefRule, listDiscounts, matchLine } from './requestRead';
+
+const STOP = /^(son|fiyat\w*|hazirla\w*|teklif\w*|ver|verin|verelim|icin|olarak|ile|gecen|sefer\w*|iskonto\w*|ayni\w*|lutfen|yap\w*|cikar\w*|gonder\w*|firma\w*|musteri\w*|bize|ona|kdv\w*|dahil|haric|olsun)$/;
+const QTY = /(\d+(?:[.,]\d+)?)\s*(adet|ad\.?|tane|mt|metre|m|takim|paket|kg|set)\b/;
+const UNIT: Record<string, QuoteItem['unit']> = { mt: 'Metre', metre: 'Metre', m: 'Metre', takim: 'Takım', paket: 'Paket', kg: 'Kg', set: 'Set' };
+
+export interface QuickDraft {
+  draft: Partial<Quote>;
+  /** Firma ve tüm kalemler kesin bulundu mu (ajan gerekmez) */
+  complete: boolean;
+  /** Bulunamayanlar / açıklama */
+  notes: string[];
+}
+
+/** İstekte geçen firmayı bulur: kelime, firma adının ilk kelimesiyle başlıyorsa ("gemfaya" → Gemfa Kazan) */
+function findCustomer(words: string[], customers: Customer[], quotes: Quote[]): { name: string; city?: string; word: string; parts: string[] } | null {
+  const names = new Map<string, { name: string; city?: string }>();
+  for (const c of customers) names.set(foldTr(c.name.trim()), { name: c.name, city: c.city });
+  for (const q of quotes) if (q.customerName && !names.has(foldTr(q.customerName.trim()))) names.set(foldTr(q.customerName.trim()), { name: q.customerName });
+  let best: { name: string; city?: string; word: string; parts: string[]; len: number } | null = null;
+  for (const [k, v] of names) {
+    const first = k.split(/\s+/)[0];
+    if (!first || first.length < 4) continue;
+    const w = words.find(x => x.startsWith(first) && x.length - first.length <= 4);
+    if (w && (!best || first.length > best.len)) best = { ...v, word: w, parts: k.split(/\s+/).filter(p => p.length >= 3), len: first.length };
+  }
+  return best;
+}
+
+export async function quickDraft(request: string, quotes: Quote[], customers: Customer[]): Promise<QuickDraft> {
+  const f = foldTr(request).replace(/(\d)\s*(''|”|″)/g, '$1"');
+  const words = f.split(/[^a-z0-9"/.,-]+/).filter(Boolean);
+  const cust = findCustomer(words, customers, quotes);
+  const notes: string[] = [];
+  if (!cust) notes.push('firma bulunamadı');
+
+  // Kalemler: "ve", virgül ya da satır sonuyla ayrılır
+  const segs = f.split(/\n|,(?!\d)|;|\sve\s|\s\+\s/).map(s => s.trim()).filter(Boolean);
+  const history = [...quotes].filter(q => !cust || foldTr(q.customerName.trim()) === foldTr(cust.name.trim()))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+  // Tercihli ürün kuralları ("genleşme" → VTSKGD…): talep okumadaki ayarın cihazdaki kopyası
+  let prefs: PrefRule[] = [];
+  try { prefs = JSON.parse(localStorage.getItem(`enyap-setting-${PREF_KEY}`) || '[]'); } catch { /* yok */ }
+  const items: QuoteItem[] = [];
+  let resolved = 0;
+  for (const seg of segs) {
+    const qm = QTY.exec(seg);
+    const qty = qm ? Number(qm[1].replace(',', '.')) : 1;
+    const unit = qm ? UNIT[qm[2].replace('.', '')] || 'Adet' : 'Adet';
+    const product = (qm ? seg.replace(qm[0], ' ') : seg).split(/\s+/)
+      // Firma adının kelimeleri ("emin mekaniğe" → emin, mekanik) ürüne karışmasın
+      .filter(w => w && w !== cust?.word && !cust?.parts.some(p => w.startsWith(p.slice(0, Math.max(4, p.length - 1)))) && !STOP.test(w))
+      .join(' ').trim();
+    if (!/[a-z]{2}/.test(product)) continue;
+    const id = `it-${Date.now()}-${items.length}`;
+    // 1) Bu firmaya en son verilen aynı ürün (fiyat ve iskontosuyla)
+    const match = textMatcher(product);
+    let hit: { it: QuoteItem; q: Quote } | null = null;
+    for (const q of cust ? history : []) {
+      const it = (q.items || []).find(i => i.unitPrice > 0 && match?.(`${i.productName} ${i.code || ''}`));
+      if (it) { hit = { it, q }; break; }
+    }
+    if (hit) {
+      items.push({ ...hit.it, id, quantity: qty, totalPrice: 0, currency: hit.it.currency || hit.q.currency || 'TRY' });
+      resolved++;
+      continue;
+    }
+    // 2) Katalog: ölçüsüyle tek aday varsa
+    const m = await matchLine({ text: seg, item: product, qty, unit, unsure: false }, prefs).catch(() => null);
+    const pick: Material | undefined = m?.pick ? m.cands.find(c => c.code === m.pick) : undefined;
+    if (pick) {
+      const disc = (await listDiscounts([pick.code]).catch(() => new Map<string, number>())).get(pick.code) || 0;
+      items.push({ id, code: pick.code, productName: pick.name, quantity: qty, unit: (pick.unit as QuoteItem['unit']) || unit, unitPrice: pick.price, currency: pick.currency, discount: disc, vatRate: pick.vatRate ?? 20, totalPrice: 0 });
+      resolved++;
+    } else {
+      items.push({ id, productName: product, quantity: qty, unit, unitPrice: 0, discount: 0, vatRate: 20, totalPrice: 0, notes: 'Katalogda seçin' });
+      notes.push(`"${product}" için ürün seçilmeli`);
+    }
+  }
+  if (!items.length) notes.push('ürün bulunamadı');
+  return {
+    draft: { ...(cust ? { customerName: cust.name, ...(cust.city ? { city: cust.city } : {}) } : {}), ...(items.length ? { items } : {}) },
+    complete: !!cust && items.length > 0 && resolved === items.length,
+    notes,
+  };
+}
