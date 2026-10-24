@@ -159,7 +159,14 @@ export const RequestReader: React.FC<{ customers: Customer[]; onDraft: (draft: P
                     </select>
                   </div>
                 ) : <div className="text-xs text-rose-700">Katalogda bulunamadı: teklif formunda elle ekleyin ya da atlayın.</div>)}
-                {!r.skip && r.pick && r.m.via === 'pref' && <div className="text-[11px] text-emerald-700">Tercihli ürün kuralıyla seçildi</div>}
+                {!r.skip && r.pick && (() => {
+                  const m = r.m.cands.find(c => c.code === r.pick);
+                  return m && (
+                    <div className="text-[11px] text-emerald-700 tabular-nums">
+                      <span className="font-mono">{m.code}</span> · {money(m)}{r.m.via === 'pref' ? ' · tercihli ürün kuralıyla seçildi' : ''}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
             <button onClick={toQuote} disabled={!!busy || open > 0 || !rows.some(r => !r.skip && r.pick)}
