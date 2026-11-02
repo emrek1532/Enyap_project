@@ -272,7 +272,8 @@ export async function rematchSupplierItems(listId: string, grp: string | null, o
 
 /**
  * Yapay zekâ ile eşleştirme (RAG): veritabanı her kalem için en benzer malzemeleri bulur, yapay zekâ bunlardan
- * aynı ürünü seçer ya da "yok" der. Elle bağlanan kalemlere dokunulmaz; yarıda kalırsa kaldığı yerden sürer.
+ * aynı ürünü seçer ya da "yok" der. Yalnızca bağsız kalemlere bakılır (kuralların bağladığına ve elle bağlanana dokunulmaz),
+ * adaylar aynı ölçüdekilerle sınırlıdır; yarıda kalırsa kaldığı yerden sürer.
  */
 export async function aiMatchList(listId: string, onInfo?: (info: string) => void): Promise<{ checked: number; linked: number }> {
   const { data: s } = await supabase.auth.getSession();
@@ -303,10 +304,11 @@ export async function aiMatchList(listId: string, onInfo?: (info: string) => voi
       // Cevapta olmayan kalem mevcut bağıyla kalır
       for (const r of chunk) results.push({ id: r.id, code: got.has(r.id) ? got.get(r.id)! : r.current });
     }));
-    const { error: e2 } = await supabase.rpc('supplier_ai_apply', { p: results });
+    // Sunucu ölçüsü tutmayan seçimi yazmaz; dönen sayı gerçekten bağlananlardır
+    const { data: n, error: e2 } = await supabase.rpc('supplier_ai_apply', { p: results });
     if (e2) throw e2;
     checked += results.length;
-    linked += results.filter(r => r.code).length;
+    linked += Number(n) || 0;
     onInfo?.(`yapay zekâ eşleştiriyor · ${checked} kalem, ${linked} bağlandı`);
   }
   return { checked, linked };
