@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, Loader2, Mic, Send, Square, X } from 'lucide-react';
 import { QuickNote, UserRole } from '../types';
 import { canRecord, startRecording, RecordingHandle } from '../lib/recorder';
+import { canSpeech, listen, SpeechSession } from '../lib/speech';
 import { supabase } from '../lib/supabase';
 import { formatReminder, parseReminder, toLocalInput } from '../lib/noteTime';
 
@@ -42,7 +43,7 @@ export const NoteComposer: React.FC<{
   const [remindAt, setRemindAt] = useState<string | null>(editing?.remindAt || null);
   const [manualRemind, setManualRemind] = useState(!!editing?.remindAt);
   const [showPicker, setShowPicker] = useState(false);
-  const [rec, setRec] = useState<RecordingHandle | null>(null);
+  const [rec, setRec] = useState<RecordingHandle | SpeechSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -61,6 +62,24 @@ export const NoteComposer: React.FC<{
   const mic = async () => {
     setErr('');
     if (rec) { rec.stop(); return; }
+    // Telefonun kendi tanıyıcısı varsa dikte tamamen cihazda yapılır ve yazı kutuya canlı akar;
+    // susunca bitmez, mikrofona tekrar dokununca biter.
+    if (canSpeech()) {
+      const base = text.trim();
+      const join = (said: string) => (base ? `${base} ${said}` : said);
+      try {
+        const s = listen({ continuous: true, onInterim: (t) => setText(join(t)) });
+        setRec(s);
+        const said = await s.result;
+        if (said) setText(join(said));
+        taRef.current?.focus();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Ses alınamadı.');
+      } finally {
+        setRec(null);
+      }
+      return;
+    }
     if (!canRecord()) { setErr('Bu cihazda ses kaydı desteklenmiyor.'); return; }
     try {
       const h = await startRecording({ silenceMs: 2500, maxMs: 90000 });

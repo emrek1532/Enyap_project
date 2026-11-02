@@ -296,10 +296,12 @@ async function handleVoice(req: Request, env: Env): Promise<Response> {
   if (!env.AI) return json({ error: 'no_ai', message: 'Sunucuda ses tanıma tanımlı değil.' }, 503);
   if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized', message: 'Oturum açın.' }, 401);
   const body = await readBody(req);
-  if (!body?.audio || body.audio.length > 8_000_000) return json({ error: 'bad_request', message: 'Ses kaydı alınamadı.' }, 400);
+  // Telefonun kendi konuşma tanıması yazıyı hazır gönderebilir; o zaman Whisper (ve kotası) atlanır
+  const sentText = typeof body?.text === 'string' ? body.text.trim().slice(0, 2000) : '';
+  if (!sentText && (!body?.audio || body.audio.length > 8_000_000)) return json({ error: 'bad_request', message: 'Ses kaydı alınamadı.' }, 400);
 
-  let text = '';
-  try {
+  let text = sentText;
+  if (!text) try {
     const opts = { task: 'transcribe', language: 'tr', vad_filter: true, condition_on_previous_text: false, initial_prompt: VOCAB };
     let tr: any;
     try {
