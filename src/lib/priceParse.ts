@@ -7,8 +7,9 @@ import { Currency } from './money';
 
 export interface ParsedItem { code: string; name: string; price: number; unit: string; grp?: string; currency?: Currency }
 
-// 1.234,56 · 1234,56 · 1,234.56 · 1234.56 (en az 2 ondalık hane)
-const PRICE = /(\d{1,3}(?:[.\s]\d{3})+,\d{2,4}|\d+,\d{2,4}|\d{1,3}(?:,\d{3})+\.\d{2,4}|\d+\.\d{2,4})/g;
+// 1.234,56 · 1 234,56 · 1234,56 · 1,234.56 · 1234.56 (en az 2 ondalık hane).
+// Boşluklu binlik ayraç yalnız önünde harf/rakam yokken: "DN25 364,65" → 364,65 (25.364,65 değil)
+const PRICE = /(\d{1,3}(?:\.\d{3})+,\d{2,4}|(?<![A-Za-zÇĞİÖŞÜçğıöşü\d])\d{1,3}(?:\s\d{3})+,\d{2,4}|\d+,\d{2,4}|\d{1,3}(?:,\d{3})+\.\d{2,4}|\d+\.\d{2,4})/g;
 const CUR_TOKEN = /\s*(?:€|\$|₺|TL|TRY|EUR|EURO|USD)\b\.?/gi;
 const MONTHS = ['ocak', 'şubat', 'mart', 'nisan', 'mayıs', 'haziran', 'temmuz', 'ağustos', 'eylül', 'ekim', 'kasım', 'aralık'];
 const HEADER = /(fiyat\s*listesi|liste\s*fiyat|birim\s*fiyat|ürün\s*kodu|stok\s*kodu|açıklama|sayfa\s*\d|www\.|tel\s*:|fax|e-?posta|@)/i;
@@ -22,6 +23,25 @@ export function parseNumber(s: string): number {
     ? Number(t.replace(/\./g, '').replace(',', '.'))
     : Number(t.replace(/,/g, ''));
   return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Okunan ürün adını toparlar: art arda tekrar eden kelime(ler) tek yazılır ("BeZe BEZE Duş Kanalı" → "BeZe Duş Kanalı",
+ * "60 CM 60 cm" → "60 CM"; "Erkek Erkek" korunur), sondaki tek "-" atılır. Harfsiz tekrarlar (eşit te ölçüsü 1/2" 1/2") korunur.
+ */
+export function tidyItemName(name: string): string {
+  const w = name.replace(/\s+/g, ' ').trim().split(' ');
+  const low = (x: string) => x.toLocaleLowerCase('tr');
+  for (let n = 3; n >= 1; n--) {
+    for (let i = 0; i + 2 * n <= w.length; i++) {
+      const a = w.slice(i, i + n), b = w.slice(i + n, i + 2 * n);
+      const sa = a.join(' '), sb = b.join(' ');
+      // Tek kelimede yalnız marka yazımı ("BeZe BEZE", "BeZe BeZe"); "Erkek Erkek Dirsek" korunur
+      const brandish = n > 1 || sa !== sb || /[a-zçğıöşü][A-ZÇĞİÖŞÜ]/.test(sa);
+      if (/[A-Za-zÇĞİÖŞÜçğıöşü]/.test(sa) && low(sa) === low(sb) && brandish) { w.splice(i + n, n); i--; }
+    }
+  }
+  return w.join(' ').replace(/\s+[-–—]$/, '').trim();
 }
 
 /** Rakam içeren, harf/rakam/-./ dan oluşan kısa kelime: ürün kodu adayı (1/2" gibi ölçüler hariç) */
