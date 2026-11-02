@@ -12,7 +12,8 @@ import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
 import { catalogCode, logPdfItemLoss, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
-import { CheckRow, checkQuote, compareWithHistory, totalsMismatch } from '../lib/quoteCheck';
+import { CheckRow, Suggestion, checkQuote, compareWithHistory, suggestMatches, totalsMismatch } from '../lib/quoteCheck';
+import { learnFromLinked, setSupplierOurCode } from '../lib/suppliers';
 
 interface NewQuoteModalProps {
   currentRole: UserRole;
@@ -333,6 +334,26 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   // PDF'ten okunan kalem adları: kayıtta eksik kalem varsa tanı kaydı için
   const pdfRead = useRef<string[] | null>(null);
 
+  // Öneriyi kabul: firma kalemini bu ürüne elle bağlar (aynı adlı diğer ölçüler de öğrenilir), kalemi yeniden kontrol eder
+  const [linking, setLinking] = useState<number | null>(null);
+  const linkSuggestion = async (row: CheckRow, s: Suggestion) => {
+    if (!row.code) return;
+    setLinking(s.id);
+    try {
+      await setSupplierOurCode(s.id, row.code);
+      await learnFromLinked(s.id).catch(() => 0);
+      const one = await checkQuote({ items: [row.item] } as Parameters<typeof checkQuote>[0]).catch(() => null);
+      const fresh = one && compareWithHistory(one, quotes, customerName, quoteNoInput || null)[0];
+      setPdfCheck(prev => prev && prev.map(r => (r.item.id === row.item.id
+        ? (fresh ? { ...fresh, item: row.item, suggest: undefined, linked: `${s.list} · ${s.name}` } : { ...r, suggest: undefined, linked: `${s.list} · ${s.name}` })
+        : r)));
+    } catch (e) {
+      alert(`Bağlanamadı: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setLinking(null);
+    }
+  };
+
   const fillFromPdf = async (file: File) => {
     setPdfBusy(true); setPdfMsg(null); setPdfCheck(null);
     try {
@@ -367,7 +388,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         pdfRead.current = pdf.items.map(it => it.productName.trim());
         const listed = await checkQuote(pdf).catch(() => null);
         // Aynı ürünün daha önceki tekliflerdeki iskontosuyla karşılaştır (önce aynı firma)
-        const rows = listed && compareWithHistory(listed, quotes, pdf.customerName, pdf.quoteNumber);
+        const hist = listed && compareWithHistory(listed, quotes, pdf.customerName, pdf.quoteNumber);
+        // Listeye bağlı olmayan ürünler için firma listelerinden benzer kalem önerisi
+        const rows = hist && await suggestMatches(hist);
         setPdfCheck(rows ? rows.map((r, k) => ({ ...r, item: { ...r.item, id: ids[k] } })) : null);
       }
       setPdfMeta({ preparedBy: pdf.preparedBy || undefined, date: pdf.date || undefined });
@@ -530,10 +553,28 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       <span className="font-semibold">{r.item.productName}</span>
                       <span className="text-slate-600"> · bu teklifte %{(r.item.discount || 0).toLocaleString('tr-TR')}
                         {r.history
-                          ? ` · önceki %${r.history.discount.toLocaleString('tr-TR')} (${r.history.own ? 'bu firma' : r.history.customer}, ${day(r.history.date)}, ${r.history.quoteNumber})`
+                          ? ` · önceki %${r.history.discount.toLocaleString('tr-TR')}${r.history.price ? `, ${r.history.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${r.history.currency === 'TRY' ? 'TL' : r.history.currency}` : ''} (${r.history.own ? 'bu firma' : r.history.customer}, ${day(r.history.date)}, ${r.history.quoteNumber})`
                           : ' · daha önce teklif edilmemiş'}
                       </span>
                       {r.issues.map(x => <div key={x.text} className={x.level === 'error' ? 'text-rose-700' : 'text-amber-700'}>· {x.text}</div>)}
+                      {r.linked && <div className="text-emerald-700">✓ Fiyat listesine bağlandı: {r.linked}</div>}
+                      {r.suggest && r.suggest.length > 0 && (
+                        <div className="mt-1 rounded bg-white/70 border border-amber-200 px-2 py-1.5 space-y-1">
+                          <div className="text-slate-600">Firma listelerinde benzeri var gibi, aynı ürünse bağlayın:</div>
+                          {r.suggest.map(s => (
+                            <div key={s.id} className="flex items-center gap-2">
+                              <div className="flex-1 min-w-0 text-slate-800">
+                                <b>{s.list}</b> · {s.name} · {s.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {s.currency === 'TRY' ? 'TL' : s.currency}
+                                {s.discount > 0 && <span className="text-slate-500"> (liste iskontosu %{s.discount.toLocaleString('tr-TR')})</span>}
+                              </div>
+                              <button type="button" disabled={linking !== null} onClick={() => linkSuggestion(r, s)}
+                                className="shrink-0 px-2 py-0.5 rounded bg-sky-600 text-white font-bold disabled:opacity-50">
+                                {linking === s.id ? '…' : 'Bağla'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {bad.length > 0 && (
