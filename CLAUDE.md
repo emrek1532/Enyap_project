@@ -16,6 +16,7 @@ Kullanıcı yazılım ve yapay zekâyı öğrenmek istiyor: her işte, yapılan 
 - Google Sheets eşitleme: tetikleyiciler + Apps Script (`integrations/google-sheets/Code.gs`; gizli anahtar repoda yer tutucu).
 
 ## Kurallar
+- Token tasarrufu: SQL/araç sonuçlarını özet döndür (sayı + 5-10 örnek, `count`/`limit`); tüm listeyi ekrana dökme, toplu işi veritabanında yap. Kullanıcıya her yeni iş için yeni oturum öner.
 - SQL'de DELETE ve DROP kelimelerini yazma (onay adımı zaman aşımına uğruyor); silme gerekiyorsa SQL'i kullanıcıya ver.
 - Carilere (müşteriler) ekleme/çıkarma yapma; değişiklik öncesi yedek al.
 - Yeni özellik eklemeden önce veri/istek kullanımına etkisine bak.
