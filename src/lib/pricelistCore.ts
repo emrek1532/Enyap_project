@@ -183,7 +183,8 @@ export function markAmbiguous(items: { name: string; price: number; code?: strin
  * listesi varsa yeni liste onun yerine geçer (eşleştirmeler, iskonto, logo ve firma adı taşınır, eski liste kaldırılır).
  */
 export async function saveSupplierList(fileName: string, parsed: ListItem[], currency: Currency, onInfo?: (info: string) => void) {
-  const { guessListInfo, listIdFor } = await import('./priceParse');
+  const { guessListInfo, listIdFor, tidyItemName } = await import('./priceParse');
+  for (const it of parsed) it.name = tidyItemName(it.name);
   const { name, listDate } = guessListInfo(fileName);
   const listId = listIdFor(name, listDate);
   const ambiguous = markAmbiguous(parsed);
