@@ -210,7 +210,7 @@ export const SupplierListsPanel: React.FC = () => {
       if (code) {
         // aynı adlı diğer ölçüler de bu kodun ailesine bağlanır
         const n = await learnFromLinked(it.id).catch(() => 0);
-        if (n > 0) { setNotice(`Aynı türden ${n} kalem daha ${code.replace(/\d.*$/, '')}… kodlarına bağlandı`); load(0, false); }
+        if (n > 0) { setNotice(`Aynı ürünün ${n} farklı ölçüsü de ${code.replace(/\d.*$/, '')}… kodlarına bağlandı`); load(0, false); }
       }
     } catch (e) {
       setError((e as { message?: string })?.message || 'Kaydedilemedi');
