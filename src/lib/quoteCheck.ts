@@ -28,7 +28,7 @@ export interface CheckRow {
   linked?: string;
 }
 
-export interface Suggestion { id: number; list: string; name: string; price: number; currency: string; discount: number; score: number }
+export interface Suggestion { id: number; list: string; name: string; price: number; currency: string; discount: number; score: number; /** Liste fiyatı teklifteki birim fiyatla birebir */ priceHit?: boolean }
 
 interface ListHit { list_id: string; price: number; currency: string; our_code: string }
 
@@ -173,14 +173,21 @@ export function compareWithHistory(rows: CheckRow[], quotes: Quote[], customerNa
 
 /**
  * Hiçbir fiyat listesine bağlı olmayan kalemler için öneri: firma listelerindeki bağsız kalemlerden en benzer 2'si
- * (veritabanında pg_trgm benzerliği + ölçü/marka/zıt özellik kuralları, yapay zekâ kullanılmaz).
+ * (veritabanında pg_trgm benzerliği + birim fiyat birebir + ölçü/marka/zıt özellik kuralları, yapay zekâ kullanılmaz).
  */
 export async function suggestMatches(rows: CheckRow[]): Promise<CheckRow[]> {
   const want = rows.filter(r => r.code && !r.list && r.issues.some(x => /fiyat listesine bağlı değil/.test(x.text)));
   if (!want.length) return rows;
-  const { data, error } = await supabase.rpc('supplier_suggest', { p: want.map(r => ({ code: r.code, name: r.item.productName })) });
+  // Birim fiyat da gönderilir: teklifteki liste fiyatıyla birebir tutan firma kalemi öne alınır
+  const { data, error } = await supabase.rpc('supplier_suggest', {
+    p: want.map(r => ({ code: r.code, name: r.item.productName, price: r.item.unitPrice || null, currency: r.item.currency || 'TRY' })),
+  });
   if (error) return rows;
   const by = new Map<string, Suggestion[]>();
-  for (const x of (data || []) as { code: string; items: Suggestion[] }[]) by.set(x.code, x.items.map(s => ({ ...s, price: Number(s.price), discount: Number(s.discount || 0) })));
+  for (const x of (data || []) as { code: string; items: (Suggestion & { price_hit?: boolean })[] }[]) {
+    const all = x.items.map(s => ({ ...s, price: Number(s.price), discount: Number(s.discount || 0), priceHit: !!s.price_hit }));
+    // Fiyatı tutan varsa yalnız onlar gösterilir (sadece adı benzeyenler gürültü olur)
+    by.set(x.code, all.some(s => s.priceHit) ? all.filter(s => s.priceHit) : all);
+  }
   return rows.map(r => (r.code && !r.list && by.has(r.code) ? { ...r, suggest: by.get(r.code) } : r));
 }
