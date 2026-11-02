@@ -3,6 +3,7 @@ import { Loader2, Mic, Square, X } from 'lucide-react';
 import { Collection, Expense, Quote, QuoteItem } from '../types';
 import { supabase } from '../lib/supabase';
 import { canRecord, startRecording, RecordingHandle } from '../lib/recorder';
+import { canSpeech, listen, SpeechSession } from '../lib/speech';
 import { localDay } from '../lib/dates';
 import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './LedgerPanel';
 import { TURKISH_CITIES } from '../lib/cities';
@@ -27,18 +28,36 @@ export const VoiceCommand: React.FC<{
   const [state, setState] = useState<'idle' | 'rec' | 'busy'>('idle');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [level, setLevel] = useState(0);
-  const handle = useRef<RecordingHandle | null>(null);
+  const [live, setLive] = useState('');
+  const handle = useRef<RecordingHandle | SpeechSession | null>(null);
 
   const start = async () => {
-    if (!canRecord()) { setMsg({ ok: false, text: 'Bu cihazda ses kaydı desteklenmiyor.' }); return; }
+    const useSpeech = canSpeech();
+    if (!useSpeech && !canRecord()) { setMsg({ ok: false, text: 'Bu cihazda ses kaydı desteklenmiyor.' }); return; }
     setMsg(null);
+    setLive('');
     try {
-      const h = await startRecording({ silenceMs: 2200, maxMs: 60000, onLevel: setLevel });
-      handle.current = h;
-      setState('rec');
-      const audio = await h.result;
-      handle.current = null;
-      if (!audio) { setState('idle'); return; }
+      // Telefonun kendi tanıyıcısı varsa yazıya çevirme cihazda yapılır (hızlı, kota harcamaz);
+      // yoksa ses kaydedilip sunucudaki Whisper'a gönderilir.
+      let payload: { text: string } | { audio: string };
+      if (useSpeech) {
+        const s = listen({ onInterim: setLive });
+        handle.current = s;
+        setState('rec');
+        const said = await s.result;
+        handle.current = null;
+        if (!said) { setState('idle'); setMsg({ ok: false, text: 'Ses algılanamadı, tekrar deneyin.' }); return; }
+        setLive(said);
+        payload = { text: said };
+      } else {
+        const h = await startRecording({ silenceMs: 2200, maxMs: 60000, onLevel: setLevel });
+        handle.current = h;
+        setState('rec');
+        const audio = await h.result;
+        handle.current = null;
+        if (!audio) { setState('idle'); return; }
+        payload = { audio };
+      }
       setState('busy');
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
@@ -46,7 +65,7 @@ export const VoiceCommand: React.FC<{
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
-          audio, today: localDay(), customers: customers.slice(0, 1500),
+          ...payload, today: localDay(), customers: customers.slice(0, 1500),
           expenseCategories: EXPENSE_CATEGORIES, expenseMethods: EXPENSE_METHODS, regions: TURKISH_CITIES, banks: BANKS,
         }),
       });
@@ -91,7 +110,9 @@ export const VoiceCommand: React.FC<{
         </span>
         <span className="min-w-0">
           <span className="block text-sm font-black text-slate-900">{state === 'rec' ? 'Dinliyorum… bitince susun ya da dokunun' : state === 'busy' ? 'Anlaşılıyor…' : 'Sesle kayıt gir'}</span>
-          <span className="block text-[11px] text-slate-500 truncate">Örn: "Ahmet Isı'dan 50 bin çek aldım, vade 30 Kasım" · "Opet'e 2.400 lira yakıt"</span>
+          <span className="block text-[11px] text-slate-500 truncate">
+            {live && state !== 'idle' ? `“${live}”` : 'Örn: "Ahmet Isı\'dan 50 bin çek aldım, vade 30 Kasım" · "Opet\'e 2.400 lira yakıt"'}
+          </span>
         </span>
       </button>
       {msg && (
