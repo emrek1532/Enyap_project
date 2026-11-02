@@ -21,8 +21,14 @@ export interface CheckRow {
   loss?: number;
   level: CheckLevel;
   /** Aynı ürünün en son verildiği teklif (önce aynı firma) */
-  history?: { customer: string; date: string; quoteNumber: string; discount: number; own: boolean };
+  history?: { customer: string; date: string; quoteNumber: string; discount: number; own: boolean; price?: number; currency?: string };
+  /** Hiçbir listeye bağlı değilse: firma listelerinde benzer (bağsız) kalemler */
+  suggest?: Suggestion[];
+  /** Öneri kabul edilip bağlandıysa: "liste · kalem" */
+  linked?: string;
 }
+
+export interface Suggestion { id: number; list: string; name: string; price: number; currency: string; discount: number; score: number }
 
 interface ListHit { list_id: string; price: number; currency: string; our_code: string }
 
@@ -141,14 +147,40 @@ export function compareWithHistory(rows: CheckRow[], quotes: Quote[], customerNa
     const issues = [...r.issues];
     const now = r.item.discount || 0;
     const ref = own || any;
+    const prevCur = ref ? ref.it.currency || ref.q.currency || 'TRY' : undefined;
     if (ref) {
       const was = ref.it.discount || 0;
       const who = own ? 'Bu firmaya' : `${ref.q.customerName} firmasına`;
       if (Math.abs(was - now) >= 0.05) {
         issues.push({ level: 'warn', text: `${who} en son ${day(ref.q.createdAt)} tarihli ${ref.q.quoteNumber} teklifinde ${pct(was)} iskonto verilmiş, bu teklifte ${pct(now)}` });
       }
+      // Birim (liste) fiyat da karşılaştırılır: aynı para biriminde %0,5'ten fazla fark uyarılır
+      const cur = r.item.currency || 'TRY';
+      const was$ = ref.it.unitPrice || 0, now$ = r.item.unitPrice || 0;
+      if (was$ > 0 && now$ > 0) {
+        if (prevCur !== cur) {
+          issues.push({ level: 'warn', text: `${who} en son ${ref.q.quoteNumber} teklifinde ${fmt(was$, prevCur)} verilmiş, bu teklifte ${fmt(now$, cur)} (para birimi farklı)` });
+        } else if (Math.abs(now$ - was$) > Math.max(0.011, was$ * 0.005)) {
+          const ch = Math.round(((now$ - was$) / was$) * 1000) / 10;
+          issues.push({ level: 'warn', text: `Birim fiyat: ${who.toLocaleLowerCase('tr')} en son ${ref.q.quoteNumber} teklifinde ${fmt(was$, cur)}, bu teklifte ${fmt(now$, cur)} (${ch > 0 ? '+' : '-'}${pct(Math.abs(ch))})` });
+        }
+      }
     }
     const level: CheckLevel = issues.some(x => x.level === 'error') ? 'error' : issues.length ? 'warn' : 'ok';
-    return { ...r, issues, level, history: ref ? { customer: ref.q.customerName, date: ref.q.createdAt, quoteNumber: ref.q.quoteNumber, discount: ref.it.discount || 0, own: !!own } : undefined };
+    return { ...r, issues, level, history: ref ? { customer: ref.q.customerName, date: ref.q.createdAt, quoteNumber: ref.q.quoteNumber, discount: ref.it.discount || 0, own: !!own, price: ref.it.unitPrice, currency: prevCur } : undefined };
   });
+}
+
+/**
+ * Hiçbir fiyat listesine bağlı olmayan kalemler için öneri: firma listelerindeki bağsız kalemlerden en benzer 2'si
+ * (veritabanında pg_trgm benzerliği + ölçü/marka/zıt özellik kuralları, yapay zekâ kullanılmaz).
+ */
+export async function suggestMatches(rows: CheckRow[]): Promise<CheckRow[]> {
+  const want = rows.filter(r => r.code && !r.list && r.issues.some(x => /fiyat listesine bağlı değil/.test(x.text)));
+  if (!want.length) return rows;
+  const { data, error } = await supabase.rpc('supplier_suggest', { p: want.map(r => ({ code: r.code, name: r.item.productName })) });
+  if (error) return rows;
+  const by = new Map<string, Suggestion[]>();
+  for (const x of (data || []) as { code: string; items: Suggestion[] }[]) by.set(x.code, x.items.map(s => ({ ...s, price: Number(s.price), discount: Number(s.discount || 0) })));
+  return rows.map(r => (r.code && !r.list && by.has(r.code) ? { ...r, suggest: by.get(r.code) } : r));
 }
