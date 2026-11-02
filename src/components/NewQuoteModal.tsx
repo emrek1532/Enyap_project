@@ -566,6 +566,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                               <div className="flex-1 min-w-0 text-slate-800">
                                 <b>{s.list}</b> · {s.name} · {s.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {s.currency === 'TRY' ? 'TL' : s.currency}
                                 {s.discount > 0 && <span className="text-slate-500"> (liste iskontosu %{s.discount.toLocaleString('tr-TR')})</span>}
+                                {s.priceHit && <span className="text-emerald-700 font-semibold"> · fiyat birebir tutuyor</span>}
                               </div>
                               <button type="button" disabled={linking !== null} onClick={() => linkSuggestion(r, s)}
                                 className="shrink-0 px-2 py-0.5 rounded bg-sky-600 text-white font-bold disabled:opacity-50">
