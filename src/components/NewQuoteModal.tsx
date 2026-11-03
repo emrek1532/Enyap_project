@@ -12,7 +12,8 @@ import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
 import { catalogCode, logPdfItemLoss, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
-import { CheckRow, Suggestion, checkQuote, compareWithHistory, suggestMatches, totalsMismatch } from '../lib/quoteCheck';
+import { BrandNote, CheckRow, Suggestion, runQuoteCheck, totalsMismatch } from '../lib/quoteCheck';
+import { SuggestMatchBox } from './SuggestMatchBox';
 import { learnFromLinked, setSupplierOurCode } from '../lib/suppliers';
 
 interface NewQuoteModalProps {
@@ -327,6 +328,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const [pdfMeta, setPdfMeta] = useState<{ preparedBy?: string; date?: string } | null>(null);
   // PDF'teki kalemlerin liste fiyatı ve liste iskontosuyla kontrolü (uyarı verir, kaydı engellemez)
   const [pdfCheck, setPdfCheck] = useState<CheckRow[] | null>(null);
+  // Marka notları: iskonto kuralı ve toplu fiyat farkı (liste değişmiş)
+  const [pdfNotes, setPdfNotes] = useState<BrandNote[]>([]);
+  // Kontrolün firma ve teklif no'su (öneri bağlanınca kontrol yeniden çalışır)
+  const checkCtx = useRef<{ customer: string | null; quoteNo: string | null }>({ customer: null, quoteNo: null });
   // PDF'teki teklif no sistemde zaten var mı (yeni teklif açarken)
   const [existing, setExisting] = useState<{ q: Quote; file: File } | null>(null);
   const normNo = (s?: string) => (s || '').trim().toLocaleUpperCase('tr');
@@ -342,11 +347,17 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     try {
       await setSupplierOurCode(s.id, row.code);
       await learnFromLinked(s.id).catch(() => 0);
-      const one = await checkQuote({ items: [row.item] } as Parameters<typeof checkQuote>[0]).catch(() => null);
-      const fresh = one && compareWithHistory(one, quotes, customerName, quoteNoInput || null)[0];
-      setPdfCheck(prev => prev && prev.map(r => (r.item.id === row.item.id
-        ? (fresh ? { ...fresh, item: row.item, suggest: undefined, linked: `${s.list} · ${s.name}` } : { ...r, suggest: undefined, linked: `${s.list} · ${s.name}` })
-        : r)));
+      // Marka kuralları kalemler birlikte değerlendirildiği için tüm kontrol yeniden çalışır
+      const prev = pdfCheck || [];
+      const res = await runQuoteCheck(prev.map(r => r.item), quotes, checkCtx.current.customer, checkCtx.current.quoteNo).catch(() => null);
+      const linked = new Map(prev.filter(r => r.linked).map(r => [r.item.id, r.linked!]));
+      linked.set(row.item.id, `${s.list} · ${s.name}`);
+      if (res) {
+        setPdfCheck(res.rows.map(r => (linked.has(r.item.id) ? { ...r, suggest: undefined, linked: linked.get(r.item.id) } : r)));
+        setPdfNotes(res.notes);
+      } else {
+        setPdfCheck(p => p && p.map(r => (r.item.id === row.item.id ? { ...r, suggest: undefined, linked: linked.get(r.item.id) } : r)));
+      }
     } catch (e) {
       alert(`Bağlanamadı: ${e instanceof Error ? e.message : e}`);
     } finally {
@@ -355,7 +366,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   };
 
   const fillFromPdf = async (file: File) => {
-    setPdfBusy(true); setPdfMsg(null); setPdfCheck(null);
+    setPdfBusy(true); setPdfMsg(null); setPdfCheck(null); setPdfNotes([]);
     try {
       const pdf = await readQuotePdf(file);
       if (!pdf.items.length && !pdf.quoteNumber) {
@@ -367,9 +378,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         const found = quotes.find(q => normNo(q.quoteNumber) === normNo(pdf.quoteNumber));
         setExisting(found ? { q: found, file } : null);
       }
+      // Kontrolde kullanılacak firma: düzenlemede formdaki, yenide PDF'ten eşleşen
+      let checkCustomer: string | null = isEdit ? customerName : pdf.customerName;
       if (pdf.customerName && !isEdit) {
         const names = [...new Set([...customers.map(c => c.name), ...quotes.map(q => q.customerName)].filter(Boolean))];
         const name = matchCustomer(pdf.customerName, names) || titleTr(pdf.customerName.split(/\s+/).slice(0, 3).join(' '));
+        checkCustomer = name;
         handleCustomerNameChange(name);
         if (!findCustomer(customers, name)) {
           const known = quotes.find(q => q.customerName === name)?.city;
@@ -386,15 +400,15 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         const ids = pdf.items.map((_, k) => `it-${Date.now()}-${k}`);
         setItems(pdf.items.map((it, k) => ({ ...it, id: ids[k] })));
         pdfRead.current = pdf.items.map(it => it.productName.trim());
-        const listed = await checkQuote(pdf).catch(() => null);
-        // Aynı ürünün daha önceki tekliflerdeki iskontosuyla karşılaştır (önce aynı firma)
-        const hist = listed && compareWithHistory(listed, quotes, pdf.customerName, pdf.quoteNumber);
-        // Listeye bağlı olmayan ürünler için firma listelerinden benzer kalem önerisi
-        const rows = hist && await suggestMatches(hist);
-        setPdfCheck(rows ? rows.map((r, k) => ({ ...r, item: { ...r.item, id: ids[k] } })) : null);
+        // Liste fiyatı + marka iskonto kuralı + geçmiş + bağsız ürünlere eşleşme önerisi
+        const quoteNo = pdf.quoteNumber || (isEdit ? editQuote!.quoteNumber : null);
+        checkCtx.current = { customer: checkCustomer, quoteNo };
+        const res = await runQuoteCheck(pdf.items.map((it, k) => ({ ...it, id: ids[k] })), quotes, checkCustomer, quoteNo).catch(() => null);
+        setPdfCheck(res ? res.rows : null);
+        setPdfNotes(res ? res.notes : []);
       }
       setPdfMeta({ preparedBy: pdf.preparedBy || undefined, date: pdf.date || undefined });
-      // Kalem okunamadıysa (sıra boşluğu ya da genel toplam tutmuyor) uyarı kırmızı gösterilir
+      // Kalem okunamadıysa (sıra boşluğu ya da genel toplam tutmuyor) uyarı sarı gösterilir
       const missing = [...pdf.warnings.filter(w => /okunamad/.test(w)), ...totalsMismatch(pdf)];
       const other = pdf.warnings.filter(w => !/okunamad/.test(w));
       setPdfMsg(missing.length
@@ -532,60 +546,57 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               <div className="text-xs rounded-md px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200">{pdfNotice}</div>
             )}
             {pdfMsg && (
-              <div className={`text-xs rounded-md px-3 py-2 ${pdfMsg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+              <div className={`text-xs rounded-md px-3 py-2 ${pdfMsg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-900 border border-amber-300'}`}>
                 {pdfMsg.text}
               </div>
             )}
             {pdfCheck && (() => {
-              const bad = pdfCheck.filter(r => r.issues.length);
-              const hasError = pdfCheck.some(r => r.level === 'error');
-              const discFix = pdfCheck.filter(r => r.list && r.list.discount > 0 && r.issues.some(x => /iskonto: /.test(x.text)));
+              // Kırmızı yok: sarı (bakılmalı) ve gri (bilgi)
+              const warnRows = pdfCheck.filter(r => r.level === 'warn');
+              const warnNotes = pdfNotes.filter(n => n.level === 'warn');
+              const warnCount = warnRows.length + warnNotes.length;
+              const infoOnly = !warnCount && (pdfNotes.length > 0 || pdfCheck.some(r => r.issues.length));
+              const discFix = pdfCheck.filter(r => r.expected !== undefined && Math.abs((r.item.discount || 0) - r.expected) >= 0.05);
               const day = (iso: string) => (iso || '').slice(0, 10).split('-').reverse().join('.');
-              const tone = hasError ? 'bg-rose-50 text-rose-900 border-rose-200' : bad.length ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-emerald-50 text-emerald-900 border-emerald-200';
+              const tone = warnCount ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-emerald-50 text-emerald-900 border-emerald-200';
+              const pctTr = (v: number) => `%${v.toLocaleString('tr-TR')}`;
               return (
                 <div className={`text-xs rounded-md px-3 py-2.5 border space-y-1.5 ${tone}`}>
                   <div className="font-bold">
-                    {bad.length ? `Kontrol: ${bad.length} kalemde uyarı` : '✓ Fiyatlar ve iskontolar fiyat listeleriyle ve önceki tekliflerle uyumlu'}
+                    {warnCount ? `Kontrol: ${warnCount} uyarı` : infoOnly ? '✓ Önemli uyarı yok (bilgi notları aşağıda)' : '✓ Fiyatlar ve iskontolar fiyat listeleriyle ve önceki tekliflerle uyumlu'}
                   </div>
+                  {/* Marka notları: firmanın bu markada son aldığı iskonto, toplu fiyat farkı */}
+                  {pdfNotes.map(n => (
+                    <div key={n.list + n.text} className={n.level === 'warn' ? 'text-amber-800 font-semibold' : 'text-slate-600'}>• {n.text}</div>
+                  ))}
                   {/* Her kalem: bu teklifteki iskonto ve aynı ürüne en son verilen iskonto (önce aynı firma) */}
                   {pdfCheck.map(r => (
                     <div key={r.item.id}>
                       <span className="font-semibold">{r.item.productName}</span>
-                      <span className="text-slate-600"> · bu teklifte %{(r.item.discount || 0).toLocaleString('tr-TR')}
+                      <span className="text-slate-600"> · bu teklifte {pctTr(r.item.discount || 0)}
+                        {r.list && ` · ${r.list.name}`}
                         {r.history
-                          ? ` · önceki %${r.history.discount.toLocaleString('tr-TR')}${r.history.price ? `, ${r.history.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${r.history.currency === 'TRY' ? 'TL' : r.history.currency}` : ''} (${r.history.own ? 'bu firma' : r.history.customer}, ${day(r.history.date)}, ${r.history.quoteNumber})`
+                          ? ` · önceki ${pctTr(r.history.discount)}${r.history.price ? `, ${r.history.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${r.history.currency === 'TRY' ? 'TL' : r.history.currency}` : ''} (${r.history.own ? 'bu firma' : r.history.customer}, ${day(r.history.date)}, ${r.history.quoteNumber})`
                           : ' · daha önce teklif edilmemiş'}
                       </span>
-                      {r.issues.map(x => <div key={x.text} className={x.level === 'error' ? 'text-rose-700' : 'text-amber-700'}>· {x.text}</div>)}
+                      {r.issues.map(x => <div key={x.text} className={x.level === 'warn' ? 'text-amber-700' : 'text-slate-500'}>· {x.text}</div>)}
                       {r.linked && <div className="text-emerald-700">✓ Fiyat listesine bağlandı: {r.linked}</div>}
-                      {r.suggest && r.suggest.length > 0 && (
-                        <div className="mt-1 rounded bg-white/70 border border-amber-200 px-2 py-1.5 space-y-1">
-                          <div className="text-slate-600">Firma listelerinde benzeri var gibi, aynı ürünse bağlayın:</div>
-                          {r.suggest.map(s => (
-                            <div key={s.id} className="flex items-center gap-2">
-                              <div className="flex-1 min-w-0 text-slate-800">
-                                <b>{s.list}</b> · {s.name} · {s.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {s.currency === 'TRY' ? 'TL' : s.currency}
-                                {s.discount > 0 && <span className="text-slate-500"> (liste iskontosu %{s.discount.toLocaleString('tr-TR')})</span>}
-                                {s.priceHit && <span className="text-emerald-700 font-semibold"> · fiyat birebir tutuyor</span>}
-                              </div>
-                              <button type="button" disabled={linking !== null} onClick={() => linkSuggestion(r, s)}
-                                className="shrink-0 px-2 py-0.5 rounded bg-sky-600 text-white font-bold disabled:opacity-50">
-                                {linking === s.id ? '…' : 'Bağla'}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
+                      {!r.linked && r.code && r.issues.some(x => x.kind === 'nolist') && (
+                        <SuggestMatchBox productName={r.item.productName} suggest={r.suggest || []} busyId={linking} onLink={s => linkSuggestion(r, s)} />
                       )}
                     </div>
                   ))}
-                  {bad.length > 0 && (
+                  {warnCount > 0 && (
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       {discFix.length > 0 && (
                         <button type="button" onClick={() => {
-                          const want = new Map(discFix.map(r => [r.item.id, r.list!.discount]));
+                          const want = new Map(discFix.map(r => [r.item.id, r.expected!]));
                           setItems(prev => prev.map(it => (want.has(it.id) ? { ...it, discount: want.get(it.id)! } : it)));
-                          setPdfCheck(prev => prev && prev.map(r => (want.has(r.item.id) ? { ...r, issues: r.issues.filter(x => !/iskonto: /.test(x.text)) } : r)));
-                        }} className="px-2.5 py-1 rounded-md bg-rose-600 text-white font-bold">İskontoları listeye göre düzelt</button>
+                          setPdfCheck(prev => prev && prev.map(r => (want.has(r.item.id)
+                            ? (() => { const issues = r.issues.filter(x => x.kind !== 'discount'); return { ...r, item: { ...r.item, discount: want.get(r.item.id)! }, issues, level: issues.some(x => x.level === 'warn') ? 'warn' as const : issues.length ? 'info' as const : 'ok' as const }; })()
+                            : r)));
+                          setPdfNotes(prev => prev.filter(n => n.level !== 'warn' || !/iskonto|verilmiş/.test(n.text)));
+                        }} className="px-2.5 py-1 rounded-md bg-amber-600 text-white font-bold">İskontoları önerilene göre düzelt ({discFix.length})</button>
                       )}
                       <span className="opacity-80">Mikro'daki gibi kalması gerekiyorsa doğrudan kaydedebilirsiniz.</span>
                     </div>
