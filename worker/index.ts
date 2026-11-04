@@ -432,10 +432,53 @@ async function priceListWithClaude(text: string, env: Env): Promise<Response> {
   }
 }
 
+/**
+ * Taranmış (resim) fiyat listesi sayfası: sayfa resmi görsel modelle doğrudan ürün satırlarına çevrilir.
+ * Cihazdaki yazı tanıma (Tesseract) düşük çözünürlüklü taramada "DN15" → "DNi5", "0,46" → "046" gibi bozuk okuyordu.
+ */
+async function priceListImage(image: string, env: Env): Promise<Response> {
+  const ask = 'Bu taranmış fiyat listesi sayfasındaki tüm ürünleri ve fiyatlarını çıkar. Tablodaki her fiyat hücresi ayrı üründür (ölçü, kalınlık, çeşit sütunlarını ada yaz).';
+  try {
+    if (env.ANTHROPIC_API_KEY) {
+      const m = /^data:(image\/(?:jpeg|png|webp));base64,(.*)$/.exec(image)!;
+      const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+      const response = await client.messages.create({
+        model: PRICELIST_MODEL,
+        max_tokens: 16000,
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: strictSchema(PRICELIST_SCHEMA) } },
+        system: PRICELIST_PROMPT,
+        messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: ask }] }],
+      } as any);
+      const out = (response.content as any[]).find(b => b.type === 'text');
+      const parsed = out ? JSON.parse(out.text) : null;
+      return json({ items: Array.isArray(parsed?.items) ? parsed.items : [] });
+    }
+    const r = await env.AI!.run(VISION, {
+      messages: [
+        { role: 'system', content: PRICELIST_PROMPT },
+        { role: 'user', content: [{ type: 'text', text: ask }, { type: 'image_url', image_url: { url: image } }] },
+      ],
+      max_tokens: 6000,
+      temperature: 0,
+    });
+    const out = parseLoose(r?.response ?? r?.choices?.[0]?.message?.content);
+    return json({ items: Array.isArray(out?.items) ? out.items : [] });
+  } catch (err) {
+    const msg = String((err as Error)?.message || err);
+    if (err instanceof Anthropic.RateLimitError || /neuron|quota|limit|4006|429/i.test(msg)) return json({ error: 'quota', message: msg.slice(0, 200), items: [] }, 429);
+    return json({ error: 'ai', message: msg.slice(0, 200), items: [] }, 502);
+  }
+}
+
 async function handlePriceList(req: Request, env: Env): Promise<Response> {
   if (!env.AI && !env.ANTHROPIC_API_KEY) return json({ error: 'no_ai', items: [] }, 503);
   if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
   const body = await readBody(req);
+  const image = String((body as any)?.image || '');
+  if (image) {
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 4_000_000) return json({ error: 'bad_image', items: [] }, 400);
+    return priceListImage(image, env);
+  }
   const text = String(body?.text || '').slice(0, 12000);
   if (!text.trim()) return json({ items: [] });
   if (env.ANTHROPIC_API_KEY) return priceListWithClaude(text, env);

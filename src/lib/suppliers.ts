@@ -22,6 +22,44 @@ async function aiPriceListPage(text: string) {
   return Array.isArray(out?.items) ? cleanAiItems(out.items) : null;
 }
 configure({ sb: supabase, ai: aiPriceListPage });
+
+/**
+ * Taranmış sayfaları görsel yapay zekâyla okur: sayfa resmi sunucuya gider, ürün satırları döner.
+ * Okunamayan sayfalar (kota, hata, boş cevap) dönen haritada yer almaz; onlar cihazda yazı tanımayla okunur.
+ */
+async function visionPdfPages(data: ArrayBuffer, pagesNo: number[], onInfo?: (info: string) => void) {
+  const pdfjs = await import('pdfjs-dist');
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
+  const { data: s } = await supabase.auth.getSession();
+  const token = s.session?.access_token;
+  const out = new Map<number, ReturnType<typeof cleanAiItems>>();
+  try {
+    for (const [k, p] of pagesNo.entries()) {
+      onInfo?.(`taranmış sayfa yapay zekâyla okunuyor ${k + 1}/${pagesNo.length}`);
+      const page = await doc.getPage(p);
+      const base = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: Math.min(2.5, 1600 / Math.max(base.width, base.height)) });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
+      await page.render({ canvas, canvasContext: canvas.getContext('2d')!, viewport: vp }).promise;
+      const image = canvas.toDataURL('image/jpeg', 0.85);
+      page.cleanup();
+      canvas.width = canvas.height = 0;
+      const res = await fetch('/api/ai/pricelist', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ image }),
+      }).catch(() => null);
+      if (res?.status === 429) break; // kota doldu: kalan sayfalar yazı tanımayla
+      const body = res?.ok ? await res.json().catch(() => null) : null;
+      const items = Array.isArray(body?.items) ? cleanAiItems(body.items) : [];
+      if (items.length) out.set(p, items);
+    }
+  } finally {
+    doc.destroy();
+  }
+  return out;
+}
 import { Currency } from './money';
 import { Material } from './materials';
 
@@ -393,9 +431,16 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
   // Karar sayfa sayfa verilir: yazısı çok az olan sayfa (yalnız başlık/altbilgi, tablo resim) resimden okunur.
   // Aynı PDF'te hem yazılı hem resim sayfalar olabilir (ör. Yavuz: ilk sayfalar yazı, sonrakiler taranmış).
   const scanned = pages.map((l, i) => (l.join('').length < 600 ? i + 1 : 0)).filter(Boolean);
-  const ocrText = scanned.length ? await ocrPdfPages(data, onInfo, scanned) : new Map<number, string[]>();
+  // Taranmış sayfalar önce görsel yapay zekâyla okunur (kalemler doğrudan saklanır: #ITEMS:…);
+  // okunamayanlar cihazdaki yazı tanımayla (Tesseract) okunur
+  const vision = scanned.length ? await visionPdfPages(data.slice(0), scanned, onInfo).catch(() => new Map()) : new Map();
+  const rest = scanned.filter(p => !vision.has(p));
+  const ocrText = rest.length ? await ocrPdfPages(data, onInfo, rest) : new Map<number, string[]>();
   const ocr = ocrText.size > 0;
+  const humanOf = (its: { name: string; price: number; currency: string }[]) => its.map(x => `${x.name} · ${x.price} ${x.currency}`);
   pages = pages.map((l, i) => {
+    const v = vision.get(i + 1);
+    if (v) return humanOf(v);
     const o = ocrText.get(i + 1);
     // Resimden daha çok yazı çıktıysa o kullanılır
     return o && o.join('').length > l.join('').length ? o : l;
@@ -404,6 +449,11 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
   if (!chars) return { pages: pages.length, chars, ocr, text: pages };
   const now = new Date().toISOString();
   const rows = pages.map((lines, i) => {
+    const its = vision.get(i + 1);
+    if (its) {
+      // Görsel modelin okuduğu kalemler: ilk satır makine için, altı okunabilir özet
+      return { file_name: file.name, page: i + 1, content: ['#ITEMS:' + JSON.stringify(its), ...lines].join('\n'), uploaded_at: now };
+    }
     const fromOcr = lines !== full[i].lines;
     return { file_name: file.name, page: i + 1, content: fromOcr ? '#OCR\n' + lines.join('\n') : [posLine(i), ...lines].join('\n'), uploaded_at: now };
   });
@@ -414,7 +464,8 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
     if (error) throw error;
     onInfo?.(`${Math.min(i + 20, rows.length)}/${rows.length} sayfa kaydedildi`);
   }
-  return { pages: rows.length, chars, ocr, text: pages };
+  // Ayrıştırma için kaydedilen içerik (konum #POS, görsel model kalemleri #ITEMS dahil) döner
+  return { pages: rows.length, chars, ocr: ocr || vision.size > 0, text: rows.map(r => r.content.split('\n')) };
 }
 
 /** Listeye dönüştürülmüş PDF dosyaları (dosya adı → 1); bunlar tekrar seçilince atlanır */
