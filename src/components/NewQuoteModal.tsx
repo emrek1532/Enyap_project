@@ -330,6 +330,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const [pdfCheck, setPdfCheck] = useState<CheckRow[] | null>(null);
   // Marka notları: iskonto kuralı ve toplu fiyat farkı (liste değişmiş)
   const [pdfNotes, setPdfNotes] = useState<BrandNote[]>([]);
+  // Sorunsuz kalemler varsayılan kapalı ("✓ N kalem uyumlu" ile açılır)
+  const [showOkRows, setShowOkRows] = useState(false);
   // Kontrolün firma ve teklif no'su (öneri bağlanınca kontrol yeniden çalışır)
   const checkCtx = useRef<{ customer: string | null; quoteNo: string | null }>({ customer: null, quoteNo: null });
   // PDF'teki teklif no sistemde zaten var mı (yeni teklif açarken)
@@ -366,7 +368,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   };
 
   const fillFromPdf = async (file: File) => {
-    setPdfBusy(true); setPdfMsg(null); setPdfCheck(null); setPdfNotes([]);
+    setPdfBusy(true); setPdfMsg(null); setPdfCheck(null); setPdfNotes([]); setShowOkRows(false);
     try {
       const pdf = await readQuotePdf(file);
       if (!pdf.items.length && !pdf.quoteNumber) {
@@ -570,9 +572,13 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                     <div key={n.list + n.text} className={n.level === 'warn' ? 'text-amber-800 font-semibold' : 'text-slate-600'}>• {n.text}</div>
                   ))}
                   {/* Her kalem: bu teklifteki iskonto ve aynı ürüne en son verilen iskonto (önce aynı firma) */}
-                  {pdfCheck.map(r => (
+                  {(() => {
+                    // Sorunlu kalemler önce ve açık; sorunsuzlar (uyarı/bilgi yok) tek satırda toplanır
+                    const okRows = pdfCheck.filter(r => r.level === 'ok' && !r.linked);
+                    const rest = pdfCheck.filter(r => !okRows.includes(r)).sort((a, b) => (a.level === 'warn' ? 0 : 1) - (b.level === 'warn' ? 0 : 1));
+                    const rowView = (r: CheckRow) => (
                     <div key={r.item.id}>
-                      <span className="font-semibold">{r.item.productName}</span>
+                      <span className={`font-semibold ${r.level === 'warn' ? 'text-amber-900' : 'text-slate-700'}`}>{r.level === 'ok' && '✓ '}{r.item.productName}</span>
                       <span className="text-slate-600"> · bu teklifte {pctTr(r.item.discount || 0)}
                         {r.list && ` · ${r.list.name}`}
                         {r.history
@@ -585,7 +591,19 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                         <SuggestMatchBox productName={r.item.productName} suggest={r.suggest || []} busyId={linking} onLink={s => linkSuggestion(r, s)} />
                       )}
                     </div>
-                  ))}
+                    );
+                    return (
+                      <>
+                        {rest.map(rowView)}
+                        {okRows.length > 0 && (
+                          <button type="button" onClick={() => setShowOkRows(v => !v)} className="block text-emerald-700 font-semibold">
+                            ✓ {okRows.length} kalem fiyat listesi ve önceki tekliflerle uyumlu {showOkRows ? '(gizle)' : '(göster)'}
+                          </button>
+                        )}
+                        {showOkRows && okRows.map(rowView)}
+                      </>
+                    );
+                  })()}
                   {warnCount > 0 && (
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       {discFix.length > 0 && (
