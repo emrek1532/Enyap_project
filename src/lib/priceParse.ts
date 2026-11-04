@@ -7,9 +7,10 @@ import { Currency } from './money';
 
 export interface ParsedItem { code: string; name: string; price: number; unit: string; grp?: string; currency?: Currency }
 
-// 1.234,56 · 1 234,56 · 1234,56 · 1,234.56 · 1234.56 (en az 2 ondalık hane).
-// Boşluklu binlik ayraç yalnız önünde harf/rakam yokken: "DN25 364,65" → 364,65 (25.364,65 değil)
-const PRICE = /(\d{1,3}(?:\.\d{3})+,\d{2,4}|(?<![A-Za-zÇĞİÖŞÜçğıöşü\d])\d{1,3}(?:\s\d{3})+,\d{2,4}|\d+,\d{2,4}|\d{1,3}(?:,\d{3})+\.\d{2,4}|\d+\.\d{2,4})/g;
+// 1.234,56 · 1234,56 · 1,234.56 · 1234.56 (en az 2 ondalık hane).
+// Boşluklu binlik ayraç ("1 234,56") fiyat sayılmaz: tablolarda önündeki koli adedi / DN ile birleşip
+// yanlış fiyat üretiyordu ("Avometre 10 350,00" → 10.350; "DN20 455,81" → 20.455,81). Doğrusu 350 ve 455,81.
+const PRICE = /(\d{1,3}(?:\.\d{3})+,\d{2,4}|\d+,\d{2,4}|\d{1,3}(?:,\d{3})+\.\d{2,4}|\d+\.\d{2,4})/g;
 const CUR_TOKEN = /\s*(?:€|\$|₺|TL|TRY|EUR|EURO|USD)\b\.?/gi;
 const MONTHS = ['ocak', 'şubat', 'mart', 'nisan', 'mayıs', 'haziran', 'temmuz', 'ağustos', 'eylül', 'ekim', 'kasım', 'aralık'];
 const HEADER = /(fiyat\s*listesi|liste\s*fiyat|birim\s*fiyat|ürün\s*kodu|stok\s*kodu|açıklama|sayfa\s*\d|www\.|tel\s*:|fax|e-?posta|@)/i;

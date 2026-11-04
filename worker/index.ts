@@ -395,13 +395,13 @@ const PRICELIST_SCHEMA = {
 };
 
 const PRICELIST_PROMPT = `Sana bir tesisat/vana/ısıtma tedarikçisinin FİYAT LİSTESİ veya KATALOĞUNUN tek bir sayfasının metnini veriyorum (taranmış sayfadan okunduysa yazım hataları olabilir).
-Görevin sayfadaki fiyatı olan TÜM ürünleri çıkarmak. Katalog sayfalarında genelde üstte ürün ailesi (model no + ürün adı, ör. "FAF 2300 ÇEKVALF - ÇALPARA - WAFER - KOMPLE PASLANMAZ") ve altında ölçü (DN, inç) - fiyat tablosu olur; her tablo satırı ayrı bir üründür.
+Görevin sayfadaki fiyatı olan TÜM ürünleri çıkarmak. Katalog sayfalarında genelde üstte ürün ailesi (model no + ürün adı, ör. "<MODEL NO> <ÜRÜN ADI> - <ÖZELLİK>") ve altında ölçü (DN, inç) - fiyat tablosu olur; her tablo satırı ayrı bir üründür.
 Her ürün için:
 - code: firmanın ürün/stok kodu (varsa; yoksa "")
-- name: anlaşılır, tam ürün adı = ürün ailesi + ölçü/özellik (ör. "FAF 2300 Çekvalf Çalpara Wafer Komple Paslanmaz DN40 1 1/2\""). Açıklama cümlelerini (sızdırmazlık, sıcaklık, gövde malzemesi vb.) ada KOYMA.
-- price: liste fiyatı (sayı; "1.250,50" → 1250.5, "78" → 78)
+- name: anlaşılır, tam ürün adı = ürün ailesi + ölçü/özellik (ör. "<Model no> <Ürün adı> <Özellik> DN40 1 1/2\""). Açıklama cümlelerini (sızdırmazlık, sıcaklık, gövde malzemesi vb.) ada KOYMA.
+- price: liste fiyatı (sayı; Türkçe yazımda nokta binlik, virgül ondalıktır: "3.417,25" → 3417.25). Fiyat hücresinde "F.S.", "Fiyat Sorunuz", "-" ya da boşluk varsa o ürünü HİÇ ALMA; fiyat uydurma, bu talimattaki örnek sayıları ve ürün adlarını asla kullanma.
 - currency: o fiyatın para birimi: "TRY", "USD" veya "EUR". Fiyat sütunu başlığına ya da fiyatın yanındaki işarete bak ($ → USD, € → EUR, TL/₺ → TRY). Aynı sayfada farklı para birimleri olabilir; ÇEVİRME, yazıldığı gibi bırak.
-- group: ürünün bölüm/aile başlığı (ör. "FAF 2300 Çekvalf Çalpara Wafer Komple Paslanmaz")
+- group: ürünün bölüm/aile başlığı (ör. "<Model no> <Ürün adı> <Özellik>")
 ÇEŞİT / RENK: Aynı ürün ve ölçü için birden fazla fiyat satırı/sütunu varsa (Siyah–Galvaniz, Beyaz–Kromajlı–Pirinç, PN16–PN25, bar değerleri, standart–hızlı tepkimeli…) her fiyat AYRI üründür ve çeşit adı ürün adına yazılır (ör. "Redüksiyon Galvaniz 1"-1/2""). Çeşit adını asla atlama; aynı adla iki farklı fiyat ÜRETME.
 MATRİS TABLO: Üstte ölçü sütunları, solda ürün/çeşit satırları olan tablolarda her dolu hücre ayrı üründür: ad = ürün + çeşit + o sütunun ölçüsü.
 Koli/ambalaj adedi, kg, mm aralığı gibi sayıları fiyat sanma. Fiyatı olmayan satırları, sertifika/belge listelerini, adres/telefon/açıklama satırlarını ALMA. Uydurma ürün ekleme. Sadece JSON döndür.`;
