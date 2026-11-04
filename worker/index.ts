@@ -436,8 +436,28 @@ async function priceListWithClaude(text: string, env: Env): Promise<Response> {
  * Taranmış (resim) fiyat listesi sayfası: sayfa resmi görsel modelle doğrudan ürün satırlarına çevrilir.
  * Cihazdaki yazı tanıma (Tesseract) düşük çözünürlüklü taramada "DN15" → "DNi5", "0,46" → "046" gibi bozuk okuyordu.
  */
-async function priceListImage(image: string, env: Env, pageText = ''): Promise<Response> {
+/** Model cevabındaki kalem dizisini bulur: {"items": [...]}, düz dizi ya da başka adlı tek dizi */
+function itemsOf(out: any): any[] {
+  if (Array.isArray(out)) return out;
+  if (Array.isArray(out?.items)) return out.items;
+  const arr = out && typeof out === 'object' ? Object.values(out).find(v => Array.isArray(v) && v.some(x => x && typeof x === 'object' && 'price' in x)) : null;
+  return (arr as any[]) || [];
+}
+
+/** Boş/okunamayan görsel cevabın başını kullanım kaydına yazar (neden boş geldiği sonra görülebilsin) */
+function logRaw(req: Request, env: Env, ctx: { waitUntil: (p: Promise<unknown>) => void } | undefined, model: string, raw: string) {
+  const auth = req.headers.get('authorization') || '';
+  if (!auth || !ctx) return;
+  ctx.waitUntil(fetch(`${env.SUPABASE_URL || SUPABASE_URL}/rest/v1/rpc/log_ai_usage`, {
+    method: 'POST',
+    headers: { authorization: auth, apikey: env.SUPABASE_PUBLISHABLE_KEY || SUPABASE_KEY, 'content-type': 'application/json' },
+    body: JSON.stringify({ p_endpoint: 'pricelist-image-empty', p_model: model, p_ok: false, p_err: raw.slice(0, 300) }),
+  }).catch(() => undefined));
+}
+
+async function priceListImage(image: string, env: Env, pageText = '', req?: Request, ctx?: { waitUntil: (p: Promise<unknown>) => void }): Promise<Response> {
   const ask = 'Bu fiyat listesi sayfasındaki tüm ürünleri ve fiyatlarını çıkar. Tablodaki her fiyat hücresi ayrı üründür (ölçü, kalınlık, çeşit sütunlarını ada yaz).'
+    + '\nCEVAP BİÇİMİ: yalnızca şu JSON, başka yazı yok: {"items": [{"code": "", "name": "", "price": 0, "currency": "TRY", "group": ""}]}. Ürün yoksa {"items": []}.'
     + (pageText.trim() ? `\n\nSayfanın PDF'ten çıkarılan yazısı aşağıda (sıra bozuk olabilir). Ürün adı ve fiyat RAKAMLARINI bu yazıdan birebir al, tabloyu resimden anla:\n${pageText.slice(0, 8000)}` : '');
   try {
     if (env.ANTHROPIC_API_KEY) {
@@ -454,16 +474,24 @@ async function priceListImage(image: string, env: Env, pageText = ''): Promise<R
       const parsed = out ? JSON.parse(out.text) : null;
       return json({ items: Array.isArray(parsed?.items) ? parsed.items : [] });
     }
-    const r = await env.AI!.run(VISION, {
+    const input = {
       messages: [
         { role: 'system', content: PRICELIST_PROMPT },
         { role: 'user', content: [{ type: 'text', text: ask }, { type: 'image_url', image_url: { url: image } }] },
       ],
       max_tokens: 6000,
       temperature: 0,
-    });
-    const out = parseLoose(r?.response ?? r?.choices?.[0]?.message?.content);
-    return json({ items: Array.isArray(out?.items) ? out.items : [] });
+    };
+    // Önce JSON biçimi zorunlu tutularak, desteklenmezse serbest cevapla
+    let r: any;
+    try { r = await env.AI!.run(VISION, { ...input, response_format: { type: 'json_schema', json_schema: PRICELIST_SCHEMA } }); } catch (err) {
+      if (/neuron|quota|4006|429/i.test(String((err as Error)?.message || err))) throw err;
+      r = await env.AI!.run(VISION, input);
+    }
+    const raw = r?.response ?? r?.choices?.[0]?.message?.content;
+    const items = itemsOf(typeof raw === 'string' ? (parseLooseAny(raw)) : raw);
+    if (!items.length && req) logRaw(req, env, ctx, VISION, typeof raw === 'string' ? raw : JSON.stringify(raw ?? r ?? null));
+    return json({ items });
   } catch (err) {
     const msg = String((err as Error)?.message || err);
     if (err instanceof Anthropic.RateLimitError || /neuron|quota|limit|4006|429/i.test(msg)) return json({ error: 'quota', message: msg.slice(0, 200), items: [] }, 429);
@@ -471,14 +499,14 @@ async function priceListImage(image: string, env: Env, pageText = ''): Promise<R
   }
 }
 
-async function handlePriceList(req: Request, env: Env): Promise<Response> {
+async function handlePriceList(req: Request, env: Env, ctx?: { waitUntil: (p: Promise<unknown>) => void }): Promise<Response> {
   if (!env.AI && !env.ANTHROPIC_API_KEY) return json({ error: 'no_ai', items: [] }, 503);
   if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
   const body = await readBody(req);
   const image = String((body as any)?.image || '');
   if (image) {
     if (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 4_000_000) return json({ error: 'bad_image', items: [] }, 400);
-    return priceListImage(image, env, String((body as any)?.text || ''));
+    return priceListImage(image, env, String((body as any)?.text || ''), req, ctx);
   }
   const text = String(body?.text || '').slice(0, 12000);
   if (!text.trim()) return json({ items: [] });
@@ -784,6 +812,16 @@ KURALLAR:
 - Ürün olmayan şeyleri (tarih, imza, logo, başlık, toplam çizgisi) satır yapma.
 CEVAP: Yalnızca şu JSON: {"customer": "talepte firma adı geçiyorsa, yoksa boş", "lines": [{"text": "", "item": "", "qty": 1, "unit": "Adet", "unsure": false}]}`;
 
+/** Serbest model cevabından JSON (nesne ya da dizi) çıkarır; ```json bloklarını da tanır */
+const parseLooseAny = (raw: string): any => {
+  const s = String(raw || '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/```(?:json)?/gi, '');
+  for (const [o, c] of [['{', '}'], ['[', ']']] as const) {
+    const a = s.indexOf(o), b = s.lastIndexOf(c);
+    if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch { /* sonraki */ } }
+  }
+  return null;
+};
+
 const parseLoose = (raw: unknown) => {
   if (raw && typeof raw === 'object') return raw as any;
   const s = String(raw || '').replace(/<think>[\s\S]*?<\/think>/g, '');
@@ -969,7 +1007,7 @@ export default {
     if (url.pathname === '/api/ai/voice' && req.method === 'POST') return handleVoice(req, env);
     if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
     if (url.pathname === '/api/ai/request' && req.method === 'POST') return handleRequestRead(req, env);
-    if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env);
+    if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env, ctx);
     // Fiyat listesi okuma yolu: Claude anahtarı varsa her sayfa resim + yazıyla Claude'a okutulur
     if (url.pathname === '/api/ai/pricelist-mode') return json({ claude: !!env.ANTHROPIC_API_KEY });
     if (url.pathname === '/api/ai/match' && req.method === 'POST') return handleMatch(req, env);
