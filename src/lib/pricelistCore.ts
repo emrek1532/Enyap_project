@@ -67,6 +67,7 @@ export async function parseListPages(
   const { parsePriceLines, detectCurrency } = await import('./priceParse');
   const { parsePositionedPage } = await import('./tableParse');
   const { parseMatrixPage } = await import('./matrixParse');
+  const { parseHeaderTable } = await import('./headerTableParse');
   // Sayfa başındaki konumlu yazı (#POS:…) ayrılır
   const posOf = new Map<string[], PItemRaw[]>();
   pages = pages.map(p => {
@@ -105,6 +106,10 @@ export async function parseListPages(
         const mat = parseMatrixPage(its).map(x => ({ ...x, currency: x.currency || currency }));
         const pos = parsePositionedPage(its).map(x => ({ ...x, currency: x.currency || currency }));
         if (mat.length >= 6 && mat.length >= pos.length && mat.length >= rule.length * 0.5) return mat;
+        // Kodsuz tablo (ÜRÜN + bir/birkaç fiyat sütunu: "SATIŞ FİYATI", "10 BAR | 16 BAR"): ad ile fiyat kaymış ya da
+        // fiyat sütunu birden çoksa satır okuması kalem kaçırır; belirgin şekilde daha çok kalem bulursa tercih edilir
+        const hdr = parseHeaderTable(its).map(x => ({ ...x, currency: x.currency || currency }));
+        if (hdr.length >= 3 && hdr.length > rule.length && hdr.length >= mat.length && (pos.length < 3 || hdr.length > pos.length * 1.3)) return hdr;
         if (pos.length >= 3 && pos.length >= rule.length * 0.8) return pos;
       }
       if (rule.length >= 3) return rule;
