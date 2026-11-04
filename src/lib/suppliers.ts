@@ -24,37 +24,50 @@ async function aiPriceListPage(text: string) {
 configure({ sb: supabase, ai: aiPriceListPage });
 
 /**
- * Taranmış sayfaları görsel yapay zekâyla okur: sayfa resmi sunucuya gider, ürün satırları döner.
- * Okunamayan sayfalar (kota, hata, boş cevap) dönen haritada yer almaz; onlar cihazda yazı tanımayla okunur.
+ * Sayfaları görsel yapay zekâyla okur: sayfa resmi (ve varsa PDF'ten çıkan yazısı) sunucuya gider, ürün satırları döner.
+ * `keepEmpty`: Claude yolunda boş cevap "bu sayfada ürün yok" demektir ve saklanır; aksi halde boş/okunamayan sayfa
+ * haritada yer almaz ve eski yöntemle (konumlu yazı / cihazda yazı tanıma) okunur.
  */
-async function visionPdfPages(data: ArrayBuffer, pagesNo: number[], onInfo?: (info: string) => void) {
+async function visionPdfPages(data: ArrayBuffer, pagesNo: number[], texts: string[][], onInfo?: (info: string) => void, keepEmpty = false) {
   const pdfjs = await import('pdfjs-dist');
   const doc = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
   const { data: s } = await supabase.auth.getSession();
   const token = s.session?.access_token;
   const out = new Map<number, ReturnType<typeof cleanAiItems>>();
-  try {
-    for (const [k, p] of pagesNo.entries()) {
-      onInfo?.(`taranmış sayfa yapay zekâyla okunuyor ${k + 1}/${pagesNo.length}`);
-      const page = await doc.getPage(p);
-      const base = page.getViewport({ scale: 1 });
-      const vp = page.getViewport({ scale: Math.min(2.5, 1600 / Math.max(base.width, base.height)) });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
-      await page.render({ canvas, canvasContext: canvas.getContext('2d')!, viewport: vp }).promise;
-      const image = canvas.toDataURL('image/jpeg', 0.85);
-      page.cleanup();
-      canvas.width = canvas.height = 0;
+  let quota = false, done = 0, next = 0;
+  const readOne = async (p: number) => {
+    const page = await doc.getPage(p);
+    const base = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: Math.min(2.5, 1600 / Math.max(base.width, base.height)) });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
+    await page.render({ canvas, canvasContext: canvas.getContext('2d')!, viewport: vp }).promise;
+    const image = canvas.toDataURL('image/jpeg', 0.85);
+    page.cleanup();
+    canvas.width = canvas.height = 0;
+    for (let attempt = 0; attempt < 2; attempt++) {
       const res = await fetch('/api/ai/pricelist', {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ image }),
+        body: JSON.stringify({ image, text: (texts[p - 1] || []).join('\n').slice(0, 8000) }),
       }).catch(() => null);
-      if (res?.status === 429) break; // kota doldu: kalan sayfalar yazı tanımayla
-      const body = res?.ok ? await res.json().catch(() => null) : null;
+      if (res?.status === 429) { quota = true; return; }
+      if (!res?.ok) continue; // bir kez daha denenir
+      const body = await res.json().catch(() => null);
       const items = Array.isArray(body?.items) ? cleanAiItems(body.items) : [];
-      if (items.length) out.set(p, items);
+      if (items.length || keepEmpty) out.set(p, items);
+      return;
     }
+  };
+  try {
+    // Üç sayfa aynı anda okunur
+    await Promise.all(Array.from({ length: 3 }, async () => {
+      while (next < pagesNo.length && !quota) {
+        const p = pagesNo[next++];
+        await readOne(p);
+        onInfo?.(`sayfalar yapay zekâyla okunuyor ${++done}/${pagesNo.length}`);
+      }
+    }));
   } finally {
     doc.destroy();
   }
@@ -431,27 +444,33 @@ export async function uploadSupplierPdf(file: File, onInfo?: (info: string) => v
   // Karar sayfa sayfa verilir: yazısı çok az olan sayfa (yalnız başlık/altbilgi, tablo resim) resimden okunur.
   // Aynı PDF'te hem yazılı hem resim sayfalar olabilir (ör. Yavuz: ilk sayfalar yazı, sonrakiler taranmış).
   const scanned = pages.map((l, i) => (l.join('').length < 600 ? i + 1 : 0)).filter(Boolean);
-  // Taranmış sayfalar önce görsel yapay zekâyla okunur (kalemler doğrudan saklanır: #ITEMS:…);
-  // okunamayanlar cihazdaki yazı tanımayla (Tesseract) okunur
-  const vision = scanned.length ? await visionPdfPages(data.slice(0), scanned, onInfo).catch(() => new Map()) : new Map();
+  // Claude tanımlıysa HER sayfa resim + yazısıyla Claude'a okutulur (liste düzeninden bağımsız, kural gerekmez);
+  // değilse yalnız taranmış sayfalar ücretsiz görsel modelle. Kalemler doğrudan saklanır (#ITEMS:…);
+  // okunamayan sayfalar eski yöntemle (konumlu yazı kuralları / cihazda yazı tanıma) okunur.
+  const claude = await fetch('/api/ai/pricelist-mode').then(r => r.json()).then(j => !!j?.claude).catch(() => false);
+  const targets = claude ? pages.map((_, i) => i + 1) : scanned;
+  const vision = targets.length ? await visionPdfPages(data.slice(0), targets, pages, onInfo, claude).catch(() => new Map()) : new Map();
   const rest = scanned.filter(p => !vision.has(p));
   const ocrText = rest.length ? await ocrPdfPages(data, onInfo, rest) : new Map<number, string[]>();
   const ocr = ocrText.size > 0;
   const humanOf = (its: { name: string; price: number; currency: string }[]) => its.map(x => `${x.name} · ${x.price} ${x.currency}`);
   pages = pages.map((l, i) => {
     const v = vision.get(i + 1);
-    if (v) return humanOf(v);
+    if (v) return v.length ? humanOf(v) : [];
     const o = ocrText.get(i + 1);
     // Resimden daha çok yazı çıktıysa o kullanılır
     return o && o.join('').length > l.join('').length ? o : l;
   });
-  const chars = textLen(pages);
+  // Yapay zekâ kalem okuduysa sayfa yazısı az olsa da (küçük liste) okunmuş sayılır
+  const chars = Math.max(textLen(pages), [...vision.values()].some(v => v.length) ? 1000 : 0);
   if (!chars) return { pages: pages.length, chars, ocr, text: pages };
   const now = new Date().toISOString();
   const rows = pages.map((lines, i) => {
     const its = vision.get(i + 1);
     if (its) {
       // Görsel modelin okuduğu kalemler: ilk satır makine için, altı okunabilir özet
+      // Ürün çıkmayan sayfa (kapak, açıklama) yalnız işaretle saklanır: ayrıştırıcı onu boş sayfa olarak atlar
+      if (!its.length) return { file_name: file.name, page: i + 1, content: '#ITEMS:[]', uploaded_at: now };
       return { file_name: file.name, page: i + 1, content: ['#ITEMS:' + JSON.stringify(its), ...lines].join('\n'), uploaded_at: now };
     }
     const fromOcr = lines !== full[i].lines;
