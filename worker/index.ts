@@ -436,8 +436,9 @@ async function priceListWithClaude(text: string, env: Env): Promise<Response> {
  * Taranmış (resim) fiyat listesi sayfası: sayfa resmi görsel modelle doğrudan ürün satırlarına çevrilir.
  * Cihazdaki yazı tanıma (Tesseract) düşük çözünürlüklü taramada "DN15" → "DNi5", "0,46" → "046" gibi bozuk okuyordu.
  */
-async function priceListImage(image: string, env: Env): Promise<Response> {
-  const ask = 'Bu taranmış fiyat listesi sayfasındaki tüm ürünleri ve fiyatlarını çıkar. Tablodaki her fiyat hücresi ayrı üründür (ölçü, kalınlık, çeşit sütunlarını ada yaz).';
+async function priceListImage(image: string, env: Env, pageText = ''): Promise<Response> {
+  const ask = 'Bu fiyat listesi sayfasındaki tüm ürünleri ve fiyatlarını çıkar. Tablodaki her fiyat hücresi ayrı üründür (ölçü, kalınlık, çeşit sütunlarını ada yaz).'
+    + (pageText.trim() ? `\n\nSayfanın PDF'ten çıkarılan yazısı aşağıda (sıra bozuk olabilir). Ürün adı ve fiyat RAKAMLARINI bu yazıdan birebir al, tabloyu resimden anla:\n${pageText.slice(0, 8000)}` : '');
   try {
     if (env.ANTHROPIC_API_KEY) {
       const m = /^data:(image\/(?:jpeg|png|webp));base64,(.*)$/.exec(image)!;
@@ -477,7 +478,7 @@ async function handlePriceList(req: Request, env: Env): Promise<Response> {
   const image = String((body as any)?.image || '');
   if (image) {
     if (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 4_000_000) return json({ error: 'bad_image', items: [] }, 400);
-    return priceListImage(image, env);
+    return priceListImage(image, env, String((body as any)?.text || ''));
   }
   const text = String(body?.text || '').slice(0, 12000);
   if (!text.trim()) return json({ items: [] });
@@ -969,6 +970,8 @@ export default {
     if (url.pathname === '/api/ai/pdf' && req.method === 'POST') return handlePdf(req, env);
     if (url.pathname === '/api/ai/request' && req.method === 'POST') return handleRequestRead(req, env);
     if (url.pathname === '/api/ai/pricelist' && req.method === 'POST') return handlePriceList(req, env);
+    // Fiyat listesi okuma yolu: Claude anahtarı varsa her sayfa resim + yazıyla Claude'a okutulur
+    if (url.pathname === '/api/ai/pricelist-mode') return json({ claude: !!env.ANTHROPIC_API_KEY });
     if (url.pathname === '/api/ai/match' && req.method === 'POST') return handleMatch(req, env);
     if (url.pathname === '/api/ai/ask' && req.method === 'POST') return handleAsk(req, env);
     if (url.pathname === '/api/ai/agent' && req.method === 'POST') return handleAgent(req, env);
