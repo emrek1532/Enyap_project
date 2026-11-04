@@ -68,6 +68,14 @@ export async function parseListPages(
   const { parsePositionedPage } = await import('./tableParse');
   const { parseMatrixPage } = await import('./matrixParse');
   const { parseHeaderTable } = await import('./headerTableParse');
+  // Görsel yapay zekânın taranmış sayfadan okuduğu kalemler (#ITEMS:…) doğrudan kullanılır
+  const itemsOf = new Map<string[], AiItem[]>();
+  pages = pages.map(p => {
+    if (!p[0]?.startsWith('#ITEMS:')) return p;
+    const rest = p.slice(1);
+    try { itemsOf.set(rest, cleanAiItems(JSON.parse(p[0].slice(7)))); } catch { /* bozuk kayıt: yazıyla okunur */ }
+    return rest;
+  });
   // Sayfa başındaki konumlu yazı (#POS:…) ayrılır
   const posOf = new Map<string[], PItemRaw[]>();
   pages = pages.map(p => {
@@ -88,12 +96,16 @@ export async function parseListPages(
     const f = p.filter(l => l !== '#OCR');
     const raw = posOf.get(p);
     if (raw) posOf.set(f, raw);
+    const its = itemsOf.get(p);
+    if (its) itemsOf.set(f, its);
     if (p[0] === '#OCR') ocrPages.add(f);
     return f;
   }).filter(p => p.join('').replace(/\s/g, '').length > 40);
   // Sayfalar ikişer ikişer okunur; yapay zeka hata verirse 2 kez daha denenir (yoğunlukta kısa bekleyerek)
   let quota = state?.quota ?? false;
   const readPage = async (pg: string[]) => {
+    const vis = itemsOf.get(pg);
+    if (vis?.length) return vis.map(x => ({ ...x, currency: x.currency || currency }));
     // Yazılı (taranmamış) PDF'te önce kurallarla okunur: rakamlar PDF'ten birebir alınır (0,16 $ → 0,16).
     // Yapay zeka sadece kuralların okuyamadığı (katalog düzenli / taranmış) sayfalarda devreye girer.
     if (!ocrPages.has(pg)) {
