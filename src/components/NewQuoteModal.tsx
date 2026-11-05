@@ -601,7 +601,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       <span className="text-slate-600"> · bu teklifte {pctTr(r.item.discount || 0)}
                         {r.list && ` · ${r.list.name}`}
                         {r.history
-                          ? ` · önceki ${pctTr(r.history.discount)}${r.history.price ? `, ${r.history.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${r.history.currency === 'TRY' ? 'TL' : r.history.currency}` : ''} (${r.history.own ? 'bu firma' : r.history.customer}, ${day(r.history.date)}, ${r.history.quoteNumber})`
+                          ? ` · önceki${r.history.otherTerm ? ` (${r.history.otherTerm}, bu vadede yok)` : ''} ${pctTr(r.history.discount)}${r.history.price ? `, ${r.history.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${r.history.currency === 'TRY' ? 'TL' : r.history.currency}` : ''} (${r.history.own ? 'bu firma' : r.history.customer}, ${day(r.history.date)}, ${r.history.quoteNumber})`
                           : ' · daha önce teklif edilmemiş'}
                       </span>
                       {r.issues.map(x => <div key={x.text} className={x.level === 'warn' ? 'text-amber-700' : 'text-slate-500'}>· {x.text}</div>)}
