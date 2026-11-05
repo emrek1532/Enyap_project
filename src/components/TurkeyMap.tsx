@@ -16,12 +16,16 @@ export const TurkeyMap: React.FC<{
 }> = ({ values, format, onPick, className = '' }) => {
   const [data, setData] = useState<MapData | null>(cache);
   const [hover, setHover] = useState<{ name: string; v: number } | null>(null);
+  // Harita dosyası yüklenemezse (bağlantı yok vb.) "Tekrar dene" gösterilir
+  const [failed, setFailed] = useState(false);
+  const [tryNo, setTryNo] = useState(0);
   useEffect(() => {
     if (cache) return;
     let live = true;
-    import('../lib/turkeyMap').then(m => { cache = m; if (live) setData(m); }).catch(() => undefined);
+    setFailed(false);
+    import('../lib/turkeyMap').then(m => { cache = m; if (live) setData(m); }).catch(() => { if (live) setFailed(true); });
     return () => { live = false; };
-  }, []);
+  }, [tryNo]);
   // İl adları Türkçe harf farkı gözetmeden eşleşir (ör. "AFYON" → Afyonkarahisar)
   const byKey = useMemo(() => {
     const m = new Map<string, number>();
@@ -43,7 +47,12 @@ export const TurkeyMap: React.FC<{
     const mix = (a: number, b: number) => Math.round(a + (b - a) * t);
     return `rgb(${mix(169, 10)},${mix(205, 91)},${mix(243, 192)})`;
   };
-  if (!data) return <div className={`aspect-[2.2/1] rounded-2xl bg-slate-100 animate-pulse ${className}`} />;
+  if (!data) return failed
+    ? <div className={`aspect-[2.2/1] rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-xs text-slate-500 ${className}`}>
+        Harita yüklenemedi.
+        <button type="button" onClick={() => setTryNo(n => n + 1)} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 font-bold text-brand-600">Tekrar dene</button>
+      </div>
+    : <div className={`aspect-[2.2/1] rounded-2xl bg-slate-100 animate-pulse ${className}`} />;
   return (
     <div className={`relative ${className}`}>
       <svg viewBox={data.TR_VIEWBOX} className="w-full h-auto" role="img" aria-label="Türkiye illerine göre teklif dağılımı">
@@ -52,7 +61,7 @@ export const TurkeyMap: React.FC<{
           return (
             <path key={name} d={d} fill={fill(v)} stroke="#fff" strokeWidth={0.8}
               className={`transition-opacity ${onPick && v ? 'cursor-pointer hover:opacity-80' : ''}`}
-              onMouseEnter={() => setHover({ name, v })} onMouseLeave={() => setHover(null)}
+              onMouseEnter={() => setHover({ name, v })} onMouseLeave={() => setHover(null)} onTouchStart={() => setHover({ name, v })}
               onClick={() => v && onPick?.(name)}>
               <title>{`${name}: ${v ? format(v) : 'teklif yok'}`}</title>
             </path>

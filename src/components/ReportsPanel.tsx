@@ -94,7 +94,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
   const r = 4;
 
   return (
-    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
+    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] min-w-0">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
         <div>
           <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
@@ -164,7 +164,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
 // ---------- Telefon için tablo yerine kart listesi ----------
 interface MobileRow { key: string; title: React.ReactNode; aside?: React.ReactNode; fields: [string, React.ReactNode][] }
 const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, empty = 'Bu dönemde veri yok.' }) => (
-  <div className="md:hidden divide-y divide-slate-100 border-t border-slate-200">
+  <div className="lg:hidden divide-y divide-slate-100 border-t border-slate-200">
     {rows.length === 0 && <p className="py-6 text-center text-xs text-slate-500">{empty}</p>}
     {rows.map(r => (
       <div key={r.key} className="p-3">
@@ -205,7 +205,7 @@ const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string;
   });
   const h = hover !== null ? items[hover] : null;
   return (
-    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
+    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] min-w-0">
       <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
       <p className="text-xs text-slate-500 mb-2">{subtitle}</p>
       {total <= 0 ? <p className="text-xs text-slate-500 py-8 text-center">Bu dönemde veri yok.</p> : (
@@ -237,7 +237,7 @@ const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string;
 const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; value: number; sub?: string }[]; color: string; fmt?: (v: number) => string }> = ({ title, subtitle, rows, color, fmt = tl }) => {
   const max = Math.max(1, ...rows.map(r => r.value));
   return (
-    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0">
+    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] min-w-0">
       <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
       <p className="text-xs text-slate-500 mb-3">{subtitle}</p>
       {rows.length === 0 ? <p className="text-xs text-slate-500 py-8 text-center">Bu dönemde veri yok.</p> : (
@@ -262,16 +262,16 @@ const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; 
 
 const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; value: React.ReactNode; sub?: React.ReactNode; onClick?: () => void }> = ({ icon: Icon, tone, label, value, sub, onClick }) => (
   <button type="button" onClick={onClick}
-    className="group text-left bg-white p-4 rounded-xl border border-slate-200 shadow-xs min-w-0 transition-all hover:border-brand-300 hover:shadow-md active:scale-[0.99]">
+    className="group text-left bg-gradient-to-br from-white to-slate-50 p-3 sm:p-4 rounded-2xl border border-white shadow-[0_10px_26px_-18px_rgba(15,60,120,0.6)] min-w-0 transition-all hover:-translate-y-0.5 active:scale-[0.99]">
     <div className="flex items-center justify-between gap-2">
-      <span className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-0">
-        <span className={`p-1.5 rounded-lg shrink-0 ${tone}`}><Icon className="w-4 h-4" /></span>
+      <span className="flex items-center gap-2 text-[11px] sm:text-[13px] font-semibold text-slate-600 min-w-0">
+        <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></span>
         <span className="truncate">{label}</span>
       </span>
-      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0" />
+      <ChevronRight className="hidden sm:block w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0" />
     </div>
-    <div className="mt-2 font-black text-slate-900 tabular-nums break-words text-xl sm:text-2xl">{value}</div>
-    {sub && <div className="text-xs text-slate-500 mt-0.5 tabular-nums">{sub}</div>}
+    <div className="mt-1.5 font-black text-[#0b2a4c] tabular-nums break-words text-[15px] sm:text-xl leading-tight">{value}</div>
+    {sub && <div className="text-[10.5px] sm:text-xs text-slate-500 mt-0.5 tabular-nums leading-snug">{sub}</div>}
   </button>
 );
 
@@ -616,17 +616,19 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   return (
     <div className="space-y-4">
       {/* Dönem seçimi */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-brand-500" />
-        <span className="font-bold text-slate-900 text-sm mr-2">Rapor Dönemi</span>
-        {PERIODS.map(([p, label]) => (
-          <button key={p} onClick={() => setPeriod(p)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${period === p ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-            {label}
-          </button>
-        ))}
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] flex flex-wrap items-center gap-2">
+        <BarChart3 className="hidden sm:block w-5 h-5 text-brand-500" />
+        <span className="hidden sm:inline font-bold text-slate-900 text-sm mr-2">Rapor Dönemi</span>
+        <div className="w-full sm:w-auto flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+          {PERIODS.map(([p, label]) => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap ${period === p ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
         <button onClick={() => doPrint('summary')} disabled={sending}
-          className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
+          className="w-full sm:w-auto justify-center sm:ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />} {sending ? 'Rapor hazırlanıyor…' : 'Raporu Gör ve Gönder'}
         </button>
         {period === 'custom' && (
@@ -640,7 +642,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       </div>
 
       {/* Özet kutuları — dokununca ilgili liste açılır */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
         <Tile icon={FileText} tone="text-brand-600 bg-brand-50" label="Verilen Teklif" value={tl(stats.totalAmt)}
           sub={`${stats.total.toLocaleString('tr-TR')} teklif · ${stats.firms} firma`} onClick={() => setDetail('quotes')} />
         <Tile icon={CheckCircle2} tone="text-emerald-600 bg-emerald-50" label="Onaylanan" value={tl(stats.approvedAmt)}
@@ -687,7 +689,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
       {/* Bekleyen teklifler: neden bekliyor */}
       {stats.pending > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] p-4">
           <h3 className="font-bold text-slate-900 text-sm">Bekleyen Teklifler · Neden Bekliyor?</h3>
           <p className="text-xs text-slate-500 mb-3">{stats.pending} teklif · {tl(stats.pendingAmt)} · teklif detayında seçilen neden</p>
           <div className="space-y-2">
@@ -712,7 +714,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       )}
 
       {/* Müşteri performansı */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] overflow-hidden">
         <div className="p-4 pb-2">
           <h3 className="font-bold text-slate-900 text-sm">Müşteri Performansı</h3>
           <p className="text-xs text-slate-500"><span className="hidden md:inline">Sütun başlığına tıklayarak sıralayın · </span>{customerRows.length} firma</p>
@@ -733,7 +735,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             ['Tahsilat', r.collected ? tl(r.collected) : '-'],
           ] as [string, React.ReactNode][],
         }))} />
-        <div className="overflow-x-auto hidden md:block">
+        <div className="overflow-x-auto hidden lg:block">
           <table className="w-full text-right text-xs sm:text-sm tabular-nums">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
               <tr>
