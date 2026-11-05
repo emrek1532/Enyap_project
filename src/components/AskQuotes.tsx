@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, Cpu, Lightbulb, Loader2, MessageCircleQuestion, Mic, Send, Sparkles, Square, Star, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Cpu, Lightbulb, Loader2, MessageCircleQuestion, Mic, Send, Sparkles, Square, Star } from 'lucide-react';
+import { Chip, PastList, ToolCard, pushPast, readPast, shortName, topRecent } from './ToolCard';
 import { SpeechSession, canSpeech, listen } from '../lib/speech';
 import { Quote, QuoteStatus } from '../types';
 import { dayOf } from '../lib/dates';
@@ -22,16 +23,8 @@ const EXAMPLES = [
 ];
 
 // Son sorular yalnız bu cihazda tutulur (sunucuya gitmez)
-type Past = { q: string; at: number; local: boolean };
 const HIST_KEY = 'ask-history';
-const readHist = (): Past[] => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; } };
-const writeHist = (h: Past[]) => { try { localStorage.setItem(HIST_KEY, JSON.stringify(h)); } catch { /* */ } };
-const ago = (t: number) => {
-  const m = Math.round((Date.now() - t) / 60000);
-  return m < 1 ? 'az önce' : m < 60 ? `${m} dk önce` : m < 1440 ? `${Math.round(m / 60)} saat önce` : `${Math.round(m / 1440)} gün önce`;
-};
-// Öneri yongası için kısa ad (ilk 3 kelime)
-const short = (s: string) => s.split(/\s+/).slice(0, 3).join(' ');
+const TAG_LOCAL = 'Cihazda', TAG_AI = 'Yapay zekâ';
 
 type Answer = {
   text: string;
@@ -52,7 +45,7 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[]; onOpenQ
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [ans, setAns] = useState<Answer | null>(null);
-  const [hist, setHist] = useState<Past[]>(readHist);
+  const [hist, setHist] = useState(() => readPast(HIST_KEY));
   const [showEx, setShowEx] = useState(false);
   const [mic, setMic] = useState<SpeechSession | null>(null);
   const [micErr, setMicErr] = useState('');
@@ -60,26 +53,14 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[]; onOpenQ
 
   // Akıllı öneriler: son 6 ayda en çok teklif verilen firmalar ve en sık geçen ürünler (cihazdaki veriden)
   const smart = useMemo(() => {
-    const since = new Date(Date.now() - 182 * 864e5).toISOString();
-    const recent = quotes.filter(x => (x.createdAt || '') >= since);
-    const count = (keys: string[]) => {
-      const m = new Map<string, number>();
-      keys.forEach(k => k && m.set(k, (m.get(k) || 0) + 1));
-      return [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k);
-    };
-    const firms = count(recent.map(x => x.customerName.trim())).slice(0, 3);
-    const products = count(recent.flatMap(x => (x.items || []).map(it => it.productName.trim()))).slice(0, 3);
+    const { firms, products } = topRecent(quotes);
     return [
       ...firms.map(f => ({ label: f, q: `Bu yıl ${f} toplam kaç teklif` })),
-      ...products.map(pn => ({ label: short(pn), q: `${pn} en son kaça verdik` })),
+      ...products.map(pn => ({ label: shortName(pn), q: `${pn} en son kaça verdik` })),
     ];
   }, [quotes]);
 
-  const remember = (question: string, local: boolean) => {
-    const h = [{ q: question, at: Date.now(), local }, ...readHist().filter(x => x.q !== question)].slice(0, 8);
-    writeHist(h); setHist(h);
-  };
-  const forget = (question: string) => { const h = readHist().filter(x => x.q !== question); writeHist(h); setHist(h); };
+  const remember = (question: string, local: boolean) => setHist(pushPast(HIST_KEY, question, local ? TAG_LOCAL : TAG_AI));
 
   const voice = async () => {
     if (mic) { mic.stop(); return; }
@@ -143,19 +124,7 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[]; onOpenQ
   );
 
   return (
-    <section className="rounded-2xl border border-sky-100 bg-gradient-to-b from-sky-50 to-white shadow-xs overflow-hidden">
-      {/* Başlık kartı */}
-      <div className="flex items-center gap-3 px-3.5 pt-3.5 pb-3">
-        <div className="w-11 h-11 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0">
-          <MessageCircleQuestion className="w-6 h-6" />
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-base font-black text-slate-900">Tekliflere sor</h2>
-          <p className="text-xs text-slate-600">Fiyat, adet, toplam ve tarih sorularını tekliflerinizden cevaplar.</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-t-2xl border-t border-sky-100 p-3.5 space-y-3">
+    <ToolCard icon={MessageCircleQuestion} title="Tekliflere sor" subtitle="Fiyat, adet, toplam ve tarih sorularını tekliflerinizden cevaplar.">
         <form onSubmit={ask} className="flex gap-2">
           <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)} placeholder="Ör. Demir İnşaat'a küresel vanayı kaça verdik?"
             className="min-w-0 flex-1 px-4 py-3 rounded-full border border-sky-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
@@ -166,10 +135,9 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[]; onOpenQ
 
         {/* Kısayollar */}
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setShowEx(v => !v)}
-            className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-1.5 ${showEx ? 'bg-brand-50 border-brand-200 text-brand-700' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+          <Chip onClick={() => setShowEx(v => !v)} active={showEx}>
             <Star className="w-3.5 h-3.5" /> Örnek sorular <ChevronDown className={`w-3.5 h-3.5 transition ${showEx ? 'rotate-180' : ''}`} />
-          </button>
+          </Chip>
           {canSpeech() && (
             <button type="button" onClick={voice} disabled={busy}
               className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 ${mic ? 'bg-rose-50 border-rose-200 text-rose-700' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
@@ -231,32 +199,8 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[]; onOpenQ
       )}
 
         {/* Son sorularım (yalnız bu cihazda) */}
-        {hist.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5"><Clock className="w-4 h-4 text-brand-600" /> Son sorularım</h3>
-              <button type="button" onClick={() => { writeHist([]); setHist([]); }} className="text-[11px] font-bold text-slate-400 hover:text-slate-700">Temizle</button>
-            </div>
-            <ul className="space-y-1.5">
-              {hist.slice(0, 5).map(h => (
-                <li key={h.q} className="flex items-center gap-1 rounded-xl border border-slate-100 bg-white shadow-xs">
-                  <button type="button" onClick={() => pick(h.q)} disabled={busy} className="flex-1 min-w-0 text-left px-3 py-2 flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><MessageCircleQuestion className="w-4 h-4" /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm text-slate-900 truncate">{h.q}</span>
-                      <span className="block text-[11px] text-slate-500">{ago(h.at)}</span>
-                    </span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${h.local ? 'bg-emerald-50 text-emerald-700' : 'bg-violet-50 text-violet-700'}`}>
-                      {h.local ? 'Cihazda' : 'Yapay zekâ'}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-                  </button>
-                  <button type="button" onClick={() => forget(h.q)} className="p-2 text-slate-300 hover:text-slate-600" aria-label="Kaldır"><X className="w-3.5 h-3.5" /></button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <PastList title="Son sorularım" items={hist} icon={MessageCircleQuestion} disabled={busy} storageKey={HIST_KEY}
+          onPick={pick} onChange={setHist} tagClass={t => (t === TAG_LOCAL ? 'bg-emerald-50 text-emerald-700' : 'bg-violet-50 text-violet-700')} />
 
         {/* Akıllı öneriler: en çok teklif verilen firmalar ve ürünler */}
         {smart.length > 0 && (
@@ -278,7 +222,6 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[]; onOpenQ
             </div>
           </div>
         )}
-      </div>
-    </section>
+    </ToolCard>
   );
 };
