@@ -4,12 +4,6 @@ import { FileText, Users, Wallet, Receipt, BarChart3, StickyNote, Package, Chevr
 /** Uygulamanın bölümleri */
 export type ActiveTab = 'home' | 'quotes' | 'customers' | 'notes' | 'collections' | 'expenses' | 'reports' | 'materials' | 'admin';
 
-const HomeIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-    <path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /><path d="M10 21v-6h4v6" />
-  </svg>
-);
-
 export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; icon: React.ElementType; tone: string }> = {
   quotes: { title: 'Teklifler', icon: FileText, tone: 'bg-brand-50 text-brand-600' },
   customers: { title: 'Müşteriler', icon: Users, tone: 'bg-sky-50 text-sky-600' },
@@ -20,32 +14,45 @@ export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; i
   notes: { title: 'Notlar', icon: StickyNote, tone: 'bg-cyan-50 text-cyan-600' },
   admin: { title: 'Yönetim', icon: ShieldCheck, tone: 'bg-slate-100 text-slate-700' },
 };
-/** Bölüm sayfalarının üstündeki başlık: geri, başlık, ana sayfa */
+/** Bölüm başlıklarının altındaki kısa açıklama */
+export const SECTION_SUB: Record<Exclude<ActiveTab, 'home'>, string> = {
+  quotes: 'Tüm tekliflerinizi buradan görüntüleyin ve yönetin.',
+  customers: 'Müşteri bilgilerini yönetin.',
+  collections: 'Tahsilat kayıtlarınızı görüntüleyin ve yönetin.',
+  expenses: 'Harcama kayıtlarınızı görüntüleyin ve yönetin.',
+  materials: 'Malzeme listesini görüntüleyin ve yönetin.',
+  reports: 'Satış, tahsilat ve harcama raporları.',
+  notes: 'Notlarınız ve son hareketler.',
+  admin: 'Kullanıcılar ve yetkiler.',
+};
+
+/** Bölüm sayfalarının üstündeki başlık: simge, başlık + açıklama, sağda isteğe bağlı ana düğme (telefonda geri) */
 export const PageHeader: React.FC<{
   title: string;
+  subtitle?: string;
   icon: React.ElementType;
-  tone: string;
+  tone?: string;
   onBack: () => void;
-  onHome: () => void;
-}> = ({ title, icon: Icon, tone, onBack, onHome }) => (
-  <div className="flex items-center justify-between gap-2 mb-4">
-    <button
-      onClick={onBack}
-      className="flex items-center gap-1 pl-2 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-bold shadow-xs hover:bg-slate-50 active:bg-slate-100"
-    >
-      <ChevronRight className="w-4 h-4 rotate-180" /> Geri
+  onHome?: () => void;
+  action?: { label: string; icon: React.ElementType; onClick: () => void };
+}> = ({ title, subtitle, icon: Icon, onBack, action }) => (
+  <div className="flex items-center gap-3 mb-4 sm:mb-5">
+    <button onClick={onBack} aria-label="Geri"
+      className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-600 shadow-xs shrink-0">
+      <ChevronRight className="w-4 h-4 rotate-180" />
     </button>
-    <h1 className="flex items-center gap-2 font-black text-slate-900 text-base sm:text-xl min-w-0">
-      <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-4 h-4" /></span>
-      <span className="truncate">{title}</span>
-    </h1>
-    <button
-      onClick={onHome}
-      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold shadow-xs"
-      aria-label="Ana Sayfa"
-    >
-      <HomeIcon className="w-4 h-4" /> <span className="hidden sm:inline">Ana Sayfa</span>
-    </button>
+    <span className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-sky-500 text-white flex items-center justify-center shrink-0 shadow-[0_8px_18px_-8px_rgba(0,110,198,0.7)]">
+      <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+    </span>
+    <div className="min-w-0 flex-1">
+      <h1 className="font-black text-slate-900 text-lg sm:text-2xl leading-tight truncate">{title}</h1>
+      {subtitle && <p className="text-xs sm:text-sm text-slate-500 truncate">{subtitle}</p>}
+    </div>
+    {action && (
+      <button onClick={action.onClick}
+        className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white text-sm font-bold shadow-[0_8px_18px_-8px_rgba(0,110,198,0.8)] shrink-0">
+        <action.icon className="w-4 h-4" /> <span className="hidden sm:inline">{action.label}</span>
+      </button>
+    )}
   </div>
 );
-

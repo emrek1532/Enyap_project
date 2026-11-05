@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import {
   AppData,
   Customer,
@@ -46,7 +46,10 @@ import { QuickNoteFab } from './components/QuickNoteFab';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
-import { PageHeader, SECTION_META } from './components/Sections';
+import { PageHeader, SECTION_META, SECTION_SUB } from './components/Sections';
+import { Sidebar } from './components/Sidebar';
+import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
+import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
 import { BottomNav } from './components/BottomNav';
 import { MaterialsPanel } from './components/MaterialsPanel';
@@ -159,6 +162,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [openMikro, setOpenMikro] = useState(false);
   // Ana sayfadan "Tahsilat / Harcama Ekle" ile gelince form açık başlasın
   const [ledgerStartNew, setLedgerStartNew] = useState<'collections' | 'expenses' | null>(null);
+  // Hızlı kısayol penceresi (Ara, Tekliflere sor, Teklif hazırla, Sesle kayıt)
+  const [toolMode, setToolMode] = useState<ToolMode | null>(null);
 
   // Sayfa geçişleri tarayıcı geçmişine yazılır: telefonun geri tuşu da önceki sayfaya döner
   useEffect(() => {
@@ -685,27 +690,52 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
 
 
+  const navSections = MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title }));
+  const userEmail = session.user.email || '';
+  const userName = profile.fullName || userEmail.split('@')[0] || 'Kullanıcı';
+  const roleLabel = profile.isAdmin ? 'Yönetici' : currentRole === 'istanbul' ? 'İstanbul ekibi' : 'Isparta ekibi';
+  const toolAllow = { quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') };
+  const tools = toolList(tabAllowed('quotes'), toolAllow);
+  const handleVoice = (r: VoiceResult) => {
+    if (r.kind === 'quote') { setQuoteDraft(r.draft); setIsNewQuoteOpen(true); return; }
+    setLedgerDraft(r.draft);
+    setLedgerStartNew(r.kind === 'collection' ? 'collections' : 'expenses');
+    setActiveTab(r.kind === 'collection' ? 'collections' : 'expenses');
+  };
+  const openTool = (m: ToolMode) => { setToolMode(m); try { localStorage.setItem('home-assistant', m); } catch { /* */ } };
+  const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
+    : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
+    : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
+    : undefined;
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-24 md:pb-8">
-      
-      {/* Header + desktop tabs stay pinned together while scrolling */}
+    <div className="min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#f4f8fc] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60">
+
+      <Sidebar
+        sections={navSections}
+        active={activeTab}
+        onOpen={id => setActiveTab(id as ActiveTab)}
+        onHome={goHome}
+        onSignOut={handleSignOut}
+        userName={userName}
+        userEmail={userEmail}
+        roleLabel={roleLabel}
+      />
+
       <div className="sticky top-0 z-30">
-      {/* Top Application Header */}
       <Header
         syncStatus={syncStatus}
         onTriggerSync={() => performSync(true)}
-        onSignOut={handleSignOut}
-        userEmail={session.user.email || ''}
         onHome={goHome}
-        sections={MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title }))}
-        activeSection={activeTab}
-        onOpenSection={id => setActiveTab(id as ActiveTab)}
+        userName={userName}
+        userEmail={userEmail}
+        roleLabel={roleLabel}
+        onSearch={() => openTool('search')}
       />
-
       </div>
 
       {/* Main App Content Area */}
-      <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1">
+      <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1 min-w-0">
         {rejected.length > 0 && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm p-3 flex gap-3 items-start">
             <div className="flex-1 min-w-0">
@@ -733,12 +763,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
               onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
               onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
-              onVoice={r => {
-                if (r.kind === 'quote') { setQuoteDraft(r.draft); setIsNewQuoteOpen(true); return; }
-                setLedgerDraft(r.draft);
-                setLedgerStartNew(r.kind === 'collection' ? 'collections' : 'expenses');
-                setActiveTab(r.kind === 'collection' ? 'collections' : 'expenses');
-              }}
+              userName={userName}
+              tools={tools}
+              onOpenTool={openTool}
             />
           </>
         )}
@@ -747,6 +774,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         {activeTab !== 'home' && (
           <PageHeader
             title={SECTION_META[activeTab].title}
+            subtitle={SECTION_SUB[activeTab]}
+            action={pageAction}
             icon={SECTION_META[activeTab].icon}
             tone={SECTION_META[activeTab].tone}
             onBack={goBack}
@@ -859,14 +888,29 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
       <QuickNoteFab currentRole={currentRole} onSave={handleSaveNote} />
       <BottomNav
-        sections={MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title }))}
+        sections={navSections}
         primary={['quotes', 'customers', 'materials'].filter(id => tabAllowed(id as ActiveTab))}
         active={activeTab}
         onOpen={id => setActiveTab(id as ActiveTab)}
         onHome={goHome}
         onSignOut={handleSignOut}
-        userEmail={session.user.email || ''}
+        userEmail={userEmail}
       />
+
+      {toolMode && (
+        <QuickToolsModal
+          mode={toolMode}
+          tools={tools}
+          onMode={openTool}
+          onClose={() => setToolMode(null)}
+          quotes={data.quotes}
+          customers={data.customers || []}
+          allow={toolAllow}
+          onVoice={handleVoice}
+          onOpenQuote={setEditingQuote}
+          onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
+        />
+      )}
 
       {/* MODALS */}
       {/* 1. New Quote Modal */}

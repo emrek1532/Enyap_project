@@ -32,15 +32,15 @@ export const BottomNav: React.FC<{
   const item = (key: string, label: string, Icon: React.ElementType, on: boolean, onClick: () => void) => (
     <button key={key} onClick={onClick}
       className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-bold ${on ? 'text-brand-600' : 'text-slate-500'}`}>
-      <span className={`w-11 h-7 rounded-full flex items-center justify-center ${on ? 'bg-brand-50' : ''}`}><Icon className="w-5 h-5" /></span>
+      <span className={`w-11 h-7 rounded-full flex items-center justify-center transition ${on ? 'bg-gradient-to-r from-brand-500 to-sky-500 text-white shadow-sm' : ''}`}><Icon className="w-5 h-5" /></span>
       <span className="truncate max-w-full">{label}</span>
     </button>
   );
   const moreActive = rest.some(s => s.id === active);
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 pb-[env(safe-area-inset-bottom,0px)]">
-        <div className="flex items-stretch px-1">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur rounded-t-3xl shadow-[0_-8px_24px_-12px_rgba(15,50,100,0.25)] border-t border-slate-100 pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="flex items-stretch px-1 pt-1">
           {item('home', 'Ana Sayfa', Home, active === 'home', onHome)}
           {main.map(s => item(s.id, s.title, s.icon, active === s.id, () => onOpen(s.id)))}
           {item('more', 'Diğer', MoreHorizontal, more || moreActive, () => setMore(true))}
