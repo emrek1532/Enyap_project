@@ -12,7 +12,7 @@
  * - Vade: peşin (PEŞİN / KREDİ KARTI) teklif yalnız peşin tekliflerle, vadeli (GÜN'lü ya da vadesi boş) yalnız vadelilerle karşılaştırılır.
  */
 import { supabase } from './supabase';
-import { PdfQuote, catalogCode } from './pdfQuote';
+import { CatalogHit, PdfQuote, catalogLookup } from './pdfQuote';
 import { Quote, QuoteItem } from '../types';
 
 export type CheckLevel = 'ok' | 'info' | 'warn';
@@ -49,8 +49,9 @@ const day = (iso: string) => (iso || '').slice(0, 10).split('-').reverse().join(
 const levelOf = (issues: CheckIssue[]): CheckLevel => (issues.some(x => x.level === 'warn') ? 'warn' : issues.length ? 'info' : 'ok');
 const priceEq = (a: number, b: number) => Math.abs(a - b) <= Math.max(0.011, b * 0.005);
 
-export async function checkQuote(pdf: Pick<PdfQuote, 'items'>): Promise<CheckRow[]> {
-  const codes = await Promise.all(pdf.items.map(it => (it.code ? Promise.resolve(it.code) : catalogCode(it.productName))));
+export async function checkQuote(pdf: Pick<PdfQuote, 'items'>, quotes: Pick<Quote, 'createdAt' | 'items'>[] = []): Promise<CheckRow[]> {
+  const found = await Promise.all(pdf.items.map(it => (it.code ? Promise.resolve<CatalogHit>({ code: it.code }) : catalogLookup(it.productName, quotes))));
+  const codes = found.map(f => f.code);
   const wanted = [...new Set(codes.filter(Boolean) as string[])];
 
   const hits = new Map<string, ListHit[]>();
@@ -75,6 +76,10 @@ export async function checkQuote(pdf: Pick<PdfQuote, 'items'>): Promise<CheckRow
     const code = codes[i] || undefined;
     const issues: CheckIssue[] = [];
     const cur = item.currency || 'TRY';
+    if (!code && found[i].dupes) {
+      issues.push({ level: 'warn', kind: 'catalog', text: `Katalogda aynı adlı ${found[i].dupes} kart var; hangisi olduğu ayırt edilemedi, kodu elle seçin (Mikro'da çift kaydı düzeltin)` });
+      return { item, issues, level: 'warn' as const };
+    }
     if (!code) {
       issues.push({ level: 'warn', kind: 'catalog', text: 'Ürün katalogda bulunamadı: ad Mikro\'daki ürün kartıyla aynı değil ya da yeni ürün' });
       return { item, issues, level: 'warn' as const };
@@ -264,7 +269,7 @@ export async function suggestMatches(rows: CheckRow[]): Promise<CheckRow[]> {
 
 /** Tüm kontrol: liste + geçmiş + marka kuralları + eşleşme önerisi */
 export async function runQuoteCheck(items: QuoteItem[], quotes: Quote[], customerName: string | null, quoteNumber: string | null, paymentTerm?: string | null): Promise<{ rows: CheckRow[]; notes: BrandNote[] } | null> {
-  const listed = await checkQuote({ items }).catch(() => null);
+  const listed = await checkQuote({ items }, quotes).catch(() => null);
   if (!listed) return null;
   const term = paymentTerm ? termClass(paymentTerm) : null;
   const hist = compareWithHistory(listed, quotes, customerName, quoteNumber, term);

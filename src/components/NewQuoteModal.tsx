@@ -415,7 +415,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       if (pdf.items.length) {
         // Katalogda adı birebir aynı olan malzemelerin kodu da gelsin
         let i = 0;
-        const work = async () => { while (i < pdf.items.length) { const it = pdf.items[i++]; const c = await catalogCode(it.productName); if (c) it.code = c; } };
+        const work = async () => { while (i < pdf.items.length) { const it = pdf.items[i++]; const c = await catalogCode(it.productName, quotes); if (c) it.code = c; } };
         await Promise.all([work(), work(), work(), work()]);
         const ids = pdf.items.map((_, k) => `it-${Date.now()}-${k}`);
         setItems(pdf.items.map((it, k) => ({ ...it, id: ids[k] })));
