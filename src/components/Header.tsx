@@ -51,6 +51,11 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Actions: eşitleme durumu, bildirim, kılavuz, çıkış */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap">
+            {/* Sürüm: sade, göz yormayan küçük yazı */}
+            <span className="text-[10px] font-medium text-slate-500 tabular-nums select-none" title={`Sürüm ${__APP_VERSION__} · ${__APP_BUILD__}`}>
+              v{__APP_VERSION__}
+            </span>
+
             {/* Cloud Sync Button */}
             <button
               onClick={onTriggerSync}
@@ -84,10 +89,6 @@ export const Header: React.FC<HeaderProps> = ({
               <LogOut className="w-3.5 h-3.5" />
             </button>
 
-            {/* Sürüm: sade, göz yormayan küçük yazı */}
-            <span className="text-[10px] font-medium text-slate-300 tabular-nums select-none" title={`Sürüm ${__APP_VERSION__} · ${__APP_BUILD__}`}>
-              v{__APP_VERSION__}
-            </span>
           </div>
 
         </div>
