@@ -3,8 +3,8 @@
  * firma, teklif no, tarih, vade, teklifi veren, kalemler (miktar / birim / fiyat / iskonto / döviz) ve genel toplamlar.
  */
 import { Currency } from './money';
-import { QuoteItem } from '../types';
-import { foldTr, searchMaterials } from './materials';
+import { Quote, QuoteItem } from '../types';
+import { Material, foldTr, searchMaterials } from './materials';
 import { supabase } from './supabase';
 
 export interface PdfQuote {
@@ -391,20 +391,50 @@ export const titleTr = (s: string) =>
   s.toLocaleLowerCase('tr').replace(/(^|[\s(/-])(\p{L})/gu, (_, a, b) => a + b.toLocaleUpperCase('tr'));
 
 
+/** Kod bulunamadıysa neden: katalogda aynı adlı birden çok kart var ve hangisi olduğu ayırt edilemedi */
+export interface CatalogHit { code?: string; /** Aynı adlı kart sayısı (ayırt edilemediyse) */ dupes?: number }
+
+/**
+ * Aynı adlı birden çok kart (Mikro'da çift kayıt ya da adı eksik ürün) varsa hangisi:
+ * 1) fiyatı ya da stoku olan tek kart, 2) yoksa (o kartlar arasında) tekliflerde en son kullanılan;
+ * hiçbiri ayırt etmiyorsa kod boş kalır. Teklifler cihazdakilerden, ek istek yok.
+ */
+function pickDuplicate(ms: Material[], quotes: Pick<Quote, 'createdAt' | 'items'>[]): string | undefined {
+  const live = ms.filter(m => m.price > 0 || (m.stock ?? 0) !== 0);
+  if (live.length === 1) return live[0].code;
+  const pool = new Set((live.length ? live : ms).map(m => m.code));
+  const last = new Map<string, string>();
+  for (const q of quotes) for (const it of q.items || []) {
+    if (it.code && pool.has(it.code) && (q.createdAt || '') > (last.get(it.code) || '')) last.set(it.code, q.createdAt || '');
+  }
+  const used = [...last].sort((a, b) => b[1].localeCompare(a[1]));
+  return used.length && (used.length === 1 || used[0][1] !== used[1][1]) ? used[0][0] : undefined;
+}
+
 /** Katalogda adı birebir aynı olan malzemenin kodunu bulur (yanlış kod yazmamak için sadece tam eşleşme) */
-export async function catalogCode(name: string): Promise<string | undefined> {
+export async function catalogLookup(name: string, quotes: Pick<Quote, 'createdAt' | 'items'>[] = []): Promise<CatalogHit> {
   // Parantez çevresindeki boşluk farkı ("( KOLİ 25 )" / "(KOLİ 25)") aynı ad sayılır
   const norm = (s: string) => foldTr(s).replace(/\s+/g, ' ').replace(/\s*([()])\s*/g, '$1').trim();
   const target = norm(name);
-  const find = async (q: string) => (await searchMaterials(q, { limit: 50, field: 'name' })).items.find(m => norm(m.name) === target)?.code;
+  const find = async (q: string): Promise<CatalogHit | null> => {
+    const ms = (await searchMaterials(q, { limit: 50, field: 'name' })).items.filter(m => norm(m.name) === target);
+    if (!ms.length) return null;
+    if (ms.length === 1) return { code: ms[0].code };
+    const code = pickDuplicate(ms, quotes);
+    return code ? { code } : { dupes: ms.length };
+  };
   try {
     // Önce adın tamamıyla (ölçü dahil) ara: aynı ürünün tüm ölçüleri (ör. 86 uzun trifonlu kelepçe) ilk sonuçlara sığmayabilir
     const full = await find(name.replace(/[()]/g, ' '));
     if (full) return full;
     const words = target.split(/[\s()]+/).filter(w => w.length >= 3).sort((a, b) => b.length - a.length).slice(0, 3);
-    return words.length ? await find(words.join(' ')) : undefined;
+    return (words.length && (await find(words.join(' ')))) || {};
   } catch {
-    return undefined;
+    return {};
   }
+}
+
+export async function catalogCode(name: string, quotes: Pick<Quote, 'createdAt' | 'items'>[] = []): Promise<string | undefined> {
+  return (await catalogLookup(name, quotes)).code;
 }
 
