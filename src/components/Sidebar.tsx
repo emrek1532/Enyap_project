@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowRight, BarChart3, Home, LogOut, X } from 'lucide-react';
+import React from 'react';
+import { Home, LogOut } from 'lucide-react';
 
 export type SideSection = { id: string; title: string; icon: React.ElementType };
 
@@ -20,11 +20,7 @@ export const Sidebar: React.FC<{
   userName: string;
   userEmail: string;
   roleLabel: string;
-  /** "Raporları Gör" kartı (rapor yetkisi varsa); kapatılınca bu cihazda gizlenir */
-  onReports?: () => void;
-}> = ({ sections, active, onOpen, onHome, onSignOut, userName, userEmail, roleLabel, onReports }) => {
-  const [promo, setPromo] = useState(() => { try { return localStorage.getItem('sidebar-promo') !== 'off'; } catch { return true; } });
-  const hidePromo = () => { setPromo(false); try { localStorage.setItem('sidebar-promo', 'off'); } catch { /* */ } };
+}> = ({ sections, active, onOpen, onHome, onSignOut, userName, userEmail, roleLabel }) => {
   const item = (id: string, title: string, Icon: React.ElementType, onClick: () => void) => {
     const on = active === id;
     return (
@@ -46,19 +42,6 @@ export const Sidebar: React.FC<{
         {item('home', 'Ana Sayfa', Home, onHome)}
         {sections.map(s => item(s.id, s.title, s.icon, () => onOpen(s.id)))}
       </nav>
-      {onReports && promo && (
-        <div className="relative mx-3 mt-3 p-4 rounded-2xl overflow-hidden bg-gradient-to-br from-[#123c6b] to-[#0b2a4c] border border-white/10">
-          <svg viewBox="0 0 120 90" className="absolute right-0 bottom-0 w-28 opacity-20" aria-hidden>
-            <rect x="20" y="30" width="22" height="60" fill="#9cc7f2" /><rect x="48" y="10" width="28" height="80" fill="#c5def7" /><rect x="82" y="40" width="24" height="50" fill="#9cc7f2" />
-          </svg>
-          <button onClick={hidePromo} className="absolute top-2 right-2 w-6 h-6 rounded-full bg-sky-500/90 text-white flex items-center justify-center" aria-label="Kapat"><X className="w-3.5 h-3.5" /></button>
-          <BarChart3 className="relative w-7 h-7 text-sky-400" />
-          <p className="relative mt-2 text-[15px] font-bold leading-snug">Daha güçlü satışlar için <span className="font-normal text-slate-200">verilerinizi keşfedin.</span></p>
-          <button onClick={onReports} className="relative mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold">
-            Raporları Gör <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
       <div className="m-3 p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
         <span className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-brand-600 flex items-center justify-center text-sm font-black shrink-0">{initials(userName)}</span>
         <span className="min-w-0 flex-1">

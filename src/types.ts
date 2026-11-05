@@ -5,7 +5,6 @@ export type QuoteStatus =
   | 'onaylandi'       // Müşteri onayladı
   | 'iptal';          // Sipariş olup sonradan iptal edildi
 
-export type UrgencyLevel = 'acil' | 'yuksek' | 'normal' | 'dusuk';
 
 export type RequestChannel = 'whatsapp' | 'telefon' | 'ziyaret' | 'email';
 
@@ -31,9 +30,7 @@ export interface Quote {
   customerContact?: string;
   customerPhone: string;
   city: string;
-  projectLocation?: string;
   requestChannel: RequestChannel;
-  urgency: UrgencyLevel;
   status: QuoteStatus;
   rawWhatsAppText?: string;
   items: QuoteItem[];
@@ -139,23 +136,10 @@ export interface Expense {
   updatedAt: string;
 }
 
-/** Müşteri ziyareti (sahada "uğradım" kaydı) */
-export interface Visit {
-  id: string;
-  customerName: string;
-  date: string;          // YYYY-MM-DD
-  note?: string;
-  city?: string;
-  createdBy: UserRole;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface AppData {
   customers?: Customer[];
   collections?: Collection[];
   expenses?: Expense[];
-  visits?: Visit[];
   quotes: Quote[];
   notes: QuickNote[];
   activities: ActivityLog[];

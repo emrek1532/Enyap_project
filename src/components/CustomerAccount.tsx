@@ -3,9 +3,8 @@ import { dayOf } from '../lib/dates';
 import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
 import { CollectionQuickForm } from './LedgerPanel';
 import { DateInput } from './DateInput';
-import { Collection, Customer, CustomerStatus, Quote, QuoteStatus, UserRole, Visit } from '../types';
+import { Collection, Customer, CustomerStatus, Quote, QuoteStatus, UserRole } from '../types';
 import { CustomerInsights } from './CustomerInsights';
-import { VisitBox, newVisit, visitsOf } from './VisitPlan';
 import { WhatsAppMenu } from './WhatsAppMenu';
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
@@ -54,9 +53,7 @@ export const CustomerAccount: React.FC<{
   onSetStatus?: (s: CustomerStatus, note: string) => void;
   /** Mikro'dan yüklenen bakiye ve sonrasındaki tahsilatlarla tahmini güncel bakiye */
   balance?: { balance: number; date: string; collectedAfter: number; estimate: number } | null;
-  visits?: Visit[];
-  onSaveVisit?: (v: Visit) => void;
-}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance, visits = [], onSaveVisit }) => {
+}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance }) => {
   const ev = useMemo(() => evaluate(allQuotes, allCollections, rates, maxWon), [allQuotes, allCollections, rates, maxWon]);
   const cStatus = statusOf(customer);
   const [addingCol, setAddingCol] = useState(false);
@@ -189,7 +186,6 @@ export const CustomerAccount: React.FC<{
             </section>
           )}
           <CustomerInsights ev={ev} collections={showCollections ? allCollections : undefined} balance={showCollections ? balance?.estimate : undefined} status={cStatus} statusNote={customer.statusNote} onSetStatus={onSetStatus} onOpenQuote={onOpenQuote} />
-          <VisitBox visits={visitsOf(visits, customer.name)} onVisit={onSaveVisit ? note => onSaveVisit(newVisit(customer, note, currentRole)) : undefined} />
           {/* Tarih filtresi */}
           <div className="flex flex-wrap items-center gap-1.5">
             {[{ k: 'all', label: 'Tümü', on: () => setRange({ key: 'all', from: '', to: '' }) },

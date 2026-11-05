@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight } from 'lucide-react';
 import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager, FilterBar } from './ListUI';
-import { VisitPlan } from './VisitPlan';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
-import { Collection, Customer, CustomerStatus, Quote, UserRole, Visit } from '../types';
+import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { CustomerAccount } from './CustomerAccount';
 import { CityInput } from './TextSuggest';
@@ -29,8 +28,6 @@ interface CustomersPanelProps {
   /** Ana sayfadan "Mikro bakiyesi yükle" ile gelindiyse yükleme penceresi açılır */
   openMikro?: boolean;
   onMikroHandled?: () => void;
-  visits?: Visit[];
-  onSaveVisit?: (v: Visit) => void;
   /** Sayfa başlığındaki "Yeni Müşteri" her basışta artar */
   newRequest?: number;
 }
@@ -72,8 +69,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   onFocusHandled,
   openMikro,
   onMikroHandled,
-  visits = [],
-  onSaveVisit,
   newRequest,
 }) => {
   const [mikroOpen, setMikroOpen] = useState(false);
@@ -81,7 +76,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const balanceOf = (c: Customer) => (showCollections ? estimatedBalance(c, collections) : null);
   const lastMikro = useMemo(() => customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), ''), [customers]);
   const rates = useRates(quotes);
-  const [mode, setMode] = useState<'list' | 'balance' | 'visit'>('list');
+  const [mode, setMode] = useState<'list' | 'balance'>('list');
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
@@ -255,17 +250,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <UnderlineTabs<typeof mode> value={mode} onChange={setMode} items={[
         { key: 'list' as const, label: 'Müşteri Listesi' },
         ...(showCollections ? [{ key: 'balance' as const, label: 'Cari Bakiyeler' }] : []),
-        { key: 'visit' as const, label: 'Ziyaret Planı' },
       ]} />
 
       {mode === 'balance' && showCollections && (
         <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
           onOpen={c => { setViewing(c); }} onMikro={onSaveCollection ? () => setMikroOpen(true) : undefined} />
-      )}
-
-      {mode === 'visit' && (
-        <VisitPlan customers={customers} quotes={quotes} visits={visits} rates={rates} balanceOf={balanceOf}
-          onOpen={c => setViewing(c)} onSaveVisit={onSaveVisit} currentRole={currentRole || 'isparta'} />
       )}
 
       {mode === 'list' && (
@@ -429,8 +418,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           maxWon={evals.max}
           onSetStatus={(st, note) => setStatus(viewing, st, note)}
           balance={balanceOf(viewing)}
-          visits={visits}
-          onSaveVisit={onSaveVisit}
         />
       )}
 

@@ -27,7 +27,6 @@ const GUIDE: [string, string[]][] = [
     'Bakiyeler sekmesi: Mikro\'dan yüklenen cari bakiyeler; alacağımız ve borcumuz ayrı toplanır.',
     'Güncel bakiye = Mikro bakiyesi − o tarihten sonra girilen TL tahsilatlar.',
     'Firma kartında ödeme alışkanlığı: son tahsilat, ortalama tahsilat aralığı, ortalama çek vadesi ve ödeme şekli.',
-    'Ziyaret sekmesi: şehir seçilir; bekleyen teklifi veya alacağı olan firmalar önce, sonra en uzun süredir uğranmayanlar listelenir. "Uğradım" ile ziyaret ve kısa not kaydedilir; firma kartında ziyaret geçmişi görünür.',
     'Mikro yükle: Mikro\'dan alınan cari bakiye listesini yükleyin (15 günden eskiyse tarih kırmızı görünür).',
     'Firma pasife veya kara listeye alınabilir; bu firmalar önerilerde çıkmaz.',
   ]],

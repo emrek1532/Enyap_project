@@ -511,7 +511,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       customerPhone: '',
       city: city.trim(),
       requestChannel: 'telefon',
-      urgency: 'normal',
       status: 'gonderildi',
       items: filledItems,
       totalAmount: totalQuoteAmount,
