@@ -29,7 +29,7 @@ export interface CheckRow {
   /** Kurala göre beklenen iskonto (sarı uyarıda "düzelt" düğmesi bunu yazar) */
   expected?: number;
   /** Aynı ürünün en son verildiği teklif (önce aynı firma) */
-  history?: { customer: string; date: string; quoteNumber: string; discount: number; own: boolean; price?: number; currency?: string };
+  history?: { customer: string; date: string; quoteNumber: string; discount: number; own: boolean; price?: number; currency?: string; /** Aynı vadede geçmiş yoksa diğer vadedeki teklif (yalnız bilgi): 'peşin' / 'vadeli' */ otherTerm?: string };
   /** Hiçbir listeye bağlı değilse: firma listelerinde benzer (bağsız) kalemler */
   suggest?: Suggestion[];
   /** Öneri kabul edilip bağlandıysa: "liste · kalem" */
@@ -132,25 +132,34 @@ export function compareWithHistory(rows: CheckRow[], quotes: Quote[], customerNa
   const fold = (s: string) => s.toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim();
   const custKey = customerName ? fold(customerName).split(' ')[0] : '';
   const sameCust = (name: string) => !!custKey && custKey.length >= 3 && fold(name).startsWith(custKey);
-  const sorted = quotes.filter(q => (!quoteNumber || q.quoteNumber !== quoteNumber) && (!term || termClass(q.paymentTerm) === term))
+  const all = quotes.filter(q => !quoteNumber || q.quoteNumber !== quoteNumber)
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   return rows.map(r => {
     const key = r.code || r.item.code;
     const nameKey = fold(r.item.productName);
     const same = (it: QuoteItem) => (key ? it.code === key : fold(it.productName) === nameKey);
-    let own: { q: Quote; it: QuoteItem } | null = null;
-    let any: { q: Quote; it: QuoteItem } | null = null;
-    for (const q of sorted) {
-      const it = (q.items || []).find(same);
-      if (!it) continue;
-      if (!any) any = { q, it };
-      if (sameCust(q.customerName)) { own = { q, it }; break; }
+    // Önce aynı vadedeki teklifler; yoksa diğer vadedeki son teklif yalnız bilgi olarak gösterilir (uyarı üretmez)
+    const find = (list: Quote[]) => {
+      let own: { q: Quote; it: QuoteItem } | null = null, any: { q: Quote; it: QuoteItem } | null = null;
+      for (const q of list) {
+        const it = (q.items || []).find(same);
+        if (!it) continue;
+        if (!any) any = { q, it };
+        if (sameCust(q.customerName)) { own = { q, it }; break; }
+      }
+      return { own, any };
+    };
+    let { own, any } = find(term ? all.filter(q => termClass(q.paymentTerm) === term) : all);
+    let otherTerm: string | undefined;
+    if (!own && !any && term) {
+      ({ own, any } = find(all));
+      if (own || any) otherTerm = termName(term === 'cash' ? 'term' : 'cash');
     }
     const ref = own || any;
     if (!ref) return r;
     const prevCur = ref.it.currency || ref.q.currency || 'TRY';
-    const history = { customer: ref.q.customerName, date: ref.q.createdAt, quoteNumber: ref.q.quoteNumber, discount: ref.it.discount || 0, own: !!own, price: ref.it.unitPrice, currency: prevCur };
-    if (r.list) return { ...r, history };
+    const history = { customer: ref.q.customerName, date: ref.q.createdAt, quoteNumber: ref.q.quoteNumber, discount: ref.it.discount || 0, own: !!own, price: ref.it.unitPrice, currency: prevCur, otherTerm };
+    if (r.list || otherTerm) return { ...r, history };
     const issues = [...r.issues];
     const who = own ? 'Bu firmaya' : `${ref.q.customerName} firmasına`;
     const was = ref.it.discount || 0, now = r.item.discount || 0;
