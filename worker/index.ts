@@ -776,7 +776,8 @@ async function handleMatch(req: Request, env: Env): Promise<Response> {
 }
 
 const ASK_PROMPT = `Enyap Isı'nın teklif ve satış asistanısın. Kullanıcının sorusunu YALNIZCA verilen teklif satırlarına dayanarak Türkçe, kısa ve net cevapla.
-Fiyatları para birimiyle yaz, tarih ve firma adını belirt. Satırlarda cevap yoksa "Kayıtlarda bulamadım" de; tahmin etme, uydurma.`;
+Fiyatları para birimiyle yaz, tarih ve firma adını belirt. Satırlarda cevap yoksa "Kayıtlarda bulamadım" de; tahmin etme, uydurma.
+"SÜZGEÇ" satırı varsa satırlar o tarih/firma/duruma göre seçilmiştir; hepsi bu kapsamdadır.`;
 
 async function handleAsk(req: Request, env: Env): Promise<Response> {
   if (!env.ANTHROPIC_API_KEY && !env.AI) return json({ error: 'no_ai' }, 503);
