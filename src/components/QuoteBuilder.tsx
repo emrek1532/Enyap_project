@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Bot, Camera, CheckCircle2, FileSpreadsheet, Loader2, Plus, Send, Settings2, Trash2, X } from 'lucide-react';
+import { Chip, PastList, ToolCard, pushPast, readPast } from './ToolCard';
+import { Bot, Camera, ChevronDown, Star, CheckCircle2, FileSpreadsheet, Loader2, Plus, Send, Settings2, Trash2, X } from 'lucide-react';
 import { Customer, Quote, QuoteItem } from '../types';
 import { Material, foldTr } from '../lib/materials';
 import { useSetting } from '../lib/settings';
@@ -10,6 +11,14 @@ type Row = ReqLine & { m: Match; pick: string | null; skip: boolean };
 
 const money = (m: Material) => (m.price > 0
   ? `${m.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${m.currency === 'TRY' ? 'TL' : m.currency}` : 'fiyat yok');
+
+// Örnek istekler (dokununca kutuya yazılır; firma adını kendinize göre değiştirin)
+const EXAMPLES = [
+  'Gemfa\'ya 10 adet 2" küresel vana, geçen seferki iskontoyla',
+  'Demir İnşaat\'a 1 adet 500 lt genleşme tankı, peşin',
+  '200 lt boyler ve 2 adet 1" pislik tutucu',
+];
+const HIST_KEY = 'draft-history';
 
 /** Birden çok dolu satır varsa talep listesi (satır satır okunur), tek satırsa serbest istek (ajan) */
 export const isList = (t: string) => t.split(/\r?\n/).filter(l => l.trim()).length >= 2;
@@ -22,6 +31,8 @@ export const isList = (t: string) => t.split(/\r?\n/).filter(l => l.trim()).leng
  */
 export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; onDraft: (draft: Partial<Quote>) => void }> = ({ quotes, customers, onDraft }) => {
   const agent = useQuoteAgent(quotes, customers, onDraft);
+  const [hist, setHist] = useState(() => readPast(HIST_KEY));
+  const [showEx, setShowEx] = useState(false);
   const [prefs, savePrefs] = useSetting<PrefRule[]>(PREF_KEY, []);
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -61,6 +72,7 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
     setPhoto(null);
     if (isList(t)) { run({ text: t }); return; }
     setErr(''); setRows(null);
+    setHist(pushPast(HIST_KEY, t));
     agent.run(t);
   };
   const working = !!busy || agent.busy;
@@ -101,14 +113,49 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
   };
 
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 space-y-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5"><Bot className="w-4 h-4 text-emerald-600" /> Teklif hazırla</h2>
-        <button onClick={() => setShowPrefs(v => !v)} className="text-[11px] font-bold text-slate-500 hover:text-brand-700 flex items-center gap-1">
+    <ToolCard icon={Bot} tone="emerald" title="Teklif hazırla"
+      subtitle="İsteği yazın ya da müşterinin mesajını, fotoğrafını, Excel'ini verin; teklif formu dolu açılsın."
+      >
+      <form onSubmit={submit} className="space-y-2">
+        <div className="flex gap-2 items-stretch">
+          <textarea value={text} onChange={e => setText(e.target.value)} rows={3}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !isList(text)) { e.preventDefault(); submit(); } }}
+            placeholder={'Ör. Gemfa\'ya 10 adet 2" küresel vana, geçen seferki iskontoyla — ya da müşterinin mesajını yapıştırın (her satıra bir ürün)'}
+            className="min-w-0 flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+          <button type="submit" disabled={working || !text.trim()} className="px-3 rounded-xl bg-emerald-600 text-white disabled:opacity-50" aria-label="Hazırla">
+            {working ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className={`px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${working ? 'opacity-40 pointer-events-none' : 'hover:bg-slate-50'}`}>
+            <Camera className="w-4 h-4" /> Fotoğraf <span className="font-normal text-slate-400">(yapay zekâ)</span>
+            <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(f); }} />
+          </label>
+          <label className={`px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${working ? 'opacity-40 pointer-events-none' : 'hover:bg-slate-50'}`}>
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+            <input type="file" accept=".xlsx" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onExcel(f); }} />
+          </label>
+          {busy && <span className="text-xs text-slate-500 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> {busy}</span>}
+          {!busy && text.trim() && <span className="text-[11px] text-slate-400">{isList(text) ? 'Satır satır okunacak (yapay zekâsız)' : 'İstek olarak hazırlanacak'}</span>}
+        </div>
+      </form>
+      <div className="flex flex-wrap gap-2">
+        <Chip onClick={() => setShowEx(v => !v)} active={showEx}>
+          <Star className="w-3.5 h-3.5" /> Örnek istekler <ChevronDown className={`w-3.5 h-3.5 transition ${showEx ? 'rotate-180' : ''}`} />
+        </Chip>
+        <Chip onClick={() => setShowPrefs(v => !v)} active={showPrefs}>
           <Settings2 className="w-3.5 h-3.5" /> Tercihli ürünler{prefs.length ? ` (${prefs.length})` : ''}
-        </button>
+        </Chip>
       </div>
-
+      {showEx && (
+        <ul className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+          {EXAMPLES.map(x => (
+            <li key={x}>
+              <button type="button" onClick={() => { setText(x); setShowEx(false); }} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{x}</button>
+            </li>
+          ))}
+        </ul>
+      )}
       {showPrefs && (
         <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5 space-y-1.5 text-xs">
           <p className="text-slate-500">Talepte marka yazmıyorsa hangi ürün ailesi gelsin. Örnek: <b>genleşme</b> → <b>VTSKGD</b> (Wates), <b>serpantinli boyler</b> → <b>APABTS</b> (APA). Ölçüyle birlikte ürün kesinleşir.</p>
@@ -130,29 +177,6 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
         </div>
       )}
 
-      <form onSubmit={submit} className="space-y-2">
-        <div className="flex gap-2 items-stretch">
-          <textarea value={text} onChange={e => setText(e.target.value)} rows={2}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !isList(text)) { e.preventDefault(); submit(); } }}
-            placeholder={'Ör. Gemfa\'ya 10 adet 2" küresel vana, geçen seferki iskontoyla — ya da müşterinin mesajını yapıştırın (her satıra bir ürün)'}
-            className="min-w-0 flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-emerald-200" />
-          <button type="submit" disabled={working || !text.trim()} className="px-3 rounded-xl bg-emerald-600 text-white disabled:opacity-50" aria-label="Hazırla">
-            {working ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className={`px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${working ? 'opacity-40 pointer-events-none' : 'hover:bg-slate-50'}`}>
-            <Camera className="w-4 h-4" /> Fotoğraf <span className="font-normal text-slate-400">(yapay zekâ)</span>
-            <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(f); }} />
-          </label>
-          <label className={`px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${working ? 'opacity-40 pointer-events-none' : 'hover:bg-slate-50'}`}>
-            <FileSpreadsheet className="w-4 h-4" /> Excel
-            <input type="file" accept=".xlsx" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onExcel(f); }} />
-          </label>
-          {busy && <span className="text-xs text-slate-500 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> {busy}</span>}
-          {!busy && text.trim() && <span className="text-[11px] text-slate-400">{isList(text) ? 'Satır satır okunacak (yapay zekâsız)' : 'İstek olarak hazırlanacak'}</span>}
-        </div>
-      </form>
       {(agent.log.length > 0 || agent.reply) && (
         <div className="text-xs bg-emerald-50 rounded-xl px-3 py-2 space-y-1">
           {agent.log.map((l, i) => <div key={i} className="text-slate-600">• {l}</div>)}
@@ -209,6 +233,10 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
           </div>
         </div>
       )}
-    </section>
+      {!rows && !agent.busy && !agent.reply && (
+        <PastList title="Son istekler" items={hist} icon={Bot} storageKey={HIST_KEY} disabled={working} onChange={setHist}
+          onPick={t => { setText(t); }} />
+      )}
+    </ToolCard>
   );
 };

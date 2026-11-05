@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, ChevronRight, Loader2, Search, X } from 'lucide-react';
+import { Building2, ChevronRight, Lightbulb, Loader2, Mic, Search, Square, X } from 'lucide-react';
+import { SpeechSession, canSpeech, listen } from '../lib/speech';
+import { Chip, PastList, ToolCard, pushPast, readPast, shortName, topRecent } from './ToolCard';
 import { Customer, Quote } from '../types';
 import { CURRENCY_LABEL } from '../lib/money';
 import { Material, foldTr, searchMaterials, textMatcher } from '../lib/materials';
@@ -14,6 +16,8 @@ const perList = (items: SupplierItem[], per: number, max: number) => {
 };
 const money = (v: number, c: string) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as keyof typeof CURRENCY_LABEL] || c}`;
 const trDay = (s: string) => dayOf(s).split('-').reverse().join('.');
+// Son aramalar yalnız bu cihazda (sunucuya gitmez)
+const HIST_KEY = 'search-history';
 
 /**
  * Hızlı arama: firma adı yazılınca firmalar (cihazdaki veriden, internet kullanmaz); ürün adı veya kodu yazılınca
@@ -32,6 +36,23 @@ export const QuickPrice: React.FC<{
   const [own, setOwn] = useState<Material[]>([]);
   const [sup, setSup] = useState<SupplierItem[]>([]);
   const term = q.trim();
+  const [hist, setHist] = useState(() => readPast(HIST_KEY));
+  const [mic, setMic] = useState<SpeechSession | null>(null);
+  const [micErr, setMicErr] = useState('');
+  // Aramayı hatırla: Enter'a basınca ya da bir sonuca dokununca
+  const remember = () => { if (term.length >= 2) setHist(pushPast(HIST_KEY, term)); };
+  const top = useMemo(() => topRecent(quotes), [quotes]);
+
+  const voice = async () => {
+    if (mic) { mic.stop(); return; }
+    setMicErr('');
+    const sess = listen({ onInterim: t => setQ(t) });
+    setMic(sess);
+    try {
+      const t = (await sess.result).trim().replace(/[.?!]+$/, '');
+      if (t) { setQ(t); setHist(pushPast(HIST_KEY, t)); }
+    } catch (e) { setMicErr((e as Error).message); } finally { setMic(null); }
+  };
 
   useEffect(() => {
     if (term.length < 2) { setOwn([]); setSup([]); return; }
@@ -87,21 +108,53 @@ export const QuickPrice: React.FC<{
   const empty = term.length >= 2 && !busy && !firms.length && !own.length && !sup.length && !history.length;
 
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3 space-y-2.5">
-      <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Ara: firma, ürün adı veya kodu…"
-          className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
-        {busy ? <Loader2 className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 animate-spin" />
-          : q && <button onClick={() => setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400" aria-label="Temizle"><X className="w-4 h-4" /></button>}
-      </div>
+    <ToolCard icon={Search} title="Ara" subtitle="Firma, ürün adı ya da kodu: katalog fiyatı, firma listeleri ve en son kime kaçtan verdiğimiz.">
+      <form onSubmit={e => { e.preventDefault(); remember(); }} className="flex gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Ara: firma, ürün adı veya kodu…" enterKeyHint="search"
+            className="w-full pl-10 pr-10 py-3 rounded-full border border-sky-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
+          {busy ? <Loader2 className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 animate-spin" />
+            : q && <button type="button" onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400" aria-label="Temizle"><X className="w-4 h-4" /></button>}
+        </div>
+        {canSpeech() && (
+          <button type="button" onClick={voice} aria-label={mic ? 'Dinlemeyi bitir' : 'Sesle ara'}
+            className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center ${mic ? 'bg-rose-600 text-white' : 'bg-brand-600 text-white'}`}>
+            {mic ? <Square className="w-4 h-4" /> : <Mic className="w-5 h-5" />}
+          </button>
+        )}
+      </form>
+      {micErr && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{micErr}</div>}
+
+      {/* Arama yokken: son aramalar ve sık kullanılanlar */}
+      {term.length < 2 && (
+        <>
+          <PastList title="Son aramalar" items={hist} icon={Search} storageKey={HIST_KEY} onPick={setQ} onChange={setHist} />
+          {(top.firms.length > 0 || top.products.length > 0) && (
+            <div className="rounded-xl bg-sky-50 border border-sky-100 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Lightbulb className="w-4 h-4 text-amber-500" />
+                <div>
+                  <div className="text-sm font-black text-slate-900">Sık kullanılanlar</div>
+                  <div className="text-[11px] text-slate-500">Son 6 ayda en çok teklif verdiğiniz firmalar ve ürünler</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[...top.firms.map(f => ({ label: f, q: f })), ...top.products.map(pn => ({ label: shortName(pn), q: pn }))].map(x => (
+                  <Chip key={x.q} onClick={() => setQ(x.q)} title={x.q} className="bg-white border-sky-200 max-w-[14rem]"><span className="truncate">{x.label}</span></Chip>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {empty && <p className="text-xs text-slate-500 px-1">Sonuç bulunamadı.</p>}
 
       {firms.length > 0 && (
         <Group title="Firmalar">
           {firms.map(f => (
-            <button key={f.c.id} onClick={() => onOpenCustomer?.(f.c.name)} className="w-full text-left">
+            <button key={f.c.id} onClick={() => { remember(); onOpenCustomer?.(f.c.name); }} className="w-full text-left">
               <Row left={<span className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="min-w-0"><b className="text-slate-800">{f.c.name}</b>{f.c.city && <span className="text-slate-400"> · {f.c.city}</span>}<span className="block text-[11px] text-slate-500">{f.pending ? `${f.pending} bekleyen teklif` : 'Bekleyen teklif yok'}{f.last ? ` · son teklif ${trDay(f.last)}` : ''}</span></span></span>}
                 right={<ChevronRight className="w-4 h-4 text-slate-400" />} />
             </button>
@@ -134,14 +187,14 @@ export const QuickPrice: React.FC<{
       {history.length > 0 && (
         <Group title="En son kime kaçtan verdik">
           {history.map(h => (
-            <button key={h.q.id} onClick={() => onOpenQuote(h.q)} className="w-full text-left">
+            <button key={h.q.id} onClick={() => { remember(); onOpenQuote(h.q); }} className="w-full text-left">
               <Row left={<><b className="text-slate-800">{h.q.customerName}</b> <span className="text-slate-400">· {trDay(h.q.createdAt)}{h.q.status === 'onaylandi' ? ' · onaylı' : ''}</span><span className="block text-[11px] text-slate-500 truncate">{h.name}</span></>}
                 right={<>{money(h.price * (1 - h.disc / 100), h.cur)}{h.disc > 0 && <span className="block text-[10px] font-normal text-slate-400">liste {money(h.price, h.cur)} · %{h.disc}</span>}</>} />
             </button>
           ))}
         </Group>
       )}
-    </section>
+    </ToolCard>
   );
 };
 
