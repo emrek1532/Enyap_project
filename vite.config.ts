@@ -30,7 +30,11 @@ export default defineConfig(() => {
   const sha = (process.env.WORKERS_CI_COMMIT_SHA || '').slice(0, 7);
   const built = new Date().toLocaleString('tr-TR', {timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
   return {
-    define: {__APP_BUILD__: JSON.stringify([sha, built].filter(Boolean).join(' · '))},
+    define: {
+      __APP_BUILD__: JSON.stringify([sha, built].filter(Boolean).join(' · ')),
+      // Uygulama sürümü (sağ üstte): her güncellemede package.json'daki "version" artırılır
+      __APP_VERSION__: JSON.stringify(JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')).version),
+    },
     plugins: [react(), tailwindcss(), pdfjsAssets()],
     resolve: {
       alias: {

@@ -83,6 +83,11 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
+
+            {/* Sürüm: sade, göz yormayan küçük yazı */}
+            <span className="text-[10px] font-medium text-slate-300 tabular-nums select-none" title={`Sürüm ${__APP_VERSION__} · ${__APP_BUILD__}`}>
+              v{__APP_VERSION__}
+            </span>
           </div>
 
         </div>
