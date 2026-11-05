@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Pencil, Trash2, FilePlus2, X, Building2, List, FileUp, Wallet, Footprints } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight } from 'lucide-react';
+import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager } from './ListUI';
 import { VisitPlan } from './VisitPlan';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
@@ -30,10 +31,12 @@ interface CustomersPanelProps {
   onMikroHandled?: () => void;
   visits?: Visit[];
   onSaveVisit?: (v: Visit) => void;
+  /** Sayfa başlığındaki "Yeni Müşteri" her basışta artar */
+  newRequest?: number;
 }
 
 const emptyForm = { name: '', city: 'Isparta' };
-const PAGE = 50;
+const PAGE = 25;
 const DEFAULT_SORT: SortState<CustomerSortKey> = { key: 'total', dir: 'desc' };
 
 const trCompare = (a: string, b: string) => a.localeCompare(b, 'tr');
@@ -71,6 +74,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   onMikroHandled,
   visits = [],
   onSaveVisit,
+  newRequest,
 }) => {
   const [mikroOpen, setMikroOpen] = useState(false);
   useEffect(() => { if (openMikro) { setMikroOpen(true); onMikroHandled?.(); } }, [openMikro]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -84,8 +88,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
   // Sütun başlığına tıklayarak sıralama (varsayılan: onaylı toplamı en yüksek en üstte)
   const [sort, setSort] = useState<SortState<CustomerSortKey>>(DEFAULT_SORT);
-  const sortBy = (key: CustomerSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setLimit(PAGE); };
-  const [limit, setLimit] = useState(PAGE);
+  const sortBy = (key: CustomerSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setPage(0); };
+  const [page, setPage] = useState(0);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  // Sayfa başlığındaki "Yeni Müşteri" düğmesi
+  useEffect(() => { if (newRequest) openNew(); }, [newRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   const [editing, setEditing] = useState<Customer | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -183,7 +190,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
   const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
   const resetFilters = () => {
-    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setSort(DEFAULT_SORT); setLimit(PAGE);
+    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setSort(DEFAULT_SORT); setPage(0);
   };
 
   const openNew = () => {
@@ -224,16 +231,32 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const inputCls = 'w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500';
 
 
+  const pageRows = filtered.slice(page * PAGE, (page + 1) * PAGE);
+  const custMenu = (c: Customer) => menuFor === c.id && (
+    <>
+      <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
+      <div className="absolute right-0 top-9 z-40 w-44 rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left text-sm" onClick={e => e.stopPropagation()}>
+        <button onClick={() => { setMenuFor(null); onCreateQuoteForCustomer(c); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-brand-50 text-brand-700 font-semibold"><FilePlus2 className="w-4 h-4" /> Teklif aç</button>
+        <button onClick={() => { setMenuFor(null); openEdit(c); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><Pencil className="w-4 h-4" /> Düzenle</button>
+        <button onClick={() => { setMenuFor(null); if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /> Sil</button>
+      </div>
+    </>
+  );
+  const rowActions = (c: Customer) => (
+    <div className="relative flex items-center justify-center gap-0.5">
+      <IconBtn title="Cari hesabı aç" onClick={() => setViewing(c)}><Eye className="w-4 h-4" /></IconBtn>
+      <IconBtn title="Diğer" onClick={() => setMenuFor(c.id)}><MoreVertical className="w-4 h-4" /></IconBtn>
+      {custMenu(c)}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      <div className={`grid ${showCollections ? 'grid-cols-3' : 'grid-cols-2'} sm:flex gap-1 p-1 rounded-xl bg-slate-200/70 sm:w-fit`}>
-        {([['list', 'Müşteri listesi', 'Liste', List], ...(showCollections ? [['balance', 'Cari bakiyeler', 'Bakiyeler', Wallet]] as const : []), ['visit', 'Ziyaret planı', 'Ziyaret', Footprints]] as const).map(([k, label, shortLabel, Icon]) => (
-          <button key={k} onClick={() => setMode(k)}
-            className={`flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-lg text-sm font-extrabold whitespace-nowrap ${mode === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
-            <Icon className="w-4 h-4 shrink-0" /> <span className="sm:hidden">{shortLabel}</span><span className="hidden sm:inline">{label}</span>
-          </button>
-        ))}
-      </div>
+      <UnderlineTabs<typeof mode> value={mode} onChange={setMode} items={[
+        { key: 'list' as const, label: 'Müşteri Listesi' },
+        ...(showCollections ? [{ key: 'balance' as const, label: 'Cari Bakiyeler' }] : []),
+        { key: 'visit' as const, label: 'Ziyaret Planı' },
+      ]} />
 
       {mode === 'balance' && showCollections && (
         <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
@@ -245,114 +268,72 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           onOpen={c => setViewing(c)} onSaveVisit={onSaveVisit} currentRole={currentRole || 'isparta'} />
       )}
 
-      {mode === 'list' && (<>
-      {/* Toolbar */}
-      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-        <div className="flex flex-col lg:flex-row gap-2">
-          <div className="relative flex-1 min-w-0">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="search"
-              placeholder="Firma adı veya şehir ara..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setLimit(PAGE); }}
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
+      {mode === 'list' && (
+      <div className={listCard}>
+        <div className="p-3 sm:p-4 space-y-3">
+          <div className="flex flex-col lg:flex-row gap-2">
+            <SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma adı veya şehir ara..." className="flex-1" />
+            <div className="grid grid-cols-2 sm:flex gap-2">
+              <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Şehir">
+                <option value="all">Tüm Şehirler</option>
+                {cityCounts.map(([city, count]) => <option key={city} value={city}>{city} ({count})</option>)}
+              </select>
+              <select value={quoteFilter} onChange={e => { setQuoteFilter(e.target.value as typeof quoteFilter); setPage(0); }} className={ctrl} aria-label="Teklif durumu">
+                <option value="all">Tüm Müşteriler</option>
+                <option value="approved">Onaylı teklifi olanlar</option>
+                <option value="pending">Bekleyen teklifi olanlar</option>
+                <option value="followup">Tekrar görüşülecekler</option>
+                <option value="none">Hiç teklif verilmeyenler</option>
+              </select>
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value as typeof statusFilter); setPage(0); }} className={ctrl} aria-label="Müşteri durumu">
+                <option value="all">Tüm durumlar</option>
+                <option value="aktif">Aktif</option>
+                <option value="pasif">Pasif</option>
+                <option value="kara_liste">Kara liste</option>
+              </select>
+              <MobileSortSelect className={`${ctrl} md:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
+                { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
+                { key: 'name', dir: 'desc', label: 'Firma: Z → A' },
+                { key: 'total', dir: 'desc', label: 'Onaylı tutar: yüksek' },
+                ...(showCollections ? [{ key: 'balance' as const, dir: 'desc' as const, label: 'Bakiye: yüksek' }] : []),
+                { key: 'quotes', dir: 'desc', label: 'En çok teklif' },
+                { key: 'approved', dir: 'desc', label: 'En çok onay' },
+                { key: 'pending', dir: 'desc', label: 'En çok bekleyen' },
+                { key: 'last', dir: 'desc', label: 'Son teklif: yeni' },
+                { key: 'last', dir: 'asc', label: 'Son teklif: eski' },
+                { key: 'city', dir: 'asc', label: 'Şehir: A → Z' },
+              ]} />
+              {showCollections && onSaveCollection && (
+                <button onClick={() => setMikroOpen(true)}
+                  className="h-10 flex items-center justify-center gap-1.5 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-bold text-sm whitespace-nowrap shadow-[0_8px_18px_-8px_rgba(0,110,198,0.8)]">
+                  <Plus className="w-4 h-4" /> Mikro bakiyesi
+                </button>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:flex gap-2 [&>select]:w-full sm:[&>select]:w-auto">
-            <select
-              value={cityFilter}
-              onChange={e => { setCityFilter(e.target.value); setLimit(PAGE); }}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
-              aria-label="Şehir"
-            >
-              <option value="all">Tüm Şehirler</option>
-              {cityCounts.map(([city, count]) => (
-                <option key={city} value={city}>{city} ({count})</option>
-              ))}
-            </select>
-            <select
-              value={quoteFilter}
-              onChange={e => { setQuoteFilter(e.target.value as typeof quoteFilter); setLimit(PAGE); }}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
-              aria-label="Teklif durumu"
-            >
-              <option value="all">Tüm Müşteriler</option>
-              <option value="approved">Onaylı teklifi olanlar</option>
-              <option value="pending">Bekleyen teklifi olanlar</option>
-              <option value="followup">Tekrar görüşülecekler</option>
-              <option value="none">Hiç teklif verilmeyenler</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={e => { setStatusFilter(e.target.value as typeof statusFilter); setLimit(PAGE); }}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
-              aria-label="Müşteri durumu"
-            >
-              <option value="all">Tüm durumlar</option>
-              <option value="aktif">Aktif</option>
-              <option value="pasif">Pasif</option>
-              <option value="kara_liste">Kara liste</option>
-            </select>
-            <MobileSortSelect className="!py-2.5 !rounded-xl !text-sm" sort={sort} onChange={(s) => { setSort(s); setLimit(PAGE); }} options={[
-              { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
-              { key: 'name', dir: 'desc', label: 'Firma: Z → A' },
-              { key: 'total', dir: 'desc', label: 'Onaylı tutar: yüksek' },
-              ...(showCollections ? [{ key: 'balance' as const, dir: 'desc' as const, label: 'Bakiye: yüksek' }] : []),
-              { key: 'quotes', dir: 'desc', label: 'En çok teklif' },
-              { key: 'approved', dir: 'desc', label: 'En çok onay' },
-              { key: 'pending', dir: 'desc', label: 'En çok bekleyen' },
-              { key: 'last', dir: 'desc', label: 'Son teklif: yeni' },
-              { key: 'last', dir: 'asc', label: 'Son teklif: eski' },
-              { key: 'city', dir: 'asc', label: 'Şehir: A → Z' },
-            ]} />
-            {showCollections && onSaveCollection && (
-              <button onClick={() => setMikroOpen(true)}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-sm whitespace-nowrap">
-                <FileUp className="w-4 h-4" /> Mikro bakiyesi
-              </button>
-            )}
-            <button
-              onClick={openNew}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow-sm whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Yeni Müşteri</span>
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
-          <span>
-            <Building2 className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />
-            {filtered.length === customers.length
-              ? `${customers.length} kayıtlı müşteri`
-              : `${filtered.length} / ${customers.length} müşteri`}
-          </span>
-          {showCollections && lastMikro && (
-            <span className={`ml-auto ${(Date.now() - Date.parse(lastMikro)) / 864e5 > 15 ? 'text-rose-600 font-bold' : ''}`}>
-              Mikro bakiyeleri: {lastMikro.split('-').reverse().join('.')}
+          <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+            <span>
+              {filtered.length === customers.length ? `${customers.length} kayıtlı müşteri` : `${filtered.length} / ${customers.length} müşteri`}
             </span>
-          )}
-          {hasFilters && (
-            <button onClick={resetFilters} className="font-semibold text-slate-500 hover:text-slate-800">
-              Filtreleri temizle
-            </button>
-          )}
+            {showCollections && lastMikro && (
+              <span className={`ml-auto ${(Date.now() - Date.parse(lastMikro)) / 864e5 > 15 ? 'text-rose-600 font-bold' : ''}`}>
+                Mikro bakiyeleri: {lastMikro.split('-').reverse().join('.')}
+              </span>
+            )}
+            {hasFilters && <button onClick={resetFilters} className="font-bold text-brand-600 hover:underline">Filtreleri temizle</button>}
+          </div>
         </div>
-      </div>
 
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500">
-          {customers.length === 0 ? 'Henüz müşteri kaydı yok.' : 'Filtrelere uygun müşteri bulunamadı.'}
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          {/* Telefon: kart görünümü */}
-          <div className="md:hidden divide-y divide-slate-100">
-            {filtered.slice(0, limit).map(({ c, st }) => (
+        {filtered.length === 0 ? (
+          <p className="p-8 border-t border-slate-100 text-center text-sm text-slate-500">
+            {customers.length === 0 ? 'Henüz müşteri kaydı yok.' : 'Filtrelere uygun müşteri bulunamadı.'}
+          </p>
+        ) : (<>
+          {/* Telefon: kartlar */}
+          <div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
+            {pageRows.map(({ c, st }) => (
               <div key={c.id} className="p-3">
-                <button onClick={() => { setViewing(c); }} className="w-full text-left flex items-start justify-between gap-3">
+                <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}<StatusBadge c={c} /></div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
@@ -373,24 +354,18 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   <div className="flex items-center gap-1 flex-wrap text-[10px] font-bold tabular-nums">
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{st.total} teklif</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{st.approved} onaylı</span>
-                    <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">{st.pending} bekleyen</span>
+                    <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-600">{st.pending} bekleyen</span>
+                    {st.followUp && <FollowPill />}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => onCreateQuoteForCustomer(c)} title="Teklif Aç"
-                      className="p-1.5 rounded-md bg-brand-50 text-brand-700 border border-brand-200"><FilePlus2 className="w-4 h-4" /></button>
-                    <button onClick={() => openEdit(c)} title="Düzenle"
-                      className="p-1.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => { if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id); }} title="Sil"
-                      className="p-1.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200"><Trash2 className="w-4 h-4" /></button>
-                  </div>
+                  {rowActions(c)}
                 </div>
               </div>
             ))}
           </div>
-          <div className="overflow-x-auto hidden md:block">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                <tr>
+          <div className="overflow-x-auto hidden md:block border-t border-slate-100">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-100">
+                <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
                   <SortHeader label="Firma" active={sort.key === 'name'} dir={sort.dir} onClick={() => sortBy('name', 'asc')} />
                   <SortHeader label="Şehir" active={sort.key === 'city'} dir={sort.dir} onClick={() => sortBy('city', 'asc')} />
                   <SortHeader label="Teklif" align="right" active={sort.key === 'quotes'} dir={sort.dir} onClick={() => sortBy('quotes', 'desc')} />
@@ -399,85 +374,40 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   <SortHeader label="Onaylı Toplam" align="right" active={sort.key === 'total'} dir={sort.dir} onClick={() => sortBy('total', 'desc')} />
                   {showCollections && <SortHeader label="Bakiye" align="right" active={sort.key === 'balance'} dir={sort.dir} onClick={() => sortBy('balance', 'desc')} />}
                   <SortHeader label="Son Teklif" active={sort.key === 'last'} dir={sort.dir} onClick={() => sortBy('last', 'desc')} />
-                  <th className="py-3 px-3 text-right">İşlemler</th>
+                  <th className="py-3 px-3 text-center">İşlemler</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.slice(0, limit).map(({ c, st }) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => { setViewing(c); }}
-                    className="hover:bg-brand-50/40 cursor-pointer"
-                  >
-                    <td className="py-2.5 px-3">
-                      <div className="font-bold text-slate-900 min-w-[10rem]">{c.name}<StatusBadge c={c} /></div>
-                      {st.followUp && (
-                        <span className="mt-0.5 inline-block text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                          ⏰ Tekrar görüş
-                        </span>
-                      )}
+                {pageRows.map(({ c, st }) => (
+                  <tr key={c.id} onClick={() => setViewing(c)} className={`${rowCls} cursor-pointer`}>
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-brand-800 min-w-[10rem] leading-snug">{c.name}<StatusBadge c={c} /></div>
+                      {st.followUp && <FollowPill />}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{c.city || '—'}</td>
-                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-slate-800">{st.total || '-'}</td>
-                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-emerald-700">{st.approved || '-'}</td>
-                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-purple-700">{st.pending || '-'}</td>
-                    <td className="py-2.5 px-3 text-right tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                      {st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}
-                    </td>
+                    <td className="py-3 px-3 text-slate-600 whitespace-nowrap">{c.city || '—'}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold text-slate-800">{st.total || '-'}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-bold text-emerald-600">{st.approved || '-'}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-bold text-rose-500">{st.pending || '-'}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-black text-slate-900 whitespace-nowrap">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</td>
                     {showCollections && (
-                      <td className={`py-2.5 px-3 text-right tabular-nums font-bold whitespace-nowrap ${(balanceOf(c)?.estimate ?? 0) < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                      <td className={`py-3 px-3 text-right tabular-nums font-bold whitespace-nowrap ${(balanceOf(c)?.estimate ?? 0) < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
                         {balanceOf(c) ? tl(Math.round(balanceOf(c)!.estimate)) : '-'}
                       </td>
                     )}
-                    <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">
-                      {st.lastDate ? new Date(st.lastDate).toLocaleDateString('tr-TR') : '-'}
+                    <td className="py-3 px-3 text-slate-400 whitespace-nowrap">
+                      {st.lastDate ? <>{new Date(st.lastDate).toLocaleDateString('tr-TR')} <ChevronRight className="w-3.5 h-3.5 inline -mt-0.5" /></> : '-'}
                     </td>
-                    <td className="py-2.5 px-3" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => onCreateQuoteForCustomer(c)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md bg-brand-50 hover:bg-brand-100 text-brand-700 text-[11px] font-bold border border-brand-200 whitespace-nowrap"
-                        >
-                          <FilePlus2 className="w-3.5 h-3.5" /> Teklif Aç
-                        </button>
-                        <button
-                          onClick={() => openEdit(c)}
-                          className="p-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200"
-                          title="Düzenle"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id);
-                          }}
-                          className="p-1.5 rounded-md bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200"
-                          title="Sil"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
+                    <td className="py-3 px-3" onClick={e => e.stopPropagation()}>{rowActions(c)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {filtered.length > limit && (
-            <div className="p-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
-              <span>{limit} / {filtered.length} müşteri gösteriliyor</span>
-              <button
-                onClick={() => setLimit(n => n + PAGE)}
-                className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold"
-              >
-                {PAGE} müşteri daha göster
-              </button>
-            </div>
-          )}
-        </div>
+        </>)}
+        <Pager page={page} total={filtered.length} size={PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          label={<>Toplam {filtered.length.toLocaleString('tr-TR')} müşteri</>} />
+      </div>
       )}
-
-      </>)}
 
       {/* Cari hesap: firmaya ait her şey */}
       {viewing && (
@@ -540,6 +470,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     </div>
   );
 };
+
+const FollowPill: React.FC = () => (
+  <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-amber-50 text-amber-700 border border-amber-200">⏱ Tekrar görüş</span>
+);
 
 const StatusBadge: React.FC<{ c: Customer }> = ({ c }) => {
   const st = statusOf(c);

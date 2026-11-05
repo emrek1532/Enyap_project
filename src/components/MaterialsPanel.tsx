@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { Eye, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { listCard, ctrl, rowCls, SearchBox, IconBtn, Pager } from './ListUI';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
@@ -12,15 +13,17 @@ import { Quote } from '../types';
 import { STATUS_LABEL } from './CustomerAccount';
 import { dayOf } from '../lib/dates';
 
-const PAGE = 50;
+const PAGE = 25;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
 const EMPTY: Material = { code: '', name: '', price: 0, currency: 'TRY', unit: 'Adet', vatRate: 20, stock: null };
 
-const selectCls = 'w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium bg-white text-slate-700';
+const selectCls = `${ctrl} w-full text-xs`;
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('tr-TR') : '-');
 const fmtStock = (v?: number | null) => (v == null ? '-' : v.toLocaleString('tr-TR', { maximumFractionDigits: 2 }));
 
-const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void }> = ({ quotes, onOpenQuote }) => {
+const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void; newRequest?: number }> = ({ quotes, onOpenQuote, newRequest }) => {
+  const [page, setPage] = useState(0);
+  useEffect(() => { if (newRequest) setEditing({ m: { ...EMPTY } }); }, [newRequest]);
   const [query, setQuery] = useState('');
   const [codeQuery, setCodeQuery] = useState('');
   const [filters, setFilters] = useState<MaterialFilters>({ currency: '', unit: '', price: '', stock: '' });
@@ -60,10 +63,12 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
   };
 
   useEffect(() => {
-    const t = window.setTimeout(() => load(0, false), 250);
+    const t = window.setTimeout(() => load(page * PAGE, false), page ? 0 : 250);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, codeQuery, filters, sort, reload]);
+  }, [query, codeQuery, filters, sort, reload, page]);
+  // Arama / filtre değişince ilk sayfaya dön
+  useEffect(() => setPage(0), [query, codeQuery, filters, sort]);
 
   const handleDelete = async (code: string) => {
     try {
@@ -83,51 +88,27 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       <button onClick={() => setConfirmDelete(null)} className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[11px] font-bold">Vazgeç</button>
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1">
-      <button onClick={() => setEditing({ m, originalCode: m.code })} className="p-1.5 rounded-md text-slate-500 hover:text-brand-600 hover:bg-brand-50" title="Düzenle">
-        <Pencil className="w-4 h-4" />
-      </button>
-      <button onClick={() => setConfirmDelete(m.code)} className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Sil">
-        <Trash2 className="w-4 h-4" />
-      </button>
+    <span className="inline-flex items-center gap-0.5">
+      <IconBtn title="Satış geçmişi" onClick={() => setHistory(m)}><Eye className="w-4 h-4" /></IconBtn>
+      <IconBtn title="Düzenle" onClick={() => setEditing({ m, originalCode: m.code })}><Pencil className="w-4 h-4" /></IconBtn>
+      <IconBtn danger title="Sil" onClick={() => setConfirmDelete(m.code)}><Trash2 className="w-4 h-4" /></IconBtn>
     </span>
   );
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3 sm:p-4 space-y-3">
+    <div className={listCard}>
+      <div className="p-3 sm:p-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="grid grid-cols-[8.5rem_1fr] sm:grid-cols-[11rem_1fr] gap-2 flex-1 min-w-0">
-            <input
-              type="search"
-              value={codeQuery}
-              onChange={e => { setCodeQuery(e.target.value); if (e.target.value) setQuery(''); }}
-              placeholder="Kod ara"
-              aria-label="Kod ara"
-              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-mono uppercase placeholder:normal-case placeholder:font-sans"
-            />
-            <div className="relative min-w-0">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="search"
-                value={query}
-                onChange={e => { setQuery(e.target.value); if (e.target.value) setCodeQuery(''); }}
-                placeholder="Malzeme adı ara (Örn: kalde vana 1/2)"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-200 text-sm"
-              />
-            </div>
+            <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" />
+            <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara (Örn: kalde vana 1/2)" />
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setEditing({ m: { ...EMPTY } })}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold whitespace-nowrap flex-1 sm:flex-none"
-            >
-              <Plus className="w-4 h-4" /> Malzeme Ekle
-            </button>
-          </div>
+          <button onClick={() => setEditing({ m: { ...EMPTY } })}
+            className="h-10 flex items-center justify-center gap-1.5 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white text-sm font-bold whitespace-nowrap shadow-[0_8px_18px_-8px_rgba(0,110,198,0.8)]">
+            <Plus className="w-4 h-4" /> Malzeme Ekle
+          </button>
         </div>
-        {/* Filtreler */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">
             <option value="">Fiyat: Tümü</option>
             <option value="priced">Fiyatlı</option>
@@ -147,6 +128,23 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
             <option value="">Birim: Tümü</option>
             {MATERIAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
           </select>
+          <MobileSortSelect<MaterialSortKey>
+            always
+            sort={sort}
+            onChange={setSort}
+            className={`${selectCls} col-span-2 sm:col-span-1`}
+            options={[
+              { key: 'default', dir: 'asc', label: 'Sıra: Önerilen' },
+              { key: 'name', dir: 'asc', label: 'Ad (A → Z)' },
+              { key: 'name', dir: 'desc', label: 'Ad (Z → A)' },
+              { key: 'code', dir: 'asc', label: 'Kod (A → Z)' },
+              { key: 'price', dir: 'desc', label: 'Fiyat (yüksek → düşük)' },
+              { key: 'price', dir: 'asc', label: 'Fiyat (düşük → yüksek)' },
+              { key: 'stock', dir: 'desc', label: 'Stok (çok → az)' },
+              { key: 'stock', dir: 'asc', label: 'Stok (az → çok)' },
+              { key: 'updated', dir: 'desc', label: 'Son güncellenen' },
+            ]}
+          />
         </div>
         <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -159,34 +157,18 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
               Filtreleri temizle
             </button>
           )}
-          <MobileSortSelect<MaterialSortKey>
-            sort={sort}
-            onChange={setSort}
-            className="ml-auto"
-            options={[
-              { key: 'default', dir: 'asc', label: 'Önerilen (fiyatlılar önce)' },
-              { key: 'name', dir: 'asc', label: 'Ad (A → Z)' },
-              { key: 'name', dir: 'desc', label: 'Ad (Z → A)' },
-              { key: 'code', dir: 'asc', label: 'Kod (A → Z)' },
-              { key: 'price', dir: 'desc', label: 'Fiyat (yüksek → düşük)' },
-              { key: 'price', dir: 'asc', label: 'Fiyat (düşük → yüksek)' },
-              { key: 'stock', dir: 'desc', label: 'Stok (çok → az)' },
-              { key: 'stock', dir: 'asc', label: 'Stok (az → çok)' },
-              { key: 'updated', dir: 'desc', label: 'Son güncellenen' },
-            ]}
-          />
         </div>
         {error && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
       </div>
 
       {/* Telefon: kartlar */}
-      <div className="md:hidden bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+      <div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
               <div className="text-sm font-semibold text-slate-800 leading-snug">{m.name || '-'}</div>
               <div className="text-[11px] text-slate-500 mt-0.5">
-                <span className="font-mono">{m.code}</span> · {m.unit} · stok {fmtStock(m.stock)}
+                <span className="font-mono">{m.code}</span> · {m.unit} · stok <span className={(m.stock ?? 0) < 0 ? 'text-rose-600 font-bold' : ''}>{fmtStock(m.stock)}</span>
               </div>
             </div>
             <div className="text-right shrink-0 space-y-1">
@@ -199,15 +181,15 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div>
 
       {/* Tablet / masaüstü: tablo */}
-      <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-xs overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto border-t border-slate-100">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-[11px] text-slate-500 font-bold text-left">
-            <tr>
+          <thead className="border-b border-slate-100 text-left">
+            <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
               <SortHeader label="Kod" active={sort.key === 'code'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'code', 'asc'))} />
               <SortHeader label="Malzeme Adı" active={sort.key === 'name'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'name', 'asc'))} />
               <th className="py-3 px-3">Birim</th>
               <SortHeader label="Birim Fiyat" align="right" active={sort.key === 'price'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'price', 'desc'))} />
-              <th className="py-3 px-3 text-right">KDV</th>
+              <th className="py-3 px-3">KDV</th>
               <SortHeader label="Stok" align="right" active={sort.key === 'stock'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'stock', 'desc'))} />
               <SortHeader label="Güncelleme" active={sort.key === 'updated'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'updated', 'desc'))} />
               <th className="py-3 px-3"></th>
@@ -215,17 +197,17 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
           </thead>
           <tbody className="divide-y divide-slate-100">
             {items.map(m => (
-              <tr key={m.code} className="hover:bg-slate-50">
-                <td className="py-2.5 px-3 font-mono text-xs text-slate-600 whitespace-nowrap">{m.code}</td>
-                <td className="py-2.5 px-3 text-slate-800 font-medium">
-                  <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-brand-700 hover:underline">{m.name || '-'}</button>
+              <tr key={m.code} className={rowCls}>
+                <td className="py-3 px-3 text-xs font-semibold text-slate-600 whitespace-nowrap">{m.code}</td>
+                <td className="py-3 px-3 text-slate-800 font-semibold uppercase text-[13px]">
+                  <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-brand-700">{m.name || '-'}</button>
                 </td>
-                <td className="py-2.5 px-3 text-slate-600">{m.unit}</td>
-                <td className={`py-2.5 px-3 text-right font-bold tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>{priceText(m)}</td>
-                <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">%{m.vatRate}</td>
-                <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">{fmtStock(m.stock)}</td>
-                <td className="py-2.5 px-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
-                <td className="py-2.5 px-3 text-right whitespace-nowrap">{rowActions(m)}</td>
+                <td className="py-3 px-3 text-slate-500">{m.unit}</td>
+                <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>{priceText(m)}</td>
+                <td className="py-3 px-3 text-slate-500 tabular-nums">%{m.vatRate}</td>
+                <td className={`py-3 px-3 text-right tabular-nums ${(m.stock ?? 0) < 0 ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>{fmtStock(m.stock)}</td>
+                <td className="py-3 px-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
+                <td className="py-3 px-3 text-right whitespace-nowrap">{rowActions(m)}</td>
               </tr>
             ))}
             {!loading && items.length === 0 && (
@@ -235,17 +217,8 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
         </table>
       </div>
 
-      {items.length < total && (
-        <div className="text-center">
-          <button
-            onClick={() => load(items.length, true)}
-            disabled={loading}
-            className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            Daha fazla göster ({items.length.toLocaleString('tr-TR')} / {total.toLocaleString('tr-TR')})
-          </button>
-        </div>
-      )}
+      <Pager page={page} total={total} size={PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        label={<>{total.toLocaleString('tr-TR')} malzeme</>} />
 
       {history && <MaterialHistory m={history} quotes={quotes} onClose={() => setHistory(null)}
         onOpenQuote={onOpenQuote ? q => { setHistory(null); onOpenQuote(q); } : undefined} />}
@@ -400,7 +373,7 @@ const MaterialForm: React.FC<{
 };
 
 /** Malzemeler: bizim kataloğumuz ve firma fiyat listeleri ayrı sekmelerde (birbirine karışmaz) */
-export const MaterialsPanel: React.FC<{ quotes?: Quote[]; onOpenQuote?: (q: Quote) => void }> = ({ quotes = [], onOpenQuote }) => {
+export const MaterialsPanel: React.FC<{ quotes?: Quote[]; onOpenQuote?: (q: Quote) => void; newRequest?: number }> = ({ quotes = [], onOpenQuote, newRequest }) => {
   const me = useAccess();
   const showOwn = can(me, 'materials'), showSup = can(me, 'suppliers');
   const [tab, setTab] = useState<'own' | 'suppliers'>(() => {
@@ -409,6 +382,7 @@ export const MaterialsPanel: React.FC<{ quotes?: Quote[]; onOpenQuote?: (q: Quot
     try { return localStorage.getItem('enyap-materials-tab') === 'suppliers' ? 'suppliers' : 'own'; } catch { return 'own'; }
   });
   const choose = (t: 'own' | 'suppliers') => { setTab(t); try { localStorage.setItem('enyap-materials-tab', t); } catch { /* */ } };
+  useEffect(() => { if (newRequest && showOwn) setTab('own'); }, [newRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   // Sekmelerin altında kalem sayıları
   const [ownCount, setOwnCount] = useState<number | null>(null);
   const [supInfo, setSupInfo] = useState<{ lists: number; items: number } | null>(null);
@@ -420,22 +394,25 @@ export const MaterialsPanel: React.FC<{ quotes?: Quote[]; onOpenQuote?: (q: Quot
   }, []);
   const tr = (n: number) => n.toLocaleString('tr-TR');
   const tabCls = (on: boolean) =>
-    `flex-1 px-3 py-2 rounded-lg text-sm font-extrabold leading-tight transition-colors ${on ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`;
+    `relative flex-1 px-3 py-2.5 rounded-xl text-sm font-extrabold leading-tight transition-colors ${on ? 'bg-white text-brand-700 shadow-sm' : 'text-brand-800/80 hover:text-brand-900'}`;
   const sub = 'block text-[11px] font-semibold text-slate-400 mt-0.5';
+  const bar = <span className="absolute left-4 right-4 bottom-0 h-0.5 rounded-full bg-brand-500" />;
   return (
     <div className="space-y-3">
-      {showOwn && showSup && <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70" role="tablist">
+      {showOwn && showSup && <div className="flex gap-1 p-1 rounded-2xl bg-brand-100/60 border border-brand-100" role="tablist">
         <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
           Bizim Malzemeler
           <span className={sub}>{ownCount !== null ? `${tr(ownCount)} kalem` : '\u00a0'}</span>
+          {tab === 'own' && bar}
         </button>
         <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>
           Firma Fiyat Listeleri
           <span className={sub}>{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '\u00a0'}</span>
+          {tab === 'suppliers' && bar}
         </button>
       </div>}
       {tab === 'own' && showOwn && <OfflineInfo />}
-      {tab === 'own' ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} /> : <SupplierListsPanel />}
+      {tab === 'own' ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} newRequest={newRequest} /> : <SupplierListsPanel />}
     </div>
   );
 };
