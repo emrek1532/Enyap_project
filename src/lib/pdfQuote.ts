@@ -393,13 +393,16 @@ export const titleTr = (s: string) =>
 
 /** Katalogda adı birebir aynı olan malzemenin kodunu bulur (yanlış kod yazmamak için sadece tam eşleşme) */
 export async function catalogCode(name: string): Promise<string | undefined> {
-  const norm = (s: string) => foldTr(s).replace(/\s+/g, ' ').trim();
+  // Parantez çevresindeki boşluk farkı ("( KOLİ 25 )" / "(KOLİ 25)") aynı ad sayılır
+  const norm = (s: string) => foldTr(s).replace(/\s+/g, ' ').replace(/\s*([()])\s*/g, '$1').trim();
   const target = norm(name);
-  const words = target.split(' ').filter(w => w.length >= 3).sort((a, b) => b.length - a.length).slice(0, 3);
-  if (!words.length) return undefined;
+  const find = async (q: string) => (await searchMaterials(q, { limit: 50, field: 'name' })).items.find(m => norm(m.name) === target)?.code;
   try {
-    const r = await searchMaterials(words.join(' '), { limit: 30, field: 'name' });
-    return r.items.find(m => norm(m.name) === target)?.code;
+    // Önce adın tamamıyla (ölçü dahil) ara: aynı ürünün tüm ölçüleri (ör. 86 uzun trifonlu kelepçe) ilk sonuçlara sığmayabilir
+    const full = await find(name.replace(/[()]/g, ' '));
+    if (full) return full;
+    const words = target.split(/[\s()]+/).filter(w => w.length >= 3).sort((a, b) => b.length - a.length).slice(0, 3);
+    return words.length ? await find(words.join(' ')) : undefined;
   } catch {
     return undefined;
   }
