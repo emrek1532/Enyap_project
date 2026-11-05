@@ -18,7 +18,7 @@ const quotes: any[] = [
 ];
 const { createRoot } = await import('react-dom/client');
 await import('../src/index.css');
-const { QuoteAgent } = await import('../src/components/QuoteAgent');
+const { QuoteBuilder } = await import('../src/components/QuoteBuilder');
 const React = await import('react');
 createRoot(document.getElementById('root')!).render(React.createElement('div', { className: 'max-w-3xl mx-auto px-4 py-5' },
-  React.createElement(QuoteAgent, { quotes, customers: [{ id: '1', name: 'Gemfa Kazan', city: 'Isparta' }] as any, onDraft: (d: any) => { (window as any).draft = d; } })));
+  React.createElement(QuoteBuilder, { quotes, customers: [{ id: '1', name: 'Gemfa Kazan', city: 'Isparta' }] as any, onDraft: (d: any) => { (window as any).draft = d; } })));

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Bot, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, MessageCircleQuestion, Mic, Receipt, Search, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { Bot, CalendarDays, ChevronLeft, ChevronRight, FilePlus2, MessageCircleQuestion, Mic, Receipt, Search, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { Collection, Customer, Expense, Quote } from '../types';
 import { foldName } from '../lib/customerInsights';
 import { PENDING_STATUSES } from '../lib/quoteRules';
@@ -8,8 +8,7 @@ import { quoteTry, useRates } from '../lib/rates';
 import type { ActiveTab } from './Sections';
 import { QuickPrice } from './QuickPrice';
 import { AskQuotes } from './AskQuotes';
-import { QuoteAgent } from './QuoteAgent';
-import { RequestReader } from './RequestReader';
+import { QuoteBuilder } from './QuoteBuilder';
 import { VoiceCommand, VoiceResult } from './VoiceCommand';
 import { Targets, useSetting } from '../lib/settings';
 
@@ -438,9 +437,9 @@ const StatusBox: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count: n
   );
 };
 
-type Mode = 'search' | 'ask' | 'request' | 'agent' | 'voice';
+type Mode = 'search' | 'ask' | 'draft' | 'voice';
 
-/** Tek kutu: ürün/firma arama, tekliflere soru, müşteri talebi okuma, teklif taslağı (ajan), sesle kayıt */
+/** Tek kutu: ürün/firma arama, tekliflere soru, teklif hazırla (talep okuma + ajan), sesle kayıt */
 const Assistant: React.FC<{
   quotes: Quote[]; customers: Customer[]; canQuotes: boolean;
   canAdd: { quote: boolean; collection: boolean; expense: boolean };
@@ -449,11 +448,16 @@ const Assistant: React.FC<{
   const modes = [
     { key: 'search' as Mode, label: 'Ara', short: 'Ara', icon: Search },
     canQuotes && { key: 'ask' as Mode, label: 'Tekliflere sor', short: 'Sor', icon: MessageCircleQuestion },
-    onVoice && canAdd.quote && { key: 'request' as Mode, label: 'Talep oku', short: 'Talep', icon: ClipboardList },
-    onVoice && canAdd.quote && { key: 'agent' as Mode, label: 'Teklif hazırla', short: 'Taslak', icon: Bot },
+    onVoice && canAdd.quote && { key: 'draft' as Mode, label: 'Teklif hazırla', short: 'Hazırla', icon: Bot },
     onVoice && (canAdd.quote || canAdd.collection || canAdd.expense) && { key: 'voice' as Mode, label: 'Sesle kayıt', short: 'Sesle', icon: Mic },
   ].filter(Boolean) as { key: Mode; label: string; short: string; icon: React.ElementType }[];
-  const [mode, setModeState] = useState<Mode>(() => { try { return (localStorage.getItem('home-assistant') as Mode) || 'search'; } catch { return 'search'; } });
+  const [mode, setModeState] = useState<Mode>(() => {
+    try {
+      const m = localStorage.getItem('home-assistant');
+      // Eski "Talep oku" / "Teklif hazırla" sekmeleri tek sekmede birleşti
+      return (m === 'request' || m === 'agent' ? 'draft' : m as Mode) || 'search';
+    } catch { return 'search'; }
+  });
   const setMode = (k: Mode) => { setModeState(k); try { localStorage.setItem('home-assistant', k); } catch { /* */ } };
   const active = modes.some(x => x.key === mode) ? mode : 'search';
   return (
@@ -468,8 +472,7 @@ const Assistant: React.FC<{
       </div>
       {active === 'search' && <QuickPrice quotes={quotes} customers={customers} onOpenQuote={onOpenQuote} onOpenCustomer={onOpenCustomer} />}
       {active === 'ask' && <AskQuotes quotes={quotes} customers={customers.map(c => c.name)} onOpenQuote={onOpenQuote} />}
-      {active === 'request' && onVoice && <RequestReader customers={customers} onDraft={draft => onVoice({ kind: 'quote', draft })} />}
-      {active === 'agent' && onVoice && <QuoteAgent quotes={quotes} customers={customers} onDraft={draft => onVoice({ kind: 'quote', draft })} />}
+      {active === 'draft' && onVoice && <QuoteBuilder quotes={quotes} customers={customers} onDraft={draft => onVoice({ kind: 'quote', draft })} />}
       {active === 'voice' && onVoice && <VoiceCommand customers={customers.map(c => c.name)} allow={canAdd} onResult={onVoice} />}
     </section>
   );

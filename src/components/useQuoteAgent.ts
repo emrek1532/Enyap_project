@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { Bot, Loader2, Send } from 'lucide-react';
+import { useState } from 'react';
 import { Customer, Quote, QuoteItem } from '../types';
 import { MATERIAL_UNITS, Material, foldTr, searchMaterials, textMatcher } from '../lib/materials';
 import { dayOf, localDay } from '../lib/dates';
@@ -22,16 +21,13 @@ const words = (s: string) => foldTr(s).replace(/[^a-z0-9"/.]+/g, ' ').split(' ')
  * Teklif taslağı ajanı: "Gemfa'ya 10 adet 2" küresel vana, geçen seferki iskontoyla" gibi bir istekten taslak hazırlar.
  * Model her adımda araç ister; araçlar burada, cihazdaki teklif/cari verisiyle ve katalog aramasıyla çalışır.
  * Sonuç kaydedilmez, teklif formu dolu açılır. Kod/fiyat/iskonto yalnızca araç sonuçlarında geçtiyse kabul edilir.
+ * Ekranı yok: "Teklif hazırla" kutusu (QuoteBuilder) tek satırlık istekleri buraya verir.
  */
-export const QuoteAgent: React.FC<{
-  quotes: Quote[];
-  customers: Customer[];
-  onDraft: (draft: Partial<Quote>) => void;
-}> = ({ quotes, customers, onDraft }) => {
-  const [text, setText] = useState('');
+export function useQuoteAgent(quotes: Quote[], customers: Customer[], onDraft: (draft: Partial<Quote>) => void) {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [reply, setReply] = useState('');
+  const reset = () => { setLog([]); setReply(''); };
 
   // ---- Araçlar (cihazda çalışır) ----
   const findCustomers = (arg: string) => {
@@ -67,9 +63,8 @@ export const QuoteAgent: React.FC<{
     return out.length ? out.join('\n') : 'Bu ürün daha önce teklif edilmemiş.';
   };
 
-  const run = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const request = text.trim();
+  const run = async (input: string) => {
+    const request = input.trim();
     if (!request || busy) return;
     setBusy(true); setLog([]); setReply('');
     // Önce kurallarla (yapay zekâsız): firma + geçmiş fiyat / katalog kesinse ajana hiç gidilmez
@@ -173,23 +168,5 @@ export const QuoteAgent: React.FC<{
     if (draft.customerName || items.length) onDraft(draft);
   };
 
-  return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 space-y-2">
-      <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5"><Bot className="w-4 h-4 text-emerald-600" /> Teklif taslağı hazırla</h2>
-      <form onSubmit={run} className="flex gap-2">
-        <input value={text} onChange={e => setText(e.target.value)} placeholder={'Ör. Gemfa\'ya 10 adet 2" küresel vana, geçen seferki iskontoyla'}
-          className="min-w-0 flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200" />
-        <button type="submit" disabled={busy || !text.trim()} className="px-3 rounded-xl bg-emerald-600 text-white disabled:opacity-50" aria-label="Hazırla">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </button>
-      </form>
-      {(log.length > 0 || reply) && (
-        <div className="text-xs bg-emerald-50 rounded-xl px-3 py-2 space-y-1">
-          {log.map((l, i) => <div key={i} className="text-slate-600">• {l}</div>)}
-          {busy && <div className="text-slate-500 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> düşünüyor…</div>}
-          {reply && <div className="text-sm text-slate-800 pt-1">{reply}</div>}
-        </div>
-      )}
-    </section>
-  );
-};
+  return { run, busy, log, reply, reset };
+}
