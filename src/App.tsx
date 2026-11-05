@@ -48,6 +48,7 @@ import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
 import { PageHeader, SECTION_META, SECTION_SUB } from './components/Sections';
 import { Sidebar } from './components/Sidebar';
+import { needsFollowUp } from './lib/quoteRules';
 import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
 import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
@@ -720,9 +721,11 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         userName={userName}
         userEmail={userEmail}
         roleLabel={roleLabel}
+        onReports={tabAllowed('reports') ? () => setActiveTab('reports') : undefined}
       />
 
-      <div className="sticky top-0 z-30">
+      {/* Ana sayfada bilgisayar/tablette üst çubuk yok: eşitleme, bildirim ve çıkış karşılama alanında */}
+      <div className={`sticky top-0 z-30 ${activeTab === 'home' ? 'md:hidden' : ''}`}>
       <Header
         syncStatus={syncStatus}
         onTriggerSync={() => performSync(true)}
@@ -766,6 +769,10 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               userName={userName}
               tools={tools}
               onOpenTool={openTool}
+              followCount={data.quotes.filter(needsFollowUp).length}
+              syncStatus={syncStatus}
+              onSync={() => performSync(true)}
+              onSignOut={handleSignOut}
             />
           </>
         )}
