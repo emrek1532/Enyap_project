@@ -467,7 +467,7 @@ const Assistant: React.FC<{
         ))}
       </div>
       {active === 'search' && <QuickPrice quotes={quotes} customers={customers} onOpenQuote={onOpenQuote} onOpenCustomer={onOpenCustomer} />}
-      {active === 'ask' && <AskQuotes quotes={quotes} customers={customers.map(c => c.name)} />}
+      {active === 'ask' && <AskQuotes quotes={quotes} customers={customers.map(c => c.name)} onOpenQuote={onOpenQuote} />}
       {active === 'request' && onVoice && <RequestReader customers={customers} onDraft={draft => onVoice({ kind: 'quote', draft })} />}
       {active === 'agent' && onVoice && <QuoteAgent quotes={quotes} customers={customers} onDraft={draft => onVoice({ kind: 'quote', draft })} />}
       {active === 'voice' && onVoice && <VoiceCommand customers={customers.map(c => c.name)} allow={canAdd} onResult={onVoice} />}
