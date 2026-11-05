@@ -161,8 +161,33 @@ export async function finishListImport(
   if (failed > Math.max(2, textPages.length * 0.25)) {
     throw new Error(`${failed}/${textPages.length} sayfa okunamadı${quota ? ' (yapay zekanın günlük ücretsiz kotası doldu, yarın tekrar deneyin)' : ''}; mevcut liste korundu`);
   }
+  // Kalite kontrolü: adların çoğu anlamsızsa (bozuk yazı tanıma: "DNso", "nNs2") liste kaydedilmez
+  const garbled = parsed.filter(p => garbledName(p.name)).length;
+  if (parsed.length >= 10 && garbled / parsed.length > GARBLED_LIMIT) {
+    throw new Error(`okunan ${parsed.length} kalemin ${garbled} tanesinin adı anlamsız (yazı tanıma bozuk okumuş); mevcut liste korundu`);
+  }
   const saved = await saveSupplierList(fileName, parsed, currency, onInfo);
   return { ...saved, failedPages: failed };
+}
+
+/** Anlamsız ad oranı bu sınırı aşan liste kaydedilmez (sağlam listelerde %0-14, bozuk okunan Emek Conta'da %27) */
+const GARBLED_LIMIT = 0.2;
+
+/**
+ * Ürün adı bozuk yazı tanımanın ürünü mü: "DN" ardından küçük harf (DN50 → "DNso"), kelime içinde küçük harf + rakam
+ * ("e5", "toc6"; mm2, m3, Tip3 gibi birimler hariç) ya da 3'ten az harf. Marka yazımları (BeZe) ve ölçüler (30x40x2, Ø20x1/2, 2.2kW) sağlam sayılır.
+ */
+export function garbledName(name: string): boolean {
+  const s = String(name || '').replace(/\(çeşit \d+\)/g, '');
+  if (s.replace(/[^A-Za-zÇĞİÖŞÜçğıöşüÂâÎîÛû]/g, '').length < 3) return true;
+  const parts = s.replace(/(\d)\s*[xX×]\s*(?=[\dØ])/g, '$1 ').split(/[\s/\-.,;:()"'’”“*+×=Ø]+/);
+  for (const raw of parts) {
+    const t = raw.replace(/^[\d.,]+/, '').replace(/^x/i, '');
+    if (t.length < 2) continue;
+    if (/^DN[a-zçğıöşü]/.test(t)) return true;
+    if (/[a-zçğıöşü]\d/.test(t) && !/^(mm|cm|m|dm|lt|l|kg|gr|g|kw|hp|bar|mt|mm2|mm3|m2|m3|tip|no|sch|pn|dn|k|x)\d+[a-zçğıöşü]*$/i.test(t)) return true;
+  }
+  return false;
 }
 
 /** PDF yazısından listeyi tek seferde oluşturur (uygulama içinde) */
