@@ -161,31 +161,52 @@ export async function finishListImport(
   if (failed > Math.max(2, textPages.length * 0.25)) {
     throw new Error(`${failed}/${textPages.length} sayfa okunamadı${quota ? ' (yapay zekanın günlük ücretsiz kotası doldu, yarın tekrar deneyin)' : ''}; mevcut liste korundu`);
   }
-  // Kalite kontrolü: adların çoğu anlamsızsa (bozuk yazı tanıma: "DNso", "nNs2") liste kaydedilmez
-  const garbled = parsed.filter(p => garbledName(p.name)).length;
-  if (parsed.length >= 10 && garbled / parsed.length > GARBLED_LIMIT) {
-    throw new Error(`okunan ${parsed.length} kalemin ${garbled} tanesinin adı anlamsız (yazı tanıma bozuk okumuş); mevcut liste korundu`);
+  // Kalite kontrolü: adı anlamsız satırlar (bozuk yazı tanıma: "DNso", "nNs2") kaydedilmez; çoğu böyleyse liste hiç kaydedilmez
+  const clean = parsed.filter(p => !garbledName(p.name));
+  const skipped = parsed.length - clean.length;
+  if (parsed.length >= 10 && skipped / parsed.length > GARBLED_LIMIT) {
+    throw new Error(`okunan ${parsed.length} kalemin ${skipped} tanesinin adı anlamsız (yazı tanıma bozuk okumuş); mevcut liste korundu`);
   }
-  const saved = await saveSupplierList(fileName, parsed, currency, onInfo);
-  return { ...saved, failedPages: failed };
+  if (clean.length < 3) throw new Error('kalem bulunamadı (okunan adlar anlamsız)');
+  const saved = await saveSupplierList(fileName, clean, currency, onInfo);
+  return { ...saved, failedPages: failed, skipped };
 }
 
-/** Anlamsız ad oranı bu sınırı aşan liste kaydedilmez (sağlam listelerde %0-14, bozuk okunan Emek Conta'da %27) */
-const GARBLED_LIMIT = 0.2;
+/**
+ * Anlamsız adlı satırların oranı bu sınırı aşan liste hiç kaydedilmez; altında kalırsa yalnız o satırlar atlanır.
+ * (Sağlam listelerde %0-14; Emek Conta'nın tamamen OCR ile okunan ilk yüklemesinde %27, görsel okumalı ikincisinde ~%20.)
+ */
+const GARBLED_LIMIT = 0.5;
 
 /**
  * Ürün adı bozuk yazı tanımanın ürünü mü: "DN" ardından küçük harf (DN50 → "DNso"), kelime içinde küçük harf + rakam
  * ("e5", "toc6"; mm2, m3, Tip3 gibi birimler hariç) ya da 3'ten az harf. Marka yazımları (BeZe) ve ölçüler (30x40x2, Ø20x1/2, 2.2kW) sağlam sayılır.
  */
 export function garbledName(name: string): boolean {
-  const s = String(name || '').replace(/\(çeşit \d+\)/g, '');
+  // Köşeli parantezli ürün kodları ([3295-ste-200b00]) ve çeşit ekleri değerlendirilmez
+  const s = String(name || '').replace(/\(çeşit \d+\)/g, '').replace(/\[[^\]]*\]/g, ' ');
   if (s.replace(/[^A-Za-zÇĞİÖŞÜçğıöşüÂâÎîÛû]/g, '').length < 3) return true;
-  const parts = s.replace(/(\d)\s*[xX×]\s*(?=[\dØ])/g, '$1 ').split(/[\s/\-.,;:()"'’”“*+×=Ø]+/);
+  // Ürün değil, tablo notu ("kg SORUNUZ", "Fiyat sorunuz")
+  if (/\bsorunuz\b/i.test(s)) return true;
+  // 4+ harfli bir kelime (sesli harfli) ya da ölçü/model işareti olmalı (1/2, DN50, 3", Ø32, M10, SKM 40/2, RGN 25/7):
+  // "Do iz", "INT", "2 ONso" gibi kısa bozuk okumalar elenir; "Vida", "TE DÜZ 1/2", "PP TE Ø32" sağlam kalır
+  const word = /[A-Za-zÇĞİÖŞÜçğıöşüÂâÎîÛû]{4,}/.exec(s);
+  const longWord = !!word && /[aeıioöuüAEIİOÖUÜ]/.test(word[0]) && /[^aeıioöuüAEIİOÖUÜ]/.test(word[0]);
+  const sizeOrModel = /\d\s*\/\s*\d|\bDN\s?\d|\d\s*["”″]|Ø\s?\d|\bM\d|\d\s*(mm|cm|mt|lt|kg|kw|bar)\b|\b[A-ZÇĞİÖŞÜ]{2,}[- ]?\d/i.test(s);
+  if (!longWord && !sizeOrModel) return true;
+  const long5 = /[A-Za-zÇĞİÖŞÜçğıöşüÂâÎîÛû]{5,}/.test(s);
+  // Ölçü çarpı işareti (30x40x2, Ø20x1/2, DN50xDN32) ve tırnaklar ayırıcı sayılır
+  const parts = s.replace(/(\d)\s*[xX×]\s*(?=[\dØD])/g, '$1 ').split(/[\s/\-.,;:()"'’”“*+×=Ø&]+/);
   for (const raw of parts) {
     const t = raw.replace(/^[\d.,]+/, '').replace(/^x/i, '');
     if (t.length < 2) continue;
-    if (/^DN[a-zçğıöşü]/.test(t)) return true;
-    if (/[a-zçğıöşü]\d/.test(t) && !/^(mm|cm|m|dm|lt|l|kg|gr|g|kw|hp|bar|mt|mm2|mm3|m2|m3|tip|no|sch|pn|dn|k|x)\d+[a-zçğıöşü]*$/i.test(t)) return true;
+    // "DN" ardından küçük harf (DNso, DN25e): DN50'nin bozuk okunması
+    if (/^DN\d*[a-wyzçğıöşü]/.test(t)) return true;
+    // adda gerçek kelime yokken iki büyük harf + küçük harf (ONso, DNEs, İNes): büyük harfli ölçünün bozuk okunması (BVr, BACnet gibi model adları korunur)
+    if (!long5 && /^[A-ZÇĞİÖŞÜ]{2,}[a-zçğıöşü]{1,3}$/.test(t)) return true;
+    // kelime içinde küçük harf + rakam (e5, is0, toc6); birimler, "Tip3", "Reg4" gibi kodlar hariç
+    if (/[a-zçğıöşü]\d/.test(t) && !/^(mm|cm|m|dm|lt|l|kg|gr|g|kw|hp|bar|mt|mm2|mm3|m2|m3|tip|no|sch|pn|dn|k|x)\d+[a-zçğıöşü]*$/i.test(t)
+      && !/^[A-ZÇĞİÖŞÜ][a-zçğıöşü]{2,}\d+$/.test(t)) return true;
   }
   return false;
 }
@@ -193,7 +214,7 @@ export function garbledName(name: string): boolean {
 /** PDF yazısından listeyi tek seferde oluşturur (uygulama içinde) */
 export async function importListFromText(
   fileName: string, pages: string[][], onInfo?: (info: string) => void,
-): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; ambiguous: number; priceDiff: PriceDiff | null; replaced: string | null }> {
+): Promise<{ listId: string; name: string; items: number; matched: number; failedPages: number; skipped: number; ambiguous: number; priceDiff: PriceDiff | null; replaced: string | null }> {
   const r = await parseListPages(pages, onInfo);
   if (!r.done) throw new Error('okuma tamamlanamadı');
   return finishListImport(fileName, r, onInfo);

@@ -80,6 +80,7 @@ Deno.serve(async req => {
       }
       const res = await finishListImport(file, r, onInfo);
       const text = `${res.name}: ${res.items.toLocaleString('tr-TR')} kalem · ${res.matched.toLocaleString('tr-TR')} bizim koda bağlandı`
+        + (res.skipped ? ` · ${res.skipped} satırın adı okunamadı, atlandı` : '')
         + (res.replaced ? ' · eski liste yerine geçti' : '')
         + (res.priceDiff?.up ? ` · ${res.priceDiff.up} üründe zam (ort. %${res.priceDiff.avgUp})` : '');
       await set({ status: 'bitti', result: res, state: null, info: text });
