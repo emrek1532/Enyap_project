@@ -703,10 +703,13 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     setLedgerStartNew(r.kind === 'collection' ? 'collections' : 'expenses');
     setActiveTab(r.kind === 'collection' ? 'collections' : 'expenses');
   };
+  const [newRequest, setNewRequest] = useState(0);
   const openTool = (m: ToolMode) => { setToolMode(m); try { localStorage.setItem('home-assistant', m); } catch { /* */ } };
   const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
     : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
     : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
+    : activeTab === 'customers' ? { label: 'Yeni Müşteri', icon: Plus, onClick: () => setNewRequest(n => n + 1) }
+    : activeTab === 'materials' && can(profile, 'materials') ? { label: 'Yeni Malzeme', icon: Plus, onClick: () => setNewRequest(n => n + 1) }
     : undefined;
 
   return (
@@ -827,6 +830,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onMikroHandled={() => setOpenMikro(false)}
             visits={data.visits || []}
             onSaveVisit={handleSaveVisit}
+            newRequest={newRequest}
             onCreateQuoteForCustomer={(customer) => {
               setQuoteCustomer(customer);
               setIsNewQuoteOpen(true);
@@ -876,7 +880,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         )}
 
         {/* Malzemeler (fiyat kataloğu) */}
-        {activeTab === 'materials' && <MaterialsPanel quotes={data.quotes} onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined} />}
+        {activeTab === 'materials' && <MaterialsPanel newRequest={newRequest} quotes={data.quotes} onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined} />}
 
         {activeTab === 'admin' && profile.isAdmin && <AdminPanel meId={profile.id} activities={data.activities} />}
 

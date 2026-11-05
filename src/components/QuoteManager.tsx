@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Search, Plus, MapPin, ChevronRight, Printer, Share2, Trash2, Pencil } from 'lucide-react';
+import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays } from 'lucide-react';
+import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
@@ -11,7 +12,7 @@ import { textMatcher } from '../lib/materials';
 import { PENDING_REASONS, splitReason } from '../lib/quoteRules';
 import { DateInput } from './DateInput';
 
-const LIST_PAGE = 50;
+const LIST_PAGE = 25;
 
 const fold = (s: string) =>
   s.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
@@ -64,7 +65,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   initialRange,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [listLimit, setListLimit] = useState(LIST_PAGE);
+  const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [showMore, setShowMore] = useState(false);
   const [cityFilter, setCityFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState(initialRange?.from || '');
   const [dateTo, setDateTo] = useState(initialRange?.to || '');
@@ -103,7 +107,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       try { localStorage.setItem(SORT_KEY, JSON.stringify(next)); } catch { /* */ }
       return next;
     });
-  const sortBy = (key: QuoteSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setListLimit(LIST_PAGE); };
+  const sortBy = (key: QuoteSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setPage(0); };
 
   // Filtered quotes (newest first). Memoized: there can be thousands of quotes.
   const filteredQuotes = useMemo(() => {
@@ -172,7 +176,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const hasExtraFilters = cityFilter !== 'all' || !!dateFrom || !!dateTo || !!searchTerm;
   const resetFilters = () => {
     setSearchTerm(''); setStatusFilter('all');
-    setCityFilter('all'); setDateFrom(''); setDateTo(''); setListLimit(LIST_PAGE);
+    setCityFilter('all'); setDateFrom(''); setDateTo(''); setPage(0);
   };
 
   const getStatusBadge = (status: QuoteStatus) => {
@@ -186,271 +190,187 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     }
   };
 
+  const pageRows = filteredQuotes.slice(page * LIST_PAGE, (page + 1) * LIST_PAGE);
+  const allOnPage = pageRows.length > 0 && pageRows.every(q => selected.has(q.id));
+  const toggleSel = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleAll = () => setSelected(s => { const n = new Set(s); pageRows.forEach(q => (allOnPage ? n.delete(q.id) : n.add(q.id))); return n; });
+  const approveSelected = () => {
+    const ids = quotes.filter(q => selected.has(q.id) && PENDING_STATUSES.includes(q.status)).map(q => q.id);
+    if (!ids.length || !confirm(`${ids.length} bekleyen teklif onaylandı olarak işaretlensin mi?`)) return;
+    ids.forEach(id => onUpdateQuoteStatus(id, 'onaylandi'));
+    setSelected(new Set());
+  };
+  const activePreset = datePresets.find(([, f, t]) => f === dateFrom && t === dateTo)?.[0] ?? null;
+  const filteredSum = filteredQuotes.reduce((t, q) => t + (netTry.get(q.id) || 0), 0);
+  const filtering = !!(searchTerm.trim() || statusFilter !== 'all' || cityFilter !== 'all' || dateFrom || dateTo);
+
+  const moreMenu = (quote: Quote) => menuFor === quote.id && (
+    <>
+      <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
+      <div className="absolute right-0 top-9 z-40 w-48 rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left text-sm">
+        {PENDING_STATUSES.includes(quote.status) && !readOnly && (
+          <button onClick={() => { onUpdateQuoteStatus(quote.id, 'onaylandi'); setMenuFor(null); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-semibold"><Check className="w-4 h-4" /> Onayla</button>
+        )}
+        <button onClick={() => { onPrintQuote(quote); setMenuFor(null); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><Share2 className="w-4 h-4" /> Gönder / yazdır</button>
+        <button onClick={() => { setCustomerView(quote.customerName); setMenuFor(null); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><FileText className="w-4 h-4" /> Müşterinin teklifleri</button>
+      </div>
+    </>
+  );
+
   return (
     <div className="space-y-4">
-
-      {/* Top Filter & Action Bar */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col xl:flex-row xl:flex-wrap items-stretch xl:items-center justify-between gap-3">
-        
-        {/* Search */}
-        <div className="relative flex-1 xl:min-w-[260px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Müşteri adı, teklif no, şehir veya ürün ara..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-          />
-        </div>
-
-        {/* Filter controls */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap [&>select]:w-full sm:[&>select]:w-auto">
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setListLimit(LIST_PAGE); }}
-            className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-          >
-            <option value="all">Tüm Teklifler</option>
-            <option value="aktif">Beklemede</option>
-            <option value="takip">Tekrar Görüşülecek ({followUpCount})</option>
-            <option value="onaylandi">Onaylandı</option>
-            <option value="iptal">İptal</option>
-          </select>
-
-          <select
-            value={cityFilter}
-            onChange={(e) => { setCityFilter(e.target.value); setListLimit(LIST_PAGE); }}
-            className="px-2.5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium bg-white"
-            aria-label="Şehir"
-          >
-            <option value="all">Tüm Şehirler</option>
-            {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-
-          <div className="col-span-2 order-last sm:order-none grid grid-cols-[1fr_auto_1fr] sm:flex items-center gap-1 text-xs text-slate-500">
-            <DateInput value={dateFrom} onChange={v => { setDateFrom(v); setListLimit(LIST_PAGE); }}
-              className="w-full sm:w-32 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" />
-            <span>–</span>
-            <DateInput value={dateTo} onChange={v => { setDateTo(v); setListLimit(LIST_PAGE); }}
-              className="w-full sm:w-32 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" />
-          </div>
-
-
-          {(hasExtraFilters || statusFilter !== 'all') && (
-            <button onClick={resetFilters} className="px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 sm:border-0">
-              Filtreleri temizle
+      <div className={listCard}>
+        {/* Filtreler */}
+        <div className="p-3 sm:p-4 flex flex-col lg:flex-row gap-2">
+          <SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1 lg:min-w-[220px]" />
+          <div className="grid grid-cols-2 sm:flex gap-2">
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Durum">
+              <option value="all">Tüm Teklifler</option>
+              <option value="aktif">Beklemede</option>
+              <option value="takip">Tekrar Görüşülecek ({followUpCount})</option>
+              <option value="onaylandi">Onaylandı</option>
+              <option value="iptal">İptal</option>
+            </select>
+            <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Şehir">
+              <option value="all">Tüm Şehirler</option>
+              {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className={`${ctrl} col-span-2 flex items-center gap-1.5 text-slate-400`}>
+              <CalendarDays className="w-4 h-4 shrink-0" />
+              <DateInput value={dateFrom} onChange={v => { setDateFrom(v); setPage(0); }} className="w-full sm:w-24 bg-transparent text-xs text-slate-700 focus:outline-none" />
+              <span>–</span>
+              <DateInput value={dateTo} onChange={v => { setDateTo(v); setPage(0); }} className="w-full sm:w-24 bg-transparent text-xs text-slate-700 focus:outline-none" />
+            </div>
+            <button type="button" onClick={() => setShowMore(v => !v)}
+              className={`${ctrl} col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 font-bold ${showMore ? 'border-brand-300 text-brand-700 bg-brand-50' : ''}`}>
+              <Filter className="w-4 h-4" /> Filtrele
             </button>
-          )}
-
-          {/* Add New Quote Button */}
-          <button
-            onClick={onOpenNewQuote}
-            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">+ Yeni Teklif Talebi</span>
-            <span className="sm:hidden">Yeni Teklif</span>
-          </button>
+          </div>
         </div>
-
-        {/* Hızlı tarih aralığı */}
-        <div className="xl:basis-full flex flex-wrap gap-1.5">
-          {datePresets.map(([label, from, to]) => {
-            const on = dateFrom === from && dateTo === to;
-            return (
-              <button key={label} type="button" onClick={() => { if (on) { setDateFrom(''); setDateTo(''); } else { setDateFrom(from); setDateTo(to); } setListLimit(LIST_PAGE); }}
-                className={`px-2.5 py-1.5 rounded-full border text-xs font-semibold transition ${on ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'}`}>
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Table / List View */}
-
-      <div className="flex items-center justify-between gap-2 px-1">
-        <p className="text-xs text-slate-500">
-          {filteredQuotes.length} teklif
-          {(searchTerm.trim() || statusFilter !== 'all' || cityFilter !== 'all' || dateFrom || dateTo) && (
-            <> · <b className="text-slate-800 tabular-nums">{formatTl(filteredQuotes.reduce((t, q) => t + (netTry.get(q.id) || 0), 0))}</b> <span className="text-slate-400">KDV dahil</span></>
-          )}
-        </p>
-        <MobileSortSelect always sort={sort} onChange={(s) => { setSort(s); setListLimit(LIST_PAGE); }} options={[
-          { key: 'added', dir: 'desc', label: 'Son eklenen en üstte' },
-          { key: 'date', dir: 'desc', label: 'Tarih: yeniden eskiye' },
-          { key: 'date', dir: 'asc', label: 'Tarih: eskiden yeniye' },
-          { key: 'customer', dir: 'asc', label: 'Müşteri: A → Z' },
-          { key: 'customer', dir: 'desc', label: 'Müşteri: Z → A' },
-          { key: 'status', dir: 'asc', label: 'Durum' },
-          { key: 'number', dir: 'desc', label: 'Teklif No' },
-        ]} />
-      </div>
-
-      {(
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          {/* Telefon: kart görünümü (yana kaydırma yok) */}
-          <div className="md:hidden divide-y divide-slate-100">
-            {filteredQuotes.length === 0 && (
-              <p className="py-8 text-center text-sm text-slate-400">Arama kriterine uygun teklif bulunamadı.</p>
+        {showMore && (
+          <div className="px-3 sm:px-4 pb-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <MobileSortSelect always sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
+              { key: 'added', dir: 'desc', label: 'Son eklenen en üstte' },
+              { key: 'date', dir: 'desc', label: 'Tarih: yeniden eskiye' },
+              { key: 'date', dir: 'asc', label: 'Tarih: eskiden yeniye' },
+              { key: 'customer', dir: 'asc', label: 'Müşteri: A → Z' },
+              { key: 'customer', dir: 'desc', label: 'Müşteri: Z → A' },
+              { key: 'amount', dir: 'desc', label: 'Tutar: yüksek' },
+              { key: 'status', dir: 'asc', label: 'Durum' },
+              { key: 'number', dir: 'desc', label: 'Teklif No' },
+            ]} />
+            {filtering && <span>{filteredQuotes.length} teklif · <b className="text-slate-800 tabular-nums">{formatTl(filteredSum)}</b> KDV dahil</span>}
+            {(hasExtraFilters || statusFilter !== 'all') && (
+              <button onClick={resetFilters} className="font-bold text-brand-600 hover:underline">Filtreleri temizle</button>
             )}
-            {filteredQuotes.slice(0, listLimit).map((quote) => {
-              const statusBadge = getStatusBadge(quote.status);
-              const pending = PENDING_STATUSES.includes(quote.status);
-              return (
-                <div key={quote.id} className="p-3 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <button onClick={() => setCustomerView(quote.customerName)} className="font-bold text-slate-900 text-sm leading-snug text-left hover:text-brand-700 underline-offset-2 hover:underline">
-                        {quote.customerName}
-                      </button>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        <button onClick={() => setSelectedQuote(quote)} className="font-mono font-bold text-brand-700 underline underline-offset-2">{quote.quoteNumber}</button>
-                        {' '}· {quote.city || '-'} · {new Date(quote.createdAt).toLocaleDateString('tr-TR')}
-                      </div>
-                    </div>
-                    <button onClick={() => setSelectedQuote(quote)} className="text-right shrink-0">
-                      <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</div>
-                      <div className="text-[10px] text-slate-400">KDV dahil</div>
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>{statusBadge.label}</span>
-                      {priceBadge(quote.id)}
-                      {quote.status === 'gonderildi' && quote.lostReason && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {pending && !readOnly && (
-                        <>
-                          <button onClick={() => onUpdateQuoteStatus(quote.id, 'onaylandi')}
-                            className="px-2 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">✓ Onayla</button>
-                        </>
-                      )}
-                      <button onClick={() => onPrintQuote(quote)} className="p-1.5 rounded-md text-accent-600 bg-accent-50" title="Teklifi gönder / yazdır"><Share2 className="w-4 h-4" /></button>
-                      {!readOnly && <button onClick={() => onEditQuote(quote)} className="p-1.5 rounded-md text-amber-600 bg-amber-50" title="Düzenle / Revize Et"><Pencil className="w-4 h-4" /></button>}
-                    </div>
+          </div>
+        )}
+        {/* Hızlı tarih */}
+        <div className="px-3 sm:px-4">
+          <UnderlineTabs small value={activePreset} onChange={k => {
+            const p = datePresets.find(x => x[0] === k)!;
+            if (activePreset === k) { setDateFrom(''); setDateTo(''); } else { setDateFrom(p[1]); setDateTo(p[2]); }
+            setPage(0);
+          }} items={datePresets.map(([label]) => ({ key: label, label }))} />
+        </div>
+
+        {selected.size > 0 && (
+          <div className="mx-3 sm:mx-4 mt-3 flex items-center gap-2 rounded-xl bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-brand-800">
+            <b>{selected.size} teklif seçili</b>
+            <span className="text-brand-600/80 tabular-nums">· {formatTl(quotes.filter(q => selected.has(q.id)).reduce((t, q) => t + (netTry.get(q.id) || 0), 0))}</span>
+            <span className="flex-1" />
+            {!readOnly && <button onClick={approveSelected} className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold">Seçilenleri onayla</button>}
+            <button onClick={() => setSelected(new Set())} className="px-2 py-1 rounded-lg font-bold hover:bg-brand-100">Temizle</button>
+          </div>
+        )}
+
+        {/* Telefon: kartlar */}
+        <div className="md:hidden divide-y divide-slate-100 mt-1">
+          {pageRows.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Arama kriterine uygun teklif bulunamadı.</p>}
+          {pageRows.map(quote => (
+            <div key={quote.id} className="p-3 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <button onClick={() => setCustomerView(quote.customerName)} className="font-bold text-slate-900 text-sm leading-snug text-left">{quote.customerName}</button>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    <button onClick={() => setSelectedQuote(quote)} className="font-bold text-slate-700">{quote.quoteNumber}</button>
+                    {' '}· {quote.city || '-'} · {new Date(quote.createdAt).toLocaleDateString('tr-TR')}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-          {/* Tablet / bilgisayar: tablo */}
-          <div className="overflow-x-auto hidden md:block">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                <tr>
-                  <SortHeader label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
-                  <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
-                  <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
-                  <SortHeader label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
-                  <SortHeader label="Tutar (KDV dahil)" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
-                  <th className="py-3 px-3 text-right">İşlemler</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredQuotes.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400">
-                      Arama kriterine uygun teklif bulunamadı.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredQuotes.slice(0, listLimit).map((quote) => {
-                    const statusBadge = getStatusBadge(quote.status);
-                    return (
-                      <tr key={quote.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-3">
-                          <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç"
-                            className="font-mono font-bold text-slate-900 hover:text-brand-700 hover:underline underline-offset-2">
-                            {quote.quoteNumber}
-                          </button>
-                        </td>
-                        <td className="py-3 px-3">
-                          <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri"
-                            className="font-bold text-slate-900 text-left hover:text-brand-700 hover:underline underline-offset-2">
-                            {quote.customerName}
-                          </button>
-                          <div className="text-xs text-slate-500 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-slate-400" />
-                            {quote.city}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${statusBadge.color}`}>
-                            {statusBadge.label}
-                          </span>
-                          {priceChanges.has(quote.id) && <span className="mt-1 block w-fit">{priceBadge(quote.id)}</span>}
-                          {quote.status === 'gonderildi' && quote.lostReason && <span className="mt-1 block w-fit"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span></span>}
-                          {needsFollowUp(quote) && (
-                            <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
-                              ⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-xs text-slate-500 whitespace-nowrap">
-                          {new Date(quote.createdAt).toLocaleDateString('tr-TR')}
-                        </td>
-                        <td className="py-3 px-3 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
-                          {formatTl(netTry.get(quote.id) || 0)}
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {PENDING_STATUSES.includes(quote.status) && !readOnly && (
-                              <>
-                                <button
-                                  onClick={() => onUpdateQuoteStatus(quote.id, 'onaylandi')}
-                                  className="px-2 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 whitespace-nowrap"
-                                  title="Onaylandı olarak işaretle"
-                                >
-                                  ✓ Onayla
-                                </button>
-                              </>
-                            )}
-                            <button
-                              onClick={() => onPrintQuote(quote)}
-                              className="p-1.5 rounded-md hover:bg-accent-50 text-accent-600 transition-colors"
-                              title="Teklifi gönder / yazdır"
-                            >
-                              <Share2 className="w-4 h-4" />
-                            </button>
-                            {!readOnly && <button
-                              onClick={() => onEditQuote(quote)}
-                              className="p-1.5 rounded-md hover:bg-amber-50 text-amber-600 transition-colors"
-                              title="Düzenle / Revize Et"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>}
-                            <button
-                              onClick={() => setSelectedQuote(quote)}
-                              className="p-1.5 rounded-md hover:bg-slate-100 text-slate-700 transition-colors"
-                              title="Detay"
-                            >
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-          {filteredQuotes.length > listLimit && (
-            <div className="p-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
-              <span>{listLimit} / {filteredQuotes.length} teklif gösteriliyor</span>
-              <button
-                onClick={() => setListLimit((n) => n + LIST_PAGE)}
-                className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-bold"
-              >
-                {LIST_PAGE} teklif daha göster
-              </button>
+                <button onClick={() => setSelectedQuote(quote)} className="text-right shrink-0">
+                  <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</div>
+                  <div className="text-[10px] text-slate-400">KDV dahil</div>
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <StatusPill status={quote.status} />
+                  {priceBadge(quote.id)}
+                  {quote.status === 'gonderildi' && quote.lostReason && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
+                </div>
+                <div className="relative flex items-center shrink-0">
+                  <IconBtn title="Detay" onClick={() => setSelectedQuote(quote)}><Eye className="w-4 h-4" /></IconBtn>
+                  {!readOnly && <IconBtn title="Düzenle / Revize Et" onClick={() => onEditQuote(quote)}><Pencil className="w-4 h-4" /></IconBtn>}
+                  <IconBtn title="Diğer" onClick={() => setMenuFor(quote.id)}><MoreHorizontal className="w-4 h-4" /></IconBtn>
+                  {moreMenu(quote)}
+                </div>
+              </div>
             </div>
-          )}
+          ))}
         </div>
-      )}
+
+        {/* Tablet / bilgisayar: tablo */}
+        <div className="hidden md:block overflow-x-auto mt-1">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-100">
+              <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
+                <th className="py-3 pl-4 pr-1 w-8"><input type="checkbox" checked={allOnPage} onChange={toggleAll} aria-label="Sayfadakilerin hepsini seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></th>
+                <SortHeader label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
+                <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
+                <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
+                <SortHeader label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
+                <SortHeader label="Tutar (KDV Dahil)" align="right" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
+                <th className="py-3 px-3 text-center">İşlemler</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {pageRows.length === 0 && (
+                <tr><td colSpan={7} className="py-8 text-center text-slate-400">Arama kriterine uygun teklif bulunamadı.</td></tr>
+              )}
+              {pageRows.map(quote => (
+                <tr key={quote.id} className={`${rowCls} ${selected.has(quote.id) ? 'bg-brand-50/50' : ''}`}>
+                  <td className="py-3 pl-4 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
+                  <td className="py-3 px-3">
+                    <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-bold text-slate-900 hover:text-brand-700 whitespace-nowrap">{quote.quoteNumber}</button>
+                  </td>
+                  <td className="py-3 px-3">
+                    <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="font-bold text-slate-900 text-left hover:text-brand-700 leading-snug">{quote.customerName}</button>
+                    <div className="text-xs text-slate-400">{quote.city}</div>
+                  </td>
+                  <td className="py-3 px-3">
+                    <StatusPill status={quote.status} />
+                    {priceChanges.has(quote.id) && <span className="mt-1 block w-fit">{priceBadge(quote.id)}</span>}
+                    {quote.status === 'gonderildi' && quote.lostReason && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
+                    {needsFollowUp(quote) && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)</span>}
+                  </td>
+                  <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</td>
+                  <td className="py-3 px-3 text-right font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</td>
+                  <td className="py-3 px-3">
+                    <div className="relative flex items-center justify-center gap-0.5">
+                      <IconBtn title="Detay" onClick={() => setSelectedQuote(quote)}><Eye className="w-4 h-4" /></IconBtn>
+                      {!readOnly && <IconBtn title="Düzenle / Revize Et" onClick={() => onEditQuote(quote)}><Pencil className="w-4 h-4" /></IconBtn>}
+                      <IconBtn title="Diğer" onClick={() => setMenuFor(quote.id)}><MoreHorizontal className="w-4 h-4" /></IconBtn>
+                      {moreMenu(quote)}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Pager page={page} total={filteredQuotes.length} size={LIST_PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          label={<>Toplam {filteredQuotes.length.toLocaleString('tr-TR')} teklif</>} />
+      </div>
 
       {/* Müşteri kartı: verilen tüm teklifler */}
       {customerView && (
