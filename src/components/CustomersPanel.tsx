@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight } from 'lucide-react';
-import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager } from './ListUI';
+import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager, FilterBar } from './ListUI';
 import { VisitPlan } from './VisitPlan';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
@@ -271,8 +271,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       {mode === 'list' && (
       <div className={listCard}>
         <div className="p-3 sm:p-4 space-y-3">
-          <div className="flex flex-col lg:flex-row gap-2">
-            <SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma adı veya şehir ara..." className="flex-1" />
+          <FilterBar active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
+            search={<SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma adı veya şehir ara..." className="flex-1" />}>
             <div className="grid grid-cols-2 sm:flex gap-2">
               <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Şehir">
                 <option value="all">Tüm Şehirler</option>
@@ -291,7 +291,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 <option value="pasif">Pasif</option>
                 <option value="kara_liste">Kara liste</option>
               </select>
-              <MobileSortSelect className={`${ctrl} md:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
+              <MobileSortSelect className={`${ctrl} lg:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
                 { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
                 { key: 'name', dir: 'desc', label: 'Firma: Z → A' },
                 { key: 'total', dir: 'desc', label: 'Onaylı tutar: yüksek' },
@@ -310,7 +310,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 </button>
               )}
             </div>
-          </div>
+          </FilterBar>
           <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
             <span>
               {filtered.length === customers.length ? `${customers.length} kayıtlı müşteri` : `${filtered.length} / ${customers.length} müşteri`}
@@ -330,7 +330,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           </p>
         ) : (<>
           {/* Telefon: kartlar */}
-          <div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
+          <div className="lg:hidden divide-y divide-slate-100 border-t border-slate-100">
             {pageRows.map(({ c, st }) => (
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
@@ -362,7 +362,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               </div>
             ))}
           </div>
-          <div className="overflow-x-auto hidden md:block border-t border-slate-100">
+          <div className="overflow-x-auto hidden lg:block border-t border-slate-100">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-100">
                 <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">

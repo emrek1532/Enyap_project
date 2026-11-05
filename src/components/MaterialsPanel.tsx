@@ -162,7 +162,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div>
 
       {/* Telefon: kartlar */}
-      <div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
+      <div className="lg:hidden divide-y divide-slate-100 border-t border-slate-100">
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
@@ -181,7 +181,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div>
 
       {/* Tablet / masaüstü: tablo */}
-      <div className="hidden md:block overflow-x-auto border-t border-slate-100">
+      <div className="hidden lg:block overflow-x-auto border-t border-slate-100">
         <table className="w-full text-sm">
           <thead className="border-b border-slate-100 text-left">
             <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">

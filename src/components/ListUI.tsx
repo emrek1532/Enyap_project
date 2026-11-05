@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /** Liste sayfalarının ortak görünümü (Teklifler, Müşteriler, Malzemeler, Tahsilat) */
@@ -74,6 +74,27 @@ export const Pager: React.FC<{ page: number; total: number; size: number; onPage
           <button type="button" disabled={page >= pages - 1} onClick={() => onPage(pages - 1)} className={`${btn} text-slate-600 hover:bg-slate-100 disabled:opacity-30 gap-0.5`}>Son <ChevronRight className="w-3.5 h-3.5" /></button>
         </div>
       )}
+    </div>
+  );
+};
+
+/**
+ * Arama + filtreler: telefonda yalnız arama kutusu ve "Filtreler" düğmesi görünür, filtreler dokununca açılır
+ * (sayfa sade kalır); tablet/bilgisayarda filtreler hep açıktır.
+ */
+export const FilterBar: React.FC<{ search: React.ReactNode; active?: number; children: React.ReactNode; className?: string }> = ({ search, active = 0, children, className = 'flex flex-col lg:flex-row gap-2' }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={className}>
+      <div className="flex gap-2 flex-1 min-w-0">
+        {search}
+        <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+          className={`sm:hidden shrink-0 h-10 px-3 rounded-xl border text-sm font-bold inline-flex items-center gap-1.5 ${open || active ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-700'}`}>
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+          Filtre{active ? ` (${active})` : ''}
+        </button>
+      </div>
+      <div className={open ? 'contents' : 'hidden sm:contents'}>{children}</div>
     </div>
   );
 };

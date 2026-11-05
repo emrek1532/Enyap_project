@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays } from 'lucide-react';
-import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager } from './ListUI';
+import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager, FilterBar } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
@@ -221,8 +221,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     <div className="space-y-4">
       <div className={listCard}>
         {/* Filtreler */}
-        <div className="p-3 sm:p-4 flex flex-col lg:flex-row gap-2">
-          <SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1 lg:min-w-[220px]" />
+        <FilterBar className="p-3 sm:p-4 flex flex-col lg:flex-row gap-2" active={(statusFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
+          search={<SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1 lg:min-w-[220px]" />}>
           <div className="grid grid-cols-2 sm:flex gap-2">
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Durum">
               <option value="all">Tüm Teklifler</option>
@@ -243,10 +243,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             </div>
             <button type="button" onClick={() => setShowMore(v => !v)}
               className={`${ctrl} col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 font-bold ${showMore ? 'border-brand-300 text-brand-700 bg-brand-50' : ''}`}>
-              <Filter className="w-4 h-4" /> Filtrele
+              <Filter className="w-4 h-4" /> Sırala
             </button>
           </div>
-        </div>
+        </FilterBar>
         {showMore && (
           <div className="px-3 sm:px-4 pb-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <MobileSortSelect always sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
@@ -285,7 +285,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         )}
 
         {/* Telefon: kartlar */}
-        <div className="md:hidden divide-y divide-slate-100 mt-1">
+        <div className="lg:hidden divide-y divide-slate-100 mt-1">
           {pageRows.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Arama kriterine uygun teklif bulunamadı.</p>}
           {pageRows.map(quote => (
             <div key={quote.id} className="p-3 space-y-2">
@@ -320,7 +320,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div>
 
         {/* Tablet / bilgisayar: tablo */}
-        <div className="hidden md:block overflow-x-auto mt-1">
+        <div className="hidden lg:block overflow-x-auto mt-1">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-100">
               <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">

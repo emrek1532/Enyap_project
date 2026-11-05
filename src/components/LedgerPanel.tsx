@@ -1,3 +1,4 @@
+import { listCard, SearchBox, FilterBar } from './ListUI';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, Send, Loader2, Camera } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
@@ -399,17 +400,10 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   return (
     <div className="space-y-4">
       {/* Filtreler */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col gap-3">
-        <div className="relative flex-1 min-w-0">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            value={search}
-            onChange={e => changed(setSearch)(e.target.value)}
-            placeholder={isCollection ? 'Müşteri, banka, çek no ara...' : 'Kategori, şehir, açıklama ara...'}
-            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm"
-          />
-        </div>
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap [&>select]:w-full sm:[&>select]:w-auto [&>select]:min-w-0">
+      <FilterBar className={`${listCard} p-3 sm:p-4 flex flex-col gap-3`}
+        active={(methodFilter !== 'all' ? 1 : 0) + (dueFilter !== 'all' ? 1 : 0) + (currencyFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
+        search={<SearchBox value={search} onChange={v => changed(setSearch)(v)} placeholder={isCollection ? 'Müşteri, banka, çek no ara...' : 'Kategori, şehir, açıklama ara...'} className="flex-1" />}>
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap [&>select]:w-full sm:[&>select]:w-auto [&>select]:min-w-0 [&>select]:h-10 [&>select]:rounded-xl">
           {isCollection && (
             <select value={methodFilter} onChange={e => changed(setMethodFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
               <option value="all">Tüm Ödeme Şekilleri</option>
@@ -457,11 +451,11 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
             <button onClick={resetFilters} className="px-2 py-2 rounded-lg border border-slate-200 sm:border-0 text-xs font-bold text-slate-500 hover:text-slate-800 sm:underline">Filtreleri temizle</button>
           )}
           <button onClick={() => openNew()}
-            className={`${hasFilters ? '' : 'col-span-2 '}flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs`}>
+            className={`${hasFilters ? '' : 'col-span-2 '}hidden sm:flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs`}>
             <Plus className="w-4 h-4" /> {t.one} Ekle
           </button>
         </div>
-      </div>
+      </FilterBar>
 
       {/* Liste üstü: listedeki kayıtların toplamı ve birleştirme seçeneği */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 empty:hidden">
@@ -480,9 +474,9 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       </div>
 
       {/* Liste */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] overflow-hidden">
         {/* Telefon: kart görünümü */}
-        <div className="md:hidden divide-y divide-slate-100">
+        <div className="lg:hidden divide-y divide-slate-100">
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-slate-500">
               {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok.` : 'Filtrelere uygun kayıt bulunamadı.'}
@@ -490,7 +484,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           )}
           {groups.map(g => (g.items.length === 1 || !merge ? g.items.map(mobileItem) : mobileGroup(g)))}
         </div>
-        <div className="overflow-x-auto hidden md:block">
+        <div className="overflow-x-auto hidden lg:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
               <tr>

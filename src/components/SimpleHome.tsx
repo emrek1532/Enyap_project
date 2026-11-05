@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { ArrowRight, Bell, CalendarDays, Check, ChevronDown, Clock, FileText, Handshake, LogOut, MapPin, Receipt, RefreshCw, Wallet, X, BarChart3, CalendarClock, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
-import { PENDING_STATUSES } from '../lib/quoteRules';
+import { PENDING_STATUSES, needsFollowUp, quoteAgeInDays } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import type { ActiveTab } from './Sections';
 import type { ToolInfo, ToolMode } from './QuickTools';
@@ -69,7 +69,7 @@ export const SimpleHome: React.FC<{
   syncStatus?: SyncStatus;
   onSync?: () => void;
   onSignOut?: () => void;
-}> = ({ quotes, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, userName, tools, onOpenTool, followCount = 0, syncStatus, onSync, onSignOut }) => {
+}> = ({ quotes, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, userName, tools, onOpenTool, syncStatus, onSync, onSignOut }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -137,9 +137,12 @@ export const SimpleHome: React.FC<{
   const vsName = isYear ? 'Geçen Yıla Göre' : 'Geçen Aya Göre';
   const firstName = userName.split(/\s+/)[0] || userName;
 
-  // Son teklifler (en yeni 4) ve yaklaşan ödemeler (çek/senet vadesi bugünden sonra olan tahsilatlar)
-  const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 4), [quotes]);
-  const dues = useMemo(() => collections.filter(c => c.dueDate && c.dueDate >= t).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '')).slice(0, 3), [collections, t]);
+  // Son teklifler (en yeni 5) ve yaklaşan ödemeler
+  const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5), [quotes]);
+  // Yalnız çek ve senet (vadeli tahsilatlar); bugün ve sonrası, en yakın vade önce
+  // Zil: tekrar görüşülmesi gereken (3 günü geçmiş bekleyen) teklifler, en eskisi önce
+  const follow = useMemo(() => quotes.filter(needsFollowUp).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')), [quotes]);
+  const dues = useMemo(() => collections.filter(c => c.dueDate && c.dueDate >= t && /çek|senet/i.test(c.method || '')).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '')), [collections, t]);
 
   // Dönem seçenekleri: son 12 ay + son 3 yıl
   const periodOptions = useMemo(() => {
@@ -171,21 +174,21 @@ export const SimpleHome: React.FC<{
       tone: TONE.orange, icon: Wallet, on: () => onOpen('expenses'), lowerIsBetter: true },
   ].filter(Boolean) as { label: string; value: number; cur: number; prev: number; spark: number[]; tone: Tone; icon: React.ElementType; on: () => void; lowerIsBetter?: boolean }[];
 
-  const roundBtn = 'relative w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/90 backdrop-blur border border-white shadow-[0_6px_16px_-8px_rgba(15,60,120,0.5)] flex items-center justify-center text-brand-600 hover:bg-white transition';
+  const roundBtn = 'relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 backdrop-blur border border-white shadow-[0_6px_16px_-8px_rgba(15,60,120,0.5)] flex items-center justify-center text-brand-600 hover:bg-white transition';
 
   return (
     <div className="pb-4 -mt-1 sm:-mt-2">
       {/* Karşılama: tesis görseli, selam, dönem, bildirim, hızlı işlemler ve kısayollar */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#eaf3fd] via-[#f3f8fe] to-[#dcebfb] border border-white shadow-[0_14px_34px_-22px_rgba(15,60,120,0.55)] px-4 pt-5 pb-16 sm:px-8 sm:pt-8 sm:pb-24">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#eaf3fd] via-[#f3f8fe] to-[#dcebfb] border border-white shadow-[0_14px_34px_-22px_rgba(15,60,120,0.55)] px-4 pt-4 pb-14 sm:px-7 sm:pt-6 sm:pb-20">
         <PlantArt />
         <div className="relative flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[26px] leading-tight sm:text-4xl font-black text-[#0b2a4c] tracking-tight">Merhaba {firstName} <span className="inline-block">👋</span></h1>
-            <p className="text-sm sm:text-base text-slate-600 mt-1.5">İşlerinizi kolayca takip edin, hedeflerinize odaklanın.</p>
+            <h1 className="text-[22px] leading-tight sm:text-[28px] font-black text-[#0b2a4c] tracking-tight">Merhaba {firstName} <span className="inline-block">👋</span></h1>
+            <p className="text-[13px] sm:text-sm text-slate-600 mt-1">İşlerinizi kolayca takip edin, hedeflerinize odaklanın.</p>
           </div>
           <div className="flex items-center gap-2 sm:gap-2.5">
             {(canQuotes || canMoney) && (
-              <label className="relative flex items-center gap-2 h-10 sm:h-11 pl-3 pr-8 rounded-2xl bg-white/90 backdrop-blur border border-white shadow-[0_6px_16px_-8px_rgba(15,60,120,0.5)] text-sm font-bold text-[#0b2a4c] cursor-pointer">
+              <label className="relative flex items-center gap-2 h-9 sm:h-10 pl-3 pr-8 rounded-2xl bg-white/90 backdrop-blur border border-white shadow-[0_6px_16px_-8px_rgba(15,60,120,0.5)] text-sm font-bold text-[#0b2a4c] cursor-pointer">
                 <CalendarDays className="w-4.5 h-4.5 text-brand-600" />
                 <span className="whitespace-nowrap">{title}</span>
                 <ChevronDown className="absolute right-2.5 w-4 h-4 text-slate-500" />
@@ -196,10 +199,7 @@ export const SimpleHome: React.FC<{
               </label>
             )}
             {canQuotes && (
-              <button onClick={() => openQuotes({ status: 'takip' })} className={roundBtn} title={followCount ? `${followCount} teklif takip bekliyor` : 'Takip bekleyen teklif yok'} aria-label="Takip bekleyen teklifler">
-                <Bell className="w-5 h-5" />
-                {followCount > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center ring-2 ring-white">{followCount > 99 ? '99+' : followCount}</span>}
-              </button>
+              <BellMenu quotes={follow} rates={rates} btnCls={roundBtn} onOpenQuote={onOpenQuote} onAll={() => openQuotes({ status: 'takip' })} />
             )}
             {onSync && syncStatus && (
               <button onClick={onSync} disabled={syncStatus.isSyncing} className={`${roundBtn} hidden md:flex`} title={syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı'} aria-label="Eşitle">
@@ -213,15 +213,15 @@ export const SimpleHome: React.FC<{
           </div>
         </div>
 
-        <div className="relative mt-5 sm:mt-8 flex flex-col-reverse lg:flex-row lg:items-end justify-between gap-3">
+        <div className="relative mt-4 sm:mt-6 flex flex-col-reverse lg:flex-row lg:items-end justify-between gap-3">
           {/* Hızlı kısayollar: Ara, Tekliflere sor, Teklif hazırla, Sesle kayıt */}
           {tools.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
               {tools.map(x => (
                 <button key={x.key} onClick={() => onOpenTool(x.key)}
-                  className="flex items-center gap-2 h-10 pl-1.5 pr-3.5 rounded-full bg-white/85 backdrop-blur border border-white shadow-[0_6px_16px_-10px_rgba(15,60,120,0.6)] text-[13px] font-bold text-[#0b2a4c] hover:bg-white active:scale-[0.98] transition">
-                  <span className={`w-7 h-7 rounded-full bg-gradient-to-br ${x.tone} text-white flex items-center justify-center`}><x.icon className="w-3.5 h-3.5" /></span>
-                  {x.label}
+                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-0 sm:h-10 sm:pl-1.5 sm:pr-3.5 rounded-2xl sm:rounded-full bg-white/85 backdrop-blur border border-white shadow-[0_6px_16px_-10px_rgba(15,60,120,0.6)] text-[11px] sm:text-[13px] font-bold text-[#0b2a4c] hover:bg-white active:scale-[0.98] transition min-w-0">
+                  <span className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-gradient-to-br ${x.tone} text-white flex items-center justify-center shrink-0`}><x.icon className="w-4 h-4 sm:w-3.5 sm:h-3.5" /></span>
+                  <span className="truncate max-w-full"><span className="sm:hidden">{x.short}</span><span className="hidden sm:inline">{x.label}</span></span>
                 </button>
               ))}
             </div>
@@ -230,8 +230,8 @@ export const SimpleHome: React.FC<{
             <div className="flex gap-2 sm:gap-3 lg:ml-auto">
               {actions.map(a => (
                 <button key={a.label} onClick={a.on}
-                  className={`flex-1 lg:flex-none min-w-0 flex items-center justify-center gap-2 px-2 sm:px-6 h-12 sm:h-14 rounded-2xl text-white font-bold text-[13px] sm:text-base whitespace-nowrap active:scale-[0.98] hover:brightness-110 transition ${a.cls}`}>
-                  <a.icon className="w-5 h-5 shrink-0" /> {a.label}
+                  className={`flex-1 lg:flex-none min-w-0 flex items-center justify-center gap-2 px-2 sm:px-5 h-11 sm:h-12 rounded-2xl text-white font-bold text-[13px] sm:text-sm whitespace-nowrap active:scale-[0.98] hover:brightness-110 transition ${a.cls}`}>
+                  <a.icon className="w-4.5 h-4.5 shrink-0" /> {a.label}
                 </button>
               ))}
             </div>
@@ -240,26 +240,26 @@ export const SimpleHome: React.FC<{
       </section>
 
       {(canQuotes || canMoney) && (
-        <div className="relative -mt-10 sm:-mt-14 px-1.5 sm:px-4 space-y-4 sm:space-y-5">
+        <div className="relative -mt-9 sm:-mt-12 px-1.5 sm:px-4 space-y-4">
           {/* Rakam kartları (karşılama alanının üstüne biner) */}
           {tiles.length > 0 && (
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
               {tiles.map(k => (
                 <button key={k.label} onClick={k.on}
-                  className={`group relative overflow-hidden text-left rounded-3xl border border-white bg-gradient-to-br ${k.tone.card} pt-3.5 pb-3 px-3 sm:pt-5 sm:px-5 sm:pb-4 min-w-0 shadow-[0_16px_30px_-20px_rgba(15,60,120,0.7)] hover:-translate-y-0.5 transition`}>
+                  className={`group relative overflow-hidden text-left rounded-3xl border border-white bg-gradient-to-br ${k.tone.card} pt-3 pb-2.5 px-3 sm:pt-4 sm:px-4 sm:pb-3 min-w-0 shadow-[0_16px_30px_-20px_rgba(15,60,120,0.7)] hover:-translate-y-0.5 transition`}>
                   <div className="relative flex items-start gap-2 sm:gap-3.5">
-                    <span className={`w-8 h-8 sm:w-12 sm:h-12 2xl:w-14 2xl:h-14 rounded-full text-white flex items-center justify-center shrink-0 bg-gradient-to-br ${k.tone.icon} shadow-[0_8px_16px_-8px_rgba(0,0,0,0.35)]`}>
-                      <k.icon className="w-4 h-4 sm:w-6 sm:h-6" />
+                    <span className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full text-white flex items-center justify-center shrink-0 bg-gradient-to-br ${k.tone.icon} shadow-[0_8px_16px_-8px_rgba(0,0,0,0.35)]`}>
+                      <k.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className={`block text-[11px] sm:text-sm 2xl:text-[15px] font-semibold truncate ${k.tone.text}`}>{k.label}</span>
-                      <span className={`block text-[15px] sm:text-[22px] 2xl:text-[27px] leading-tight font-black tabular-nums truncate ${k.tone.value}`}>{lira(k.value)}</span>
+                      <span className={`block text-[11px] sm:text-[13px] font-semibold truncate ${k.tone.text}`}>{k.label}</span>
+                      <span className={`block text-[14px] sm:text-[19px] 2xl:text-[22px] leading-tight font-black tabular-nums truncate ${k.tone.value}`}>{lira(k.value)}</span>
                     </span>
                   </div>
-                  <div className="relative mt-1 sm:mt-2 flex items-end justify-between gap-1 min-h-10 sm:min-h-12">
-                    <span className="text-[10px] sm:text-xs text-slate-500 min-w-0 pb-0.5 flex flex-wrap items-center gap-x-1.5">
+                  <div className="relative mt-1 sm:mt-2 flex items-end justify-between gap-1 min-h-9 sm:min-h-10">
+                    <span className="relative z-10 max-w-[48%] text-[10px] sm:text-xs text-slate-500 min-w-0 pb-0.5 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-x-1.5 leading-tight">
                       <Change cur={k.cur} prev={k.prev} lowerIsBetter={k.lowerIsBetter} />
-                      <span className="truncate">{vsName}</span>
+                      <span className="truncate"><span className="sm:hidden">{isYear ? 'geçen yıl' : 'geçen ay'}</span><span className="hidden sm:inline">{vsName}</span></span>
                     </span>
                   </div>
                   <Spark values={k.spark} color={k.tone.line} />
@@ -301,25 +301,7 @@ export const SimpleHome: React.FC<{
             )}
             {canMoney && (
               <Card title="Yaklaşan Ödemeler" icon={CalendarClock} right={<SeeAll onClick={() => onOpen('collections')} />}>
-                {dues.length === 0 ? <p className="px-5 pb-5 text-sm text-slate-400">Vadesi gelecek çek/senet yok.</p> : (
-                  <div className="px-4 sm:px-5 pb-3 divide-y divide-slate-100">
-                    {dues.map(c => {
-                      const d = new Date(`${c.dueDate}T00:00:00`);
-                      return (
-                        <button key={c.id} onClick={() => onOpen('collections')} className="w-full flex items-center gap-3 py-2.5 text-left hover:bg-slate-50 rounded-xl">
-                          <span className="w-11 h-12 rounded-xl bg-orange-50 border border-orange-100 text-orange-500 flex flex-col items-center justify-center leading-none shrink-0">
-                            <b className="text-base font-black">{d.getDate()}</b><span className="text-[10px] font-bold mt-0.5">{AY[d.getMonth()]}</span>
-                          </span>
-                          <span className="flex-1 min-w-0">
-                            <span className="block text-sm font-semibold text-slate-800 truncate">{c.customerName}</span>
-                            <span className="block text-[11px] text-slate-500 truncate">{[c.method, c.bankName, c.checkNo].filter(Boolean).join(' · ')}</span>
-                          </span>
-                          <span className="text-sm font-black text-slate-900 tabular-nums shrink-0">{money(c.amount, c.currency)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <DuesCard dues={dues} today={t} onOpen={() => onOpen('collections')} />
               </Card>
             )}
           </div>
@@ -341,7 +323,7 @@ const money = (v: number, cur: string) => cur === 'USD' ? `$${v.toLocaleString('
 
 /** Karşılama alanının sağındaki tesis çizimi: depolar, borular, çatı (resim dosyası yok, hafif) */
 const PlantArt: React.FC = () => (
-  <svg viewBox="0 0 640 300" preserveAspectRatio="xMaxYMid slice" className="pointer-events-none absolute inset-y-0 right-0 h-full w-[85%] sm:w-[68%]" aria-hidden>
+  <svg viewBox="0 0 640 300" preserveAspectRatio="xMaxYMid slice" className="hidden sm:block pointer-events-none absolute inset-y-0 right-0 h-full w-[68%]" aria-hidden>
     <defs>
       <linearGradient id="pa-steel" x1="0" x2="1">
         <stop offset="0" stopColor="#9fb6cf" /><stop offset=".35" stopColor="#f4f8fc" /><stop offset=".6" stopColor="#d5e1ee" /><stop offset="1" stopColor="#8aa3bf" />
@@ -399,8 +381,8 @@ const PlantArt: React.FC = () => (
 /** Beyaz kart: simge + başlık, sağda isteğe bağlı bağlantı/sekme */
 const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, icon: Icon, right, className = '', children }) => (
   <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 ${className}`}>
-    <header className="flex items-center justify-between gap-2 px-4 sm:px-6 pt-4 sm:pt-5 pb-3">
-      <h2 className="text-base sm:text-lg xl:text-base 2xl:text-lg font-black text-[#0b2a4c] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-brand-500 shrink-0" />}<span className="truncate">{title}</span></h2>
+    <header className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 pt-4 pb-2.5">
+      <h2 className="text-[15px] sm:text-base font-black text-[#0b2a4c] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-brand-500 shrink-0" />}<span className="truncate">{title}</span></h2>
       {right}
     </header>
     {children}
@@ -435,7 +417,7 @@ const Spark: React.FC<{ values: number[]; color: string }> = ({ values, color })
   }
   const [lx, ly] = pts[pts.length - 1];
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute right-0 bottom-0 w-[58%] sm:w-[52%] h-12 sm:h-16" preserveAspectRatio="none" aria-hidden>
+    <svg viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute right-0 bottom-0 w-[50%] h-10 sm:h-12" preserveAspectRatio="none" aria-hidden>
       <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={color} stopOpacity="0.38" /><stop offset="1" stopColor={color} stopOpacity="0" /></linearGradient></defs>
       <path d={`${line} L${w} ${h} L0 ${h} Z`} fill={`url(#${id})`} />
       <path d={line} fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
@@ -462,12 +444,12 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
   const raw = Math.max(1, ...bars.map(x => x.teklif));
   // Yuvarlak ölçek: 2M, 4M, 6M… gibi
   const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-  const step = [1, 2, 2.5, 5, 10].map(k => k * mag).find(k => raw / k <= 4) || mag * 10;
+  const step = [1, 2, 2.5, 5, 10].map(k => k * mag).find(k => raw / k <= 5) || mag * 10;
   const max = Math.ceil(raw / step) * step;
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   return (
-    <div className="px-3 sm:px-6 pb-5">
-      <div className="relative h-52 sm:h-60 pl-11 mt-10">
+    <div className="px-3 sm:px-5 pb-4">
+      <div className="relative h-40 sm:h-48 pl-11 mt-8">
         {ticks.map(v => (
           <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-slate-100' : 'border-slate-200'}`} style={{ bottom: `${(v / max) * 100}%` }}>
             <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-slate-500 tabular-nums">{v ? short(v) : '0 TL'}</span>
@@ -482,7 +464,7 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
                 className="relative flex-1 h-full flex items-end justify-center gap-1 sm:gap-1.5 min-w-0 group">
                 {on && x.teklif > 0 && (
                   <>
-                    <span className="absolute z-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-xl bg-white border border-slate-100 shadow-[0_8px_20px_-8px_rgba(15,60,120,0.45)] text-[11px] sm:text-sm font-black text-[#0b2a4c] tabular-nums"
+                    <span className="absolute z-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-xl bg-white border border-slate-100 shadow-[0_8px_20px_-8px_rgba(15,60,120,0.45)] text-[11px] sm:text-xs font-black text-[#0b2a4c] tabular-nums"
                       style={{ bottom: `calc(${hT}% + 14px)` }}>{tl(x.teklif)}</span>
                     <span className="absolute z-10 w-3 h-3 rounded-full bg-brand-600 ring-2 ring-white" style={{ bottom: `calc(${hT}% - 6px)`, left: many ? '22%' : '30%' }} />
                   </>
@@ -496,7 +478,7 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
       </div>
       <div className={`flex ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-5'} pl-11 mt-2.5`}>
         {bars.map(x => (
-          <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-sm truncate ${x.key === hi ? 'font-bold text-[#0b2a4c]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
+          <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-xs truncate ${x.key === hi ? 'font-bold text-[#0b2a4c]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
         ))}
       </div>
     </div>
@@ -515,27 +497,44 @@ const Distribution: React.FC<{
     { key: 'iptal', label: 'İptal', x: st.iptal, c: 'bg-rose-500' },
   ];
   const total = rows.reduce((a, r) => a + r.x.value, 0);
+  const top = Object.entries(cities).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const cityTotal = Object.values(cities).reduce((a, b) => a + b, 0);
   return (
-    <div className="px-3 sm:px-5 pb-5">
-      <div className="flex items-start gap-2 sm:gap-3">
-        <TurkeyMap values={cities} format={tl} className="flex-1 min-w-0 mt-1" />
-        <div className="w-[34%] sm:w-[30%] shrink-0 flex flex-col justify-between self-stretch gap-2">
-          <div className="space-y-1.5 sm:space-y-2.5">
-            {rows.map(r => (
-              <button key={r.key} onClick={() => onPick(r.key)} className="w-full flex items-start gap-2 text-left rounded-lg hover:bg-slate-50 px-1 py-0.5">
-                <i className={`mt-1 w-3 h-3 rounded-full shrink-0 ${r.c}`} />
-                <span className="min-w-0">
-                  <span className="block text-xs sm:text-sm text-slate-600">{r.label}</span>
-                  <span className="block text-sm sm:text-base font-black text-[#0b2a4c] tabular-nums">%{total ? Math.round((r.x.value / total) * 100) : 0}</span>
-                </span>
-              </button>
-            ))}
+    <div className="px-4 sm:px-5 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <TurkeyMap values={cities} format={tl} className="max-w-md" />
+          <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-500">
+            <span>Az</span><span className="h-1.5 w-20 rounded-full bg-gradient-to-r from-[#a9cdf3] to-[#0a5bc0]" /><span>Çok teklif</span>
           </div>
         </div>
+        <div className="sm:w-[30%] shrink-0 grid grid-cols-3 sm:grid-cols-1 gap-1.5 sm:gap-2.5">
+          {rows.map(r => (
+            <button key={r.key} onClick={() => onPick(r.key)} className="flex items-start gap-2 text-left rounded-xl hover:bg-slate-50 px-1.5 py-1 sm:px-1 sm:py-0.5 bg-slate-50/70 sm:bg-transparent">
+              <i className={`mt-1 w-3 h-3 rounded-full shrink-0 ${r.c}`} />
+              <span className="min-w-0">
+                <span className="block text-xs sm:text-sm text-slate-600">{r.label}</span>
+                <span className="block text-sm sm:text-base font-black text-[#0b2a4c] tabular-nums">%{total ? Math.round((r.x.value / total) * 100) : 0}</span>
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="mt-2 text-right">
-        <p className="text-xs sm:text-sm text-slate-500">Toplam Teklif</p>
-        <p className="text-lg sm:text-xl font-black text-[#0b2a4c] tabular-nums">{tl(total)}</p>
+      <div className="mt-3 pt-3 border-t border-slate-100 flex items-end justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1">
+          {top.length === 0 && <p className="text-xs text-slate-400">Bu dönemde şehirli teklif yok.</p>}
+          {top.map(([c, v]) => (
+            <div key={c} className="flex items-center gap-2 text-xs">
+              <span className="w-20 sm:w-24 truncate font-semibold text-slate-700">{c}</span>
+              <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><span className="block h-full rounded-full bg-brand-500" style={{ width: `${(v / (top[0][1] || 1)) * 100}%` }} /></span>
+              <span className="w-9 text-right tabular-nums text-slate-500">%{cityTotal ? Math.round((v / cityTotal) * 100) : 0}</span>
+            </div>
+          ))}
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-xs sm:text-sm text-slate-500">Toplam Teklif</p>
+          <p className="text-base sm:text-lg font-black text-[#0b2a4c] tabular-nums">{tl(total)}</p>
+        </div>
       </div>
     </div>
   );
@@ -550,11 +549,11 @@ const STATUS_BADGE: Record<string, [string, string, React.ElementType]> = {
 /** Son teklifler tablosu: firma, tarih, tutar, durum */
 const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRates>; onOpen: (q: Quote) => void }> = ({ quotes, rates, onOpen }) => {
   if (!quotes.length) return <p className="px-5 pb-5 text-sm text-slate-400">Henüz teklif yok.</p>;
-  const cols = 'grid grid-cols-[minmax(0,1fr)_5rem_5.6rem] sm:grid-cols-[minmax(0,1fr)_5.4rem_6.2rem_6.2rem] gap-1.5 sm:gap-2.5 items-center';
+  const cols = 'grid grid-cols-[minmax(0,1fr)_auto_5.8rem] gap-2 sm:gap-3 items-center';
   return (
     <div className="px-3 sm:px-4 pb-3">
       <div className={`${cols} px-2 py-2 rounded-xl bg-slate-50 text-[11px] sm:text-xs font-medium text-slate-500`}>
-        <span>Firma Adı</span><span className="hidden sm:block">Tarih</span><span className="text-right">Tutar</span><span className="text-center">Durum</span>
+        <span>Firma Adı · Tarih</span><span className="text-right">Tutar</span><span className="text-center">Durum</span>
       </div>
       {quotes.map(q => {
         const [label, cls, Icon] = STATUS_BADGE[q.status] || [q.status, 'bg-slate-50 text-slate-600', Clock];
@@ -562,15 +561,96 @@ const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRate
         return (
           <button key={q.id} onClick={() => onOpen(q)} className={`${cols} w-full px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl`}>
             <span className="min-w-0">
-              <span className="block text-[13px] sm:text-[15px] text-slate-800 truncate">{q.customerName}</span>
-              <span className="sm:hidden block text-[11px] text-slate-500 tabular-nums">{d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
+              <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
+              <span className="block text-[11px] text-slate-500 tabular-nums">{d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
             </span>
-            <span className="hidden sm:block text-[13px] text-slate-600 tabular-nums whitespace-nowrap">{d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
-            <span className="text-[12px] sm:text-[14px] text-slate-800 tabular-nums text-right whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
+            <span className="text-[12px] sm:text-[13px] text-slate-800 tabular-nums text-right whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
             <span className={`w-full justify-center inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 py-1 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
           </button>
         );
       })}
+    </div>
+  );
+};
+
+/** Zil: dokununca takip bekleyen tekliflerin küçük listesi açılır (sayfa değişmez); teklife dokununca teklif açılır */
+const BellMenu: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRates>; btnCls: string; onOpenQuote: (q: Quote) => void; onAll: () => void }> = ({ quotes, rates, btnCls, onOpenQuote, onAll }) => {
+  const [open, setOpen] = useState(false);
+  const n = quotes.length;
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen(o => !o)} className={btnCls} aria-expanded={open} title={n ? `${n} teklif takip bekliyor` : 'Takip bekleyen teklif yok'} aria-label="Bildirimler">
+        <Bell className="w-4.5 h-4.5" />
+        {n > 0 && <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center ring-2 ring-white">{n > 99 ? '99+' : n}</span>}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:right-6 sm:top-20 z-50 sm:w-96 bg-white rounded-2xl border border-slate-200 shadow-[0_18px_40px_-16px_rgba(15,40,80,0.45)] overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <p className="text-sm font-black text-[#0b2a4c]">Bildirimler</p>
+              <p className="text-[11px] text-slate-500">{n ? `${n} teklif 3 günden uzun süredir yanıt bekliyor` : 'Takip bekleyen teklif yok'}</p>
+            </div>
+            {n > 0 && (
+              <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
+                {quotes.slice(0, 8).map(q => (
+                  <button key={q.id} onClick={() => { setOpen(false); onOpenQuote(q); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left hover:bg-slate-50">
+                    <span className="w-8 h-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center shrink-0"><Clock className="w-4 h-4" /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
+                      <span className="block text-[11px] text-slate-500">{quoteAgeInDays(q)} gündür bekliyor · tekrar görüşün</span>
+                    </span>
+                    <span className="text-[12px] font-bold text-slate-700 tabular-nums shrink-0">{lira(quoteTry(q, rates))}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {n > 0 && <button onClick={() => { setOpen(false); onAll(); }} className="w-full py-2.5 text-xs font-bold text-brand-600 border-t border-slate-100 hover:bg-slate-50">Tümünü teklifler sayfasında gör{n > 8 ? ` (+${n - 8})` : ''}</button>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+/** Yaklaşan çek/senet vadeleri: 7 ve 30 günlük özet + en yakın 4 vade */
+const DuesCard: React.FC<{ dues: Collection[]; today: string; onOpen: () => void }> = ({ dues, today, onOpen }) => {
+  if (!dues.length) return <p className="px-5 pb-5 text-sm text-slate-400">Vadesi gelecek çek/senet yok.</p>;
+  const plus = (n: number) => { const d = new Date(`${today}T00:00:00`); d.setDate(d.getDate() + n); return ymd(d); };
+  const sum = (l: Collection[]) => sumTry(l);
+  const w7 = dues.filter(c => (c.dueDate || '') <= plus(7)), w30 = dues.filter(c => (c.dueDate || '') <= plus(30));
+  const box = 'flex-1 min-w-0 rounded-2xl px-3 py-2.5 border';
+  return (
+    <div className="px-4 sm:px-5 pb-3">
+      <div className="flex gap-2">
+        <div className={`${box} bg-orange-50/70 border-orange-100`}>
+          <p className="text-[11px] font-semibold text-orange-700 truncate">7 gün · {w7.length} vade</p>
+          <p className="text-sm font-black text-[#0b2a4c] tabular-nums truncate">{lira(sum(w7))}</p>
+        </div>
+        <div className={`${box} bg-sky-50/70 border-sky-100`}>
+          <p className="text-[11px] font-semibold text-brand-700 truncate">30 gün · {w30.length} vade</p>
+          <p className="text-sm font-black text-[#0b2a4c] tabular-nums truncate">{lira(sum(w30))}</p>
+        </div>
+      </div>
+      <div className="mt-1.5 divide-y divide-slate-100">
+        {dues.slice(0, 4).map(c => {
+          const d = new Date(`${c.dueDate}T00:00:00`);
+          const days = Math.round((d.getTime() - new Date(`${today}T00:00:00`).getTime()) / 864e5);
+          return (
+            <button key={c.id} onClick={onOpen} className="w-full flex items-center gap-3 py-2 text-left hover:bg-slate-50 rounded-xl">
+              <span className="w-10 h-11 rounded-xl bg-orange-50 border border-orange-100 text-orange-500 flex flex-col items-center justify-center leading-none shrink-0">
+                <b className="text-sm font-black">{d.getDate()}</b><span className="text-[10px] font-bold mt-0.5">{AY[d.getMonth()]}</span>
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13px] font-semibold text-slate-800 truncate">{c.customerName}</span>
+                <span className="block text-[11px] text-slate-500 truncate">{days === 0 ? 'Bugün' : days === 1 ? 'Yarın' : `${days} gün sonra`} · {[c.method, c.bankName].filter(Boolean).join(' · ')}</span>
+              </span>
+              <span className="text-[13px] font-bold text-slate-900 tabular-nums shrink-0">{money(c.amount, c.currency)}</span>
+            </button>
+          );
+        })}
+      </div>
+      {dues.length > 4 && <button onClick={onOpen} className="w-full mt-1 text-center text-xs font-bold text-brand-600 py-1.5">+{dues.length - 4} vade daha · toplam {lira(sum(dues))}</button>}
     </div>
   );
 };
@@ -610,13 +690,13 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
   return (
     <div className="px-4 sm:px-6 pb-5 space-y-3">
       <div className="flex items-center gap-4 sm:gap-5">
-        <Donut pct={pct} size={128} stroke={18}>
-          <span className="text-2xl sm:text-3xl font-black text-[#0b2a4c] tabular-nums">{main.target ? `%${pct}` : '–'}</span>
+        <Donut pct={pct} size={96} stroke={13}>
+          <span className="text-xl font-black text-[#0b2a4c] tabular-nums">{main.target ? `%${pct}` : '–'}</span>
         </Donut>
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-slate-600">{main.label}</p>
-          <p className="text-xl sm:text-2xl font-black text-[#0b2a4c] tabular-nums truncate">{lira(main.value)}</p>
-          <p className="text-sm text-slate-600 mt-2">{main.target ? <>Hedef: {lira(main.target)}</> : 'Hedef konmamış'}</p>
+          <p className="text-xs text-slate-500">{main.label}</p>
+          <p className="text-lg font-black text-[#0b2a4c] tabular-nums break-all leading-tight">{lira(main.value)}</p>
+          <p className="text-xs text-slate-500 mt-1.5">{main.target ? <>Hedef: {lira(main.target)}</> : 'Hedef konmamış'}</p>
           <div className="relative h-3 rounded-full bg-slate-100 overflow-hidden mt-2">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" style={{ width: `${Math.min(100, pct)}%` }} />
             {main.target > 0 && <div className="absolute top-0 bottom-0 w-0.5 bg-slate-400" style={{ left: `${pace}%` }} title={`Ayın %${pace}'i geçti`} />}
