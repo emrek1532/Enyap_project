@@ -1,17 +1,19 @@
-# Enyap Isı – Saha ve Ofis Takip Portalı
+# Enyap Isı – Teklif & Satış Takibi
 
-Isparta saha satış ekibi ile İstanbul merkez ofisin teklif, sipariş/sevkiyat, ortak takvim ve notlarını
-tek yerden takip ettiği web uygulaması. Telefon, tablet ve bilgisayarda çalışır; telefona
-"Ana Ekrana Ekle" ile uygulama gibi kurulabilir (PWA).
+Isparta saha satış ekibi ile İstanbul merkez ofisin teklif, müşteri (cari), tahsilat, harcama,
+malzeme/fiyat listesi ve notlarını tek yerden takip ettiği web uygulaması. Telefon, tablet ve
+bilgisayarda çalışır; telefona "Ana Ekrana Ekle" ile uygulama gibi kurulabilir (PWA).
 
 ## Mimari
 
-- **Arayüz:** React 19 + Vite + Tailwind CSS (statik site, herhangi bir statik barındırmada çalışır)
+- **Arayüz:** React 19 + Vite + Tailwind CSS
+- **Sunucu:** Cloudflare Worker (`worker/index.ts`: yapay zekâ uçları, bildirimler, paylaşım hedefi)
 - **Veritabanı / Giriş:** Supabase (Postgres + Auth + Realtime)
-  - Proje: `business development` (`aaduhhdwemnyqhnttcat`)
-  - Tablolar: `quotes`, `orders`, `events`, `notes`, `activities`, `profiles`
+  - Proje: `aaduhhdwemnyqhnttcat`
+  - Tablolar: `quotes`, `customers`, `collections`, `expenses`, `notes`, `activities`, `profiles`, fiyat listesi tabloları (`supplier_*`)
+  - Arşiv (uygulama kullanmıyor): `orders`, `events`, `visits`
   - Şema: `supabase/migrations/`
-  - Güvenlik: RLS açık; verilere yalnızca giriş yapmış kullanıcılar erişebilir
+  - Güvenlik: RLS açık; verilere yalnızca onaylı kullanıcılar erişebilir
 - **Canlı eşitleme:** Bir cihazda yapılan değişiklik diğer cihazlara anında yansır (Supabase Realtime).
 - **Çevrimdışı çalışma:** İnternet yokken yapılan değişiklikler cihazda kuyruğa alınır, bağlantı
   gelince otomatik olarak Supabase'e gönderilir.
@@ -59,8 +61,7 @@ Telefona kurulum: siteyi telefonda açın → Safari'de *Paylaş → Ana Ekrana 
 
 1. Uygulamayı açın, **Kayıt Ol** sekmesinden hesap oluşturun (Isparta / İstanbul seçerek).
 2. E-postanıza gelen doğrulama bağlantısına tıklayın, ardından giriş yapın.
-3. Örnek verilerle denemek için: *Aktarım* sekmesi → paneli açın → **Örnek Verileri Yükle**
-   (dikkat: buluttaki tüm verileri siler ve örnek verilerle değiştirir).
+3. Yönetici, *Yönetim* bölümünden yeni kullanıcıyı onaylar ve yetkilerini verir.
 4. Ekipteki herkes hesabını açtıktan sonra, yabancıların kayıt olmasını engellemek için
    Supabase Dashboard → **Authentication → Sign In / Providers → Email** altında
    **Allow new users to sign up** seçeneğini kapatın.

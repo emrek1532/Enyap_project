@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Loader2, Plus } from 'lucide-react';
@@ -16,8 +11,7 @@ import {
   SyncStatus,
   QuoteStatus,
   Collection,
-  Expense,
-  Visit
+  Expense
 } from './types';
 import {
   loadLocalData,
@@ -42,7 +36,6 @@ import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import type { ActiveTab } from './components/Sections';
 import { QuoteManager } from './components/QuoteManager';
-import { QuickNoteFab } from './components/QuickNoteFab';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
 import { PrintableQuoteModal } from './components/PrintableQuoteModal';
 import { LedgerPanel } from './components/LedgerPanel';
@@ -281,7 +274,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           // Kullanıcıya hangi kaydın kaydedilemediği gösterilir (sessizce kaybolmasın)
           const op: any = queue[0];
           const rec = op.record || {};
-          const label = { quotes: 'Teklif', collections: 'Tahsilat', expenses: 'Harcama', customers: 'Müşteri', notes: 'Not', visits: 'Ziyaret', activities: 'İşlem kaydı' }[op.entity as string] || op.entity;
+          const label = { quotes: 'Teklif', collections: 'Tahsilat', expenses: 'Harcama', customers: 'Müşteri', notes: 'Not', activities: 'İşlem kaydı' }[op.entity as string] || op.entity;
           const what = rec.quoteNumber || rec.customerName || rec.name || rec.title || (rec.content ? String(rec.content).slice(0, 30) : '') || op.id || '';
           const why = err?.code === '42501' ? 'yetkiniz yok' : 'sunucu kabul etmedi';
           setRejected(r => [...r, `${label}${what ? ` (${what})` : ''}: ${op.kind === 'delete' ? 'silinemedi' : 'kaydedilemedi'} — ${why}`].slice(-5));
@@ -653,15 +646,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     persist([{ kind: 'upsert', entity: 'collections', record }]);
   };
 
-  const handleSaveVisit = (record: Visit) => {
-    mutate(d => {
-      const list = d.visits || [];
-      const exists = list.some(v => v.id === record.id);
-      return { ...d, visits: exists ? list.map(v => (v.id === record.id ? record : v)) : [record, ...list] };
-    });
-    persist([{ kind: 'upsert', entity: 'visits', record }]);
-  };
-
   const handleDeleteCollection = (id: string) => {
     mutate(d => ({ ...d, collections: (d.collections || []).filter(c => c.id !== id) }));
     persist([{ kind: 'delete', entity: 'collections', id }]);
@@ -724,7 +708,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         userName={userName}
         userEmail={userEmail}
         roleLabel={roleLabel}
-        onReports={tabAllowed('reports') ? () => setActiveTab('reports') : undefined}
       />
 
       {/* Ana sayfada bilgisayar/tablette üst çubuk yok: eşitleme, bildirim ve çıkış karşılama alanında */}
@@ -828,8 +811,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onFocusHandled={() => setFocusCustomer(null)}
             openMikro={openMikro}
             onMikroHandled={() => setOpenMikro(false)}
-            visits={data.visits || []}
-            onSaveVisit={handleSaveVisit}
             newRequest={newRequest}
             onCreateQuoteForCustomer={(customer) => {
               setQuoteCustomer(customer);
@@ -897,7 +878,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
       </main>
 
-      <QuickNoteFab currentRole={currentRole} onSave={handleSaveNote} />
       <BottomNav
         sections={navSections}
         primary={['quotes', 'customers', 'materials'].filter(id => tabAllowed(id as ActiveTab))}

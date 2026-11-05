@@ -295,7 +295,7 @@ export const SimpleHome: React.FC<{
             )}
             {(canQuotes || canMoney) && !isYear && (
               <Card title={canMoney ? 'Tahsilat Durumu' : 'Satış Hedefi'} icon={Target}
-                right={<span className="flex items-center gap-1 text-xs font-bold text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]} <ChevronDown className="w-3.5 h-3.5 text-slate-400" /></span>}>
+                right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
                 <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
               </Card>
             )}
