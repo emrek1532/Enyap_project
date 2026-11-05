@@ -126,6 +126,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           <div className="font-bold text-sm text-slate-900">Fiyat listesi yükle (PDF, Excel)</div>
           <div className="text-xs text-slate-500">
             PDF ya da Excel (.xlsx, CSV) seçin; birden fazla dosya seçebilirsiniz. Excel'de başlık satırında "Ürün adı" ve "Fiyat" sütunları olmalı (isteğe bağlı: Kod, Grup, DN, Para birimi). Firma adı ve tarih dosya adından alınır, ör. "FAF Nisan 2026.xlsx". Liste bizim kodlarla kendiliğinden eşleştirilir.
+            {' '}<a href="/fiyat-listesi-sablonu.xlsx" download="Fiyat listesi şablonu.xlsx" className="font-semibold text-emerald-700 hover:underline">Excel şablonunu indir</a> (en sorunsuz yol).
             {uploaded !== null && uploaded > 0 && <> · Şu ana kadar <b>{uploaded}</b> dosya yüklendi.</>}
           </div>
           {busy && (
