@@ -12,7 +12,7 @@ import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
 import { catalogCode, logPdfItemLoss, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
-import { BrandNote, CheckRow, Suggestion, runQuoteCheck, totalsMismatch } from '../lib/quoteCheck';
+import { BrandNote, CheckRow, Suggestion, runQuoteCheck, termClass, totalsMismatch } from '../lib/quoteCheck';
 import { SuggestMatchBox } from './SuggestMatchBox';
 import { learnFromLinked, setSupplierOurCode } from '../lib/suppliers';
 
@@ -333,7 +333,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   // Sorunsuz kalemler varsayılan kapalı ("✓ N kalem uyumlu" ile açılır)
   const [showOkRows, setShowOkRows] = useState(false);
   // Kontrolün firma ve teklif no'su (öneri bağlanınca kontrol yeniden çalışır)
-  const checkCtx = useRef<{ customer: string | null; quoteNo: string | null }>({ customer: null, quoteNo: null });
+  const checkCtx = useRef<{ customer: string | null; quoteNo: string | null; term: string | null }>({ customer: null, quoteNo: null, term: null });
   // PDF'teki teklif no sistemde zaten var mı (yeni teklif açarken)
   const [existing, setExisting] = useState<{ q: Quote; file: File } | null>(null);
   const normNo = (s?: string) => (s || '').trim().toLocaleUpperCase('tr');
@@ -351,7 +351,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       await learnFromLinked(s.id).catch(() => 0);
       // Marka kuralları kalemler birlikte değerlendirildiği için tüm kontrol yeniden çalışır
       const prev = pdfCheck || [];
-      const res = await runQuoteCheck(prev.map(r => r.item), quotes, checkCtx.current.customer, checkCtx.current.quoteNo).catch(() => null);
+      const res = await runQuoteCheck(prev.map(r => r.item), quotes, checkCtx.current.customer, checkCtx.current.quoteNo, paymentTerm || checkCtx.current.term).catch(() => null);
       const linked = new Map(prev.filter(r => r.linked).map(r => [r.item.id, r.linked!]));
       linked.set(row.item.id, `${s.list} · ${s.name}`);
       if (res) {
@@ -366,6 +366,24 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       setLinking(null);
     }
   };
+
+  // Vade peşin ↔ vadeli değişirse iskonto kontrolü o vadedeki geçmiş tekliflerle yeniden yapılır
+  useEffect(() => {
+    if (!pdfCheck || !paymentTerm) return;
+    const was = checkCtx.current.term;
+    if (was && termClass(was) === termClass(paymentTerm)) { checkCtx.current.term = paymentTerm; return; }
+    checkCtx.current.term = paymentTerm;
+    const prev = pdfCheck;
+    let alive = true;
+    runQuoteCheck(prev.map(r => r.item), quotes, checkCtx.current.customer, checkCtx.current.quoteNo, paymentTerm).then(res => {
+      if (!alive || !res) return;
+      const linked = new Map(prev.filter(r => r.linked).map(r => [r.item.id, r.linked!]));
+      setPdfCheck(res.rows.map(r => (linked.has(r.item.id) ? { ...r, suggest: undefined, linked: linked.get(r.item.id) } : r)));
+      setPdfNotes(res.notes);
+    }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentTerm]);
 
   const fillFromPdf = async (file: File) => {
     setPdfBusy(true); setPdfMsg(null); setPdfCheck(null); setPdfNotes([]); setShowOkRows(false);
@@ -404,8 +422,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         pdfRead.current = pdf.items.map(it => it.productName.trim());
         // Liste fiyatı + marka iskonto kuralı + geçmiş + bağsız ürünlere eşleşme önerisi
         const quoteNo = pdf.quoteNumber || (isEdit ? editQuote!.quoteNumber : null);
-        checkCtx.current = { customer: checkCustomer, quoteNo };
-        const res = await runQuoteCheck(pdf.items.map((it, k) => ({ ...it, id: ids[k] })), quotes, checkCustomer, quoteNo).catch(() => null);
+        const term = (pdf.paymentTerm && PAYMENT_TERMS.includes(pdf.paymentTerm) ? pdf.paymentTerm : paymentTerm) || null;
+        checkCtx.current = { customer: checkCustomer, quoteNo, term };
+        const res = await runQuoteCheck(pdf.items.map((it, k) => ({ ...it, id: ids[k] })), quotes, checkCustomer, quoteNo, term).catch(() => null);
         setPdfCheck(res ? res.rows : null);
         setPdfNotes(res ? res.notes : []);
       }

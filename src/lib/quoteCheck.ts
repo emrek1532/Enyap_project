@@ -9,6 +9,7 @@
  * - İskonto marka (fiyat listesi) bazındadır: aynı teklifte aynı markanın kalemleri aynı iskontoyu alır (%95). Beklenen iskonto önce bu
  *   firmanın o markada en son aldığı (%63 birebir), yoksa markanın son 6 aydaki aralığı, yoksa liste iskontosu. Fazlası sarı, azı gri.
  *   Ayrı hafıza tutulmaz; geçmiş teklifler anında okunur (`quote_brand_ref`).
+ * - Vade: peşin (PEŞİN / KREDİ KARTI) teklif yalnız peşin tekliflerle, vadeli (GÜN'lü ya da vadesi boş) yalnız vadelilerle karşılaştırılır.
  */
 import { supabase } from './supabase';
 import { PdfQuote, catalogCode } from './pdfQuote';
@@ -122,11 +123,16 @@ export function totalsMismatch(pdf: PdfQuote): string[] {
  * Satırda "önceki" olarak gösterilir. Uyarı yalnız listeye bağlı olmayan ürünlerde üretilir: listesi olanın iskontosu marka kuralıyla,
  * fiyatı güncel listeyle kontrol edilir (eski teklifteki fiyat liste değişince zaten eskidir).
  */
-export function compareWithHistory(rows: CheckRow[], quotes: Quote[], customerName: string | null, quoteNumber: string | null): CheckRow[] {
+/** Vade sınıfı: peşin (PEŞİN, KREDİ KARTI) ya da vadeli (GÜN'lü; vadesi boş eski teklifler de vadeli sayılır) */
+export type TermClass = 'cash' | 'term';
+export const termClass = (t?: string | null): TermClass => (/^\s*(pe|kred)/i.test(t || '') ? 'cash' : 'term');
+const termName = (c: TermClass) => (c === 'cash' ? 'peşin' : 'vadeli');
+
+export function compareWithHistory(rows: CheckRow[], quotes: Quote[], customerName: string | null, quoteNumber: string | null, term: TermClass | null = null): CheckRow[] {
   const fold = (s: string) => s.toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim();
   const custKey = customerName ? fold(customerName).split(' ')[0] : '';
   const sameCust = (name: string) => !!custKey && custKey.length >= 3 && fold(name).startsWith(custKey);
-  const sorted = quotes.filter(q => !quoteNumber || q.quoteNumber !== quoteNumber)
+  const sorted = quotes.filter(q => (!quoteNumber || q.quoteNumber !== quoteNumber) && (!term || termClass(q.paymentTerm) === term))
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   return rows.map(r => {
     const key = r.code || r.item.code;
@@ -167,11 +173,12 @@ type BrandRef = { list: string; own: { quote: string; date: string; discount: nu
  * Marka kuralları: toplu fiyat farkı (liste değişmiş) ve marka iskontosu. Satırların fiyat uyarılarını gerektiğinde markaya tek nota
  * çevirir, iskonto için beklenen değeri (expected) yazar.
  */
-export async function applyBrandRules(rows: CheckRow[], customerName: string | null, quoteNumber: string | null): Promise<{ rows: CheckRow[]; notes: BrandNote[] }> {
+export async function applyBrandRules(rows: CheckRow[], customerName: string | null, quoteNumber: string | null, term: TermClass | null = null): Promise<{ rows: CheckRow[]; notes: BrandNote[] }> {
   const ids = [...new Set(rows.filter(r => r.list).map(r => r.list!.id))];
   if (!ids.length) return { rows, notes: [] };
   const refs = new Map<string, BrandRef>();
-  const { data } = await supabase.rpc('quote_brand_ref', { p_customer: customerName || '', p_lists: ids, p_exclude: quoteNumber || null });
+  const { data } = await supabase.rpc('quote_brand_ref', { p_customer: customerName || '', p_lists: ids, p_exclude: quoteNumber || null, p_term: term });
+  const tw = term ? ` ${termName(term)}` : '';
   for (const x of (data || []) as BrandRef[]) refs.set(x.list, x);
   const notes: BrandNote[] = [];
   const out = rows.map(r => ({ ...r, issues: [...r.issues] }));
@@ -207,11 +214,14 @@ export async function applyBrandRules(rows: CheckRow[], customerName: string | n
     const ref = refs.get(id);
     const ld = group[0].list!.discount;
     let expected: number | null = null, why = '';
-    if (ref?.own) { expected = Number(ref.own.discount); why = `bu firmaya en son ${day(ref.own.date)} tarihli ${ref.own.quote} teklifinde ${pct(expected)} verilmiş`; }
+    if (ref?.own) { expected = Number(ref.own.discount); why = `bu firmaya en son ${day(ref.own.date)} tarihli${tw} ${ref.own.quote} teklifinde ${pct(expected)} verilmiş`; }
     else if (ref?.range && ref.range.n >= 3) {
       const { lo, hi, p25, p75 } = ref.range;
-      if (mode > Number(hi) + 0.05) { expected = Number(p75); why = `son 6 ayda en fazla ${pct(Number(hi))} verilmiş (genelde ${pct(Number(p25))}–${pct(Number(p75))})`; }
-      else notes.push({ list: brand, level: 'info', text: `${brand}: bu firmaya daha önce verilmemiş; son 6 ayda ${pct(Number(lo))}–${pct(Number(hi))} (genelde ${pct(Number(p25))}–${pct(Number(p75))}), bu teklifte ${pct(mode)}.` });
+      if (mode > Number(hi) + 0.05) { expected = Number(p75); why = `son 6 ayda${tw} tekliflerde en fazla ${pct(Number(hi))} verilmiş (genelde ${pct(Number(p25))}–${pct(Number(p75))})`; }
+      else notes.push({ list: brand, level: 'info', text: `${brand}: bu firmaya daha önce${tw} verilmemiş; son 6 ayda${tw} tekliflerde ${pct(Number(lo))}–${pct(Number(hi))} (genelde ${pct(Number(p25))}–${pct(Number(p75))}), bu teklifte ${pct(mode)}.` });
+    } else if (ld > 0 && term === 'cash') {
+      // Peşin geçmişi yok: liste iskontosu genelde vadeli içindir, peşinde fazlası olağan (yalnız bilgi)
+      if (Math.abs(mode - ld) >= 0.05) notes.push({ list: brand, level: 'info', text: `${brand}: peşin teklif geçmişi yok; liste iskontosu ${pct(ld)}, bu peşin teklifte ${pct(mode)}.` });
     } else if (ld > 0) { expected = ld; why = `liste iskontosu ${pct(ld)}`; }
     if (expected !== null && Math.abs(mode - expected) >= 0.05) {
       const more = mode > expected;
@@ -244,10 +254,11 @@ export async function suggestMatches(rows: CheckRow[]): Promise<CheckRow[]> {
 }
 
 /** Tüm kontrol: liste + geçmiş + marka kuralları + eşleşme önerisi */
-export async function runQuoteCheck(items: QuoteItem[], quotes: Quote[], customerName: string | null, quoteNumber: string | null): Promise<{ rows: CheckRow[]; notes: BrandNote[] } | null> {
+export async function runQuoteCheck(items: QuoteItem[], quotes: Quote[], customerName: string | null, quoteNumber: string | null, paymentTerm?: string | null): Promise<{ rows: CheckRow[]; notes: BrandNote[] } | null> {
   const listed = await checkQuote({ items }).catch(() => null);
   if (!listed) return null;
-  const hist = compareWithHistory(listed, quotes, customerName, quoteNumber);
-  const ruled = await applyBrandRules(hist, customerName, quoteNumber).catch(() => ({ rows: hist, notes: [] as BrandNote[] }));
+  const term = paymentTerm ? termClass(paymentTerm) : null;
+  const hist = compareWithHistory(listed, quotes, customerName, quoteNumber, term);
+  const ruled = await applyBrandRules(hist, customerName, quoteNumber, term).catch(() => ({ rows: hist, notes: [] as BrandNote[] }));
   return { rows: await suggestMatches(ruled.rows), notes: ruled.notes };
 }
