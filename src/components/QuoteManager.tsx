@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays } from 'lucide-react';
 import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
@@ -48,6 +48,8 @@ interface QuoteManagerProps {
   focusQuote?: { id: string; n: number } | null;
   /** Açılışta tarih aralığı (ör. ana sayfada "bu ay onaylanan"a dokununca) */
   initialRange?: { from?: string; to?: string } | null;
+  /** Filtre değişince süzülen teklifler (sayfa başlığındaki rakamlar için); filtre yoksa null */
+  onViewChange?: (v: { quotes: Quote[]; label: string } | null) => void;
 }
 
 export const QuoteManager: React.FC<QuoteManagerProps> = ({
@@ -63,6 +65,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onStatusFilterChange: setStatusFilter,
   focusQuote,
   initialRange,
+  onViewChange,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -208,6 +211,15 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const activePreset = datePresets.find(([, f, t]) => f === dateFrom && t === dateTo)?.[0] ?? null;
   const filteredSum = filteredQuotes.reduce((t, q) => t + (netTry.get(q.id) || 0), 0);
   const filtering = !!(searchTerm.trim() || statusFilter !== 'all' || cityFilter !== 'all' || dateFrom || dateTo);
+
+  // Sayfa başlığındaki rakamlar filtreyi izlesin (tarih ön ayarının adı ya da aralık; yalnız durum/şehir/aramada "Süzülen")
+  const viewCb = useRef(onViewChange);
+  viewCb.current = onViewChange;
+  const viewFiltering = !!(deferredSearch.trim() || statusFilter !== 'all' || cityFilter !== 'all' || dateFrom || dateTo);
+  const trDay = (v: string) => v.split('-').reverse().slice(0, 2).join('.');
+  const viewLabel = activePreset ?? (dateFrom || dateTo ? `${dateFrom ? trDay(dateFrom) : '…'}–${dateTo ? trDay(dateTo) : '…'}` : 'Süzülen');
+  useEffect(() => { viewCb.current?.(viewFiltering ? { quotes: filteredQuotes, label: viewLabel } : null); }, [filteredQuotes, viewFiltering, viewLabel]);
+  useEffect(() => () => viewCb.current?.(null), []);
 
   const moreMenu = (quote: Quote) => menuFor === quote.id && (
     <>

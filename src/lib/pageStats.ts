@@ -17,7 +17,10 @@ const sumTry = (l: (Collection | Expense)[]) => l.filter(x => (x.currency || 'TR
  * Her bölümün başlık bandındaki 3-4 rakam; cihazdaki veriden hesaplanır (sunucuya istek yok).
  * Malzemeler, Notlar, Rapor ve Yönetim'de rakam yok (kendi sayfalarında zaten özet var ya da gereksiz).
  */
-export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date()): PageStat[] {
+/** Teklifler sayfasında filtre varsa bant rakamları süzülen tekliflerden hesaplanır */
+export type QuoteView = { quotes: Quote[]; label: string };
+
+export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(), view?: QuoteView | null): PageStat[] {
   const t = ymd(now);
   const mFrom = `${t.slice(0, 7)}-01`;
   const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -27,6 +30,19 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
   const qv = (q: Quote) => quoteTry(q, rates);
   const quotes = d.quotes || [];
 
+  if (tab === 'quotes' && view) {
+    const all = view.quotes.filter(q => q.status !== 'iptal');
+    const won = all.filter(q => q.status === 'onaylandi');
+    const pend = view.quotes.filter(q => PENDING_STATUSES.includes(q.status));
+    const follow = view.quotes.filter(needsFollowUp).length;
+    const av = all.reduce((a, q) => a + qv(q), 0), wv = won.reduce((a, q) => a + qv(q), 0);
+    return [
+      { label: `${view.label} verilen`, value: lira(av), sub: `${n(all.length)} teklif` },
+      { label: `${view.label} onaylanan`, value: lira(wv), sub: `${n(won.length)} teklif · %${av ? Math.round((wv / av) * 100) : 0} dönüşüm` },
+      { label: 'Bekleyen', value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: `${n(pend.length)} teklif` },
+      { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
+    ];
+  }
   if (tab === 'quotes') {
     const month = quotes.filter(q => inR(q.createdAt, mFrom) && q.status !== 'iptal');
     const won = month.filter(q => q.status === 'onaylandi');
