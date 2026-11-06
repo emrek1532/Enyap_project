@@ -61,7 +61,7 @@ export const PageHeader: React.FC<{
       {action && (
         <button onClick={action.onClick}
           className="flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-4 rounded-2xl bg-brand-500 hover:bg-brand-400 text-white text-sm font-bold shadow-[0_10px_24px_-10px_rgba(14,140,240,0.9)] shrink-0">
-          <action.icon className="w-4.5 h-4.5" /> <span className="hidden sm:inline md:hidden lg:inline">{action.label}</span>
+          <action.icon className="w-4.5 h-4.5" /> <span className="hidden sm:inline">{action.label}</span>
         </button>
       )}
     </div>

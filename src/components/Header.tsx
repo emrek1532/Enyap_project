@@ -74,8 +74,8 @@ export const Header: React.FC<HeaderProps> = ({ syncStatus, onTriggerSync, onHom
 };
 
 /**
- * Koyu bantların (ana sayfa ve bölüm başlıkları) sağ üstündeki düğmeler: ara, eşitle, bildirim, kılavuz, çıkış.
- * Bilgisayar/tablette üst çubuk yok; bunlar bantta. Telefonda üst çubuk durduğu için gizli.
+ * Sol menünün altındaki kullanıcı kartında duran düğmeler: ara, eşitle, bildirim, kılavuz, çıkış.
+ * Bilgisayar/tablette üst çubuk yok; telefonda üst çubuk bunları gösterir.
  */
 export const BandTools: React.FC<{ syncStatus: SyncStatus; onSync: () => void; onSearch?: () => void; onSignOut?: () => void; userEmail: string }> = ({ syncStatus, onSync, onSearch, onSignOut, userEmail }) => {
   const [push, setPush] = useState<boolean | null>(null);
@@ -86,9 +86,9 @@ export const BandTools: React.FC<{ syncStatus: SyncStatus; onSync: () => void; o
       else { await enablePush(userEmail); setPush(true); alert('Bildirimler açıldı. Bekleyen teklifler 2 gün sonra size hatırlatılacak.'); }
     } catch (e) { alert(e instanceof Error ? e.message : 'Bildirim açılamadı.'); }
   };
-  const btn = 'relative w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white transition';
+  const btn = 'relative w-9 h-9 flex items-center justify-center rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition';
   return (
-    <div className="hidden md:flex items-center gap-2 shrink-0">
+    <div className="flex items-center justify-between gap-1">
       {onSearch && <button onClick={onSearch} className={btn} title="Ara, tekliflere sor, teklif hazırla" aria-label="Ara"><Search className="w-4 h-4" /></button>}
       <button onClick={onSync} disabled={syncStatus.isSyncing} className={btn} aria-label="Eşitle"
         title={syncStatus.isSyncing ? 'Eşitleniyor…' : syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı · kayıtlar bağlantı gelince gönderilir'}>
@@ -96,12 +96,12 @@ export const BandTools: React.FC<{ syncStatus: SyncStatus; onSync: () => void; o
         <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-400' : 'bg-rose-400'}`} />
       </button>
       {push !== null && (
-        <button onClick={togglePush} className={`${btn} ${push ? '' : 'text-sky-200/70'}`} aria-label="Bildirimler"
+        <button onClick={togglePush} className={`${btn} ${push ? '' : 'text-slate-500'}`} aria-label="Bildirimler"
           title={push ? 'Bildirimler açık (kapatmak için dokunun)' : 'Teklif hatırlatma bildirimlerini aç'}>
           {push ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
         </button>
       )}
-      <HelpGuide variant="dark" />
+      <HelpGuide variant="dark" className="!bg-transparent !border-0 !text-slate-300 hover:!bg-white/10 hover:!text-white" />
       {onSignOut && <button onClick={onSignOut} className={btn} title="Çıkış yap" aria-label="Çıkış yap"><LogOut className="w-4 h-4" /></button>}
     </div>
   );
