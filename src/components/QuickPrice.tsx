@@ -111,11 +111,11 @@ export const QuickPrice: React.FC<{
     <ToolCard icon={Search} title="Ara" subtitle="Firma, ürün adı ya da kodu: katalog fiyatı, firma listeleri ve en son kime kaçtan verdiğimiz.">
       <form onSubmit={e => { e.preventDefault(); remember(); }} className="flex gap-2">
         <div className="relative min-w-0 flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Ara: firma, ürün adı veya kodu…" enterKeyHint="search"
             className="w-full pl-10 pr-10 py-3 rounded-full border border-sky-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
-          {busy ? <Loader2 className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 animate-spin" />
-            : q && <button type="button" onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400" aria-label="Temizle"><X className="w-4 h-4" /></button>}
+          {busy ? <Loader2 className="w-4 h-4 text-slate-500 absolute right-4 top-1/2 -translate-y-1/2 animate-spin" />
+            : q && <button type="button" onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-500" aria-label="Temizle"><X className="w-4 h-4" /></button>}
         </div>
         {canSpeech() && (
           <button type="button" onClick={voice} aria-label={mic ? 'Dinlemeyi bitir' : 'Sesle ara'}
@@ -155,8 +155,8 @@ export const QuickPrice: React.FC<{
         <Group title="Firmalar">
           {firms.map(f => (
             <button key={f.c.id} onClick={() => { remember(); onOpenCustomer?.(f.c.name); }} className="w-full text-left">
-              <Row left={<span className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="min-w-0"><b className="text-slate-800">{f.c.name}</b>{f.c.city && <span className="text-slate-400"> · {f.c.city}</span>}<span className="block text-[11px] text-slate-500">{f.pending ? `${f.pending} bekleyen teklif` : 'Bekleyen teklif yok'}{f.last ? ` · son teklif ${trDay(f.last)}` : ''}</span></span></span>}
-                right={<ChevronRight className="w-4 h-4 text-slate-400" />} />
+              <Row left={<span className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0" /><span className="min-w-0"><b className="text-slate-800">{f.c.name}</b>{f.c.city && <span className="text-slate-500"> · {f.c.city}</span>}<span className="block text-[11px] text-slate-500">{f.pending ? `${f.pending} bekleyen teklif` : 'Bekleyen teklif yok'}{f.last ? ` · son teklif ${trDay(f.last)}` : ''}</span></span></span>}
+                right={<ChevronRight className="w-4 h-4 text-slate-500" />} />
             </button>
           ))}
         </Group>
@@ -178,7 +178,7 @@ export const QuickPrice: React.FC<{
             return (
               <Row key={s.id}
                 left={<><span className="inline-block text-[10px] font-black text-white rounded px-1.5 py-0.5 mr-1.5 align-middle" style={{ background: supplierColor(s.listName) }}>{s.listName}</span>{s.name}</>}
-                right={<>{money(net, s.currency)}{s.discount > 0 && <span className="block text-[10px] font-normal text-slate-400">liste {money(s.price, s.currency)} · %{s.discount}</span>}</>} />
+                right={<>{money(net, s.currency)}{s.discount > 0 && <span className="block text-[10px] font-normal text-slate-500">liste {money(s.price, s.currency)} · %{s.discount}</span>}</>} />
             );
           })}
         </Group>
@@ -188,8 +188,8 @@ export const QuickPrice: React.FC<{
         <Group title="En son kime kaçtan verdik">
           {history.map(h => (
             <button key={h.q.id} onClick={() => { remember(); onOpenQuote(h.q); }} className="w-full text-left">
-              <Row left={<><b className="text-slate-800">{h.q.customerName}</b> <span className="text-slate-400">· {trDay(h.q.createdAt)}{h.q.status === 'onaylandi' ? ' · onaylı' : ''}</span><span className="block text-[11px] text-slate-500 truncate">{h.name}</span></>}
-                right={<>{money(h.price * (1 - h.disc / 100), h.cur)}{h.disc > 0 && <span className="block text-[10px] font-normal text-slate-400">liste {money(h.price, h.cur)} · %{h.disc}</span>}</>} />
+              <Row left={<><b className="text-slate-800">{h.q.customerName}</b> <span className="text-slate-500">· {trDay(h.q.createdAt)}{h.q.status === 'onaylandi' ? ' · onaylı' : ''}</span><span className="block text-[11px] text-slate-500 truncate">{h.name}</span></>}
+                right={<>{money(h.price * (1 - h.disc / 100), h.cur)}{h.disc > 0 && <span className="block text-[10px] font-normal text-slate-500">liste {money(h.price, h.cur)} · %{h.disc}</span>}</>} />
             </button>
           ))}
         </Group>

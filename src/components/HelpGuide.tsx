@@ -91,7 +91,7 @@ export const HelpGuide: React.FC<{ variant: 'icon' | 'wide' | 'dark'; className?
             <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 pt-safe">
               <HelpCircle className="w-5 h-5 text-brand-600" />
               <h3 className="flex-1 font-black text-slate-900">Kullanım Kılavuzu</h3>
-              <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+              <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-safe">
               {GUIDE.map(([title, items]) => (
@@ -102,7 +102,7 @@ export const HelpGuide: React.FC<{ variant: 'icon' | 'wide' | 'dark'; className?
                   </ul>
                 </section>
               ))}
-              <p className="pt-2 text-[11px] text-slate-400">Sürüm: {__APP_VERSION__} · {__APP_BUILD__}</p>
+              <p className="pt-2 text-[11px] text-slate-500">Sürüm: {__APP_VERSION__} · {__APP_BUILD__}</p>
             </div>
           </div>
         </div>,

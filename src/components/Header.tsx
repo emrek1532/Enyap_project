@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ syncStatus, onTriggerSync, onHom
 
         {onSearch ? (
           <button onClick={onSearch}
-            className="flex-1 min-w-0 max-w-md flex items-center gap-2.5 h-10 px-3.5 rounded-full bg-white border border-slate-200 shadow-xs text-sm text-slate-400 hover:border-brand-300 transition text-left ml-auto md:ml-0">
+            className="flex-1 min-w-0 max-w-md flex items-center gap-2.5 h-10 px-3.5 rounded-full bg-white border border-slate-200 shadow-xs text-sm text-slate-500 hover:border-brand-300 transition text-left ml-auto md:ml-0">
             <Search className="w-4 h-4 text-slate-500 shrink-0" /> <span className="truncate">Arama yap…</span>
           </button>
         ) : <span className="flex-1" />}
@@ -96,7 +96,7 @@ export const BandTools: React.FC<{ syncStatus: SyncStatus; onSync: () => void; o
         <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-400' : 'bg-rose-400'}`} />
       </button>
       {push !== null && (
-        <button onClick={togglePush} className={`${btn} ${push ? '' : 'text-slate-500'}`} aria-label="Bildirimler"
+        <button onClick={togglePush} className={`${btn} ${push ? '' : 'text-slate-400'}`} aria-label="Bildirimler"
           title={push ? 'Bildirimler açık (kapatmak için dokunun)' : 'Teklif hatırlatma bildirimlerini aç'}>
           {push ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
         </button>

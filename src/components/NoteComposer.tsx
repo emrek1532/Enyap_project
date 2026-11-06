@@ -148,7 +148,7 @@ export const NoteComposer: React.FC<{
             <button type="button" onClick={() => pick(null)} className="ml-0.5 text-amber-600" title="Hatırlatmayı kaldır"><X className="w-3 h-3" /></button>
           </span>
         ) : (
-          <span className={`${chip} inline-flex items-center gap-1 border-slate-200 text-slate-400`}><BellOff className="w-3 h-3" /> hatırlatma yok</span>
+          <span className={`${chip} inline-flex items-center gap-1 border-slate-200 text-slate-500`}><BellOff className="w-3 h-3" /> hatırlatma yok</span>
         )}
         <button type="button" className={`${chip} border-slate-200 text-slate-600`} onClick={() => pick(new Date(Date.now() + 3600e3))}>1 saat</button>
         <button type="button" className={`${chip} border-slate-200 text-slate-600`} onClick={() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); pick(d); }}>Yarın 09:00</button>

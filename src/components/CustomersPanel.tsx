@@ -280,7 +280,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 <option value="pasif">Pasif</option>
                 <option value="kara_liste">Kara liste</option>
               </select>
-              <MobileSortSelect className={`${ctrl} lg:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
+              <MobileSortSelect always className={`${ctrl} xl:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
                 { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
                 { key: 'name', dir: 'desc', label: 'Firma: Z → A' },
                 { key: 'total', dir: 'desc', label: 'Onaylı tutar: yüksek' },
@@ -319,7 +319,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           </p>
         ) : (<>
           {/* Telefon: kartlar */}
-          <div className="lg:hidden divide-y divide-slate-100 border-t border-slate-100">
+          <div className="xl:hidden divide-y divide-slate-100 border-t border-slate-100">
             {pageRows.map(({ c, st }) => (
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
@@ -332,10 +332,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   <div className="text-right shrink-0">
                     {sort.key === 'balance' && balanceOf(c) ? (<>
                       <div className={`font-black text-sm tabular-nums ${balanceOf(c)!.estimate < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(Math.round(balanceOf(c)!.estimate))}</div>
-                      <div className="text-[10px] text-slate-400">bakiye</div>
+                      <div className="text-[10px] text-slate-500">bakiye</div>
                     </>) : (<>
                       <div className="font-black text-slate-900 text-sm tabular-nums">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</div>
-                      <div className="text-[10px] text-slate-400">onaylı toplam</div>
+                      <div className="text-[10px] text-slate-500">onaylı toplam</div>
                     </>)}
                   </div>
                 </button>
@@ -351,7 +351,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               </div>
             ))}
           </div>
-          <div className="overflow-x-auto hidden lg:block border-t border-slate-100">
+          <div className="overflow-x-auto hidden xl:block border-t border-slate-100">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-100">
                 <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
@@ -383,7 +383,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                         {balanceOf(c) ? tl(Math.round(balanceOf(c)!.estimate)) : '-'}
                       </td>
                     )}
-                    <td className="py-3 px-3 text-slate-400 whitespace-nowrap">
+                    <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
                       {st.lastDate ? <>{new Date(st.lastDate).toLocaleDateString('tr-TR')} <ChevronRight className="w-3.5 h-3.5 inline -mt-0.5" /></> : '-'}
                     </td>
                     <td className="py-3 px-3" onClick={e => e.stopPropagation()}>{rowActions(c)}</td>
@@ -505,7 +505,7 @@ const BalanceView: React.FC<{
       <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input type="search" placeholder="Firma veya şehir ara..." value={search} onChange={e => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
           </div>

@@ -165,7 +165,7 @@ export const DateInput: React.FC<{
       {!disabled && (
         <button type="button" tabIndex={-1} aria-label="Takvimden seç"
           onClick={() => { const el = picker.current; if (!el) return; try { el.showPicker(); } catch { el.focus(); el.click(); } }}
-          className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-brand-600">
+          className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded text-slate-500 hover:text-brand-600">
           <CalendarDays className="w-4 h-4" />
         </button>
       )}
