@@ -77,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({ syncStatus, onTriggerSync, onHom
  * Sol menünün altındaki kullanıcı kartında duran düğmeler: ara, eşitle, bildirim, kılavuz, çıkış.
  * Bilgisayar/tablette üst çubuk yok; telefonda üst çubuk bunları gösterir.
  */
-export const BandTools: React.FC<{ syncStatus: SyncStatus; onSync: () => void; onSearch?: () => void; onSignOut?: () => void; userEmail: string }> = ({ syncStatus, onSync, onSearch, onSignOut, userEmail }) => {
+export const BandTools: React.FC<{ syncStatus: SyncStatus; onSync: () => void; onSignOut?: () => void; userEmail: string }> = ({ syncStatus, onSync, onSignOut, userEmail }) => {
   const [push, setPush] = useState<boolean | null>(null);
   useEffect(() => { if (pushSupported()) pushEnabled().then(setPush, () => setPush(false)); }, []);
   const togglePush = async () => {
@@ -89,7 +89,6 @@ export const BandTools: React.FC<{ syncStatus: SyncStatus; onSync: () => void; o
   const btn = 'relative w-9 h-9 flex items-center justify-center rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition';
   return (
     <div className="flex items-center justify-between gap-1">
-      {onSearch && <button onClick={onSearch} className={btn} title="Ara, tekliflere sor, teklif hazırla" aria-label="Ara"><Search className="w-4 h-4" /></button>}
       <button onClick={onSync} disabled={syncStatus.isSyncing} className={btn} aria-label="Eşitle"
         title={syncStatus.isSyncing ? 'Eşitleniyor…' : syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı · kayıtlar bağlantı gelince gönderilir'}>
         <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
