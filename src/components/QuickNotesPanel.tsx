@@ -58,7 +58,7 @@ export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({ notes, activit
         {tab('done', 'Tamamlanan')}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+      <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] divide-y divide-slate-100 overflow-hidden">
         {list.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Not yok.</p>}
         {list.map(n => {
           const overdue = n.remindAt && !n.done && new Date(n.remindAt).getTime() < now;
@@ -95,7 +95,7 @@ export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({ notes, activit
       </div>
 
       {/* Son hareketler (kapalı başlar) */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         <button onClick={() => setShowActivity(s => !s)} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-700">
           <Activity className="w-4 h-4 text-slate-400" /> Son hareketler
           <ChevronDown className={`w-4 h-4 ml-auto text-slate-400 transition ${showActivity ? 'rotate-180' : ''}`} />

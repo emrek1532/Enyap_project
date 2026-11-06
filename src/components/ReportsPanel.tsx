@@ -94,7 +94,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
   const r = 4;
 
   return (
-    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] min-w-0">
+    <div className="bg-white p-4 rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
         <div>
           <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
@@ -205,7 +205,7 @@ const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string;
   });
   const h = hover !== null ? items[hover] : null;
   return (
-    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] min-w-0">
+    <div className="bg-white p-4 rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0">
       <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
       <p className="text-xs text-slate-500 mb-2">{subtitle}</p>
       {total <= 0 ? <p className="text-xs text-slate-500 py-8 text-center">Bu dönemde veri yok.</p> : (
@@ -237,7 +237,7 @@ const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string;
 const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; value: number; sub?: string }[]; color: string; fmt?: (v: number) => string }> = ({ title, subtitle, rows, color, fmt = tl }) => {
   const max = Math.max(1, ...rows.map(r => r.value));
   return (
-    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] min-w-0">
+    <div className="bg-white p-4 rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0">
       <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
       <p className="text-xs text-slate-500 mb-3">{subtitle}</p>
       {rows.length === 0 ? <p className="text-xs text-slate-500 py-8 text-center">Bu dönemde veri yok.</p> : (
@@ -616,7 +616,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
   return (
     <div className="space-y-4">
       {/* Dönem seçimi */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] flex flex-wrap items-center gap-2">
+      <div className="bg-white p-3.5 rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] flex flex-wrap items-center gap-2">
         <BarChart3 className="hidden sm:block w-5 h-5 text-brand-500" />
         <span className="hidden sm:inline font-bold text-slate-900 text-sm mr-2">Rapor Dönemi</span>
         <div className="w-full sm:w-auto flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
@@ -689,7 +689,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
       {/* Bekleyen teklifler: neden bekliyor */}
       {stats.pending > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] p-4">
+        <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] p-4">
           <h3 className="font-bold text-slate-900 text-sm">Bekleyen Teklifler · Neden Bekliyor?</h3>
           <p className="text-xs text-slate-500 mb-3">{stats.pending} teklif · {tl(stats.pendingAmt)} · teklif detayında seçilen neden</p>
           <div className="space-y-2">
@@ -714,7 +714,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       )}
 
       {/* Müşteri performansı */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] overflow-hidden">
+      <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         <div className="p-4 pb-2">
           <h3 className="font-bold text-slate-900 text-sm">Müşteri Performansı</h3>
           <p className="text-xs text-slate-500"><span className="hidden md:inline">Sütun başlığına tıklayarak sıralayın · </span>{customerRows.length} firma</p>

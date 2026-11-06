@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, ListChecks, LogOut, Building2, Phone, Receipt, RefreshCw, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, FileText, ListChecks, LogOut, Building2, Phone, Receipt, RefreshCw, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
 import { PENDING_STATUSES, needsFollowUp, quoteAgeInDays } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
@@ -152,19 +152,11 @@ export const SimpleHome: React.FC<{
   const follow = useMemo(() => quotes.filter(needsFollowUp).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')), [quotes]);
   const dues = useMemo(() => collections.filter(c => c.dueDate && c.dueDate >= t && /çek|senet/i.test(c.method || '')).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '')), [collections, t]);
 
-  // Dönem seçenekleri: son 12 ay + son 3 yıl
-  const periodOptions = useMemo(() => {
-    const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); return { v: `m:${d.getFullYear()}:${d.getMonth()}`, l: `${AY_UZUN[d.getMonth()]} ${d.getFullYear()}` }; });
-    const years = Array.from({ length: 3 }, (_, i) => ({ v: `y:${now.getFullYear() - i}:0`, l: `${now.getFullYear() - i} (tüm yıl)` }));
-    if (period.kind === 'month' && !months.some(o => o.v === `m:${period.y}:${period.m}`)) months.push({ v: `m:${period.y}:${period.m}`, l: `${AY_UZUN[period.m]} ${period.y}` });
-    if (period.kind === 'year' && !years.some(o => o.v === `y:${period.y}:0`)) years.push({ v: `y:${period.y}:0`, l: `${period.y} (tüm yıl)` });
-    return { months, years };
-  }, [t, period.kind, period.y, period.m]); // eslint-disable-line react-hooks/exhaustive-deps
-  const periodValue = isYear ? `y:${period.y}:0` : `m:${period.y}:${period.m}`;
-  const pickPeriod = (v: string) => {
-    const [k, y, m] = v.split(':');
-    setPeriod({ kind: k === 'y' ? 'year' : 'month', y: Number(y), m: Number(m) });
-    if (k === 'y') setChart('year'); else if (chart === 'year') setChart('6m');
+  // Ay / Yıl düğmesi: ay seçiliyken Yıl'a basınca o ayın yılı, Yıl'dayken Ay'a basınca o yılın (bu yılsa bu ayın) Aralık'ı
+  const setKind = (k: 'month' | 'year') => {
+    if (k === period.kind) return;
+    if (k === 'year') { setPeriod({ kind: 'year', y: period.y, m: 0 }); setChart('year'); }
+    else { setPeriod({ kind: 'month', y: period.y, m: period.y === now.getFullYear() ? now.getMonth() : 11 }); if (chart === 'year') setChart('6m'); }
   };
 
   // Oklar: önceki / sonraki ay (yıl seçiliyse yıl); gelecek döneme gidilmez
@@ -174,7 +166,6 @@ export const SimpleHome: React.FC<{
     return { kind: 'month', y: x.getFullYear(), m: x.getMonth() };
   });
 
-  const otherTools = tools.filter(x => x.key !== 'search');
   const actions = [
     canAdd.quote && { label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, primary: true },
     canAdd.collection && { label: 'Tahsilat', icon: Wallet, on: onNewCollection },
@@ -201,7 +192,7 @@ export const SimpleHome: React.FC<{
         <div aria-hidden className="pointer-events-none absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-sky-400/10 blur-3xl" />
         <div className="relative flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs sm:text-sm text-sky-200/80 capitalize">{today}</p>
+            <p className="text-xs sm:text-sm text-sky-200/80"><span className="capitalize">{today}</span><span className="ml-2 text-[11px] text-sky-200/50 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>
             <h1 className="text-xl sm:text-[26px] font-black tracking-tight leading-tight truncate">{hello}, {firstName}</h1>
           </div>
           <div className="flex items-center gap-2 sm:shrink-0">
@@ -210,18 +201,19 @@ export const SimpleHome: React.FC<{
                 <button onClick={() => stepPeriod(-1)} className={`w-9 h-9 rounded-xl flex items-center justify-center ${glass}`} aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'} title={isYear ? 'Önceki yıl' : 'Önceki ay'}>
                   <ChevronLeft className="w-4.5 h-4.5" />
                 </button>
-                <label className={`relative flex flex-1 sm:flex-none items-center justify-center gap-1.5 h-9 pl-2.5 pr-7 rounded-xl text-sm font-bold ${glass}`}>
+                <span className={`flex flex-1 sm:flex-none items-center justify-center gap-1.5 h-9 px-3 rounded-xl text-sm font-bold ${glass} hover:bg-white/10`}>
                   <CalendarDays className="hidden sm:block w-4 h-4 text-sky-300" />
                   <span className="whitespace-nowrap">{title}</span>
-                  <ChevronDown className="absolute right-2 w-4 h-4 text-sky-200" />
-                  <select value={periodValue} onChange={e => pickPeriod(e.target.value)} aria-label="Dönem" className="absolute inset-0 opacity-0 cursor-pointer text-slate-900">
-                    <optgroup label="Ay">{periodOptions.months.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</optgroup>
-                    <optgroup label="Yıl">{periodOptions.years.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</optgroup>
-                  </select>
-                </label>
+                </span>
                 <button onClick={() => stepPeriod(1)} disabled={isCurrent} className={`w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none ${glass}`} aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'} title={isYear ? 'Sonraki yıl' : 'Sonraki ay'}>
                   <ChevronRight className="w-4.5 h-4.5" />
                 </button>
+                <div className="flex h-9 p-0.5 rounded-xl bg-white/10 border border-white/15 ml-1" role="tablist" aria-label="Dönem türü">
+                  {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
+                    <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
+                      className={`px-3 rounded-[10px] text-[13px] font-bold transition ${period.kind === k ? 'bg-white text-[#0b2a4c]' : 'text-sky-100 hover:text-white'}`}>{l}</button>
+                  ))}
+                </div>
               </div>
             )}
             {onSync && syncStatus && (
@@ -238,17 +230,11 @@ export const SimpleHome: React.FC<{
 
         {/* Bilgisayarda: tek arama kutusu (içinde diğer kısayollar) + hızlı işlemler */}
         <div className="relative mt-5 hidden md:flex gap-2.5 items-center">
-          <div className="flex-1 min-w-0 flex items-center h-12 pl-4 pr-1.5 rounded-2xl bg-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
+          <div className="flex-1 min-w-0 flex items-center h-12 px-4 rounded-2xl bg-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
             <button onClick={() => onOpenTool('search')} className="flex-1 min-w-0 h-full flex items-center gap-3 text-left text-slate-500">
               <Search className="w-5 h-5 text-brand-600 shrink-0" />
-              <span className="truncate text-[15px]">Ürün, firma ya da fiyat ara…</span>
+              <span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
             </button>
-            {otherTools.map(x => (
-              <button key={x.key} onClick={() => onOpenTool(x.key)} title={x.label}
-                className="flex items-center gap-1.5 h-9 px-2.5 xl:px-3 ml-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[13px] font-semibold whitespace-nowrap shrink-0">
-                <x.icon className="w-4 h-4 text-brand-600" /><span className="hidden xl:inline">{x.label}</span><span className="hidden lg:inline xl:hidden">{x.short}</span>
-              </button>
-            ))}
           </div>
           {actions.map(a => (
             <button key={a.label} onClick={a.on}
@@ -258,17 +244,8 @@ export const SimpleHome: React.FC<{
           ))}
         </div>
 
-        {/* Telefonda: kısayollar 4'lü, işlemler 3'lü (arama üst çubukta da var) */}
+        {/* Telefonda: işlemler 3'lü (arama, sor, hazırla, sesle üst çubuktaki arama kutusundan açılır) */}
         <div className="relative mt-4 md:hidden space-y-2">
-          {tools.length > 0 && (
-            <div className="grid grid-cols-4 gap-2">
-              {tools.map(x => (
-                <button key={x.key} onClick={() => onOpenTool(x.key)} className={`flex flex-col items-center justify-center gap-1 h-16 rounded-2xl text-[12px] font-semibold ${glass}`}>
-                  <x.icon className="w-5 h-5 text-sky-300" />{x.short}
-                </button>
-              ))}
-            </div>
-          )}
           {actions.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
               {actions.map(a => (

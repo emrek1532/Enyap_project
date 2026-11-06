@@ -34,7 +34,7 @@ export const CustomerInsights: React.FC<{
   };
 
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 sm:p-4 space-y-3">
+    <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] p-3.5 sm:p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <span className="text-sm font-black text-slate-900">Firma özeti</span>

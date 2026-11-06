@@ -103,10 +103,6 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
             <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" />
             <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara (Örn: kalde vana 1/2)" />
           </div>
-          <button onClick={() => setEditing({ m: { ...EMPTY } })}
-            className="h-10 flex items-center justify-center gap-1.5 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white text-sm font-bold whitespace-nowrap shadow-[0_8px_18px_-8px_rgba(0,110,198,0.8)]">
-            <Plus className="w-4 h-4" /> Malzeme Ekle
-          </button>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">

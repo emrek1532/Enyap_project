@@ -540,7 +540,7 @@ export const SupplierListsPanel: React.FC = () => {
                   </label>
                 )}
               </div>
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
                 {items.filter(it => !onlyUnlinked || !it.ourCode).length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-400">{onlyUnlinked && items.length ? 'Yüklenen kalemlerin hepsi bağlı. Daha fazlası için aşağı kaydırın ya da aramayı daraltın.' : 'Sonuç yok.'}</p>}
                 <div className="divide-y divide-slate-100">
                   {items.filter(it => !onlyUnlinked || !it.ourCode).map((it, idx, arr) => (

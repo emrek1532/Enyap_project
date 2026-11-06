@@ -450,10 +450,6 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           {hasFilters && (
             <button onClick={resetFilters} className="px-2 py-2 rounded-lg border border-slate-200 sm:border-0 text-xs font-bold text-slate-500 hover:text-slate-800 sm:underline">Filtreleri temizle</button>
           )}
-          <button onClick={() => openNew()}
-            className={`${hasFilters ? '' : 'col-span-2 '}hidden sm:flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs sm:text-sm font-bold shadow-xs`}>
-            <Plus className="w-4 h-4" /> {t.one} Ekle
-          </button>
         </div>
       </FilterBar>
 
@@ -474,7 +470,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       </div>
 
       {/* Liste */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)] overflow-hidden">
+      <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         {/* Telefon: kart görünümü */}
         <div className="lg:hidden divide-y divide-slate-100">
           {filtered.length === 0 && (
@@ -502,7 +498,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={colCount} className="py-10 text-center text-slate-500 text-sm">
-                    {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok. "${t.one} Ekle" ile başlayın.` : 'Filtrelere uygun kayıt bulunamadı.'}
+                    {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok. üstteki "Yeni ${t.one}" ile başlayın.` : 'Filtrelere uygun kayıt bulunamadı.'}
                   </td>
                 </tr>
               )}
