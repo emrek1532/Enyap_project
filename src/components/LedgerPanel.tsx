@@ -1,5 +1,5 @@
 import { listCard, SearchBox, FilterBar, WideOnly, NarrowOnly } from './ListUI';
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, Send, Loader2, Camera } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
@@ -31,6 +31,8 @@ interface LedgerPanelProps {
   /** Sesli asistandan gelen taslak: yeni kayıt formu bu bilgilerle dolu açılır */
   startDraft?: Partial<Collection & Expense> | null;
   onStartNewHandled?: () => void;
+  /** Filtre değişince süzülen kayıtlar (sayfa başlığındaki rakamlar için); filtre yoksa null */
+  onViewChange?: (v: { records: LedgerRecord[]; label: string } | null) => void;
 }
 
 const LIST_PAGE = 25;
@@ -84,7 +86,7 @@ const withExisting = (base: string[], values: (string | undefined)[]) => {
   return [...set];
 };
 
-export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, startDraft, onStartNewHandled }) => {
+export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, startDraft, onStartNewHandled, onViewChange }) => {
   const isCollection = kind === 'collections';
   const t = isCollection
     ? { one: 'Tahsilat', party: 'Müşteri / Firma', Icon: Wallet, tone: 'text-accent-600 bg-accent-50' }
@@ -165,12 +167,27 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   // Hızlı tarih aralığı (ör. seyahat dönüşü muhasebeye gönderilecek harcamalar)
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const setRange = (from: string, to: string) => { setDateFrom(from); setDateTo(to); setLimit(LIST_PAGE); };
-  const presets: [string, () => void][] = [
-    ['Bu hafta', () => { const d = new Date(); const m = new Date(d); m.setDate(d.getDate() - ((d.getDay() + 6) % 7)); setRange(iso(m), iso(d)); }],
-    ['Son 7 gün', () => { const d = new Date(); const f = new Date(d); f.setDate(d.getDate() - 6); setRange(iso(f), iso(d)); }],
-    ['Bu ay', () => { const d = new Date(); setRange(iso(new Date(d.getFullYear(), d.getMonth(), 1)), iso(d)); }],
-    ['Geçen ay', () => { const d = new Date(); setRange(iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)), iso(new Date(d.getFullYear(), d.getMonth(), 0))); }],
-  ];
+  const presets = useMemo((): [string, string, string][] => {
+    const d = new Date();
+    const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const f7 = new Date(d); f7.setDate(d.getDate() - 6);
+    return [
+      ['Bu hafta', iso(mon), iso(d)],
+      ['Son 7 gün', iso(f7), iso(d)],
+      ['Bu ay', iso(new Date(d.getFullYear(), d.getMonth(), 1)), iso(d)],
+      ['Geçen ay', iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)), iso(new Date(d.getFullYear(), d.getMonth(), 0))],
+    ];
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sayfa başlığındaki rakamlar filtreyi izlesin (tarih ön ayarının adı ya da aralık; tarihsiz filtrede "Süzülen")
+  const viewCb = useRef(onViewChange);
+  viewCb.current = onViewChange;
+  const viewFiltering = !!(deferredSearch.trim() || dateFrom || dateTo || methodFilter !== 'all' || categoryFilter !== 'all' || regionFilter !== 'all' || currencyFilter !== 'all' || dueFilter !== 'all');
+  const trDay = (v: string) => v.split('-').reverse().slice(0, 2).join('.');
+  const viewLabel = presets.find(([, f, t]) => f === dateFrom && t === dateTo)?.[0]
+    ?? (dateFrom || dateTo ? `${dateFrom ? trDay(dateFrom) : '…'}–${dateTo ? trDay(dateTo) : '…'}` : 'Süzülen');
+  useEffect(() => { viewCb.current?.(viewFiltering ? { records: filtered, label: viewLabel } : null); }, [filtered, viewFiltering, viewLabel]);
+  useEffect(() => () => viewCb.current?.(null), []);
 
   // PDF'te "Harcamayı yapan" (cihazda hatırlanır)
   const [spender, setSpenderState] = useState(() => { try { return localStorage.getItem('enyap-expense-spender') ?? 'Emre KARAKAYA'; } catch { return 'Emre KARAKAYA'; } });
@@ -428,8 +445,8 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
             <DateInput value={dateTo} onChange={v => changed(setDateTo)(v)} className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
           </div>
           <div className="col-span-2 sm:col-span-1 flex flex-wrap items-center gap-1">
-            {presets.map(([label, fn]) => (
-              <button key={label} type="button" onClick={fn} className="px-2.5 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700">{label}</button>
+            {presets.map(([label, f, t]) => (
+              <button key={label} type="button" onClick={() => setRange(f, t)} className="px-2.5 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700">{label}</button>
             ))}
           </div>
           {!isCollection && (

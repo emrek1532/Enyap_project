@@ -46,7 +46,7 @@ import { readQuotePdf } from './lib/pdfQuote';
 import { AccessContext, Module, Profile, can, fetchMyProfile } from './lib/access';
 import { AdminPanel, PendingScreen } from './components/AdminPanel';
 import { useRates } from './lib/rates';
-import { pageStats, QuoteView } from './lib/pageStats';
+import { pageStats, QuoteView, LedgerView } from './lib/pageStats';
 
 // Ekranlar ihtiyaç anında yüklenir (ilk açılış hızlı); açıldıktan sonra boşta hepsi önceden indirilir
 const loaders = {
@@ -709,7 +709,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   // Sayfa başlığı bandındaki özet rakamlar (cihazdaki veriden)
   const rates = useRates(data.quotes);
   const [quoteView, setQuoteView] = useState<QuoteView | null>(null);
-  const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, data, rates, undefined, activeTab === 'quotes' ? quoteView : null), [activeTab, data, rates, quoteView]);
+  const [ledgerView, setLedgerView] = useState<LedgerView | null>(null);
+  const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, data, rates, undefined, activeTab === 'quotes' ? quoteView : null, ledgerView), [activeTab, data, rates, quoteView, ledgerView]);
   const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
     : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
     : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
@@ -868,6 +869,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             startNew={ledgerStartNew === 'collections'}
             startDraft={ledgerDraft}
             onStartNewHandled={() => { setLedgerStartNew(null); setLedgerDraft(null); }}
+            onViewChange={setLedgerView}
           />
         )}
 
@@ -882,6 +884,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             startNew={ledgerStartNew === 'expenses'}
             startDraft={ledgerDraft}
             onStartNewHandled={() => { setLedgerStartNew(null); setLedgerDraft(null); }}
+            onViewChange={setLedgerView}
           />
         )}
 
