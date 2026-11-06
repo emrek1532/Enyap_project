@@ -129,7 +129,7 @@ export const CustomerAccount: React.FC<{
   );
   const tabBtn = (t: Tab, label: string) => (
     <button onClick={() => { setTab(t); setLimit(60); }}
-      className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-extrabold whitespace-nowrap ${tab === t ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
+      className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-extrabold whitespace-nowrap ${tab === t ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
   );
   const chip = (f: QFilter, label: string, n: number) => (
     <button onClick={() => setQFilter(f)}
@@ -213,7 +213,7 @@ export const CustomerAccount: React.FC<{
 
           {/* Sekmeler + arama */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70 w-fit max-w-full overflow-x-auto">
+            <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
               {tabBtn('quotes', `Teklifler · ${quotes.length}`)}
               {tabBtn('items', `Malzemeler · ${lines.length}`)}
               {showCollections && tabBtn('collections', `Tahsilatlar · ${collections.length}`)}

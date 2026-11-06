@@ -115,7 +115,8 @@ html, body {
 .qrow > [data-a="isk"] { grid-area: isk; }
 .qrow > [data-a="tut"] { grid-area: tut; }
 .qrow > [data-a="tools"] { grid-area: tools; justify-self: end; }
-@media (min-width: 768px) {
+/* Tek satır ~800px ister: tablet dikte (768-1023) sığmadığı için telefon düzeni */
+@media (min-width: 1024px) {
   .qrow {
     grid-template-columns: 1.75rem 8.5rem minmax(0, 1fr) 4.75rem 4.75rem 6.5rem 4.25rem 3.75rem 7rem 5.25rem;
     grid-template-areas: "no kod ad qty br fiyat dvz isk tut tools";

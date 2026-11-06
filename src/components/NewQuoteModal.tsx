@@ -241,19 +241,19 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const rowTools = (index: number) => (
     <>
       <button type="button" tabIndex={-1} data-move="up" onClick={() => moveItem(index, -1, '[data-move="up"]')} disabled={index === 0}
-        className="p-1.5 md:p-0.5 text-slate-500 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-500" title="Yukarı taşı (Alt+↑)">
+        className="p-1.5 lg:p-0.5 text-slate-500 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-500" title="Yukarı taşı (Alt+↑)">
         <ArrowUp className="w-3.5 h-3.5" />
       </button>
       <button type="button" tabIndex={-1} data-move="down" onClick={() => moveItem(index, 1, '[data-move="down"]')} disabled={index === items.length - 1}
-        className="p-1.5 md:p-0.5 text-slate-500 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-500" title="Aşağı taşı (Alt+↓)">
+        className="p-1.5 lg:p-0.5 text-slate-500 hover:text-brand-600 disabled:opacity-25 disabled:hover:text-slate-500" title="Aşağı taşı (Alt+↓)">
         <ArrowDown className="w-3.5 h-3.5" />
       </button>
       <button type="button" tabIndex={-1} onClick={() => insertItemAfter(index)}
-        className="p-1.5 md:p-0.5 text-slate-500 hover:text-emerald-600" title="Altına yeni kalem ekle">
+        className="p-1.5 lg:p-0.5 text-slate-500 hover:text-emerald-600" title="Altına yeni kalem ekle">
         <ListPlus className="w-3.5 h-3.5" />
       </button>
       <button type="button" tabIndex={-1} onClick={() => handleRemoveItem(index)} disabled={items.length <= 1}
-        className="p-1.5 md:p-0.5 text-slate-500 hover:text-rose-600 disabled:opacity-25 disabled:hover:text-slate-500" title="Sil">
+        className="p-1.5 lg:p-0.5 text-slate-500 hover:text-rose-600 disabled:opacity-25 disabled:hover:text-slate-500" title="Sil">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </>
@@ -739,7 +739,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
 
               {/* Sütun başlıkları (geniş ekran) */}
-              <div className="qrow hidden md:grid px-2 py-1 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+              <div className="qrow hidden lg:grid px-2 py-1 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
                 <span data-a="no" className="text-right">#</span>
                 <span data-a="kod">Kod</span>
                 <span data-a="ad">Malzeme Adı</span>
@@ -753,7 +753,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
 
               {/* Telefonda ikinci satırın sütun adları */}
-              <div className="qrow md:hidden px-2 pt-1 -mb-1 text-[9px] font-bold text-slate-500 uppercase" aria-hidden>
+              <div className="qrow lg:hidden px-2 pt-1 -mb-1 text-[9px] font-bold text-slate-500 uppercase" aria-hidden>
                 <span data-a="qty" className="text-right">Miktar</span>
                 <span data-a="br">Birim</span>
                 <span data-a="fiyat" className="text-right">B.Fiyat</span>
@@ -765,7 +765,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 {items.map((item, index) => (
                   <div key={item.id} data-quote-item data-item-id={item.id}
                     className={`qrow px-2 py-1.5 ${index % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
-                    <span data-a="no" className="text-[11px] font-bold text-slate-500 tabular-nums md:text-right">{index + 1}.</span>
+                    <span data-a="no" className="text-[11px] font-bold text-slate-500 tabular-nums lg:text-right">{index + 1}.</span>
                     <div data-a="kod" className="min-w-0">
                       <MaterialPicker
                         field="code"
@@ -831,7 +831,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                         title="İskonto %"
                       />
                     </div>
-                    <div data-a="tut" className="text-xs font-bold text-slate-700 tabular-nums md:text-right truncate">
+                    <div data-a="tut" className="text-xs font-bold text-slate-700 tabular-nums lg:text-right truncate">
                       {lineNet(item) > 0 ? `${fmt2(lineNet(item))} ${CURRENCY_LABEL[item.currency || 'TRY']}` : <span className="text-slate-300 font-normal">—</span>}
                     </div>
                     <div data-a="tools" className="flex items-center">{rowTools(index)}</div>
