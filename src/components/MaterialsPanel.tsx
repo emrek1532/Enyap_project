@@ -1,7 +1,7 @@
 import { trNum } from '../lib/num';
 import React, { useEffect, useRef, useState } from 'react';
 import { Eye, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { listCard, ctrl, rowCls, SearchBox, IconBtn, Pager } from './ListUI';
+import { listCard, ctrl, rowCls, SearchBox, IconBtn, Pager, WideOnly, NarrowOnly } from './ListUI';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
@@ -102,10 +102,10 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="grid grid-cols-[8.5rem_1fr] sm:grid-cols-[11rem_1fr] gap-2 flex-1 min-w-0">
             <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" />
-            <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara (Örn: kalde vana 1/2)" />
+            <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara (ör. kalde vana 1/2)" />
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
           <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">
             <option value="">Fiyat: Tümü</option>
             <option value="priced">Fiyatlı</option>
@@ -159,7 +159,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div>
 
       {/* Telefon: kartlar */}
-      <div className="lg:hidden divide-y divide-slate-100 border-t border-slate-100">
+      <NarrowOnly><div className="xl:hidden divide-y divide-slate-100 border-t border-slate-100">
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
@@ -175,10 +175,10 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
           </div>
         ))}
         {!loading && items.length === 0 && <div className="p-6 text-center text-sm text-slate-500">Malzeme bulunamadı.</div>}
-      </div>
+      </div></NarrowOnly>
 
       {/* Tablet / masaüstü: tablo */}
-      <div className="hidden lg:block overflow-x-auto border-t border-slate-100">
+      <WideOnly><div className="hidden xl:block overflow-x-auto border-t border-slate-100">
         <table className="w-full text-sm">
           <thead className="border-b border-slate-100 text-left">
             <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
@@ -212,7 +212,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
             )}
           </tbody>
         </table>
-      </div>
+      </div></WideOnly>
 
       <Pager page={page} total={total} size={PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         label={<>{total.toLocaleString('tr-TR')} malzeme</>} />
