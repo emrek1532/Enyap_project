@@ -17,6 +17,8 @@ const { Header, BandTools } = await import('../src/components/Header');
 const { BottomNav } = await import('../src/components/BottomNav');
 const { QuickToolsModal, toolList } = await import('../src/components/QuickTools');
 const { Plus } = await import('lucide-react');
+const { AccessContext } = await import('../src/lib/access');
+const admin = { id: 'x', email: 'e@x.com', fullName: 'Emre KARAKAYA', isAdmin: true, status: 'active', perms: {}, lastSeen: null, createdAt: '' } as any;
 const { NewQuoteModal } = await import('../src/components/NewQuoteModal');
 const { CustomerAccount } = await import('../src/components/CustomerAccount');
 const { pageStats } = await import('../src/lib/pageStats');
@@ -55,4 +57,4 @@ const App = () => {
     tool && h(QuickToolsModal, { mode: tool, tools, onMode: setTool, onClose: () => setTool(null), quotes, customers, allow, onVoice: noop, onOpenQuote: noop }),
   );
 };
-createRoot(document.getElementById('root')!).render(h(App));
+createRoot(document.getElementById('root')!).render(h(AccessContext.Provider, { value: admin }, h(App)));
