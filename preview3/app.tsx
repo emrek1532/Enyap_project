@@ -1,4 +1,4 @@
-// Tüm uygulama kabuğu deneme sayfası (yalnız geliştirme): npx vite → /preview3/app.html?p=home|quotes|customers|materials|collections|expenses|notes|reports (&tool=ask)
+// Tüm uygulama kabuğu deneme sayfası (yalnız geliştirme): npx vite → /preview3/app.html?p=home|quotes|customers|materials|collections|expenses|notes|reports (&tool=ask, &modal=new|edit|account)
 import { quotes, customers, collections, expenses, notes, activities } from './fixture';
 const { createRoot } = await import('react-dom/client');
 await import('../src/index.css');
@@ -17,6 +17,8 @@ const { Header, BandTools } = await import('../src/components/Header');
 const { BottomNav } = await import('../src/components/BottomNav');
 const { QuickToolsModal, toolList } = await import('../src/components/QuickTools');
 const { Plus } = await import('lucide-react');
+const { NewQuoteModal } = await import('../src/components/NewQuoteModal');
+const { CustomerAccount } = await import('../src/components/CustomerAccount');
 const { pageStats } = await import('../src/lib/pageStats');
 const { useRates } = await import('../src/lib/rates');
 const noop = () => {};
@@ -47,6 +49,9 @@ const App = () => {
       p === 'notes' && h(QuickNotesPanel, { notes, activities, currentRole: 'isparta' as any, onSaveNote: noop, onDeleteNote: noop }),
       p === 'reports' && h(ReportsPanel, { quotes, collections, expenses, customers })),
     h(BottomNav, { sections: secs as any, primary: ['quotes', 'customers', 'materials'], active: p, onOpen: setP, onHome: () => setP('home'), onSignOut: noop, userEmail: 'e@x.com' }),
+    q.get('modal') === 'new' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes }),
+    q.get('modal') === 'edit' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes, editQuote: quotes[0] }),
+    q.get('modal') === 'account' && h(CustomerAccount, { customer: customers.find((c: any) => c.name === quotes[0].customerName) || customers[0], quotes, collections, rates, showCollections: true, onClose: noop, onNewQuote: noop, onOpenQuote: noop } as any),
     tool && h(QuickToolsModal, { mode: tool, tools, onMode: setTool, onClose: () => setTool(null), quotes, customers, allow, onVoice: noop, onOpenQuote: noop }),
   );
 };

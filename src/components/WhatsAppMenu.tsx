@@ -1,3 +1,4 @@
+import { trNum } from '../lib/num';
 import React, { useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { Quote } from '../types';
@@ -11,7 +12,7 @@ export const waPhone = (p?: string) => {
   return d.length >= 11 ? d : '';
 };
 
-const tl = (v: number) => `${Math.round(v).toLocaleString('tr-TR')} TL`;
+const tl = (v: number) => `${trNum(Math.round(v))} TL`;
 const day = (s: string) => s.slice(0, 10).split('-').reverse().join('.');
 const SIGN = '\n\nEnyap Isı Sistemleri';
 
@@ -49,7 +50,7 @@ export const WhatsAppMenu: React.FC<{ phone?: string; ctx: WaContext; className?
       </button>
       {open && (
         <div className="fixed inset-0 z-[60] bg-slate-900/60 flex items-end sm:items-center justify-center" onClick={e => { e.stopPropagation(); setOpen(false); }}>
-          <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-2 max-h-[85vh] overflow-y-auto pb-safe">
+          <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 space-y-2 max-h-[85vh] overflow-y-auto pb-safe">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-slate-900 flex items-center gap-2"><MessageCircle className="w-5 h-5 text-[#25D366]" /> Hazır mesaj · {ctx.name}</h3>
               <button onClick={() => setOpen(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-5 h-5 text-slate-500" /></button>

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight } from 'lucide-react';
-import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager, FilterBar } from './ListUI';
+import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
@@ -36,7 +36,7 @@ const emptyForm = { name: '', city: 'Isparta' };
 const PAGE = 25;
 const DEFAULT_SORT: SortState<CustomerSortKey> = { key: 'total', dir: 'desc' };
 
-const trCompare = (a: string, b: string) => a.localeCompare(b, 'tr');
+const trCompare = (a: string, b: string) => compareText(a, b);
 // Arama için Türkçe karakterleri sadeleştir: "isparta", "ISPARTA" ve "Isparta" aynı sonucu versin
 const fold = (s: string) =>
   s
@@ -138,8 +138,14 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     return [...map.entries()].sort((a, b) => b[1] - a[1] || trCompare(a[0], b[0]));
   }, [customers]);
 
-  // Müşteri başına teklif özeti
+  // Müşteri başına teklif özeti (bir kez hesaplanır; arama/sıralama değişince yeniden değil)
+  const statsCache = useMemo(() => new Map<string, ReturnType<typeof calcStats>>(), [quotesByCustomer, rates]); // eslint-disable-line react-hooks/exhaustive-deps
   const statsOf = (c: Customer) => {
+    let st = statsCache.get(c.id);
+    if (!st) { st = calcStats(c); statsCache.set(c.id, st); }
+    return st;
+  };
+  const calcStats = (c: Customer) => {
     const list = quotesOf(c);
     const approved = list.filter(isApproved);
     return {
@@ -152,8 +158,9 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     };
   };
 
+  const deferredSearch = useDeferredValue(search);
   const filtered = useMemo(() => {
-    const q = fold(search.trim());
+    const q = fold(deferredSearch.trim());
     return customers
       .filter(c => cityFilter === 'all' || (c.city || '—') === cityFilter)
       .filter(c => statusFilter === 'all' || statusOf(c) === statusFilter)
@@ -181,7 +188,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         return (sort.dir === 'asc' ? r : -r) || trCompare(a.c.name, b.c.name);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customers, quotesByCustomer, search, cityFilter, quoteFilter, statusFilter, sort, rates, collections]);
+  }, [customers, statsCache, deferredSearch, cityFilter, quoteFilter, statusFilter, sort, rates, collections]);
 
   const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
   const resetFilters = () => {
@@ -319,7 +326,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           </p>
         ) : (<>
           {/* Telefon: kartlar */}
-          <div className="xl:hidden divide-y divide-slate-100 border-t border-slate-100">
+          <NarrowOnly><div className="xl:hidden divide-y divide-slate-100 border-t border-slate-100">
             {pageRows.map(({ c, st }) => (
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
@@ -350,8 +357,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 </div>
               </div>
             ))}
-          </div>
-          <div className="overflow-x-auto hidden xl:block border-t border-slate-100">
+          </div></NarrowOnly>
+          <WideOnly><div className="overflow-x-auto hidden xl:block border-t border-slate-100">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-100">
                 <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
@@ -391,7 +398,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 ))}
               </tbody>
             </table>
-          </div>
+          </div></WideOnly>
         </>)}
         <Pager page={page} total={filtered.length} size={PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           label={<>Toplam {filtered.length.toLocaleString('tr-TR')} müşteri</>} />
@@ -431,12 +438,12 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           <form
             onSubmit={handleSubmit}
             onClick={e => e.stopPropagation()}
-            className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 space-y-3 max-h-[90vh] overflow-y-auto"
+            className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 sm:p-5 pt-0 sm:pt-0 space-y-3 max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-900">{editing ? 'Müşteriyi Düzenle' : 'Yeni Müşteri'}</h3>
-              <button type="button" onClick={() => setIsFormOpen(false)} className="p-1 rounded-lg hover:bg-slate-100">
-                <X className="w-5 h-5 text-slate-500" />
+            <div className="sticky top-0 z-10 -mx-4 sm:-mx-5 mb-1 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between">
+              <h3 className="font-black text-lg tracking-tight">{editing ? 'Müşteriyi Düzenle' : 'Yeni Müşteri'}</h3>
+              <button type="button" onClick={() => setIsFormOpen(false)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat">
+                <X className="w-5 h-5" />
               </button>
             </div>
             <div>

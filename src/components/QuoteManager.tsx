@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays } from 'lucide-react';
-import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager, FilterBar } from './ListUI';
+import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
@@ -110,18 +110,23 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const sortBy = (key: QuoteSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setPage(0); };
 
   // Filtered quotes (newest first). Memoized: there can be thousands of quotes.
+  // Arama dizini: her teklifin aranacak yazıları bir kez sadeleştirilir (her tuşta yeniden değil)
+  const searchIndex = useMemo(() => new Map(quotes.map(qt => {
+    const items = (qt.items || []).map(it => `${it.productName} ${it.code || ''}`);
+    return [qt.id, { head: fold(`${qt.customerName}\n${qt.quoteNumber}\n${qt.city || ''}\n${qt.notes || ''}`), items, itemsF: items.map(fold) }];
+  })), [quotes]);
+  // Yazarken liste bir adım geriden gelir: kutu takılmaz
+  const deferredSearch = useDeferredValue(searchTerm);
   const filteredQuotes = useMemo(() => {
-    const q = fold(searchTerm.trim());
-    const itemMatch = textMatcher(searchTerm);
+    const q = fold(deferredSearch.trim());
+    const itemMatch = q ? textMatcher(deferredSearch) : null;
     return quotes
       .filter((quote) => {
+        const ix = searchIndex.get(quote.id);
         const matchesSearch =
-          !q ||
-          fold(quote.customerName).includes(q) ||
-          fold(quote.quoteNumber).includes(q) ||
-          fold(quote.city || '').includes(q) ||
-          fold(quote.notes || '').includes(q) ||
-          (quote.items || []).some((it) => fold(it.productName).includes(q) || !!itemMatch?.(`${it.productName} ${it.code || ''}`));
+          !q || !ix ||
+          ix.head.includes(q) ||
+          ix.itemsF.some((t, i) => t.includes(q) || !!itemMatch?.(ix.items[i]));
 
         const matchesStatus =
           statusFilter === 'all' ||
@@ -150,7 +155,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         return (sort.dir === 'asc' ? r : -r) || (b.createdAt || '').localeCompare(a.createdAt || '');
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotes, searchTerm, statusFilter, cityFilter, dateFrom, dateTo, sort, netTry]);
+  }, [quotes, searchIndex, deferredSearch, statusFilter, cityFilter, dateFrom, dateTo, sort, netTry]);
 
   const cities = useMemo(
     () => [...new Set(quotes.map((q) => q.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr')),
@@ -285,7 +290,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         )}
 
         {/* Telefon: kartlar */}
-        <div className="xl:hidden divide-y divide-slate-100 mt-1">
+        <NarrowOnly><div className="xl:hidden divide-y divide-slate-100 mt-1">
           {pageRows.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Arama kriterine uygun teklif bulunamadı.</p>}
           {pageRows.map(quote => (
             <div key={quote.id} className="p-3 space-y-2">
@@ -317,10 +322,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               </div>
             </div>
           ))}
-        </div>
+        </div></NarrowOnly>
 
         {/* Tablet / bilgisayar: tablo */}
-        <div className="hidden xl:block overflow-x-auto mt-1">
+        <WideOnly><div className="hidden xl:block overflow-x-auto mt-1">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-100">
               <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
@@ -367,7 +372,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               ))}
             </tbody>
           </table>
-        </div>
+        </div></WideOnly>
         <Pager page={page} total={filteredQuotes.length} size={LIST_PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           label={<>Toplam {filteredQuotes.length.toLocaleString('tr-TR')} teklif</>} />
       </div>
@@ -386,31 +391,32 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
       {/* Quote Detail & Action Modal */}
       {selectedQuote && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setSelectedQuote(null)}>
+          <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl sm:rounded-3xl h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto shadow-2xl">
             
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-start justify-between bg-slate-50/80 rounded-t-2xl">
+            <div className="sticky top-0 z-10 px-4 sm:px-6 py-4 pt-safe-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded">
+                  <span className="text-xs font-mono font-bold bg-white/15 text-white px-2 py-0.5 rounded-md">
                     {selectedQuote.quoteNumber}
                   </span>
-                  <span className="text-xs font-bold text-slate-700">
-                    {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-slate-500">KDV dahil</span>
+                  <span className="text-xs font-bold text-white">
+                    {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-sky-200/80">KDV dahil</span>
                   </span>
                 </div>
                 <button onClick={() => { setCustomerView(selectedQuote.customerName); setSelectedQuote(null); }} title="Müşterinin tüm teklifleri"
-                  className="text-lg font-black text-slate-900 mt-1 text-left hover:text-brand-700 hover:underline underline-offset-2">
+                  className="text-lg sm:text-[22px] font-black tracking-tight text-white mt-1 text-left hover:underline underline-offset-2">
                   {selectedQuote.customerName}
                 </button>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-sky-200/80">
                   {selectedQuote.city}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedQuote(null)}
-                className="p-1 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200 text-lg font-bold"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0 text-base font-bold"
+                aria-label="Kapat"
               >
                 ✕
               </button>
@@ -620,16 +626,16 @@ export const CustomerQuotes: React.FC<{
   ];
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
-        <div className="px-4 pb-4 pt-safe bg-gradient-to-br from-brand-700 to-brand-500 text-white sm:rounded-t-2xl">
+      <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-3xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
+        <div className="px-4 sm:px-6 pb-4 pt-safe bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white">
           <div className="pt-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="text-lg font-black leading-tight truncate">{name}</h3>
-              <p className="text-xs text-brand-100">
+              <h3 className="text-lg sm:text-[22px] font-black tracking-tight leading-tight truncate">{name}</h3>
+              <p className="text-xs text-sky-200/80">
                 {city || '—'}{first ? ` · ilk teklif ${new Date(first).toLocaleDateString('tr-TR')}` : ''}
               </p>
             </div>
-            <button onClick={onClose} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/15 text-lg font-bold leading-none" aria-label="Kapat">✕</button>
+            <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0 text-base font-bold leading-none" aria-label="Kapat">✕</button>
           </div>
           {/* Onay oranı çubuğu */}
           {list.length > 0 && (
@@ -637,7 +643,7 @@ export const CustomerQuotes: React.FC<{
               <div className="h-1.5 rounded-full bg-white/20 overflow-hidden">
                 <div className="h-full rounded-full bg-accent-400" style={{ width: `${rate}%` }} />
               </div>
-              <div className="mt-1 text-[11px] text-brand-100">Tekliflerin %{rate}'i onaylandı</div>
+              <div className="mt-1 text-[11px] text-sky-200/80">Tekliflerin %{rate}'i onaylandı</div>
             </div>
           )}
         </div>

@@ -1,3 +1,5 @@
+import { trNum } from '../lib/num';
+import { WideOnly, useWide } from './ListUI';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, X, ChevronRight, Loader2, Eye } from 'lucide-react';
 import { Collection, Customer, Expense, Quote } from '../types';
@@ -30,7 +32,7 @@ const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 const quoteDay = (q: Quote) => ymd(new Date(q.createdAt));
 const monthLabel = (ym: string) => `${MONTHS_TR[Number(ym.slice(5, 7)) - 1]} ${ym.slice(2, 4)}`;
 
-const tl = (v: number) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`;
+const tl = (v: number) => `${trNum(v, { maximumFractionDigits: 0 })} TL`;
 const money = (v: number, c: Currency) =>
   `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c]}`;
 const pct = (a: number, b: number) => (b > 0 ? `%${((a / b) * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}` : '-');
@@ -163,7 +165,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
 
 // ---------- Telefon için tablo yerine kart listesi ----------
 interface MobileRow { key: string; title: React.ReactNode; aside?: React.ReactNode; fields: [string, React.ReactNode][] }
-const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, empty = 'Bu dönemde veri yok.' }) => (
+const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, empty = 'Bu dönemde veri yok.' }) => useWide() ? null : (
   <div className="xl:hidden divide-y divide-slate-100 border-t border-slate-200">
     {rows.length === 0 && <p className="py-6 text-center text-xs text-slate-500">{empty}</p>}
     {rows.map(r => (
@@ -278,17 +280,17 @@ const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; val
 /** Kutucuğa tıklayınca açılan liste (aynı tablo PDF'e de basılır) */
 const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: boolean; onPrint: () => void; onClose: () => void }> = ({ section, period, busy, onPrint, onClose }) => (
   <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-    <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-5xl rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] flex flex-col">
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
+    <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-5xl rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white">
         <div className="min-w-0">
-          <h3 className="font-black text-slate-900 truncate">{section.heading}</h3>
-          <p className="text-xs text-slate-500">{period} · {section.rows.length.toLocaleString('tr-TR')} kayıt</p>
+          <h3 className="font-black text-lg tracking-tight truncate">{section.heading}</h3>
+          <p className="text-xs text-sky-200/80">{period} · {section.rows.length.toLocaleString('tr-TR')} kayıt</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={onPrint} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
+          <button onClick={onPrint} disabled={busy} className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-white text-xs font-bold">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />} PDF Gör
           </button>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
       </div>
       {section.foot && (
@@ -735,7 +737,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             ['Tahsilat', r.collected ? tl(r.collected) : '-'],
           ] as [string, React.ReactNode][],
         }))} />
-        <div className="overflow-x-auto hidden xl:block">
+        <WideOnly><div className="overflow-x-auto hidden xl:block">
           <table className="w-full text-right text-xs sm:text-sm tabular-nums">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
               <tr>
@@ -767,7 +769,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
               )}
             </tbody>
           </table>
-        </div>
+        </div></WideOnly>
         {customerRows.length > custLimit && (
           <div className="p-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>{custLimit} / {customerRows.length} firma</span>

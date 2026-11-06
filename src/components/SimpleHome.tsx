@@ -1,3 +1,4 @@
+import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, FileText, ListChecks, Building2, Phone, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
@@ -12,9 +13,9 @@ type Tab = Exclude<ActiveTab, 'home'>;
 /** Teklifler sayfasını süzülmüş açar: durum (all, aktif, takip, onaylandi, iptal) ve tarih aralığı */
 export type QuoteView = { status: string; from?: string; to?: string };
 
-const tl = (v: number) => `${Math.round(v).toLocaleString('tr-TR')} TL`;
-const lira = (v: number) => `₺ ${Math.round(v).toLocaleString('tr-TR')}`;
-const short = (v: number) => v >= 1e6 ? `${(v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}M` : v >= 1e3 ? `${Math.round(v / 1e3).toLocaleString('tr-TR')}B` : `${Math.round(v)}`;
+const tl = (v: number) => `${trNum(Math.round(v))} TL`;
+const lira = (v: number) => `₺ ${trNum(Math.round(v))}`;
+const short = (v: number) => v >= 1e6 ? `${trNum((v / 1e6), { maximumFractionDigits: 1 })}M` : v >= 1e3 ? `${trNum(Math.round(v / 1e3))}B` : `${Math.round(v)}`;
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const AY = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -311,7 +312,7 @@ export const SimpleHome: React.FC<{
   );
 };
 
-const money = (v: number, cur: string) => cur === 'USD' ? `$${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}` : cur === 'EUR' ? `€${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}` : `${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺`;
+const money = (v: number, cur: string) => cur === 'USD' ? `$${trNum(v, { maximumFractionDigits: 2 })}` : cur === 'EUR' ? `€${trNum(v, { maximumFractionDigits: 2 })}` : `${trNum(v, { maximumFractionDigits: 2 })} ₺`;
 
 /** Bugün yapılacaklar: takip bekleyen teklifler (telefonla ara) ve yaklaşan çek/senet vadeleri */
 const TodoCard: React.FC<{

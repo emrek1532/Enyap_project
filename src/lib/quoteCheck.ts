@@ -11,6 +11,7 @@
  *   Ayrı hafıza tutulmaz; geçmiş teklifler anında okunur (`quote_brand_ref`).
  * - Vade: peşin (PEŞİN / KREDİ KARTI) teklif yalnız peşin tekliflerle, vadeli (GÜN'lü ya da vadesi boş) yalnız vadelilerle karşılaştırılır.
  */
+import { trNum } from './num';
 import { supabase } from './supabase';
 import { CatalogHit, PdfQuote, catalogLookup } from './pdfQuote';
 import { Quote, QuoteItem } from '../types';
@@ -43,8 +44,8 @@ export interface Suggestion { id: number; list: string; name: string; price: num
 
 interface ListHit { list_id: string; price: number; currency: string; our_code: string }
 
-const fmt = (v: number, cur = '') => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (cur ? ` ${cur === 'TRY' ? 'TL' : cur}` : '');
-const pct = (v: number) => `%${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}`;
+const fmt = (v: number, cur = '') => trNum(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (cur ? ` ${cur === 'TRY' ? 'TL' : cur}` : '');
+const pct = (v: number) => `%${trNum(v, { maximumFractionDigits: 2 })}`;
 const day = (iso: string) => (iso || '').slice(0, 10).split('-').reverse().join('.');
 const levelOf = (issues: CheckIssue[]): CheckLevel => (issues.some(x => x.level === 'warn') ? 'warn' : issues.length ? 'info' : 'ok');
 const priceEq = (a: number, b: number) => Math.abs(a - b) <= Math.max(0.011, b * 0.005);

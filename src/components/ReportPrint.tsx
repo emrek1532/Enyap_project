@@ -287,13 +287,13 @@ export function useReportSender() {
   };
   const modal = preview && createPortal(
     <div className="fixed inset-0 z-[60] bg-slate-900/70 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setPreview(null)}>
-      <div onClick={e => e.stopPropagation()} className="bg-slate-100 w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-[92vh] overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200 pt-safe">
+      <div onClick={e => e.stopPropagation()} className="bg-[#f4f8fc] w-full sm:max-w-3xl sm:rounded-3xl shadow-2xl flex flex-col h-full sm:h-[92vh] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white pt-safe-4">
           <div className="min-w-0 flex-1">
-            <h3 className="font-black text-slate-900 truncate">{preview.title}</h3>
-            <p className="text-xs text-slate-500">{preview.pages.length} sayfa · göndermeden önce kontrol edin</p>
+            <h3 className="font-black text-lg tracking-tight truncate">{preview.title}</h3>
+            <p className="text-xs text-sky-200/80">{preview.pages.length} sayfa · göndermeden önce kontrol edin</p>
           </div>
-          <button onClick={() => setPreview(null)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button onClick={() => setPreview(null)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {preview.pages.map((src, i) => (

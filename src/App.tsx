@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Loader2, Plus } from 'lucide-react';
 import {
@@ -35,10 +35,6 @@ import { findCustomer } from './lib/customers';
 import { AuthScreen } from './components/AuthScreen';
 import { Header, BandTools } from './components/Header';
 import type { ActiveTab } from './components/Sections';
-import { QuoteManager } from './components/QuoteManager';
-import { QuickNotesPanel } from './components/QuickNotesPanel';
-import { PrintableQuoteModal } from './components/PrintableQuoteModal';
-import { LedgerPanel } from './components/LedgerPanel';
 import { PageHeader, SECTION_META, SECTION_SUB } from './components/Sections';
 import { Sidebar } from './components/Sidebar';
 import { needsFollowUp } from './lib/quoteRules';
@@ -46,15 +42,32 @@ import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
 import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
 import { BottomNav } from './components/BottomNav';
-import { MaterialsPanel } from './components/MaterialsPanel';
-import { ReportsPanel } from './components/ReportsPanel';
-import { NewQuoteModal } from './components/NewQuoteModal';
-import { CustomersPanel } from './components/CustomersPanel';
 import { readQuotePdf } from './lib/pdfQuote';
 import { AccessContext, Module, Profile, can, fetchMyProfile } from './lib/access';
 import { AdminPanel, PendingScreen } from './components/AdminPanel';
 import { useRates } from './lib/rates';
 import { pageStats } from './lib/pageStats';
+
+// Ekranlar ihtiyaç anında yüklenir (ilk açılış hızlı); açıldıktan sonra boşta hepsi önceden indirilir
+const loaders = {
+  quotes: () => import('./components/QuoteManager'),
+  notes: () => import('./components/QuickNotesPanel'),
+  print: () => import('./components/PrintableQuoteModal'),
+  ledger: () => import('./components/LedgerPanel'),
+  materials: () => import('./components/MaterialsPanel'),
+  reports: () => import('./components/ReportsPanel'),
+  newQuote: () => import('./components/NewQuoteModal'),
+  customers: () => import('./components/CustomersPanel'),
+};
+const QuoteManager = lazy(() => loaders.quotes().then(m => ({ default: m.QuoteManager })));
+const QuickNotesPanel = lazy(() => loaders.notes().then(m => ({ default: m.QuickNotesPanel })));
+const PrintableQuoteModal = lazy(() => loaders.print().then(m => ({ default: m.PrintableQuoteModal })));
+const LedgerPanel = lazy(() => loaders.ledger().then(m => ({ default: m.LedgerPanel })));
+const MaterialsPanel = lazy(() => loaders.materials().then(m => ({ default: m.MaterialsPanel })));
+const ReportsPanel = lazy(() => loaders.reports().then(m => ({ default: m.ReportsPanel })));
+const NewQuoteModal = lazy(() => loaders.newQuote().then(m => ({ default: m.NewQuoteModal })));
+const CustomersPanel = lazy(() => loaders.customers().then(m => ({ default: m.CustomersPanel })));
+const PageSpinner = () => <div className="py-16 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-brand-500" /></div>;
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -62,8 +75,10 @@ export default function App() {
 
   // Teklif PDF'i (Gönder) için gereken kütüphaneler uygulama açıldıktan sonra arka planda indirilir
   useEffect(() => {
+    // Ekran dosyaları hemen ardından (sekme değişimi beklemesiz olsun), PDF kütüphaneleri biraz sonra
+    const t0 = window.setTimeout(() => { Object.values(loaders).forEach(f => { f().catch(() => {}); }); }, 1500);
     const t = window.setTimeout(() => { import('html2canvas-pro'); import('jspdf'); }, 4000);
-    return () => window.clearTimeout(t);
+    return () => { window.clearTimeout(t0); window.clearTimeout(t); };
   }, []);
 
   useEffect(() => {
@@ -784,6 +799,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         )}
         
 
+        <Suspense fallback={<PageSpinner />}>
         {/* Tab 1: Teklifler (Kanban & List) */}
         {activeTab === 'quotes' && (
           <QuoteManager
@@ -882,7 +898,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           />
         )}
 
-
+        </Suspense>
       </main>
 
       <BottomNav
@@ -910,6 +926,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         />
       )}
 
+      <Suspense fallback={null}>
       {/* MODALS */}
       {/* 1. New Quote Modal */}
       {isNewQuoteOpen && (
@@ -968,6 +985,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           onClose={() => setPrintableQuote(null)}
         />
       )}
+      </Suspense>
 
     </div>
   );

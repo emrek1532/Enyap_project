@@ -70,6 +70,13 @@
 @utility pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+/* Pencere başlıkları: telefonda çentik payı + 0.75/1rem boşluk */
+@utility pt-safe-3 {
+  padding-top: calc(0.75rem + env(safe-area-inset-top));
+}
+@utility pt-safe-4 {
+  padding-top: calc(1rem + env(safe-area-inset-top));
+}
 
 /* Safety net: never let a stray element widen the page on phones */
 html, body {

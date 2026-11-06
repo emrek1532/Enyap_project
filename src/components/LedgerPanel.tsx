@@ -1,5 +1,5 @@
-import { listCard, SearchBox, FilterBar } from './ListUI';
-import React, { useEffect, useMemo, useState } from 'react';
+import { listCard, SearchBox, FilterBar, WideOnly, NarrowOnly } from './ListUI';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, Send, Loader2, Camera } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
@@ -11,16 +11,8 @@ import { PrintDoc, useReportSender } from './ReportPrint';
 import { SuggestInput } from './SuggestInput';
 
 export const COLLECTION_METHODS = ['Çek', 'Nakit', 'Havale/EFT', 'Kredi Kartı', 'Senet'];
-export const EXPENSE_METHODS = ['Kredi Kartı **9973', 'UTTS', 'Şahsi', 'Şirket', 'Nakit', 'Havale/EFT'];
-// Harcama türleri (Google Sheet "Harcamalar" ile aynı); ayrıntı (şehir, gece, otopark…) açıklamaya yazılır
-export const EXPENSE_CATEGORIES = ['Yemek', 'Yakıt', 'İkramlık', 'Konaklama', 'Adblue', 'Diğer'];
-/** Çek bankaları (öneri listesi; kayıtlardaki yazımlarla uyumlu) */
-export const BANKS = [
-  'Halkbank', 'Ziraat Bankası', 'Vakıfbank', 'Garanti Bankası', 'İş Bankası', 'Yapı Kredi', 'Akbank',
-  'QNB Bank', 'Denizbank', 'TEB Bankası', 'Kuveyttürk', 'Vakıf Katılım', 'Ziraat Katılım', 'Emlak Katılım',
-  'Türkiye Finans', 'Albaraka Bankası', 'Şekerbank', 'ING Bank', 'HSBC', 'Fibabanka', 'Odeabank',
-  'Anadolubank', 'Alternatif Bank', 'Burgan Bank', 'ICBC Turkey', 'Enpara',
-];
+export { EXPENSE_METHODS, EXPENSE_CATEGORIES, BANKS } from '../lib/constants';
+import { EXPENSE_METHODS, EXPENSE_CATEGORIES, BANKS } from '../lib/constants';
 /** Vadesi olan tahsilat şekilleri */
 const HAS_DUE = ['Çek', 'Senet'];
 
@@ -41,7 +33,7 @@ interface LedgerPanelProps {
   onStartNewHandled?: () => void;
 }
 
-const LIST_PAGE = 50;
+const LIST_PAGE = 25;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
 
 const today = () => {
@@ -49,8 +41,8 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const fmtDate = (s?: string) => (s ? s.split('-').reverse().join('.') : '-');
-const money = (v: number, c: Currency) =>
-  `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c]}`;
+const nf2 = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (v: number, c: Currency) => `${nf2.format(v)} ${CURRENCY_LABEL[c]}`;
 const fold = (s: string) => s.toLocaleLowerCase('tr').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
 
 /** Yazılana göre öneriler: tüm kelimeler geçmeli, yazılanla başlayanlar önce; birebir eşleşmede liste kapanır */
@@ -138,11 +130,14 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
   }, [records]);
   const regions = useMemo(() => (isCollection ? [] : withExisting([], records.map(r => (r as Expense).region)).sort((a, b) => a.localeCompare(b, 'tr'))), [records, isCollection]);
 
+  // Aranacak yazılar bir kez sadeleştirilir; liste yazarken bir adım geriden gelir (kutu takılmaz)
+  const searchIndex = useMemo(() => new Map(records.map(r => [r.id, fold(searchText(r))])), [records]); // eslint-disable-line react-hooks/exhaustive-deps
+  const deferredSearch = useDeferredValue(search);
   const filtered = useMemo(() => {
-    const q = fold(search.trim());
+    const q = fold(deferredSearch.trim());
     return records
       .filter(r => {
-        if (q && !fold(searchText(r)).includes(q)) return false;
+        if (q && !(searchIndex.get(r.id) ?? '').includes(q)) return false;
         if (dateFrom && r.date < dateFrom) return false;
         if (dateTo && r.date > dateTo) return false;
         if (methodFilter !== 'all' && r.method !== methodFilter) return false;
@@ -163,7 +158,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
         if (sortMode === 'added') return (b.createdAt || '').localeCompare(a.createdAt || '') || (b.date || '').localeCompare(a.date || '');
         return (b.date || '').localeCompare(a.date || '') || b.createdAt.localeCompare(a.createdAt);
       });
-  }, [records, search, dateFrom, dateTo, methodFilter, categoryFilter, regionFilter, currencyFilter, dueFilter, todayStr, sortMode]);
+  }, [records, searchIndex, deferredSearch, dateFrom, dateTo, methodFilter, categoryFilter, regionFilter, currencyFilter, dueFilter, todayStr, sortMode]);
 
   const filteredTotals = useMemo(() => sumByCurrency(filtered), [filtered]);
   const hasFilters = !!(search || dateFrom || dateTo || methodFilter !== 'all' || categoryFilter !== 'all' || regionFilter !== 'all' || currencyFilter !== 'all' || dueFilter !== 'all');
@@ -472,15 +467,15 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       {/* Liste */}
       <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         {/* Telefon: kart görünümü */}
-        <div className="xl:hidden divide-y divide-slate-100">
+        <NarrowOnly><div className="xl:hidden divide-y divide-slate-100">
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-slate-500">
               {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok.` : 'Filtrelere uygun kayıt bulunamadı.'}
             </p>
           )}
           {groups.map(g => (g.items.length === 1 || !merge ? g.items.map(mobileItem) : mobileGroup(g)))}
-        </div>
-        <div className="overflow-x-auto hidden xl:block">
+        </div></NarrowOnly>
+        <WideOnly><div className="overflow-x-auto hidden xl:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
               <tr>
@@ -504,7 +499,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
               )}
             </tbody>
           </table>
-        </div>
+        </div></WideOnly>
         {filtered.length > limit && (
           <div className="p-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>{limit} / {filtered.length} kayıt gösteriliyor</span>
@@ -604,10 +599,10 @@ const LedgerForm: React.FC<{
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        <div className="p-4 bg-brand-600 text-white flex items-center justify-between">
-          <h3 className="font-black text-base">{title}</h3>
-          <button type="button" onClick={onCancel} className="p-1 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700"><X className="w-5 h-5" /></button>
+        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between">
+          <h3 className="font-black text-lg tracking-tight">{title}</h3>
+          <button type="button" onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-4 space-y-3 overflow-y-auto text-sm">
           <div className="grid grid-cols-2 gap-3">
@@ -829,10 +824,10 @@ const MultiCollectionForm: React.FC<{
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-5xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
-        <div className="p-4 bg-brand-600 text-white flex items-center justify-between">
-          <h3 className="font-black text-base">Yeni Tahsilat</h3>
-          <button type="button" onClick={onCancel} className="p-1 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700"><X className="w-5 h-5" /></button>
+        className="bg-white w-full sm:max-w-5xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between">
+          <h3 className="font-black text-lg tracking-tight">Yeni Tahsilat</h3>
+          <button type="button" onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-3 sm:p-4 space-y-3 overflow-y-auto text-sm">
           <div className="grid grid-cols-2 sm:grid-cols-[9.5rem_1fr_10rem] gap-2">
@@ -1008,14 +1003,14 @@ const MultiExpenseForm: React.FC<{
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-6xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
-        <div className="p-4 bg-brand-600 text-white flex items-center justify-between">
-          <h3 className="font-black text-base flex-1">Yeni Harcama</h3>
+        className="bg-white w-full sm:max-w-6xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between">
+          <h3 className="font-black text-lg tracking-tight flex-1">Yeni Harcama</h3>
           <label className="mr-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold cursor-pointer" title="Fişin fotoğrafını çekin: tutar, tarih ve tür kendiliğinden dolar">
             <Camera className="w-4 h-4" /> Fişten oku
             <input type="file" accept="image/*" capture="environment" multiple hidden onChange={e => { fromReceipts(e.target.files); e.target.value = ''; }} />
           </label>
-          <button type="button" onClick={onCancel} className="p-1 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-3 sm:p-4 space-y-3 overflow-y-auto text-sm">
           {scan && <p className="text-xs rounded-lg px-3 py-2 bg-sky-50 text-sky-900 border border-sky-200">{scan}</p>}

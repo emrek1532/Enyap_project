@@ -76,4 +76,5 @@ export function quoteTry(q: Quote, r: Rates): number {
   return tr + usd * r.USD + eur * r.EUR;
 }
 
-export const formatTl = (v: number) => `${Math.round(v).toLocaleString('tr-TR')} TL`;
+const nfInt = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 });
+export const formatTl = (v: number) => `${nfInt.format(Math.round(v))} TL`;

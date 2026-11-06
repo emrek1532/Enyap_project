@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { canRecord, startRecording, RecordingHandle } from '../lib/recorder';
 import { canSpeech, listen, SpeechSession } from '../lib/speech';
 import { localDay } from '../lib/dates';
-import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from './LedgerPanel';
+import { BANKS, EXPENSE_CATEGORIES, EXPENSE_METHODS } from '../lib/constants';
 import { TURKISH_CITIES } from '../lib/cities';
 
 export type VoiceResult =

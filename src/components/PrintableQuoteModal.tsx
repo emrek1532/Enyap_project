@@ -404,19 +404,19 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
     <div className="fixed inset-0 bg-slate-900/70 z-50 flex flex-col">
       <style>{PAGE_CSS}</style>
 
-      <div className="no-print p-3 bg-brand-600 text-white flex items-center justify-between gap-2 shrink-0">
-        <span className="font-bold text-sm sm:text-base truncate">Fiyat Teklifi · {quote.quoteNumber}</span>
+      <div className="no-print px-4 py-3 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between gap-2 shrink-0">
+        <span className="font-black text-base sm:text-lg tracking-tight truncate">Fiyat Teklifi · {quote.quoteNumber}</span>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={sendPdf}
             disabled={pdfState !== 'ready'}
             title={pdfState === 'error' ? 'PDF hazırlanamadı' : 'PDF olarak gönder (WhatsApp, e-posta…)'}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-bold text-xs sm:text-sm shadow-sm disabled:opacity-60"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-bold text-xs sm:text-sm shadow-sm disabled:opacity-60"
           >
             {pdfState === 'busy' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
             <span>{pdfState === 'busy' ? 'PDF hazırlanıyor' : pdfState === 'error' ? 'PDF hatası' : 'Gönder'}</span>
           </button>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700">
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>

@@ -1,3 +1,4 @@
+import { trNum } from '../lib/num';
 import React, { useEffect, useRef, useState } from 'react';
 import { Eye, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { listCard, ctrl, rowCls, SearchBox, IconBtn, Pager } from './ListUI';
@@ -10,7 +11,7 @@ import { supabase } from '../lib/supabase';
 import { fetchSupplierLists } from '../lib/suppliers';
 import { can, useAccess } from '../lib/access';
 import { Quote } from '../types';
-import { STATUS_LABEL } from './CustomerAccount';
+import { STATUS_LABEL } from '../lib/constants';
 import { dayOf } from '../lib/dates';
 
 const PAGE = 25;
@@ -230,7 +231,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
   );
 };
 
-const money = (v: number, c: string) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as Currency] || c}`;
+const money = (v: number, c: string) => `${trNum(v, { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as Currency] || c}`;
 
 /** Malzemeye tıklayınca: bu malzemeyi kime, ne zaman, kaç adet, kaçtan teklif ettik / sattık (yeni → eski) */
 const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => void; onOpenQuote?: (q: Quote) => void }> = ({ m, quotes, onClose, onOpenQuote }) => {
@@ -245,17 +246,17 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
   const firms = new Set(sold.map(r => r.q.customerName.trim().toLocaleLowerCase('tr'))).size;
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-2xl max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="p-4 border-b border-slate-100 flex items-start gap-3">
+      <div className="bg-white w-full sm:max-w-2xl max-h-[90vh] flex flex-col rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[11px] text-slate-500">{m.code}</div>
-            <h3 className="font-black text-slate-900 leading-snug">{m.name}</h3>
-            <div className="text-xs text-slate-500 mt-1">
-              Satılan <b className="text-emerald-700">{sum(sold).toLocaleString('tr-TR')} {m.unit.toLocaleLowerCase('tr')}</b> ({sold.length} teklif, {firms} firma)
-              {' · '}teklif edilen <b className="text-slate-800">{sum(rows).toLocaleString('tr-TR')}</b> ({rows.length} teklif)
+            <div className="font-mono text-[11px] text-sky-200/80">{m.code}</div>
+            <h3 className="font-black text-lg tracking-tight leading-snug">{m.name}</h3>
+            <div className="text-xs text-sky-100/90 mt-1">
+              Satılan <b className="text-emerald-300">{sum(sold).toLocaleString('tr-TR')} {m.unit.toLocaleLowerCase('tr')}</b> ({sold.length} teklif, {firms} firma)
+              {' · '}teklif edilen <b className="text-white">{sum(rows).toLocaleString('tr-TR')}</b> ({rows.length} teklif)
             </div>
           </div>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
         <div className="overflow-y-auto divide-y divide-slate-100">
           {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-500">Bu malzeme henüz hiçbir teklifte yok.</p>}
@@ -314,13 +315,13 @@ const MaterialForm: React.FC<{
       <form
         onSubmit={submit}
         onClick={e => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] overflow-y-auto"
+        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-          <h3 className="font-black text-slate-900 flex items-center gap-2">
-            <Package className="w-4 h-4 text-teal-600" /> {originalCode ? 'Malzemeyi Düzenle' : 'Yeni Malzeme'}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white">
+          <h3 className="font-black text-lg tracking-tight flex items-center gap-2">
+            <Package className="w-5 h-5 text-sky-300" /> {originalCode ? 'Malzemeyi Düzenle' : 'Yeni Malzeme'}
           </h3>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
