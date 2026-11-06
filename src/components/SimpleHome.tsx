@@ -146,7 +146,7 @@ export const SimpleHome: React.FC<{
   const firstName = userName.split(/\s+/)[0] || userName;
 
   // Son teklifler (en yeni 5) ve yaklaşan ödemeler
-  const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5), [quotes]);
+  const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 8), [quotes]);
   // Yalnız çek ve senet (vadeli tahsilatlar); bugün ve sonrası, en yakın vade önce
   // Zil: tekrar görüşülmesi gereken (3 günü geçmiş bekleyen) teklifler, en eskisi önce
   const follow = useMemo(() => quotes.filter(needsFollowUp).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')), [quotes]);
@@ -299,9 +299,9 @@ export const SimpleHome: React.FC<{
       </section>
 
       {/* Telefonda sıra: yapılacaklar, grafik, son teklifler, hedef, iller; bilgisayarda solda grafik + son teklifler, sağda diğerleri */}
-      <div className="grid gap-4 sm:gap-5 items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_target'_'recent_city'_'recent_.']">
+      <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_side']">
         {(canQuotes || canMoney) && (
-          <div className="lg:[grid-area:todo] min-w-0">
+          <div className="lg:[grid-area:todo] min-w-0 flex flex-col">
             <TodoCard follow={canQuotes ? follow : []} dues={canMoney ? dues : []} today={t} rates={rates}
               onOpenQuote={onOpenQuote} onAllFollow={() => openQuotes({ status: 'takip' })} onAllDues={() => onOpen('collections')} />
           </div>
@@ -325,16 +325,18 @@ export const SimpleHome: React.FC<{
             <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
           </Card>
         )}
-        {(canQuotes || canMoney) && !isYear && (
-          <Card className="lg:[grid-area:target]" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
-            <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
-          </Card>
-        )}
-        {canQuotes && (
-          <Card className="lg:[grid-area:city]" title="En Çok İş Yapılan Firmalar" icon={Building2} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
-            <FirmsCard firms={s.firms} onOpen={onOpenCustomer} />
-          </Card>
-        )}
+        <div className="lg:[grid-area:side] min-w-0 flex flex-col gap-4 sm:gap-5">
+          {(canQuotes || canMoney) && !isYear && (
+            <Card title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
+              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
+            </Card>
+          )}
+          {canQuotes && (
+            <Card className="flex-1" title="En Çok İş Yapılan Firmalar" icon={Building2} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
+              <FirmsCard firms={s.firms} onOpen={onOpenCustomer} />
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -351,7 +353,7 @@ const TodoCard: React.FC<{
   const week = dues.filter(c => (c.dueDate || '') <= plus(7));
   const head = 'flex items-center justify-between gap-2 px-4 sm:px-5 pt-3 pb-1.5';
   return (
-    <section className="bg-white rounded-3xl border border-slate-200/70 shadow-[0_14px_34px_-26px_rgba(15,60,120,0.6)] min-w-0 overflow-hidden">
+    <section className="flex-1 bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden">
       <header className="px-4 sm:px-5 pt-4 pb-1">
         <h2 className="text-base font-black text-[#0b2a4c] flex items-center gap-2"><ListChecks className="w-5 h-5 text-brand-500" />Bugün yapılacaklar</h2>
       </header>
@@ -418,7 +420,7 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
   ];
   const total = rows.reduce((a, r) => a + r.x.value, 0);
   return (
-    <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
+    <div className="mt-auto mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-slate-600">{title} teklifleri</p>
         <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#0b2a4c]">%{conv}</b></p>
@@ -467,7 +469,7 @@ const FirmsCard: React.FC<{ firms: { name: string; onay: number; teklif: number;
 
 /** Beyaz kart: simge + başlık, sağda isteğe bağlı bağlantı/sekme */
 const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, icon: Icon, right, className = '', children }) => (
-  <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 ${className}`}>
+  <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 flex flex-col ${className}`}>
     <header className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 pt-4 pb-2.5">
       <h2 className="text-[15px] sm:text-base font-black text-[#0b2a4c] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-brand-500 shrink-0" />}<span className="truncate">{title}</span></h2>
       {right}
@@ -563,11 +565,11 @@ const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRate
       <div className={`${cols} px-2 py-2 rounded-xl bg-slate-50 text-[11px] sm:text-xs font-medium text-slate-500`}>
         <span>Firma Adı · Tarih</span><span className="text-right">Tutar</span><span className="text-center">Durum</span>
       </div>
-      {quotes.map(q => {
+      {quotes.map((q, i) => {
         const [label, cls, Icon] = STATUS_BADGE[q.status] || [q.status, 'bg-slate-50 text-slate-600', Clock];
         const d = dayOf(q.createdAt);
         return (
-          <button key={q.id} onClick={() => onOpen(q)} className={`${cols} w-full px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl`}>
+          <button key={q.id} onClick={() => onOpen(q)} className={`${i >= 5 ? cols.replace('grid ', 'hidden lg:grid ') : cols} w-full px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl`}>
             <span className="min-w-0">
               <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
               <span className="block text-[11px] text-slate-500 tabular-nums">{d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
