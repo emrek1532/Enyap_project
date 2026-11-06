@@ -709,13 +709,13 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         active={activeTab}
         onOpen={id => setActiveTab(id as ActiveTab)}
         onHome={goHome}
-        onSignOut={handleSignOut}
+        tools={<BandTools syncStatus={syncStatus} onSync={() => performSync(true)} onSearch={() => openTool('search')} onSignOut={handleSignOut} userEmail={userEmail} />}
         userName={userName}
         userEmail={userEmail}
         roleLabel={roleLabel}
       />
 
-      {/* Bilgisayar/tablette üst çubuk yok: ara, eşitle, bildirim, kılavuz, çıkış ve sürüm sayfanın koyu bandında */}
+      {/* Bilgisayar/tablette üst çubuk yok: ara, eşitle, bildirim, kılavuz, çıkış sol menünün altında; sürüm koyu bantta */}
       <div className="sticky top-0 z-30 md:hidden">
       <Header
         syncStatus={syncStatus}
@@ -780,7 +780,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onBack={goBack}
             onHome={goHome}
             stats={headStats}
-            tools={<BandTools syncStatus={syncStatus} onSync={() => performSync(true)} onSearch={() => openTool('search')} onSignOut={handleSignOut} userEmail={userEmail} />}
           />
         )}
         

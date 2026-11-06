@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, LogOut } from 'lucide-react';
+import { Home } from 'lucide-react';
 
 export type SideSection = { id: string; title: string; icon: React.ElementType };
 
@@ -8,7 +8,8 @@ export const initials = (name: string) =>
   name.trim().split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toLocaleUpperCase('tr-TR')).join('') || '?';
 
 /**
- * Bilgisayarda (md ve üstü) soldaki koyu menü: logo, bölümler, altta kullanıcı kartı.
+ * Bilgisayarda (md ve üstü) soldaki koyu menü: logo, bölümler, altta kullanıcı kartı
+ * (kartın altında ara, eşitle, bildirim, kılavuz, çıkış düğmeleri: `tools`).
  * Telefonda gizlidir; orada alttaki menü kullanılır.
  */
 export const Sidebar: React.FC<{
@@ -16,11 +17,11 @@ export const Sidebar: React.FC<{
   active: string;
   onOpen: (id: string) => void;
   onHome: () => void;
-  onSignOut: () => void;
+  tools?: React.ReactNode;
   userName: string;
   userEmail: string;
   roleLabel: string;
-}> = ({ sections, active, onOpen, onHome, onSignOut, userName, userEmail, roleLabel }) => {
+}> = ({ sections, active, onOpen, onHome, tools, userName, userEmail, roleLabel }) => {
   const item = (id: string, title: string, Icon: React.ElementType, onClick: () => void) => {
     const on = active === id;
     return (
@@ -42,15 +43,15 @@ export const Sidebar: React.FC<{
         {item('home', 'Ana Sayfa', Home, onHome)}
         {sections.map(s => item(s.id, s.title, s.icon, () => onOpen(s.id)))}
       </nav>
-      <div className="m-3 p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
-        <span className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-brand-600 flex items-center justify-center text-sm font-black shrink-0">{initials(userName)}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold truncate">{userName}</span>
-          <span className="block text-[11px] text-slate-400 truncate" title={userEmail}>{roleLabel}</span>
-        </span>
-        <button onClick={onSignOut} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10" title={`Çıkış Yap (${userEmail})`} aria-label="Çıkış yap">
-          <LogOut className="w-4 h-4" />
-        </button>
+      <div className="m-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+        <div className="flex items-center gap-3">
+          <span className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-brand-600 flex items-center justify-center text-sm font-black shrink-0">{initials(userName)}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold truncate">{userName}</span>
+            <span className="block text-[11px] text-slate-400 truncate" title={userEmail}>{roleLabel}</span>
+          </span>
+        </div>
+        {tools && <div className="mt-3 pt-3 border-t border-white/10">{tools}</div>}
       </div>
     </aside>
   );

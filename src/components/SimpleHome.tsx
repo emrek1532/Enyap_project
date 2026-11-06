@@ -7,7 +7,6 @@ import { quoteTry, useRates } from '../lib/rates';
 import type { ActiveTab } from './Sections';
 import type { ToolInfo, ToolMode } from './QuickTools';
 import { Targets, useSetting } from '../lib/settings';
-import { BandTools } from './Header';
 
 type Tab = Exclude<ActiveTab, 'home'>;
 /** Teklifler sayfasını süzülmüş açar: durum (all, aktif, takip, onaylandi, iptal) ve tarih aralığı */
@@ -218,7 +217,6 @@ export const SimpleHome: React.FC<{
                 </div>
               </div>
             )}
-            {onSync && syncStatus && <BandTools syncStatus={syncStatus} onSync={onSync} onSignOut={onSignOut} userEmail={userEmail || ''} />}
           </div>
         </div>
 
