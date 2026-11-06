@@ -50,7 +50,7 @@ export const PageHeader: React.FC<{
         className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white shrink-0">
         <ChevronRight className="w-4 h-4 rotate-180" />
       </button>
-      <span className="hidden sm:flex w-12 h-12 rounded-2xl bg-white/10 border border-white/15 text-sky-300 items-center justify-center shrink-0">
+      <span className="hidden sm:flex md:hidden lg:flex w-12 h-12 rounded-2xl bg-white/10 border border-white/15 text-sky-300 items-center justify-center shrink-0">
         <Icon className="w-6 h-6" />
       </span>
       <div className="min-w-0 flex-1">

@@ -262,7 +262,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         <div className="p-3 sm:p-4 space-y-3">
           <FilterBar active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
             search={<SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma adı veya şehir ara..." className="flex-1" />}>
-            <div className="grid grid-cols-2 sm:flex gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
               <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Şehir">
                 <option value="all">Tüm Şehirler</option>
                 {cityCounts.map(([city, count]) => <option key={city} value={city}>{city} ({count})</option>)}
