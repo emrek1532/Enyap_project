@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, FileText, ListChecks, LogOut, Building2, Phone, Receipt, RefreshCw, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, FileText, ListChecks, Building2, Phone, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
 import { PENDING_STATUSES, needsFollowUp, quoteAgeInDays } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import type { ActiveTab } from './Sections';
 import type { ToolInfo, ToolMode } from './QuickTools';
 import { Targets, useSetting } from '../lib/settings';
+import { BandTools } from './Header';
 
 type Tab = Exclude<ActiveTab, 'home'>;
 /** Teklifler sayfasını süzülmüş açar: durum (all, aktif, takip, onaylandi, iptal) ve tarih aralığı */
@@ -68,7 +69,8 @@ export const SimpleHome: React.FC<{
   syncStatus?: SyncStatus;
   onSync?: () => void;
   onSignOut?: () => void;
-}> = ({ quotes, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut }) => {
+  userEmail?: string;
+}> = ({ quotes, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -190,12 +192,12 @@ export const SimpleHome: React.FC<{
       <section className="relative overflow-hidden rounded-3xl bg-[#0b2a4c] text-white px-4 pt-4 pb-3 sm:px-7 sm:pt-6 sm:pb-5">
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-32 w-96 h-96 rounded-full bg-brand-500/25 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-sky-400/10 blur-3xl" />
-        <div className="relative flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs sm:text-sm text-sky-200/80"><span className="capitalize">{today}</span><span className="ml-2 text-[11px] text-sky-200/50 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>
             <h1 className="text-xl sm:text-[26px] font-black tracking-tight leading-tight truncate">{hello}, {firstName}</h1>
           </div>
-          <div className="flex items-center gap-2 sm:shrink-0">
+          <div className="flex items-center gap-2 lg:shrink-0">
             {(canQuotes || canMoney) && (
               <div className="flex flex-1 sm:flex-none items-center gap-1">
                 <button onClick={() => stepPeriod(-1)} className={`w-9 h-9 rounded-xl flex items-center justify-center ${glass}`} aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'} title={isYear ? 'Önceki yıl' : 'Önceki ay'}>
@@ -216,15 +218,7 @@ export const SimpleHome: React.FC<{
                 </div>
               </div>
             )}
-            {onSync && syncStatus && (
-              <button onClick={onSync} disabled={syncStatus.isSyncing} className={`relative hidden md:flex w-9 h-9 rounded-xl items-center justify-center ${glass}`} title={syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı'} aria-label="Eşitle">
-                <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
-                <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-              </button>
-            )}
-            {onSignOut && (
-              <button onClick={onSignOut} className={`hidden md:flex w-9 h-9 rounded-xl items-center justify-center ${glass}`} title="Çıkış yap" aria-label="Çıkış yap"><LogOut className="w-4 h-4" /></button>
-            )}
+            {onSync && syncStatus && <BandTools syncStatus={syncStatus} onSync={onSync} onSignOut={onSignOut} userEmail={userEmail || ''} />}
           </div>
         </div>
 
