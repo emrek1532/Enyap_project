@@ -235,7 +235,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <option value="all">Tüm Şehirler</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <div className={`${ctrl} col-span-2 flex items-center gap-1.5 text-slate-400`}>
+            <div className={`${ctrl} col-span-2 flex items-center gap-1.5 text-slate-500`}>
               <CalendarDays className="w-4 h-4 shrink-0" />
               <DateInput value={dateFrom} onChange={v => { setDateFrom(v); setPage(0); }} className="w-full sm:w-24 bg-transparent text-xs text-slate-700 focus:outline-none" />
               <span>–</span>
@@ -285,8 +285,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         )}
 
         {/* Telefon: kartlar */}
-        <div className="lg:hidden divide-y divide-slate-100 mt-1">
-          {pageRows.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Arama kriterine uygun teklif bulunamadı.</p>}
+        <div className="xl:hidden divide-y divide-slate-100 mt-1">
+          {pageRows.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Arama kriterine uygun teklif bulunamadı.</p>}
           {pageRows.map(quote => (
             <div key={quote.id} className="p-3 space-y-2">
               <div className="flex items-start justify-between gap-3">
@@ -299,7 +299,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 </div>
                 <button onClick={() => setSelectedQuote(quote)} className="text-right shrink-0">
                   <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</div>
-                  <div className="text-[10px] text-slate-400">KDV dahil</div>
+                  <div className="text-[10px] text-slate-500">KDV dahil</div>
                 </button>
               </div>
               <div className="flex items-center justify-between gap-2">
@@ -320,7 +320,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div>
 
         {/* Tablet / bilgisayar: tablo */}
-        <div className="hidden lg:block overflow-x-auto mt-1">
+        <div className="hidden xl:block overflow-x-auto mt-1">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-100">
               <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
@@ -335,7 +335,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {pageRows.length === 0 && (
-                <tr><td colSpan={7} className="py-8 text-center text-slate-400">Arama kriterine uygun teklif bulunamadı.</td></tr>
+                <tr><td colSpan={7} className="py-8 text-center text-slate-500">Arama kriterine uygun teklif bulunamadı.</td></tr>
               )}
               {pageRows.map(quote => (
                 <tr key={quote.id} className={`${rowCls} ${selected.has(quote.id) ? 'bg-brand-50/50' : ''}`}>
@@ -345,7 +345,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   </td>
                   <td className="py-3 px-3">
                     <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="font-bold text-slate-900 text-left hover:text-brand-700 leading-snug">{quote.customerName}</button>
-                    <div className="text-xs text-slate-400">{quote.city}</div>
+                    <div className="text-xs text-slate-500">{quote.city}</div>
                   </td>
                   <td className="py-3 px-3">
                     <StatusPill status={quote.status} />
@@ -397,7 +397,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     {selectedQuote.quoteNumber}
                   </span>
                   <span className="text-xs font-bold text-slate-700">
-                    {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-slate-400">KDV dahil</span>
+                    {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-slate-500">KDV dahil</span>
                   </span>
                 </div>
                 <button onClick={() => { setCustomerView(selectedQuote.customerName); setSelectedQuote(null); }} title="Müşterinin tüm teklifleri"
@@ -410,7 +410,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               </div>
               <button
                 onClick={() => setSelectedQuote(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 text-lg font-bold"
+                className="p-1 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200 text-lg font-bold"
               >
                 ✕
               </button>
@@ -565,7 +565,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               </div>
 
               {/* Danger zone delete */}
-              <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
+              <div className="flex justify-between items-center pt-2 text-xs text-slate-500">
                 <span>{rates.date ? `Kur: 1 USD = ${rates.USD.toLocaleString('tr-TR')} TL · 1 EUR = ${rates.EUR.toLocaleString('tr-TR')} TL (TCMB ${rates.date})` : ''}</span>
                 <button
                   hidden={readOnly}

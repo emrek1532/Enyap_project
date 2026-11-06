@@ -331,7 +331,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${overdue ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'}`}>
                             {fmtDate(c.dueDate)}
                           </span>
-                        ) : <span className="text-slate-400">-</span>}
+                        ) : <span className="text-slate-500">-</span>}
                       </td>
                     ) : (
                       <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{r.method || '-'}</td>
@@ -343,7 +343,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                         <button onClick={() => setEditing(r)} title="Düzenle" className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(r)} title="Sil" className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50">
+                        <button onClick={() => handleDelete(r)} title="Sil" className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -458,7 +458,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
         {hasFilters && (
           <div className="text-sm text-slate-600">
             Filtrelenen: <b className="text-slate-900 tabular-nums">{totalsText(filteredTotals)}</b>
-            <span className="text-slate-400"> · {filtered.length} kayıt</span>
+            <span className="text-slate-500"> · {filtered.length} kayıt</span>
           </div>
         )}
         {isCollection && (
@@ -472,7 +472,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       {/* Liste */}
       <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         {/* Telefon: kart görünümü */}
-        <div className="lg:hidden divide-y divide-slate-100">
+        <div className="xl:hidden divide-y divide-slate-100">
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-slate-500">
               {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok.` : 'Filtrelere uygun kayıt bulunamadı.'}
@@ -480,7 +480,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           )}
           {groups.map(g => (g.items.length === 1 || !merge ? g.items.map(mobileItem) : mobileGroup(g)))}
         </div>
-        <div className="overflow-x-auto hidden lg:block">
+        <div className="overflow-x-auto hidden xl:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
               <tr>
@@ -872,7 +872,7 @@ const MultiCollectionForm: React.FC<{
                 const cek = r.method === 'Çek';
                 return (
                   <div key={r.key} data-row className={`crow px-2 py-1.5 ${i % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
-                    <span className="text-[11px] font-bold text-slate-400 tabular-nums self-center">{i + 1}.</span>
+                    <span className="text-[11px] font-bold text-slate-500 tabular-nums self-center">{i + 1}.</span>
                     <select value={r.method} onChange={e => setRow(i, { method: e.target.value })} className={c} title="Ödeme şekli">
                       {methods.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
@@ -886,7 +886,7 @@ const MultiCollectionForm: React.FC<{
                     <TextSuggest disabled={!cek} options={BANKS} snap placeholder="Banka" value={cek ? r.bankName || '' : ''} onChange={v => setRow(i, { bankName: v })} className={c} title="Banka" />
                     <TextSuggest disabled={!cek} options={branchList} placeholder="Şube" value={cek ? r.bankBranch || '' : ''} onChange={v => setRow(i, { bankBranch: v })} className={c} title="Şube" />
                     <button type="button" tabIndex={-1} disabled={rows.length === 1} onClick={() => setRows(rs => rs.filter((_, j) => j !== i))}
-                      className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 self-center justify-self-end" title="Satırı sil">
+                      className="p-1.5 rounded-md text-slate-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 self-center justify-self-end" title="Satırı sil">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -900,7 +900,7 @@ const MultiCollectionForm: React.FC<{
               <span className="text-xs text-slate-600">{filled.length} parça · <b className="text-slate-900 tabular-nums">{totalsText(totals)}</b></span>
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 -mt-1">Son satırın son kutusunda <b>Tab</b>'a basınca yeni satır açılır (çek no +1, vade +1 ay). Her satır ayrı tahsilat olarak kaydedilir.</p>
+          <p className="text-[11px] text-slate-500 -mt-1">Son satırın son kutusunda <b>Tab</b>'a basınca yeni satır açılır (çek no +1, vade +1 ay). Her satır ayrı tahsilat olarak kaydedilir.</p>
 
           <Field label="Açıklama">
             <input value={head.description} onChange={e => setHead(h => ({ ...h, description: e.target.value }))} placeholder="Örn: 68551 nolu teklif ödemesi" className={inputCls} />
@@ -1026,7 +1026,7 @@ const MultiExpenseForm: React.FC<{
             <div ref={tableRef} className="divide-y divide-slate-200" onKeyDownCapture={onKeyDown}>
               {rows.map((r, i) => (
                 <div key={r.key} data-row className={`erow px-2 py-1.5 ${i % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
-                  <span className="text-[11px] font-bold text-slate-400 tabular-nums self-center">{i + 1}.</span>
+                  <span className="text-[11px] font-bold text-slate-500 tabular-nums self-center">{i + 1}.</span>
                   <DateInput value={r.date} onChange={v => setRow(i, { date: v })} className={c} title="Tarih" />
                   <TextSuggest dataAttrs={{ 'data-cat': '' }} options={categories} placeholder="Kategori" value={r.category} onChange={v => setRow(i, { category: v })} className={c} title="Kategori" />
                   <CityInput value={r.region} onChange={v => setRow(i, { region: v })} className={c} title="Şehir" />
@@ -1040,7 +1040,7 @@ const MultiExpenseForm: React.FC<{
                   </select>
                   <input placeholder="Açıklama" value={r.description} onChange={e => setRow(i, { description: e.target.value })} className={c} title="Açıklama" />
                   <button type="button" tabIndex={-1} disabled={rows.length === 1} onClick={() => setRows(rs => rs.filter((_, j) => j !== i))}
-                    className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 self-center justify-self-end" title="Satırı sil">
+                    className="p-1.5 rounded-md text-slate-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 self-center justify-self-end" title="Satırı sil">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -1053,7 +1053,7 @@ const MultiExpenseForm: React.FC<{
               <span className="text-xs text-slate-600">{filled.length} harcama · <b className="text-slate-900 tabular-nums">{totalsText(totals)}</b></span>
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 -mt-1">Son satırın açıklama kutusunda <b>Tab</b>'a basınca yeni satır açılır (tarih, şehir ve ödeme şekli aynen gelir). Her satır ayrı harcama olarak kaydedilir.</p>
+          <p className="text-[11px] text-slate-500 -mt-1">Son satırın açıklama kutusunda <b>Tab</b>'a basınca yeni satır açılır (tarih, şehir ve ödeme şekli aynen gelir). Her satır ayrı harcama olarak kaydedilir.</p>
           {err && <p className="text-xs font-bold text-red-600">{err}</p>}
         </div>
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">

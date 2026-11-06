@@ -145,7 +145,7 @@ export function SuggestInput<T>({
           onKeyDown={onKeyDown}
           className={`${inputClassName} ${loading ? 'pr-7' : ''}`}
         />
-        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 absolute right-2 top-1/2 -translate-y-1/2" />}
+        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500 absolute right-2 top-1/2 -translate-y-1/2" />}
       </div>
       {visible && pos && createPortal(
         <div style={pos} className="rounded-lg border border-slate-300 bg-white shadow-xl overflow-hidden flex flex-col">

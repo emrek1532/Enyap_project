@@ -326,11 +326,11 @@ const TodoCard: React.FC<{
       <header className="px-4 sm:px-5 pt-4 pb-1">
         <h2 className="text-base font-black text-[#0b2a4c] flex items-center gap-2"><ListChecks className="w-5 h-5 text-brand-500" />Bugün yapılacaklar</h2>
       </header>
-      {follow.length + week.length === 0 && <p className="px-5 py-4 text-sm text-slate-400">Bekleyen iş yok. 🎉</p>}
+      {follow.length + week.length === 0 && <p className="px-5 py-4 text-sm text-slate-500">Bekleyen iş yok. 🎉</p>}
       {follow.length > 0 && (
         <div>
           <div className={head}>
-            <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">Takip et · {follow.length} teklif</p>
+            <p className="text-xs font-bold text-orange-700 uppercase tracking-wide">Takip et · {follow.length} teklif</p>
             <button onClick={onAllFollow} className="text-xs font-bold text-brand-600">Tümü</button>
           </div>
           <div className="px-2 sm:px-3">
@@ -411,7 +411,7 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
 
 /** Dönemin en çok iş yapılan 5 firması: onaylanan tutar (çubuk), teklif adedi ve dönüşüm; dokununca firma kartı açılır */
 const FirmsCard: React.FC<{ firms: { name: string; onay: number; teklif: number; adet: number }[]; onOpen?: (name: string) => void }> = ({ firms, onOpen }) => {
-  if (!firms.length) return <p className="px-5 pb-5 text-sm text-slate-400">Bu dönemde teklif yok.</p>;
+  if (!firms.length) return <p className="px-5 pb-5 text-sm text-slate-500">Bu dönemde teklif yok.</p>;
   const max = Math.max(1, ...firms.map(f => f.teklif));
   return (
     <div className="px-2 sm:px-3 pb-3">
@@ -462,7 +462,7 @@ const Tabs: React.FC<{ value: string; items: [string, string][]; onChange: (k: s
 
 /** Önceki döneme (bu dönemse aynı günlerine kadar) göre değişim: %34 ↑ */
 const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean; dark?: boolean }> = ({ cur, prev, lowerIsBetter, dark }) => {
-  if (!prev) return <span className={`font-bold ${dark ? 'text-sky-200/60' : 'text-slate-400'}`}>–</span>;
+  if (!prev) return <span className={`font-bold ${dark ? 'text-sky-200/60' : 'text-slate-500'}`}>–</span>;
   const pct = Math.round(((cur - prev) / prev) * 100);
   const up = pct >= 0;
   const Icon = up ? TrendingUp : TrendingDown;
@@ -472,7 +472,7 @@ const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean; dar
 
 type BarItem = Month & { label: string; shortLabel: string; from: string; to: string };
 
-/** Verilen / onaylanan sütunları; seçili ayın üstünde tutar balonu */
+/** Verilen / onaylanan sütunları; seçili ay koyu renkte (tutar üstünde yazmaz, dokununca başlıkta görünür) */
 const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) => void }> = ({ bars, hi, onPick }) => {
   const many = bars.length > 6;
   const raw = Math.max(1, ...bars.map(x => x.teklif));
@@ -483,7 +483,7 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   return (
     <div className="px-3 sm:px-5 pb-4">
-      <div className="relative h-40 sm:h-48 pl-11 mt-8">
+      <div className="relative h-40 sm:h-48 pl-11 mt-4">
         {ticks.map(v => (
           <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-slate-100' : 'border-slate-200'}`} style={{ bottom: `${(v / max) * 100}%` }}>
             <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-slate-500 tabular-nums">{v ? short(v) : '0 TL'}</span>
@@ -496,13 +496,6 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
             return (
               <button key={x.key} onClick={() => onPick(x)} title={`${x.label}: verilen ${tl(x.teklif)}, onaylanan ${tl(x.onay)} (%${x.teklif ? Math.round((x.onay / x.teklif) * 100) : 0})`}
                 className="relative flex-1 h-full flex items-end justify-center gap-1 sm:gap-1.5 min-w-0 group">
-                {on && x.teklif > 0 && (
-                  <>
-                    <span className="absolute z-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-xl bg-white border border-slate-100 shadow-[0_8px_20px_-8px_rgba(15,60,120,0.45)] text-[11px] sm:text-xs font-black text-[#0b2a4c] tabular-nums"
-                      style={{ bottom: `calc(${hT}% + 14px)` }}>{tl(x.teklif)}</span>
-                    <span className="absolute z-10 w-3 h-3 rounded-full bg-brand-600 ring-2 ring-white" style={{ bottom: `calc(${hT}% - 6px)`, left: many ? '22%' : '30%' }} />
-                  </>
-                )}
                 <div className={`flex-1 ${many ? 'max-w-5' : 'max-w-9'} rounded-t-lg group-hover:brightness-95 ${on ? 'bg-gradient-to-t from-sky-400 to-brand-400' : 'bg-gradient-to-t from-sky-300 to-sky-300/80'}`} style={{ height: `${hT}%` }} />
                 <div className={`flex-1 ${many ? 'max-w-5' : 'max-w-9'} rounded-t-lg bg-gradient-to-t from-emerald-600 to-emerald-400 group-hover:brightness-95`} style={{ height: `${Math.max(0.8, (x.onay / max) * 100)}%` }} />
               </button>
@@ -521,13 +514,13 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
 
 const STATUS_BADGE: Record<string, [string, string, React.ElementType]> = {
   onaylandi: ['Onaylandı', 'bg-emerald-50 text-emerald-700', Check],
-  gonderildi: ['Beklemede', 'bg-orange-50 text-orange-600', Clock],
+  gonderildi: ['Beklemede', 'bg-orange-50 text-orange-700', Clock],
   iptal: ['İptal', 'bg-rose-50 text-rose-600', X],
 };
 
 /** Son teklifler tablosu: firma, tarih, tutar, durum */
 const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRates>; onOpen: (q: Quote) => void }> = ({ quotes, rates, onOpen }) => {
-  if (!quotes.length) return <p className="px-5 pb-5 text-sm text-slate-400">Henüz teklif yok.</p>;
+  if (!quotes.length) return <p className="px-5 pb-5 text-sm text-slate-500">Henüz teklif yok.</p>;
   const cols = 'grid grid-cols-[minmax(0,1fr)_auto_5.8rem] gap-2 sm:gap-3 items-center';
   return (
     <div className="px-3 sm:px-4 pb-3">

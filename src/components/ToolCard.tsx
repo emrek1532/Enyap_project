@@ -71,7 +71,7 @@ export const PastList: React.FC<{
     <div>
       <div className="flex items-center justify-between mb-1">
         <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5"><Clock className="w-4 h-4 text-brand-600" /> {title}</h3>
-        <button type="button" onClick={() => set([])} className="text-[11px] font-bold text-slate-400 hover:text-slate-700">Temizle</button>
+        <button type="button" onClick={() => set([])} className="text-[11px] font-bold text-slate-500 hover:text-slate-700">Temizle</button>
       </div>
       <ul className="space-y-1.5">
         {items.slice(0, 5).map(h => (

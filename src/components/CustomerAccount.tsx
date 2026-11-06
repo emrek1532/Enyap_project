@@ -197,7 +197,7 @@ export const CustomerAccount: React.FC<{
             <span className="inline-flex items-center gap-1 text-xs">
               <DateInput value={range.key === 'custom' ? range.from : ''} onChange={v => setRange(r => ({ key: 'custom', from: v, to: r.key === 'custom' ? r.to : '' }))}
                 className={`w-32 px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} title="Başlangıç tarihi" />
-              <span className="text-slate-400">–</span>
+              <span className="text-slate-500">–</span>
               <DateInput value={range.key === 'custom' ? range.to : ''} onChange={v => setRange(r => ({ key: 'custom', from: r.key === 'custom' ? r.from : '', to: v }))}
                 className={`w-32 px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} title="Bitiş tarihi" />
             </span>
@@ -221,7 +221,7 @@ export const CustomerAccount: React.FC<{
               {showCollections && tabBtn('collections', `Tahsilatlar · ${collections.length}`)}
             </div>
             <div className="relative flex-1 min-w-0">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input value={q} onChange={e => { setQ(e.target.value); setLimit(60); }}
                 placeholder={tab === 'items' ? 'Malzeme ara (ör. küresel vana 1")…' : tab === 'quotes' ? 'Teklif no, not ya da malzeme ara…' : 'Tahsilat ara…'}
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-400" />
@@ -237,7 +237,7 @@ export const CustomerAccount: React.FC<{
                 {chip('cancelled', 'İptal/Arşiv', cancelled.length)}
               </div>
               <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                {shownQuotes.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Teklif yok.</p>}
+                {shownQuotes.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Teklif yok.</p>}
                 {shownQuotes.slice(0, limit).map(x => (
                   <button key={x.id} onClick={() => open(x)} disabled={!onOpenQuote}
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50">
@@ -252,7 +252,7 @@ export const CustomerAccount: React.FC<{
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{tl(quoteTry(x, rates))}</div>
-                      {x.currency !== 'TRY' && <div className="text-[10px] text-slate-400 whitespace-nowrap">{formatQuoteAmount(x)}</div>}
+                      {x.currency !== 'TRY' && <div className="text-[10px] text-slate-500 whitespace-nowrap">{formatQuoteAmount(x)}</div>}
                     </div>
                     {onOpenQuote && <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />}
                   </button>
@@ -277,7 +277,7 @@ export const CustomerAccount: React.FC<{
                 </p>
               ) : (
                 <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                  {shownLines.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Eşleşen malzeme yok.</p>}
+                  {shownLines.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Eşleşen malzeme yok.</p>}
                   {shownLines.slice(0, limit).map(l => (
                     <button key={l.key} onClick={() => open(l.quote)} disabled={!onOpenQuote}
                       className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-slate-50">
@@ -300,14 +300,14 @@ export const CustomerAccount: React.FC<{
                 </div>
               )}
               {lines.length > 0 && quotesWithItems < quotes.length && (
-                <p className="text-[11px] text-slate-400 px-1">{quotes.length} tekliften {quotesWithItems} tanesinde kalem bilgisi var (Excel'den gelenlerde sadece toplam tutar bulunuyor).</p>
+                <p className="text-[11px] text-slate-500 px-1">{quotes.length} tekliften {quotesWithItems} tanesinde kalem bilgisi var (Excel'den gelenlerde sadece toplam tutar bulunuyor).</p>
               )}
             </>
           )}
 
           {tab === 'collections' && showCollections && (
             <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-              {shownCols.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Tahsilat yok.</p>}
+              {shownCols.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tahsilat yok.</p>}
               {colGroups.slice(0, limit).map(g => {
                 const c = g.items[0];
                 const many = g.items.length > 1;

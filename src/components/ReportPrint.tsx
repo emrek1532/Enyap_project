@@ -293,7 +293,7 @@ export function useReportSender() {
             <h3 className="font-black text-slate-900 truncate">{preview.title}</h3>
             <p className="text-xs text-slate-500">{preview.pages.length} sayfa · göndermeden önce kontrol edin</p>
           </div>
-          <button onClick={() => setPreview(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button onClick={() => setPreview(null)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {preview.pages.map((src, i) => (

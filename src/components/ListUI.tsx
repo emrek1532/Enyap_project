@@ -10,7 +10,7 @@ export const rowCls = 'hover:bg-brand-50/40 transition-colors';
 /** Arama kutusu (simgeli) */
 export const SearchBox: React.FC<{ value: string; onChange: (v: string) => void; placeholder: string; className?: string; mono?: boolean }> = ({ value, onChange, placeholder, className = '', mono }) => (
   <div className={`relative min-w-0 ${className}`}>
-    <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+    <svg className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
     <input type="search" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
       className={`${ctrl} w-full pl-9 ${mono ? 'font-mono uppercase placeholder:normal-case placeholder:font-sans' : ''}`} />
   </div>
@@ -49,7 +49,7 @@ export const StatusPill: React.FC<{ status: string }> = ({ status }) => {
 /** Satır simge düğmesi */
 export const IconBtn: React.FC<{ title: string; onClick: () => void; children: React.ReactNode; danger?: boolean }> = ({ title, onClick, children, danger }) => (
   <button type="button" title={title} aria-label={title} onClick={e => { e.stopPropagation(); onClick(); }}
-    className={`w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${danger ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-brand-600 hover:bg-brand-50'}`}>
+    className={`w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${danger ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50' : 'text-brand-600 hover:bg-brand-50'}`}>
     {children}
   </button>
 );
@@ -69,7 +69,7 @@ export const Pager: React.FC<{ page: number; total: number; size: number; onPage
         <div className="flex items-center gap-1">
           <button type="button" disabled={page === 0} onClick={() => onPage(page - 1)} className={`${btn} text-slate-500 hover:bg-slate-100 disabled:opacity-30`} aria-label="Önceki"><ChevronLeft className="w-4 h-4" /></button>
           {nums.map((n, i) => n === '…'
-            ? <span key={`d${i}`} className="text-xs text-slate-400 px-1">…</span>
+            ? <span key={`d${i}`} className="text-xs text-slate-500 px-1">…</span>
             : <button key={n} type="button" onClick={() => onPage(n)} className={`${btn} ${n === page ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>{n + 1}</button>)}
           <button type="button" disabled={page >= pages - 1} onClick={() => onPage(pages - 1)} className={`${btn} text-slate-600 hover:bg-slate-100 disabled:opacity-30 gap-0.5`}>Son <ChevronRight className="w-3.5 h-3.5" /></button>
         </div>

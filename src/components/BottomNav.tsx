@@ -51,7 +51,7 @@ export const BottomNav: React.FC<{
           <div className="w-full bg-white rounded-t-3xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base font-black text-slate-900">Diğer bölümler</h3>
-              <button onClick={() => setMore(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+              <button onClick={() => setMore(false)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {rest.map(s => (
@@ -66,7 +66,7 @@ export const BottomNav: React.FC<{
               <HelpGuide variant="wide" className="col-span-2" />
               {push !== null && (
                 <button onClick={togglePush} className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700">
-                  {push ? <Bell className="w-4 h-4 text-brand-600" /> : <BellOff className="w-4 h-4 text-slate-400" />}
+                  {push ? <Bell className="w-4 h-4 text-brand-600" /> : <BellOff className="w-4 h-4 text-slate-500" />}
                   {push ? 'Bildirim açık' : 'Bildirimi aç'}
                 </button>
               )}

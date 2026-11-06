@@ -339,7 +339,7 @@ export const SupplierListsPanel: React.FC = () => {
   };
 
   if (lists === null) {
-    return <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+    return <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>;
   }
 
   const net = (it: SupplierItem) => it.price * (1 - (it.discount || 0) / 100);
@@ -356,7 +356,7 @@ export const SupplierListsPanel: React.FC = () => {
     <div className="space-y-3">
       {/* Başlık: liste sayısı ve yükleme */}
       <div className="flex items-center justify-between gap-2 px-0.5">
-        <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+        <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
           Firmalar · {lists.length} liste
         </div>
         <button
@@ -390,7 +390,7 @@ export const SupplierListsPanel: React.FC = () => {
                 >
                   {!on && c.id && <span className="w-2 h-2 rounded-full" style={{ background: supplierColor(c.name) }} />}
                   {c.name}
-                  <span className={`text-[11px] font-bold tabular-nums ${on ? 'text-white/75' : 'text-slate-400'}`}>{c.count.toLocaleString('tr-TR')}</span>
+                  <span className={`text-[11px] font-bold tabular-nums ${on ? 'text-white/75' : 'text-slate-500'}`}>{c.count.toLocaleString('tr-TR')}</span>
                 </button>
               );
             })}
@@ -433,7 +433,7 @@ export const SupplierListsPanel: React.FC = () => {
                     <div className="font-black text-slate-900 leading-tight">
                       {current.name} Fiyat Listesi
                       <button type="button" onClick={() => setEditInfo({ name: current.name, listDate: current.listDate, currency: current.currency })}
-                        className="ml-1.5 align-middle text-slate-400 hover:text-brand-700" title="Firma adı, tarih, para birimi">
+                        className="ml-1.5 align-middle text-slate-500 hover:text-brand-700" title="Firma adı, tarih, para birimi">
                         <Pencil className="w-3.5 h-3.5 inline" />
                       </button>
                     </div>
@@ -474,7 +474,7 @@ export const SupplierListsPanel: React.FC = () => {
                     <button type="button" onClick={() => runBulk('ai', null)} disabled={!!bulk} className="text-xs font-semibold text-violet-700 hover:underline disabled:opacity-60">
                       {bulk?.key === '*' && bulk.info ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{bulk.info}</span> : 'Yapay zekâ ile eşleştir'}
                     </button>
-                    <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-slate-400 hover:text-rose-600">Listeyi sil</button>
+                    <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-slate-500 hover:text-rose-600">Listeyi sil</button>
                   </span>
                 )}
               </div>
@@ -513,7 +513,7 @@ export const SupplierListsPanel: React.FC = () => {
 
           {/* Arama */}
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="search"
               value={query}
@@ -541,7 +541,7 @@ export const SupplierListsPanel: React.FC = () => {
                 )}
               </div>
               <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
-                {items.filter(it => !onlyUnlinked || !it.ourCode).length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-400">{onlyUnlinked && items.length ? 'Yüklenen kalemlerin hepsi bağlı. Daha fazlası için aşağı kaydırın ya da aramayı daraltın.' : 'Sonuç yok.'}</p>}
+                {items.filter(it => !onlyUnlinked || !it.ourCode).length === 0 && !loading && <p className="py-8 text-center text-sm text-slate-500">{onlyUnlinked && items.length ? 'Yüklenen kalemlerin hepsi bağlı. Daha fazlası için aşağı kaydırın ya da aramayı daraltın.' : 'Sonuç yok.'}</p>}
                 <div className="divide-y divide-slate-100">
                   {items.filter(it => !onlyUnlinked || !it.ourCode).map((it, idx, arr) => (
                     <React.Fragment key={it.id}>
@@ -576,7 +576,7 @@ export const SupplierListsPanel: React.FC = () => {
                                   {it.ourCode}
                                 </button>
                                 <button type="button" onClick={() => linkItem(it, null)} className="text-slate-300 hover:text-rose-600" title="Bağı kaldır"><X className="w-3.5 h-3.5" /></button>
-                                {it.ourName && <span className="basis-full text-[11px] text-slate-400 leading-snug">{it.ourName}</span>}
+                                {it.ourName && <span className="basis-full text-[11px] text-slate-500 leading-snug">{it.ourName}</span>}
                               </>
                             ) : (
                               <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }}
@@ -588,10 +588,10 @@ export const SupplierListsPanel: React.FC = () => {
                         </div>
                         <div className="text-right shrink-0">
                           <div className="text-base font-black text-slate-900 tabular-nums whitespace-nowrap">
-                            {it.price > 0 ? `${formatPrice(it.price)} ${CURRENCY_LABEL[it.currency]}` : <span className="text-sm text-slate-400 font-semibold">fiyat yok</span>}
+                            {it.price > 0 ? `${formatPrice(it.price)} ${CURRENCY_LABEL[it.currency]}` : <span className="text-sm text-slate-500 font-semibold">fiyat yok</span>}
                           </div>
                           {it.price > 0 && it.discount > 0 && (
-                            <div className="text-xs font-bold text-slate-400 tabular-nums whitespace-nowrap">net {formatPrice(net(it))}</div>
+                            <div className="text-xs font-bold text-slate-500 tabular-nums whitespace-nowrap">net {formatPrice(net(it))}</div>
                           )}
                         </div>
                       </div>
@@ -628,7 +628,7 @@ export const SupplierListsPanel: React.FC = () => {
                   {bulkActions(null, '#cbd5e1')}
                 </div>
               )}
-              <p className="px-1 text-xs text-slate-400">Firma kodları bizim kodlarla karışmaz; aynı ürünse "Bizim kod" bağlantısı gösterilir. Elle bağladığınız ya da kaldırdığınız kalemlere otomatik eşleştirme dokunmaz; liste yeniden yüklense de korunur.</p>
+              <p className="px-1 text-xs text-slate-500">Firma kodları bizim kodlarla karışmaz; aynı ürünse "Bizim kod" bağlantısı gösterilir. Elle bağladığınız ya da kaldırdığınız kalemlere otomatik eşleştirme dokunmaz; liste yeniden yüklense de korunur.</p>
             </>
           )}
         </>

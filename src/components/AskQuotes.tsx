@@ -152,7 +152,7 @@ export const AskQuotes: React.FC<{ quotes: Quote[]; customers: string[]; onOpenQ
               <li key={x}>
                 <button type="button" onClick={() => pick(x)} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-violet-500 shrink-0" /> <span className="flex-1">{x}</span>
-                  {x !== EXAMPLES[EXAMPLES.length - 1] && <span className="text-[10px] text-slate-400">cihazda</span>}
+                  {x !== EXAMPLES[EXAMPLES.length - 1] && <span className="text-[10px] text-slate-500">cihazda</span>}
                 </button>
               </li>
             ))}

@@ -164,7 +164,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
 // ---------- Telefon için tablo yerine kart listesi ----------
 interface MobileRow { key: string; title: React.ReactNode; aside?: React.ReactNode; fields: [string, React.ReactNode][] }
 const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, empty = 'Bu dönemde veri yok.' }) => (
-  <div className="lg:hidden divide-y divide-slate-100 border-t border-slate-200">
+  <div className="xl:hidden divide-y divide-slate-100 border-t border-slate-200">
     {rows.length === 0 && <p className="py-6 text-center text-xs text-slate-500">{empty}</p>}
     {rows.map(r => (
       <div key={r.key} className="p-3">
@@ -245,13 +245,13 @@ const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; 
           {rows.map((r, i) => (
             <div key={r.label} className="text-xs">
               <div className="flex justify-between gap-2 mb-0.5">
-                <span className="font-semibold text-slate-700 truncate"><span className="text-slate-400 mr-1">{i + 1}.</span>{r.label}</span>
+                <span className="font-semibold text-slate-700 truncate"><span className="text-slate-500 mr-1">{i + 1}.</span>{r.label}</span>
                 <span className="tabular-nums font-bold text-slate-900 whitespace-nowrap">{fmt(r.value)}</span>
               </div>
               <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: color }} />
               </div>
-              {r.sub && <div className="text-[10px] text-slate-400 mt-0.5">{r.sub}</div>}
+              {r.sub && <div className="text-[10px] text-slate-500 mt-0.5">{r.sub}</div>}
             </div>
           ))}
         </div>
@@ -288,7 +288,7 @@ const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: bool
           <button onClick={onPrint} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />} PDF Gör
           </button>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
       </div>
       {section.foot && (
@@ -705,7 +705,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
               <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Rakip notları</div>
               <ul className="space-y-1 text-xs">
                 {stats.rivals.map(({ q, note }) => (
-                  <li key={q.id} className="flex justify-between gap-2"><span className="min-w-0 truncate"><b className="text-slate-800">{q.customerName}</b> <span className="text-slate-400">{q.quoteNumber}</span></span><span className="text-slate-600 text-right">{note || '—'}</span></li>
+                  <li key={q.id} className="flex justify-between gap-2"><span className="min-w-0 truncate"><b className="text-slate-800">{q.customerName}</b> <span className="text-slate-500">{q.quoteNumber}</span></span><span className="text-slate-600 text-right">{note || '—'}</span></li>
                 ))}
               </ul>
             </div>
@@ -718,7 +718,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         <div className="p-4 pb-2">
           <h3 className="font-bold text-slate-900 text-sm">Müşteri Performansı</h3>
           <p className="text-xs text-slate-500"><span className="hidden md:inline">Sütun başlığına tıklayarak sıralayın · </span>{customerRows.length} firma</p>
-          <MobileSortSelect className="mt-2 w-full" sort={custSort} onChange={setCustSort} options={[
+          <MobileSortSelect always className="mt-2 w-full xl:hidden" sort={custSort} onChange={setCustSort} options={[
             { key: 'approvedAmt', dir: 'desc', label: 'Onay tutarı: yüksek' },
             { key: 'totalAmt', dir: 'desc', label: 'Teklif tutarı: yüksek' },
             { key: 'rate', dir: 'desc', label: 'Satış oranı: yüksek' },
@@ -735,7 +735,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             ['Tahsilat', r.collected ? tl(r.collected) : '-'],
           ] as [string, React.ReactNode][],
         }))} />
-        <div className="overflow-x-auto hidden lg:block">
+        <div className="overflow-x-auto hidden xl:block">
           <table className="w-full text-right text-xs sm:text-sm tabular-nums">
             <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
               <tr>

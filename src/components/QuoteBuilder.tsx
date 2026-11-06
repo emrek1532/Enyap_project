@@ -128,7 +128,7 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className={`px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${working ? 'opacity-40 pointer-events-none' : 'hover:bg-slate-50'}`}>
-            <Camera className="w-4 h-4" /> Fotoğraf <span className="font-normal text-slate-400">(yapay zekâ)</span>
+            <Camera className="w-4 h-4" /> Fotoğraf <span className="font-normal text-slate-500">(yapay zekâ)</span>
             <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(f); }} />
           </label>
           <label className={`px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${working ? 'opacity-40 pointer-events-none' : 'hover:bg-slate-50'}`}>
@@ -136,7 +136,7 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
             <input type="file" accept=".xlsx" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onExcel(f); }} />
           </label>
           {busy && <span className="text-xs text-slate-500 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> {busy}</span>}
-          {!busy && text.trim() && <span className="text-[11px] text-slate-400">{isList(text) ? 'Satır satır okunacak (yapay zekâsız)' : 'İstek olarak hazırlanacak'}</span>}
+          {!busy && text.trim() && <span className="text-[11px] text-slate-500">{isList(text) ? 'Satır satır okunacak (yapay zekâsız)' : 'İstek olarak hazırlanacak'}</span>}
         </div>
       </form>
       <div className="flex flex-wrap gap-2">
@@ -162,7 +162,7 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
           {prefs.map((p, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="flex-1 min-w-0 truncate">"{p.when}" → <span className="font-mono font-bold">{p.prefix}…</span></span>
-              <button onClick={() => savePrefs(prefs.filter((_, k) => k !== i))} className="p-1 text-slate-400 hover:text-rose-600" aria-label="Kaldır"><Trash2 className="w-3.5 h-3.5" /></button>
+              <button onClick={() => savePrefs(prefs.filter((_, k) => k !== i))} className="p-1 text-slate-500 hover:text-rose-600" aria-label="Kaldır"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           ))}
           <div className="flex gap-1.5">
@@ -202,7 +202,7 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
                   </div>
                   <input type="number" min={0} step="any" value={r.qty} onChange={e => update(i, { qty: Number(e.target.value) || 0 })}
                     className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-sm text-right tabular-nums" aria-label="Adet" />
-                  <button onClick={() => update(i, { skip: !r.skip })} title={r.skip ? 'Teklife ekle' : 'Bu satırı atla'} className="p-1 text-slate-400 hover:text-slate-700">
+                  <button onClick={() => update(i, { skip: !r.skip })} title={r.skip ? 'Teklife ekle' : 'Bu satırı atla'} className="p-1 text-slate-500 hover:text-slate-700">
                     <X className="w-4 h-4" />
                   </button>
                 </div>

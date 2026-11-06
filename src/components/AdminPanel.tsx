@@ -47,11 +47,11 @@ export const AdminPanel: React.FC<{ meId: string; activities: ActivityLog[] }> =
 
       <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         <header className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-          <UserRound className="w-4 h-4 text-slate-400" />
+          <UserRound className="w-4 h-4 text-slate-500" />
           <h2 className="font-black text-slate-900">Kullanıcılar</h2>
           {pending > 0 && <span className="ml-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">{pending} onay bekliyor</span>}
         </header>
-        {!users && <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>}
+        {!users && <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-slate-500" /></div>}
         <div className="divide-y divide-slate-100">
           {sorted.map(u => {
             const me = u.id === meId;
@@ -67,7 +67,7 @@ export const AdminPanel: React.FC<{ meId: string; activities: ActivityLog[] }> =
                     </div>
                     <div className="text-xs text-slate-500 truncate">{u.email} · son giriş {when(u.lastSeen)}</div>
                   </button>
-                  {busy === u.id && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+                  {busy === u.id && <Loader2 className="w-4 h-4 animate-spin text-slate-500" />}
                   {!me && u.status !== 'active' && (
                     <button onClick={() => run(u.id, () => updateProfile(u.id, { status: 'active' }))}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold">
@@ -91,7 +91,7 @@ export const AdminPanel: React.FC<{ meId: string; activities: ActivityLog[] }> =
                       <Trash2 className="w-4 h-4" />
                     </button>
                   ))}
-                  <button onClick={() => setOpen(isOpen ? null : u.id)} className="p-1 text-slate-400">
+                  <button onClick={() => setOpen(isOpen ? null : u.id)} className="p-1 text-slate-500">
                     <ChevronDown className={`w-4 h-4 transition ${isOpen ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
@@ -121,7 +121,7 @@ export const AdminPanel: React.FC<{ meId: string; activities: ActivityLog[] }> =
                         })}
                       </div>
                     )}
-                    <div className="mt-2 text-[11px] text-slate-400">Kayıt: {when(u.createdAt)} · Müşteri listesi tüm aktif kullanıcılara açıktır.</div>
+                    <div className="mt-2 text-[11px] text-slate-500">Kayıt: {when(u.createdAt)} · Müşteri listesi tüm aktif kullanıcılara açıktır.</div>
                   </div>
                 )}
               </div>
@@ -132,14 +132,14 @@ export const AdminPanel: React.FC<{ meId: string; activities: ActivityLog[] }> =
 
       <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         <header className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-          <Clock className="w-4 h-4 text-slate-400" />
+          <Clock className="w-4 h-4 text-slate-500" />
           <h2 className="font-black text-slate-900">Hareket kaydı</h2>
         </header>
         <div className="divide-y divide-slate-100 max-h-[28rem] overflow-y-auto">
-          {activities.length === 0 && <p className="py-6 text-center text-sm text-slate-400">Kayıt yok.</p>}
+          {activities.length === 0 && <p className="py-6 text-center text-sm text-slate-500">Kayıt yok.</p>}
           {activities.slice(0, 150).map(a => (
             <div key={a.id} className="px-4 py-2 text-xs flex gap-3">
-              <div className="w-24 shrink-0 text-slate-400 tabular-nums">{when(a.timestamp)}</div>
+              <div className="w-24 shrink-0 text-slate-500 tabular-nums">{when(a.timestamp)}</div>
               <div className="min-w-0">
                 <span className="font-bold text-slate-800">{(a.actor && names.get(a.actor)) || (a.author === 'istanbul' ? 'İstanbul' : 'Isparta')}</span>
                 <span className="text-slate-500"> · {a.action}</span>
@@ -165,7 +165,7 @@ export const PendingScreen: React.FC<{ status: Profile['status'] | 'missing'; em
           ? 'Erişiminiz yönetici tarafından durduruldu. Bilgi için yöneticinizle görüşün.'
           : 'Hesabınız oluşturuldu. Yönetici onayladıktan sonra yetkili olduğunuz bölümleri görebilirsiniz.'}
       </p>
-      <p className="text-xs text-slate-400">{email}</p>
+      <p className="text-xs text-slate-500">{email}</p>
       <div className="flex gap-2 justify-center pt-1">
         <button onClick={onRefresh} className="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold">Tekrar kontrol et</button>
         <button onClick={onSignOut} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold">Çıkış</button>

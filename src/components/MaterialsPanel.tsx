@@ -168,7 +168,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
               </div>
             </div>
             <div className="text-right shrink-0 space-y-1">
-              <div className={`text-sm font-black tabular-nums ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>{priceText(m)}</div>
+              <div className={`text-sm font-black tabular-nums ${m.price > 0 ? 'text-slate-900' : 'text-slate-500'}`}>{priceText(m)}</div>
               {rowActions(m)}
             </div>
           </div>
@@ -199,7 +199,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
                   <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-brand-700">{m.name || '-'}</button>
                 </td>
                 <td className="py-3 px-3 text-slate-500">{m.unit}</td>
-                <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>{priceText(m)}</td>
+                <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-500'}`}>{priceText(m)}</td>
                 <td className="py-3 px-3 text-slate-500 tabular-nums">%{m.vatRate}</td>
                 <td className={`py-3 px-3 text-right tabular-nums ${(m.stock ?? 0) < 0 ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>{fmtStock(m.stock)}</td>
                 <td className="py-3 px-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
@@ -255,7 +255,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
               {' · '}teklif edilen <b className="text-slate-800">{sum(rows).toLocaleString('tr-TR')}</b> ({rows.length} teklif)
             </div>
           </div>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
         <div className="overflow-y-auto divide-y divide-slate-100">
           {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-500">Bu malzeme henüz hiçbir teklifte yok.</p>}
@@ -271,7 +271,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
                 </div>
                 <div className="text-right text-xs shrink-0 tabular-nums">
                   <div className="font-black text-slate-900 text-sm">{(it.quantity || 0).toLocaleString('tr-TR')} {it.unit.toLocaleLowerCase('tr')}</div>
-                  <div className="text-slate-600">{money(net, cur)}{it.discount ? <span className="text-slate-400"> · liste {money(it.unitPrice, cur)} %{it.discount}</span> : null}</div>
+                  <div className="text-slate-600">{money(net, cur)}{it.discount ? <span className="text-slate-500"> · liste {money(it.unitPrice, cur)} %{it.discount}</span> : null}</div>
                 </div>
               </button>
             );
@@ -320,7 +320,7 @@ const MaterialForm: React.FC<{
           <h3 className="font-black text-slate-900 flex items-center gap-2">
             <Package className="w-4 h-4 text-teal-600" /> {originalCode ? 'Malzemeyi Düzenle' : 'Yeni Malzeme'}
           </h3>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -391,7 +391,7 @@ export const MaterialsPanel: React.FC<{ quotes?: Quote[]; onOpenQuote?: (q: Quot
   const tr = (n: number) => n.toLocaleString('tr-TR');
   const tabCls = (on: boolean) =>
     `relative flex-1 px-3 py-2.5 rounded-xl text-sm font-extrabold leading-tight transition-colors ${on ? 'bg-white text-brand-700 shadow-sm' : 'text-brand-800/80 hover:text-brand-900'}`;
-  const sub = 'block text-[11px] font-semibold text-slate-400 mt-0.5';
+  const sub = 'block text-[11px] font-semibold text-slate-500 mt-0.5';
   const bar = <span className="absolute left-4 right-4 bottom-0 h-0.5 rounded-full bg-brand-500" />;
   return (
     <div className="space-y-3">
