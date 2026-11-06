@@ -128,7 +128,7 @@ export const NoteComposer: React.FC<{
           onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) save(); }}
           rows={text.length > 60 ? 3 : 1}
-          placeholder={rec ? 'Dinliyorum… konuşun' : 'Not yazın ya da mikrofona söyleyin (ör. "Pazartesi 9\'da Ahmet Bey\'i ara")'}
+          placeholder={rec ? 'Dinliyorum… konuşun' : 'Not yazın ya da söyleyin…'}
           className="flex-1 min-w-0 resize-none px-3 py-2 rounded-xl border border-slate-200 text-sm leading-snug focus:outline-none focus:border-brand-400"
         />
         <button type="button" onClick={mic} disabled={busy} title={rec ? 'Kaydı bitir' : 'Sesle yaz'}
