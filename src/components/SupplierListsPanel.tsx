@@ -4,7 +4,7 @@ import { MaterialPicker } from './MaterialPicker';
 import { supabase } from '../lib/supabase';
 import { CURRENCY_LABEL } from '../lib/money';
 import { formatPrice } from '../lib/materials';
-import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, learnFromLinked, clearSupplierMatches, rematchSupplierItems, aiMatchList, aiMatchUploaded, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
+import { SupplierItem, SupplierList, fetchSupplierLists, searchSupplierItems, deleteSupplierList, exportListToExcel, importListFromSheet, importListFromText, reimportList, updateSupplierListInfo, logoFromFile, setSupplierDiscount, setSupplierLogo, setSupplierOurCode, learnFromLinked, learnAllFromLinked, clearSupplierMatches, rematchSupplierItems, aiMatchList, aiMatchUploaded, supplierColor, uploadSupplierPdf, uploadedSupplierFiles, priceDiffText } from '../lib/suppliers';
 
 const PAGE = 50;
 
@@ -215,6 +215,20 @@ export const SupplierListsPanel: React.FC = () => {
       }
     } catch (e) {
       setError((e as { message?: string })?.message || 'Kaydedilemedi');
+    }
+  };
+  // Elle bağlanan kalemden aynı adlı diğer ölçüleri bağlar ("eşleşmedi" kilitlileri de)
+  const [learning, setLearning] = useState<number | null>(null);
+  const learnAll = async (it: SupplierItem) => {
+    setLearning(it.id);
+    try {
+      const n = await learnAllFromLinked(it.id);
+      setNotice(n > 0 ? `Aynı ürünün ${n} farklı ölçüsü ${(it.ourCode || '').replace(/\d.*$/, '')}… kodlarına bağlandı` : 'Bağlanacak başka ölçü bulunamadı (katalogda aynı ailede karşılığı yok ya da elle bağlı)');
+      if (n > 0) load(0, false);
+    } catch (e) {
+      setError((e as { message?: string })?.message || 'Uygulanamadı');
+    } finally {
+      setLearning(null);
     }
   };
   const reqId = useRef(0);
@@ -576,6 +590,11 @@ export const SupplierListsPanel: React.FC = () => {
                                   {it.ourCode}
                                 </button>
                                 <button type="button" onClick={() => linkItem(it, null)} className="text-slate-300 hover:text-rose-600" title="Bağı kaldır"><X className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => learnAll(it)} disabled={learning === it.id}
+                                  title="Aynı adlı diğer ölçüleri de bu kodun ailesine bağla"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-brand-700 font-semibold hover:bg-brand-50 disabled:opacity-60">
+                                  {learning === it.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2 className="w-3 h-3" />} Diğer ölçülere uygula
+                                </button>
                                 {it.ourName && <span className="basis-full text-[11px] text-slate-500 leading-snug">{it.ourName}</span>}
                               </>
                             ) : (
