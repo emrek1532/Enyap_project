@@ -304,6 +304,13 @@ export async function learnFromLinked(id: number): Promise<number> {
   return Number(data) || 0;
 }
 
+/** "Diğer ölçülere uygula" düğmesi: aynı adlı diğer ölçüleri, "eşleşmedi" diye kilitlenmiş olsalar da bağlar (elle verilen kodlara dokunmaz) */
+export async function learnAllFromLinked(id: number): Promise<number> {
+  const { data, error } = await supabase.rpc('supplier_learn_all', { p_item: id });
+  if (error) throw error;
+  return Number(data) || 0;
+}
+
 /** Bir gruptaki (grp boşsa tüm listedeki) bağları toplu kaldırır */
 export async function clearSupplierMatches(listId: string, grp: string | null) {
   let q = supabase.from('supplier_items').update({ our_code: null, match_manual: true, match_tried: true }).eq('list_id', listId);
