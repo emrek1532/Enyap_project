@@ -724,7 +724,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         active={activeTab}
         onOpen={id => setActiveTab(id as ActiveTab)}
         onHome={goHome}
-        tools={<BandTools syncStatus={syncStatus} onSync={() => performSync(true)} onSearch={() => openTool('search')} onSignOut={handleSignOut} userEmail={userEmail} />}
+        tools={<BandTools syncStatus={syncStatus} onSync={() => performSync(true)} onSignOut={handleSignOut} userEmail={userEmail} />}
         userName={userName}
         userEmail={userEmail}
         roleLabel={roleLabel}
