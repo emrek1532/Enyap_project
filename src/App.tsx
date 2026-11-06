@@ -46,7 +46,7 @@ import { readQuotePdf } from './lib/pdfQuote';
 import { AccessContext, Module, Profile, can, fetchMyProfile } from './lib/access';
 import { AdminPanel, PendingScreen } from './components/AdminPanel';
 import { useRates } from './lib/rates';
-import { pageStats } from './lib/pageStats';
+import { pageStats, QuoteView } from './lib/pageStats';
 
 // Ekranlar ihtiyaç anında yüklenir (ilk açılış hızlı); açıldıktan sonra boşta hepsi önceden indirilir
 const loaders = {
@@ -708,7 +708,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const openTool = (m: ToolMode) => { setToolMode(m); try { localStorage.setItem('home-assistant', m); } catch { /* */ } };
   // Sayfa başlığı bandındaki özet rakamlar (cihazdaki veriden)
   const rates = useRates(data.quotes);
-  const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, data, rates), [activeTab, data, rates]);
+  const [quoteView, setQuoteView] = useState<QuoteView | null>(null);
+  const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, data, rates, undefined, activeTab === 'quotes' ? quoteView : null), [activeTab, data, rates, quoteView]);
   const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
     : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
     : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
@@ -815,6 +816,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onStatusFilterChange={setQuoteFilter}
             focusQuote={focusQuote}
             initialRange={quoteRange}
+            onViewChange={setQuoteView}
           />
         )}
 
