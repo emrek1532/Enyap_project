@@ -34,6 +34,7 @@ const App = () => {
   const [tool, setTool] = React.useState<any>(q.get('tool'));
   const [f, setF] = React.useState('all');
   const [qv, setQv] = React.useState<any>(null);
+  const [lv, setLv] = React.useState<any>(null);
   const sync = { isOnline: true, isSyncing: false } as any;
   const rates = useRates(quotes);
   const user = { userName: 'Emre Karakaya', userEmail: 'e@x.com', roleLabel: 'Yönetici' };
@@ -42,13 +43,13 @@ const App = () => {
     h(Sidebar, { sections: secs, active: p, onOpen: setP, onHome: () => setP('home'), tools: h(BandTools, { syncStatus: sync, onSync: noop, onSignOut: noop, userEmail: 'e@x.com' }), ...user }),
     h('div', { className: 'sticky top-0 z-30 md:hidden' }, h(Header, { syncStatus: sync, onTriggerSync: noop, onHome: () => setP('home'), ...user, onSearch: () => setTool('search') })),
     h('main', { className: 'max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1 min-w-0' },
-      p !== 'home' && h(PageHeader, { title: SECTION_META[p as 'quotes'].title, subtitle: SECTION_SUB[p as 'quotes'], icon: SECTION_META[p as 'quotes'].icon, onBack: () => setP('home'), action: action ? { label: action, icon: Plus, onClick: noop } : undefined, stats: pageStats(p, { quotes, customers, collections, expenses, notes, activities } as any, rates, undefined, p === 'quotes' ? qv : null) }),
+      p !== 'home' && h(PageHeader, { title: SECTION_META[p as 'quotes'].title, subtitle: SECTION_SUB[p as 'quotes'], icon: SECTION_META[p as 'quotes'].icon, onBack: () => setP('home'), action: action ? { label: action, icon: Plus, onClick: noop } : undefined, stats: pageStats(p, { quotes, customers, collections, expenses, notes, activities } as any, rates, undefined, p === 'quotes' ? qv : null, lv) }),
       p === 'home' && h(SimpleHome, { quotes, customers, collections, expenses, sections: ['quotes', 'customers', 'collections', 'expenses', 'reports'], onOpen: setP, onOpenQuotes: () => setP('quotes'), onOpenQuote: noop,
         canAdd: allow, onNewQuote: noop, onNewCollection: noop, onNewExpense: noop, ...user, tools, onOpenTool: setTool, followCount: 7, syncStatus: sync, onSync: noop, onSignOut: noop }),
       p === 'quotes' && h(QuoteManager, { quotes, currentRole: 'isparta' as any, onOpenNewQuote: noop, onUpdateQuoteStatus: noop, onDeleteQuote: noop, onPrintQuote: noop, onEditQuote: noop, statusFilter: f, onStatusFilterChange: setF, onViewChange: setQv }),
       p === 'customers' && h(CustomersPanel, { customers, quotes, collections, showCollections: true, onSaveCollection: noop, onSaveCustomer: noop, onDeleteCustomer: noop, onCreateQuoteForCustomer: noop, currentRole: 'isparta' } as any),
       p === 'materials' && h(MaterialsPanel, { quotes }),
-      (p === 'collections' || p === 'expenses') && h(LedgerPanel, { key: p, kind: p, records: p === 'collections' ? collections : expenses, customers, currentRole: 'isparta' as any, onSave: noop, onDelete: noop }),
+      (p === 'collections' || p === 'expenses') && h(LedgerPanel, { key: p, kind: p, records: p === 'collections' ? collections : expenses, customers, currentRole: 'isparta' as any, onSave: noop, onDelete: noop, onViewChange: setLv }),
       p === 'notes' && h(QuickNotesPanel, { notes, activities, currentRole: 'isparta' as any, onSaveNote: noop, onDeleteNote: noop }),
       p === 'reports' && h(ReportsPanel, { quotes, collections, expenses, customers })),
     h(BottomNav, { sections: secs as any, primary: ['quotes', 'customers', 'materials'], active: p, onOpen: setP, onHome: () => setP('home'), onSignOut: noop, userEmail: 'e@x.com' }),

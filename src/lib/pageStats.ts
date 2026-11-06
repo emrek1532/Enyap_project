@@ -20,7 +20,10 @@ const sumTry = (l: (Collection | Expense)[]) => l.filter(x => (x.currency || 'TR
 /** Teklifler sayfasında filtre varsa bant rakamları süzülen tekliflerden hesaplanır */
 export type QuoteView = { quotes: Quote[]; label: string };
 
-export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(), view?: QuoteView | null): PageStat[] {
+/** Tahsilat/Harcama sayfasında filtre varsa bant rakamları süzülen kayıtlardan */
+export type LedgerView = { records: (Collection | Expense)[]; label: string };
+
+export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(), view?: QuoteView | null, ledger?: LedgerView | null): PageStat[] {
   const t = ymd(now);
   const mFrom = `${t.slice(0, 7)}-01`;
   const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -68,6 +71,29 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
       { label: 'Bu ay teklif verilen', value: n(month.size), sub: 'firma' },
       { label: 'Bekleyen teklifi olan', value: n(pend.size), sub: 'firma' },
       { label: 'Son 6 ayda satış', value: n(active.size), sub: 'firma' },
+    ];
+  }
+  if (tab === 'collections' && ledger) {
+    const r = ledger.records as Collection[];
+    const paper = r.filter(x => /çek|senet/i.test(x.method || ''));
+    const in30 = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30));
+    const due = paper.filter(x => x.dueDate && x.dueDate >= t && x.dueDate <= in30);
+    return [
+      { label: ledger.label, value: lira(sumTry(r)), sub: `${n(r.length)} kayıt` },
+      { label: 'Çek / senet', value: lira(sumTry(paper)), sub: `${n(paper.length)} kayıt` },
+      { label: 'Nakit · havale · kart', value: lira(sumTry(r) - sumTry(paper)), sub: `${n(r.length - paper.length)} kayıt` },
+      { label: '30 günde vadesi gelen', value: lira(sumTry(due)), sub: `${n(due.length)} çek/senet` },
+    ];
+  }
+  if (tab === 'expenses' && ledger) {
+    const r = ledger.records as Expense[];
+    const byCat = new Map<string, number>();
+    r.forEach(x => { if ((x.currency || 'TRY') === 'TRY') byCat.set(x.category || '—', (byCat.get(x.category || '—') || 0) + (x.amount || 0)); });
+    const top = [...byCat].sort((a, b) => b[1] - a[1])[0];
+    return [
+      { label: ledger.label, value: lira(sumTry(r)), sub: `${n(r.length)} kayıt` },
+      { label: 'Kayıt başına', value: lira(r.length ? sumTry(r) / r.length : 0), sub: 'ortalama' },
+      { label: 'En büyük kalem', value: top ? lira(top[1]) : '–', sub: top ? top[0] : undefined },
     ];
   }
   if (tab === 'collections') {
