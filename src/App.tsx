@@ -33,7 +33,7 @@ import {
 } from './lib/db';
 import { findCustomer } from './lib/customers';
 import { AuthScreen } from './components/AuthScreen';
-import { Header } from './components/Header';
+import { Header, BandTools } from './components/Header';
 import type { ActiveTab } from './components/Sections';
 import { QuoteManager } from './components/QuoteManager';
 import { QuickNotesPanel } from './components/QuickNotesPanel';
@@ -715,8 +715,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         roleLabel={roleLabel}
       />
 
-      {/* Ana sayfada bilgisayar/tablette üst çubuk yok: eşitleme, bildirim ve çıkış karşılama alanında */}
-      <div className={`sticky top-0 z-30 ${activeTab === 'home' ? 'md:hidden' : ''}`}>
+      {/* Bilgisayar/tablette üst çubuk yok: ara, eşitle, bildirim, kılavuz, çıkış ve sürüm sayfanın koyu bandında */}
+      <div className="sticky top-0 z-30 md:hidden">
       <Header
         syncStatus={syncStatus}
         onTriggerSync={() => performSync(true)}
@@ -764,6 +764,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               syncStatus={syncStatus}
               onSync={() => performSync(true)}
               onSignOut={handleSignOut}
+              userEmail={userEmail}
             />
           </>
         )}
@@ -779,6 +780,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onBack={goBack}
             onHome={goHome}
             stats={headStats}
+            tools={<BandTools syncStatus={syncStatus} onSync={() => performSync(true)} onSearch={() => openTool('search')} onSignOut={handleSignOut} userEmail={userEmail} />}
           />
         )}
         

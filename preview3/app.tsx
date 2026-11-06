@@ -13,7 +13,7 @@ const { QuickNotesPanel } = await import('../src/components/QuickNotesPanel');
 const { ReportsPanel } = await import('../src/components/ReportsPanel');
 const { PageHeader, SECTION_SUB, SECTION_META } = await import('../src/components/Sections');
 const { Sidebar } = await import('../src/components/Sidebar');
-const { Header } = await import('../src/components/Header');
+const { Header, BandTools } = await import('../src/components/Header');
 const { BottomNav } = await import('../src/components/BottomNav');
 const { QuickToolsModal, toolList } = await import('../src/components/QuickTools');
 const { Plus } = await import('lucide-react');
@@ -35,9 +35,9 @@ const App = () => {
   const action = p === 'quotes' ? 'Yeni Teklif Oluştur' : p === 'customers' ? 'Yeni Müşteri' : p === 'materials' ? 'Yeni Malzeme' : p === 'collections' ? 'Yeni Tahsilat' : p === 'expenses' ? 'Yeni Harcama' : '';
   return h('div', { className: 'min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#f4f8fc] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60' },
     h(Sidebar, { sections: secs, active: p, onOpen: setP, onHome: () => setP('home'), onSignOut: noop, ...user }),
-    h('div', { className: `sticky top-0 z-30 ${p === 'home' ? 'md:hidden' : ''}` }, h(Header, { syncStatus: sync, onTriggerSync: noop, onHome: () => setP('home'), ...user, onSearch: () => setTool('search') })),
+    h('div', { className: 'sticky top-0 z-30 md:hidden' }, h(Header, { syncStatus: sync, onTriggerSync: noop, onHome: () => setP('home'), ...user, onSearch: () => setTool('search') })),
     h('main', { className: 'max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1 min-w-0' },
-      p !== 'home' && h(PageHeader, { title: SECTION_META[p as 'quotes'].title, subtitle: SECTION_SUB[p as 'quotes'], icon: SECTION_META[p as 'quotes'].icon, onBack: () => setP('home'), action: action ? { label: action, icon: Plus, onClick: noop } : undefined, stats: pageStats(p, { quotes, customers, collections, expenses, notes, activities } as any, rates) }),
+      p !== 'home' && h(PageHeader, { title: SECTION_META[p as 'quotes'].title, subtitle: SECTION_SUB[p as 'quotes'], icon: SECTION_META[p as 'quotes'].icon, onBack: () => setP('home'), action: action ? { label: action, icon: Plus, onClick: noop } : undefined, tools: h(BandTools, { syncStatus: sync, onSync: noop, onSearch: () => setTool('search'), onSignOut: noop, userEmail: 'e@x.com' }), stats: pageStats(p, { quotes, customers, collections, expenses, notes, activities } as any, rates) }),
       p === 'home' && h(SimpleHome, { quotes, customers, collections, expenses, sections: ['quotes', 'customers', 'collections', 'expenses', 'reports'], onOpen: setP, onOpenQuotes: () => setP('quotes'), onOpenQuote: noop,
         canAdd: allow, onNewQuote: noop, onNewCollection: noop, onNewExpense: noop, ...user, tools, onOpenTool: setTool, followCount: 7, syncStatus: sync, onSync: noop, onSignOut: noop }),
       p === 'quotes' && h(QuoteManager, { quotes, currentRole: 'isparta' as any, onOpenNewQuote: noop, onUpdateQuoteStatus: noop, onDeleteQuote: noop, onPrintQuote: noop, onEditQuote: noop, statusFilter: f, onStatusFilterChange: setF }),

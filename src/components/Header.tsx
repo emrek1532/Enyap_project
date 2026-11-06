@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Bell, BellOff, Search } from 'lucide-react';
+import { RefreshCw, Bell, BellOff, Search, LogOut } from 'lucide-react';
 import { HelpGuide } from './HelpGuide';
 import { disablePush, enablePush, pushEnabled, pushSupported } from '../lib/push';
 import { BrandLogo } from './BrandLogo';
@@ -70,5 +70,39 @@ export const Header: React.FC<HeaderProps> = ({ syncStatus, onTriggerSync, onHom
         </div>
       </div>
     </header>
+  );
+};
+
+/**
+ * Koyu bantların (ana sayfa ve bölüm başlıkları) sağ üstündeki düğmeler: ara, eşitle, bildirim, kılavuz, çıkış.
+ * Bilgisayar/tablette üst çubuk yok; bunlar bantta. Telefonda üst çubuk durduğu için gizli.
+ */
+export const BandTools: React.FC<{ syncStatus: SyncStatus; onSync: () => void; onSearch?: () => void; onSignOut?: () => void; userEmail: string }> = ({ syncStatus, onSync, onSearch, onSignOut, userEmail }) => {
+  const [push, setPush] = useState<boolean | null>(null);
+  useEffect(() => { if (pushSupported()) pushEnabled().then(setPush, () => setPush(false)); }, []);
+  const togglePush = async () => {
+    try {
+      if (push) { await disablePush(); setPush(false); alert('Bu cihazda bildirimler kapatıldı.'); }
+      else { await enablePush(userEmail); setPush(true); alert('Bildirimler açıldı. Bekleyen teklifler 2 gün sonra size hatırlatılacak.'); }
+    } catch (e) { alert(e instanceof Error ? e.message : 'Bildirim açılamadı.'); }
+  };
+  const btn = 'relative w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white transition';
+  return (
+    <div className="hidden md:flex items-center gap-2 shrink-0">
+      {onSearch && <button onClick={onSearch} className={btn} title="Ara, tekliflere sor, teklif hazırla" aria-label="Ara"><Search className="w-4 h-4" /></button>}
+      <button onClick={onSync} disabled={syncStatus.isSyncing} className={btn} aria-label="Eşitle"
+        title={syncStatus.isSyncing ? 'Eşitleniyor…' : syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı · kayıtlar bağlantı gelince gönderilir'}>
+        <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
+        <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+      </button>
+      {push !== null && (
+        <button onClick={togglePush} className={`${btn} ${push ? '' : 'text-sky-200/70'}`} aria-label="Bildirimler"
+          title={push ? 'Bildirimler açık (kapatmak için dokunun)' : 'Teklif hatırlatma bildirimlerini aç'}>
+          {push ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+        </button>
+      )}
+      <HelpGuide variant="dark" />
+      {onSignOut && <button onClick={onSignOut} className={btn} title="Çıkış yap" aria-label="Çıkış yap"><LogOut className="w-4 h-4" /></button>}
+    </div>
   );
 };

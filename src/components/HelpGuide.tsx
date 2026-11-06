@@ -65,12 +65,17 @@ const GUIDE: [string, string[]][] = [
 ];
 
 /** Kılavuzu açan düğme (simge ya da Diğer menüsündeki geniş düğme) + kılavuz penceresi */
-export const HelpGuide: React.FC<{ variant: 'icon' | 'wide'; className?: string; onOpen?: () => void }> = ({ variant, className = '', onOpen }) => {
+export const HelpGuide: React.FC<{ variant: 'icon' | 'wide' | 'dark'; className?: string; onOpen?: () => void }> = ({ variant, className = '', onOpen }) => {
   const [open, setOpen] = useState(false);
   const show = () => { onOpen?.(); setOpen(true); };
   return (
     <>
-      {variant === 'icon' ? (
+      {variant === 'dark' ? (
+        <button onClick={show} title="Kullanım kılavuzu" aria-label="Kullanım kılavuzu"
+          className={`w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white ${className}`}>
+          <HelpCircle className="w-4 h-4" />
+        </button>
+      ) : variant === 'icon' ? (
         <button onClick={show} title="Kullanım kılavuzu" aria-label="Kullanım kılavuzu"
           className={`p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 ${className}`}>
           <HelpCircle className="w-3.5 h-3.5" />

@@ -39,7 +39,9 @@ export const PageHeader: React.FC<{
   onHome?: () => void;
   action?: { label: string; icon: React.ElementType; onClick: () => void };
   stats?: { label: string; value: string; sub?: string }[];
-}> = ({ title, subtitle, icon: Icon, onBack, action, stats }) => (
+  /** Sağ üstteki düğmeler (ara, eşitle, bildirim, kılavuz, çıkış) */
+  tools?: React.ReactNode;
+}> = ({ title, subtitle, icon: Icon, onBack, action, stats, tools }) => (
   <section className="relative overflow-hidden rounded-3xl bg-[#0b2a4c] text-white px-4 py-4 sm:px-7 sm:py-5 mb-4 sm:mb-5">
     <div aria-hidden className="pointer-events-none absolute -right-24 -top-32 w-96 h-96 rounded-full bg-brand-500/25 blur-3xl" />
     <div aria-hidden className="pointer-events-none absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-sky-400/10 blur-3xl" />
@@ -53,12 +55,13 @@ export const PageHeader: React.FC<{
       </span>
       <div className="min-w-0 flex-1">
         <h1 className="font-black text-xl sm:text-[26px] tracking-tight leading-tight truncate">{title}</h1>
-        {subtitle && <p className="text-xs sm:text-sm text-sky-200/80 truncate">{subtitle}</p>}
+        {subtitle && <p className="text-xs sm:text-sm text-sky-200/80 truncate">{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-sky-200/50 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
       </div>
+      {tools}
       {action && (
         <button onClick={action.onClick}
           className="flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-4 rounded-2xl bg-brand-500 hover:bg-brand-400 text-white text-sm font-bold shadow-[0_10px_24px_-10px_rgba(14,140,240,0.9)] shrink-0">
-          <action.icon className="w-4.5 h-4.5" /> <span className="hidden sm:inline">{action.label}</span>
+          <action.icon className="w-4.5 h-4.5" /> <span className="hidden sm:inline md:hidden lg:inline">{action.label}</span>
         </button>
       )}
     </div>
