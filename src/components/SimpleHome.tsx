@@ -1,12 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, CalendarDays, Check, ChevronDown, Clock, FileText, ListChecks, LogOut, MapPin, Phone, Receipt, RefreshCw, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, ListChecks, LogOut, Building2, Phone, Receipt, RefreshCw, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
 import { PENDING_STATUSES, needsFollowUp, quoteAgeInDays } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import type { ActiveTab } from './Sections';
 import type { ToolInfo, ToolMode } from './QuickTools';
-import { TurkeyMap } from './TurkeyMap';
 import { Targets, useSetting } from '../lib/settings';
 
 type Tab = Exclude<ActiveTab, 'home'>;
@@ -69,7 +68,7 @@ export const SimpleHome: React.FC<{
   syncStatus?: SyncStatus;
   onSync?: () => void;
   onSignOut?: () => void;
-}> = ({ quotes, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, userName, tools, onOpenTool, syncStatus, onSync, onSignOut }) => {
+}> = ({ quotes, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -108,10 +107,19 @@ export const SimpleHome: React.FC<{
     const mq = quotes.filter(q => { const d = dayOf(q.createdAt); return d >= from && d <= to; });
     const st = (pred: (q: Quote) => boolean) => { const l = mq.filter(pred); return { count: l.length, value: l.reduce((a, q) => a + qv(q), 0) }; };
     // İllere göre (dönemin iptal dışı teklifleri)
-    const cities: Record<string, number> = {};
-    for (const q of mq) if (q.status !== 'iptal' && q.city) cities[q.city] = (cities[q.city] || 0) + qv(q);
+    // Firmalara göre (dönemin iptal dışı teklifleri): onaylanan tutar, toplam teklif, adet
+    const fm = new Map<string, { name: string; onay: number; teklif: number; adet: number }>();
+    for (const q of mq) {
+      if (q.status === 'iptal' || !q.customerName) continue;
+      const k = q.customerName.trim().toLocaleUpperCase('tr-TR');
+      const f = fm.get(k) || { name: q.customerName.trim(), onay: 0, teklif: 0, adet: 0 };
+      const v = qv(q);
+      f.teklif += v; f.adet++; if (q.status === 'onaylandi') f.onay += v;
+      fm.set(k, f);
+    }
+    const firms = [...fm.values()].sort((a, b) => b.onay - a.onay || b.teklif - a.teklif).slice(0, 5);
     return {
-      cur, prevSame, from, to, dim, spark, cities,
+      cur, prevSame, from, to, dim, spark, firms,
       status: { onay: st(q => q.status === 'onaylandi'), bekleyen: st(q => PENDING_STATUSES.includes(q.status)), iptal: st(q => q.status === 'iptal') },
     };
   }, [quotes, collections, expenses, rates, t, period.kind, period.y, period.m]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -148,14 +156,23 @@ export const SimpleHome: React.FC<{
   const periodOptions = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); return { v: `m:${d.getFullYear()}:${d.getMonth()}`, l: `${AY_UZUN[d.getMonth()]} ${d.getFullYear()}` }; });
     const years = Array.from({ length: 3 }, (_, i) => ({ v: `y:${now.getFullYear() - i}:0`, l: `${now.getFullYear() - i} (tüm yıl)` }));
+    if (period.kind === 'month' && !months.some(o => o.v === `m:${period.y}:${period.m}`)) months.push({ v: `m:${period.y}:${period.m}`, l: `${AY_UZUN[period.m]} ${period.y}` });
+    if (period.kind === 'year' && !years.some(o => o.v === `y:${period.y}:0`)) years.push({ v: `y:${period.y}:0`, l: `${period.y} (tüm yıl)` });
     return { months, years };
-  }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [t, period.kind, period.y, period.m]); // eslint-disable-line react-hooks/exhaustive-deps
   const periodValue = isYear ? `y:${period.y}:0` : `m:${period.y}:${period.m}`;
   const pickPeriod = (v: string) => {
     const [k, y, m] = v.split(':');
     setPeriod({ kind: k === 'y' ? 'year' : 'month', y: Number(y), m: Number(m) });
     if (k === 'y') setChart('year'); else if (chart === 'year') setChart('6m');
   };
+
+  // Oklar: önceki / sonraki ay (yıl seçiliyse yıl); gelecek döneme gidilmez
+  const stepPeriod = (d: number) => setPeriod(p => {
+    if (p.kind === 'year') return { ...p, y: p.y + d };
+    const x = new Date(p.y, p.m + d, 1);
+    return { kind: 'month', y: x.getFullYear(), m: x.getMonth() };
+  });
 
   const otherTools = tools.filter(x => x.key !== 'search');
   const actions = [
@@ -182,22 +199,30 @@ export const SimpleHome: React.FC<{
       <section className="relative overflow-hidden rounded-3xl bg-[#0b2a4c] text-white px-4 pt-4 pb-3 sm:px-7 sm:pt-6 sm:pb-5">
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-32 w-96 h-96 rounded-full bg-brand-500/25 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-sky-400/10 blur-3xl" />
-        <div className="relative flex items-start justify-between gap-3">
+        <div className="relative flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs sm:text-sm text-sky-200/80 capitalize">{today}</p>
             <h1 className="text-xl sm:text-[26px] font-black tracking-tight leading-tight truncate">{hello}, {firstName}</h1>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:shrink-0">
             {(canQuotes || canMoney) && (
-              <label className={`relative flex items-center gap-1.5 h-9 pl-3 pr-7 rounded-xl text-sm font-bold ${glass}`}>
-                <CalendarDays className="w-4 h-4 text-sky-300" />
-                <span className="whitespace-nowrap">{title}</span>
-                <ChevronDown className="absolute right-2 w-4 h-4 text-sky-200" />
-                <select value={periodValue} onChange={e => pickPeriod(e.target.value)} aria-label="Dönem" className="absolute inset-0 opacity-0 cursor-pointer text-slate-900">
-                  <optgroup label="Ay">{periodOptions.months.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</optgroup>
-                  <optgroup label="Yıl">{periodOptions.years.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</optgroup>
-                </select>
-              </label>
+              <div className="flex flex-1 sm:flex-none items-center gap-1">
+                <button onClick={() => stepPeriod(-1)} className={`w-9 h-9 rounded-xl flex items-center justify-center ${glass}`} aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'} title={isYear ? 'Önceki yıl' : 'Önceki ay'}>
+                  <ChevronLeft className="w-4.5 h-4.5" />
+                </button>
+                <label className={`relative flex flex-1 sm:flex-none items-center justify-center gap-1.5 h-9 pl-2.5 pr-7 rounded-xl text-sm font-bold ${glass}`}>
+                  <CalendarDays className="hidden sm:block w-4 h-4 text-sky-300" />
+                  <span className="whitespace-nowrap">{title}</span>
+                  <ChevronDown className="absolute right-2 w-4 h-4 text-sky-200" />
+                  <select value={periodValue} onChange={e => pickPeriod(e.target.value)} aria-label="Dönem" className="absolute inset-0 opacity-0 cursor-pointer text-slate-900">
+                    <optgroup label="Ay">{periodOptions.months.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</optgroup>
+                    <optgroup label="Yıl">{periodOptions.years.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</optgroup>
+                  </select>
+                </label>
+                <button onClick={() => stepPeriod(1)} disabled={isCurrent} className={`w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none ${glass}`} aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'} title={isYear ? 'Sonraki yıl' : 'Sonraki ay'}>
+                  <ChevronRight className="w-4.5 h-4.5" />
+                </button>
+              </div>
             )}
             {onSync && syncStatus && (
               <button onClick={onSync} disabled={syncStatus.isSyncing} className={`relative hidden md:flex w-9 h-9 rounded-xl items-center justify-center ${glass}`} title={syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı'} aria-label="Eşitle">
@@ -306,8 +331,8 @@ export const SimpleHome: React.FC<{
           </Card>
         )}
         {canQuotes && (
-          <Card className="lg:[grid-area:city]" title="İllere Göre" icon={MapPin} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
-            <CityCard cities={s.cities} />
+          <Card className="lg:[grid-area:city]" title="En Çok İş Yapılan Firmalar" icon={Building2} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
+            <FirmsCard firms={s.firms} onOpen={onOpenCustomer} />
           </Card>
         )}
       </div>
@@ -413,23 +438,29 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
   );
 };
 
-/** İllere göre: küçük harita + ilk 5 il */
-const CityCard: React.FC<{ cities: Record<string, number> }> = ({ cities }) => {
-  const top = Object.entries(cities).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const total = Object.values(cities).reduce((a, b) => a + b, 0);
+/** Dönemin en çok iş yapılan 5 firması: onaylanan tutar (çubuk), teklif adedi ve dönüşüm; dokununca firma kartı açılır */
+const FirmsCard: React.FC<{ firms: { name: string; onay: number; teklif: number; adet: number }[]; onOpen?: (name: string) => void }> = ({ firms, onOpen }) => {
+  if (!firms.length) return <p className="px-5 pb-5 text-sm text-slate-400">Bu dönemde teklif yok.</p>;
+  const max = Math.max(1, ...firms.map(f => f.teklif));
   return (
-    <div className="px-4 sm:px-5 pb-4">
-      <TurkeyMap values={cities} format={tl} className="w-full max-w-md mx-auto" />
-      <div className="mt-2 space-y-1.5">
-        {top.length === 0 && <p className="text-xs text-slate-400">Bu dönemde şehirli teklif yok.</p>}
-        {top.map(([c, v]) => (
-          <div key={c} className="flex items-center gap-2 text-xs">
-            <span className="w-24 truncate font-semibold text-slate-700">{c}</span>
-            <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><span className="block h-full rounded-full bg-brand-500" style={{ width: `${(v / (top[0][1] || 1)) * 100}%` }} /></span>
-            <span className="w-20 text-right tabular-nums text-slate-500 whitespace-nowrap">{short(v)} · %{total ? Math.round((v / total) * 100) : 0}</span>
-          </div>
-        ))}
-      </div>
+    <div className="px-2 sm:px-3 pb-3">
+      {firms.map((f, i) => (
+        <button key={f.name} onClick={() => onOpen?.(f.name)} disabled={!onOpen}
+          className="w-full flex items-center gap-3 px-2 py-2 rounded-xl text-left hover:bg-slate-50 disabled:hover:bg-transparent">
+          <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
+          <span className="flex-1 min-w-0">
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="text-[13px] font-semibold text-slate-800 truncate">{f.name}</span>
+              <span className="text-[13px] font-black text-[#0b2a4c] tabular-nums shrink-0">{lira(f.onay)}</span>
+            </span>
+            <span className="relative block mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <span className="absolute inset-y-0 left-0 rounded-full bg-sky-200" style={{ width: `${(f.teklif / max) * 100}%` }} />
+              <span className="absolute inset-y-0 left-0 rounded-full bg-emerald-500" style={{ width: `${(f.onay / max) * 100}%` }} />
+            </span>
+            <span className="block mt-0.5 text-[11px] text-slate-500 truncate">{f.adet} teklif · {f.teklif >= 1e6 ? `${(f.teklif / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} milyon` : `${Math.round(f.teklif / 1e3).toLocaleString('tr-TR')} bin`} TL verildi · %{f.teklif ? Math.round((f.onay / f.teklif) * 100) : 0} onay</span>
+          </span>
+        </button>
+      ))}
     </div>
   );
 };
