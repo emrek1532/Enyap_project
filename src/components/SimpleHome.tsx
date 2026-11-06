@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, Bell, CalendarDays, Check, ChevronDown, Clock, FileText, Handshake, LogOut, MapPin, Receipt, RefreshCw, Wallet, X, BarChart3, CalendarClock, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronDown, Clock, FileText, ListChecks, LogOut, MapPin, Phone, Receipt, RefreshCw, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
 import { PENDING_STATUSES, needsFollowUp, quoteAgeInDays } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
@@ -157,226 +157,282 @@ export const SimpleHome: React.FC<{
     if (k === 'y') setChart('year'); else if (chart === 'year') setChart('6m');
   };
 
+  const otherTools = tools.filter(x => x.key !== 'search');
   const actions = [
-    canAdd.quote && { label: 'Yeni Teklif', icon: FilePlus2, cls: 'bg-gradient-to-r from-brand-600 to-sky-500 shadow-[0_12px_24px_-10px_rgba(0,110,198,0.9)]', on: onNewQuote },
-    canAdd.collection && { label: 'Tahsilat', icon: Wallet, cls: 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_12px_24px_-10px_rgba(16,160,120,0.9)]', on: onNewCollection },
-    canAdd.expense && { label: 'Harcama', icon: Receipt, cls: 'bg-gradient-to-r from-[#0b2a4c] to-[#123a63] shadow-[0_12px_24px_-10px_rgba(4,40,80,0.9)]', on: onNewExpense },
-  ].filter(Boolean) as { label: string; icon: React.ElementType; cls: string; on: () => void }[];
+    canAdd.quote && { label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, primary: true },
+    canAdd.collection && { label: 'Tahsilat', icon: Wallet, on: onNewCollection },
+    canAdd.expense && { label: 'Harcama', icon: Receipt, on: onNewExpense },
+  ].filter(Boolean) as { label: string; icon: React.ElementType; on: () => void; primary?: boolean }[];
 
-  const tiles = [
-    canQuotes && { label: 'Toplam Teklif Tutarı', value: s.cur.teklif, cur: s.cur.teklif, prev: s.prevSame.teklif, spark: s.spark.map(m => m.teklif),
-      tone: TONE.blue, icon: FileText, on: () => openQuotes({ status: 'all', from: monthFrom, to: monthTo }) },
-    canQuotes && { label: 'Toplam Satış', value: s.cur.onay, cur: s.cur.onay, prev: s.prevSame.onay, spark: s.spark.map(m => m.onay),
-      tone: TONE.green, icon: Handshake, on: () => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo }) },
-    canMoney && { label: 'Tahsilat', value: s.cur.tahsilat, cur: s.cur.tahsilat, prev: s.prevSame.tahsilat, spark: s.spark.map(m => m.tahsilat),
-      tone: TONE.violet, icon: Wallet, on: () => onOpen('collections') },
-    canExp && { label: 'Harcama', value: s.cur.harcama, cur: s.cur.harcama, prev: s.prevSame.harcama, spark: s.spark.map(m => m.harcama),
-      tone: TONE.orange, icon: Wallet, on: () => onOpen('expenses'), lowerIsBetter: true },
-  ].filter(Boolean) as { label: string; value: number; cur: number; prev: number; spark: number[]; tone: Tone; icon: React.ElementType; on: () => void; lowerIsBetter?: boolean }[];
+  const kpis = [
+    canQuotes && { label: 'Verilen teklif', value: s.cur.teklif, sub: `${s.cur.adet} teklif`, prev: s.prevSame.teklif, on: () => openQuotes({ status: 'all', from: monthFrom, to: monthTo }) },
+    canQuotes && { label: 'Satış (onaylanan)', value: s.cur.onay, sub: `${s.cur.onayAdet} teklif`, prev: s.prevSame.onay, on: () => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo }) },
+    canMoney && { label: 'Tahsilat', value: s.cur.tahsilat, prev: s.prevSame.tahsilat, on: () => onOpen('collections') },
+    canExp && { label: 'Harcama', value: s.cur.harcama, prev: s.prevSame.harcama, on: () => onOpen('expenses'), lowerIsBetter: true },
+  ].filter(Boolean) as { label: string; value: number; sub?: string; prev: number; on: () => void; lowerIsBetter?: boolean }[];
 
-  const roundBtn = 'relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 backdrop-blur border border-white shadow-[0_6px_16px_-8px_rgba(15,60,120,0.5)] flex items-center justify-center text-brand-600 hover:bg-white transition';
+  const today = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
+  const hello = now.getHours() < 12 ? 'Günaydın' : now.getHours() < 18 ? 'İyi günler' : 'İyi akşamlar';
+  const conv = s.cur.teklif ? Math.round((s.cur.onay / s.cur.teklif) * 100) : 0;
+  const glass = 'bg-white/10 hover:bg-white/15 border border-white/15 text-white';
 
   return (
-    <div className="pb-4 -mt-1 sm:-mt-2">
-      {/* Karşılama: tesis görseli, selam, dönem, bildirim, hızlı işlemler ve kısayollar */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#eaf3fd] via-[#f3f8fe] to-[#dcebfb] border border-white shadow-[0_14px_34px_-22px_rgba(15,60,120,0.55)] px-4 pt-4 pb-14 sm:px-7 sm:pt-6 sm:pb-20">
-        <PlantArt />
-        <div className="relative flex flex-wrap items-start justify-between gap-3">
+    <div className="pb-4 space-y-4 sm:space-y-5">
+      {/* Üst bant: selam, dönem, tek arama çubuğu, hızlı işlemler ve dönemin rakamları */}
+      <section className="relative overflow-hidden rounded-3xl bg-[#0b2a4c] text-white px-4 pt-4 pb-3 sm:px-7 sm:pt-6 sm:pb-5">
+        <div aria-hidden className="pointer-events-none absolute -right-24 -top-32 w-96 h-96 rounded-full bg-brand-500/25 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-sky-400/10 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[22px] leading-tight sm:text-[28px] font-black text-[#0b2a4c] tracking-tight">Merhaba {firstName} <span className="inline-block">👋</span></h1>
-            <p className="text-[13px] sm:text-sm text-slate-600 mt-1">İşlerinizi kolayca takip edin, hedeflerinize odaklanın.</p>
+            <p className="text-xs sm:text-sm text-sky-200/80 capitalize">{today}</p>
+            <h1 className="text-xl sm:text-[26px] font-black tracking-tight leading-tight truncate">{hello}, {firstName}</h1>
           </div>
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-2 shrink-0">
             {(canQuotes || canMoney) && (
-              <label className="relative flex items-center gap-2 h-9 sm:h-10 pl-3 pr-8 rounded-2xl bg-white/90 backdrop-blur border border-white shadow-[0_6px_16px_-8px_rgba(15,60,120,0.5)] text-sm font-bold text-[#0b2a4c] cursor-pointer">
-                <CalendarDays className="w-4.5 h-4.5 text-brand-600" />
+              <label className={`relative flex items-center gap-1.5 h-9 pl-3 pr-7 rounded-xl text-sm font-bold ${glass}`}>
+                <CalendarDays className="w-4 h-4 text-sky-300" />
                 <span className="whitespace-nowrap">{title}</span>
-                <ChevronDown className="absolute right-2.5 w-4 h-4 text-slate-500" />
-                <select value={periodValue} onChange={e => pickPeriod(e.target.value)} aria-label="Dönem" className="absolute inset-0 opacity-0 cursor-pointer">
+                <ChevronDown className="absolute right-2 w-4 h-4 text-sky-200" />
+                <select value={periodValue} onChange={e => pickPeriod(e.target.value)} aria-label="Dönem" className="absolute inset-0 opacity-0 cursor-pointer text-slate-900">
                   <optgroup label="Ay">{periodOptions.months.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</optgroup>
                   <optgroup label="Yıl">{periodOptions.years.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</optgroup>
                 </select>
               </label>
             )}
-            {canQuotes && (
-              <BellMenu quotes={follow} rates={rates} btnCls={roundBtn} onOpenQuote={onOpenQuote} onAll={() => openQuotes({ status: 'takip' })} />
-            )}
             {onSync && syncStatus && (
-              <button onClick={onSync} disabled={syncStatus.isSyncing} className={`${roundBtn} hidden md:flex`} title={syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı'} aria-label="Eşitle">
-                <RefreshCw className={`w-4.5 h-4.5 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
-                <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-white ${syncStatus.isOnline ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              <button onClick={onSync} disabled={syncStatus.isSyncing} className={`relative hidden md:flex w-9 h-9 rounded-xl items-center justify-center ${glass}`} title={syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı'} aria-label="Eşitle">
+                <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
+                <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-400' : 'bg-rose-400'}`} />
               </button>
             )}
             {onSignOut && (
-              <button onClick={onSignOut} className={`${roundBtn} hidden md:flex`} title="Çıkış yap" aria-label="Çıkış yap"><LogOut className="w-4.5 h-4.5" /></button>
+              <button onClick={onSignOut} className={`hidden md:flex w-9 h-9 rounded-xl items-center justify-center ${glass}`} title="Çıkış yap" aria-label="Çıkış yap"><LogOut className="w-4 h-4" /></button>
             )}
           </div>
         </div>
 
-        <div className="relative mt-4 sm:mt-6 flex flex-col-reverse lg:flex-row lg:items-end justify-between gap-3">
-          {/* Hızlı kısayollar: Ara, Tekliflere sor, Teklif hazırla, Sesle kayıt */}
+        {/* Bilgisayarda: tek arama kutusu (içinde diğer kısayollar) + hızlı işlemler */}
+        <div className="relative mt-5 hidden md:flex gap-2.5 items-center">
+          <div className="flex-1 min-w-0 flex items-center h-12 pl-4 pr-1.5 rounded-2xl bg-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
+            <button onClick={() => onOpenTool('search')} className="flex-1 min-w-0 h-full flex items-center gap-3 text-left text-slate-500">
+              <Search className="w-5 h-5 text-brand-600 shrink-0" />
+              <span className="truncate text-[15px]">Ürün, firma ya da fiyat ara…</span>
+            </button>
+            {otherTools.map(x => (
+              <button key={x.key} onClick={() => onOpenTool(x.key)} title={x.label}
+                className="flex items-center gap-1.5 h-9 px-2.5 xl:px-3 ml-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[13px] font-semibold whitespace-nowrap shrink-0">
+                <x.icon className="w-4 h-4 text-brand-600" /><span className="hidden xl:inline">{x.label}</span><span className="hidden lg:inline xl:hidden">{x.short}</span>
+              </button>
+            ))}
+          </div>
+          {actions.map(a => (
+            <button key={a.label} onClick={a.on}
+              className={`flex items-center gap-2 h-12 px-4 rounded-2xl text-sm font-bold whitespace-nowrap shrink-0 ${a.primary ? 'bg-brand-500 hover:bg-brand-400 text-white shadow-[0_10px_24px_-10px_rgba(14,140,240,0.9)]' : glass}`}>
+              <a.icon className="w-4.5 h-4.5" /><span className={a.primary ? '' : 'hidden lg:inline'}>{a.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Telefonda: kısayollar 4'lü, işlemler 3'lü (arama üst çubukta da var) */}
+        <div className="relative mt-4 md:hidden space-y-2">
           {tools.length > 0 && (
-            <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {tools.map(x => (
-                <button key={x.key} onClick={() => onOpenTool(x.key)}
-                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-0 sm:h-10 sm:pl-1.5 sm:pr-3.5 rounded-2xl sm:rounded-full bg-white/85 backdrop-blur border border-white shadow-[0_6px_16px_-10px_rgba(15,60,120,0.6)] text-[11px] sm:text-[13px] font-bold text-[#0b2a4c] hover:bg-white active:scale-[0.98] transition min-w-0">
-                  <span className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-gradient-to-br ${x.tone} text-white flex items-center justify-center shrink-0`}><x.icon className="w-4 h-4 sm:w-3.5 sm:h-3.5" /></span>
-                  <span className="truncate max-w-full"><span className="sm:hidden">{x.short}</span><span className="hidden sm:inline">{x.label}</span></span>
+                <button key={x.key} onClick={() => onOpenTool(x.key)} className={`flex flex-col items-center justify-center gap-1 h-16 rounded-2xl text-[12px] font-semibold ${glass}`}>
+                  <x.icon className="w-5 h-5 text-sky-300" />{x.short}
                 </button>
               ))}
             </div>
           )}
           {actions.length > 0 && (
-            <div className="flex gap-2 sm:gap-3 lg:ml-auto">
+            <div className="grid grid-cols-3 gap-2">
               {actions.map(a => (
                 <button key={a.label} onClick={a.on}
-                  className={`flex-1 lg:flex-none min-w-0 flex items-center justify-center gap-2 px-2 sm:px-5 h-11 sm:h-12 rounded-2xl text-white font-bold text-[13px] sm:text-sm whitespace-nowrap active:scale-[0.98] hover:brightness-110 transition ${a.cls}`}>
-                  <a.icon className="w-4.5 h-4.5 shrink-0" /> {a.label}
+                  className={`flex items-center justify-center gap-1.5 h-11 rounded-2xl text-[13px] font-bold ${a.primary ? 'bg-brand-500 text-white' : 'bg-white text-[#0b2a4c]'}`}>
+                  <a.icon className="w-4 h-4" />{a.label}
                 </button>
               ))}
             </div>
           )}
         </div>
+
+        {/* Dönemin rakamları */}
+        {kpis.length > 0 && (
+          <div className="relative mt-4 sm:mt-6 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden bg-white/10">
+            {kpis.map(k => (
+              <button key={k.label} onClick={k.on} className="text-left bg-[#0b2a4c] hover:bg-[#0f335c] px-3 py-3 sm:px-4 sm:py-3.5 min-w-0">
+                <span className="block text-[11px] sm:text-xs text-sky-200/80 font-semibold truncate">{k.label}</span>
+                <span className="block mt-0.5 text-lg sm:text-2xl font-black tabular-nums truncate">{lira(k.value)}</span>
+                <span className="mt-1 flex items-center gap-1.5 text-[11px] sm:text-xs text-sky-100/70 min-w-0">
+                  <Change cur={k.value} prev={k.prev} lowerIsBetter={k.lowerIsBetter} dark />
+                  <span className="truncate">{k.sub && <span className="hidden sm:inline">{k.sub} · </span>}{isYear ? 'geçen yıla göre' : 'geçen aya göre'}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
-      {(canQuotes || canMoney) && (
-        <div className="relative -mt-9 sm:-mt-12 px-1.5 sm:px-4 space-y-4">
-          {/* Rakam kartları (karşılama alanının üstüne biner) */}
-          {tiles.length > 0 && (
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
-              {tiles.map(k => (
-                <button key={k.label} onClick={k.on}
-                  className={`group relative overflow-hidden text-left rounded-3xl border border-white bg-gradient-to-br ${k.tone.card} pt-3 pb-2.5 px-3 sm:pt-4 sm:px-4 sm:pb-3 min-w-0 shadow-[0_16px_30px_-20px_rgba(15,60,120,0.7)] hover:-translate-y-0.5 transition`}>
-                  <div className="relative flex items-start gap-2 sm:gap-3.5">
-                    <span className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full text-white flex items-center justify-center shrink-0 bg-gradient-to-br ${k.tone.icon} shadow-[0_8px_16px_-8px_rgba(0,0,0,0.35)]`}>
-                      <k.icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block text-[11px] sm:text-[13px] font-semibold truncate ${k.tone.text}`}>{k.label}</span>
-                      <span className={`block text-[14px] sm:text-[19px] 2xl:text-[22px] leading-tight font-black tabular-nums truncate ${k.tone.value}`}>{lira(k.value)}</span>
-                    </span>
-                  </div>
-                  <div className="relative mt-1 sm:mt-2 flex items-end justify-between gap-1 min-h-9 sm:min-h-10">
-                    <span className="relative z-10 max-w-[48%] text-[10px] sm:text-xs text-slate-500 min-w-0 pb-0.5 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-x-1.5 leading-tight">
-                      <Change cur={k.cur} prev={k.prev} lowerIsBetter={k.lowerIsBetter} />
-                      <span className="truncate"><span className="sm:hidden">{isYear ? 'geçen yıl' : 'geçen ay'}</span><span className="hidden sm:inline">{vsName}</span></span>
-                    </span>
-                  </div>
-                  <Spark values={k.spark} color={k.tone.line} />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {canQuotes && (
-            <div className="grid gap-4 sm:gap-5 lg:grid-cols-[1.45fr_1fr]">
-              <Card title="Satış Performansı" icon={BarChart3}
-                right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
-                <div className="flex gap-4 px-4 sm:px-6 text-xs text-slate-600">
-                  <span className="flex items-center gap-1.5"><i className="w-3 h-3 rounded-full bg-sky-400" />Verilen Teklif</span>
-                  <span className="flex items-center gap-1.5"><i className="w-3 h-3 rounded-full bg-emerald-500" />Onaylanan</span>
-                </div>
-                <BarsChart bars={bars} hi={hiKey}
-                  onPick={b => chart === 'all'
-                    ? (setPeriod({ kind: 'year', y: Number(b.key), m: 0 }), setChart('year'))
-                    : openQuotes({ status: 'all', from: b.from, to: b.to })} />
-              </Card>
-              <Card title="Satış Dağılımı" icon={MapPin}>
-                <Distribution st={s.status} cities={s.cities} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />
-              </Card>
-            </div>
-          )}
-
-          <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr]">
-            {canQuotes && (
-              <Card title="Son Teklifler" icon={FileText} right={<SeeAll onClick={() => openQuotes({ status: 'all' })} />}>
-                <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
-              </Card>
-            )}
-            {(canQuotes || canMoney) && !isYear && (
-              <Card title={canMoney ? 'Tahsilat Durumu' : 'Satış Hedefi'} icon={Target}
-                right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
-                <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
-              </Card>
-            )}
-            {canMoney && (
-              <Card title="Yaklaşan Ödemeler" icon={CalendarClock} right={<SeeAll onClick={() => onOpen('collections')} />}>
-                <DuesCard dues={dues} today={t} onOpen={() => onOpen('collections')} />
-              </Card>
-            )}
+      {/* Telefonda sıra: yapılacaklar, grafik, son teklifler, hedef, iller; bilgisayarda solda grafik + son teklifler, sağda diğerleri */}
+      <div className="grid gap-4 sm:gap-5 items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_target'_'recent_city'_'recent_.']">
+        {(canQuotes || canMoney) && (
+          <div className="lg:[grid-area:todo] min-w-0">
+            <TodoCard follow={canQuotes ? follow : []} dues={canMoney ? dues : []} today={t} rates={rates}
+              onOpenQuote={onOpenQuote} onAllFollow={() => openQuotes({ status: 'takip' })} onAllDues={() => onOpen('collections')} />
           </div>
-        </div>
-      )}
+        )}
+        {canQuotes && (
+          <Card className="lg:[grid-area:chart]" title="Satış Performansı" icon={BarChart3}
+            right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
+              <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-sky-300" />Verilen teklif</span>
+              <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />Onaylanan</span>
+            </div>
+            <BarsChart bars={bars} hi={hiKey}
+              onPick={b => chart === 'all'
+                ? (setPeriod({ kind: 'year', y: Number(b.key), m: 0 }), setChart('year'))
+                : openQuotes({ status: 'all', from: b.from, to: b.to })} />
+            <StatusSplit st={s.status} conv={conv} title={title} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />
+          </Card>
+        )}
+        {canQuotes && (
+          <Card className="lg:[grid-area:recent]" title="Son Teklifler" icon={FileText} right={<SeeAll onClick={() => openQuotes({ status: 'all' })} />}>
+            <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
+          </Card>
+        )}
+        {(canQuotes || canMoney) && !isYear && (
+          <Card className="lg:[grid-area:target]" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
+            <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
+          </Card>
+        )}
+        {canQuotes && (
+          <Card className="lg:[grid-area:city]" title="İllere Göre" icon={MapPin} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
+            <CityCard cities={s.cities} />
+          </Card>
+        )}
+      </div>
     </div>
   );
 };
 
-type Tone = { card: string; icon: string; text: string; value: string; line: string };
-const TONE: Record<'blue' | 'green' | 'violet' | 'orange', Tone> = {
-  blue: { card: 'from-[#f2f8ff] via-[#eaf3fe] to-[#d7e9fc]', icon: 'from-brand-500 to-brand-700', text: 'text-[#0b2a4c]', value: 'text-[#0b2a4c]', line: '#2f86e6' },
-  green: { card: 'from-[#effcf6] via-[#e5f8ef] to-[#cdf1e0]', icon: 'from-emerald-400 to-emerald-600', text: 'text-[#0b2a4c]', value: 'text-[#0b2a4c]', line: '#16b981' },
-  violet: { card: 'from-[#f6f4ff] via-[#efebff] to-[#e0d9fd]', icon: 'from-violet-400 to-indigo-500', text: 'text-indigo-900', value: 'text-indigo-600', line: '#7c6cf0' },
-  orange: { card: 'from-[#fff8ef] via-[#fff1df] to-[#fde2bf]', icon: 'from-orange-400 to-amber-500', text: 'text-orange-600', value: 'text-orange-500', line: '#f59a2c' },
+const money = (v: number, cur: string) => cur === 'USD' ? `$${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}` : cur === 'EUR' ? `€${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}` : `${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺`;
+
+/** Bugün yapılacaklar: takip bekleyen teklifler (telefonla ara) ve yaklaşan çek/senet vadeleri */
+const TodoCard: React.FC<{
+  follow: Quote[]; dues: Collection[]; today: string; rates: ReturnType<typeof useRates>;
+  onOpenQuote: (q: Quote) => void; onAllFollow: () => void; onAllDues: () => void;
+}> = ({ follow, dues, today, rates, onOpenQuote, onAllFollow, onAllDues }) => {
+  const plus = (n: number) => { const d = new Date(`${today}T00:00:00`); d.setDate(d.getDate() + n); return ymd(d); };
+  const week = dues.filter(c => (c.dueDate || '') <= plus(7));
+  const head = 'flex items-center justify-between gap-2 px-4 sm:px-5 pt-3 pb-1.5';
+  return (
+    <section className="bg-white rounded-3xl border border-slate-200/70 shadow-[0_14px_34px_-26px_rgba(15,60,120,0.6)] min-w-0 overflow-hidden">
+      <header className="px-4 sm:px-5 pt-4 pb-1">
+        <h2 className="text-base font-black text-[#0b2a4c] flex items-center gap-2"><ListChecks className="w-5 h-5 text-brand-500" />Bugün yapılacaklar</h2>
+      </header>
+      {follow.length + week.length === 0 && <p className="px-5 py-4 text-sm text-slate-400">Bekleyen iş yok. 🎉</p>}
+      {follow.length > 0 && (
+        <div>
+          <div className={head}>
+            <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">Takip et · {follow.length} teklif</p>
+            <button onClick={onAllFollow} className="text-xs font-bold text-brand-600">Tümü</button>
+          </div>
+          <div className="px-2 sm:px-3">
+            {follow.slice(0, 4).map(q => (
+              <div key={q.id} className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-slate-50">
+                <button onClick={() => onOpenQuote(q)} className="flex-1 min-w-0 text-left">
+                  <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
+                  <span className="block text-[11px] text-slate-500 truncate">{quoteAgeInDays(q)} gündür cevap yok · {lira(quoteTry(q, rates))}</span>
+                </button>
+                {q.customerPhone && (
+                  <a href={`tel:${q.customerPhone.replace(/[^\d+]/g, '')}`} className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 hover:bg-emerald-100" aria-label={`${q.customerName} ara`} title={q.customerPhone}>
+                    <Phone className="w-4 h-4" />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {dues.length > 0 && (
+        <div className={follow.length ? 'border-t border-slate-100 mt-1' : ''}>
+          <div className={head}>
+            <p className="text-xs font-bold text-brand-700 uppercase tracking-wide">Vadesi gelen · 7 gün {lira(sumTry(week))}</p>
+            <button onClick={onAllDues} className="text-xs font-bold text-brand-600">Tümü</button>
+          </div>
+          <div className="px-2 sm:px-3 pb-2">
+            {dues.slice(0, 3).map(c => {
+              const d = new Date(`${c.dueDate}T00:00:00`);
+              const days = Math.round((d.getTime() - new Date(`${today}T00:00:00`).getTime()) / 864e5);
+              return (
+                <button key={c.id} onClick={onAllDues} className="w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-slate-50">
+                  <span className="w-10 h-10 rounded-xl bg-sky-50 text-brand-700 flex flex-col items-center justify-center leading-none shrink-0">
+                    <b className="text-sm font-black">{d.getDate()}</b><span className="text-[10px] font-bold mt-0.5">{AY[d.getMonth()]}</span>
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[13px] font-semibold text-slate-800 truncate">{c.customerName}</span>
+                    <span className="block text-[11px] text-slate-500 truncate">{days === 0 ? 'Bugün' : days === 1 ? 'Yarın' : `${days} gün sonra`} · {[c.method, c.bankName].filter(Boolean).join(' · ')}</span>
+                  </span>
+                  <span className="text-[13px] font-bold text-slate-900 tabular-nums shrink-0">{money(c.amount, c.currency)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </section>
+  );
 };
 
-const money = (v: number, cur: string) => cur === 'USD' ? `$${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}` : cur === 'EUR' ? `€${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}` : `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`;
+/** Teklif durumlarının payı (tutara göre) tek çubukta + dönüşüm oranı */
+const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count: number; value: number }>; conv: number; title: string; onPick: (status: string) => void }> = ({ st, conv, title, onPick }) => {
+  const rows = [
+    { key: 'onaylandi', label: 'Onaylanan', x: st.onay, c: 'bg-emerald-500' },
+    { key: 'aktif', label: 'Bekleyen', x: st.bekleyen, c: 'bg-amber-400' },
+    { key: 'iptal', label: 'İptal', x: st.iptal, c: 'bg-rose-400' },
+  ];
+  const total = rows.reduce((a, r) => a + r.x.value, 0);
+  return (
+    <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs font-semibold text-slate-600">{title} teklifleri</p>
+        <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#0b2a4c]">%{conv}</b></p>
+      </div>
+      <div className="mt-2 h-2.5 rounded-full bg-slate-200 overflow-hidden flex">
+        {rows.map(r => total > 0 && <span key={r.key} className={r.c} style={{ width: `${(r.x.value / total) * 100}%` }} />)}
+      </div>
+      <div className="mt-2.5 grid grid-cols-3 gap-2">
+        {rows.map(r => (
+          <button key={r.key} onClick={() => onPick(r.key)} className="text-left min-w-0 rounded-lg hover:bg-white px-1 py-0.5">
+            <span className="flex items-center gap-1.5 text-[11px] text-slate-500"><i className={`w-2 h-2 rounded-full ${r.c}`} />{r.label} · {r.x.count}</span>
+            <span className="block text-[13px] sm:text-sm font-black text-[#0b2a4c] tabular-nums truncate">{lira(r.x.value)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
-/** Karşılama alanının sağındaki tesis çizimi: depolar, borular, çatı (resim dosyası yok, hafif) */
-const PlantArt: React.FC = () => (
-  <svg viewBox="0 0 640 300" preserveAspectRatio="xMaxYMid slice" className="hidden sm:block pointer-events-none absolute inset-y-0 right-0 h-full w-[68%]" aria-hidden>
-    <defs>
-      <linearGradient id="pa-steel" x1="0" x2="1">
-        <stop offset="0" stopColor="#9fb6cf" /><stop offset=".35" stopColor="#f4f8fc" /><stop offset=".6" stopColor="#d5e1ee" /><stop offset="1" stopColor="#8aa3bf" />
-      </linearGradient>
-      <linearGradient id="pa-steel2" x1="0" x2="1">
-        <stop offset="0" stopColor="#b7c8da" /><stop offset=".4" stopColor="#ffffff" /><stop offset="1" stopColor="#a3b8cf" />
-      </linearGradient>
-      <linearGradient id="pa-pipe" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#e9f0f7" /><stop offset=".5" stopColor="#b9cadb" /><stop offset="1" stopColor="#8ea6bf" />
-      </linearGradient>
-      <linearGradient id="pa-sky" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#cfe4fa" /><stop offset="1" stopColor="#eef5fd" />
-      </linearGradient>
-      <linearGradient id="pa-fade" x1="0" x2="1">
-        <stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset=".32" stopColor="#fff" stopOpacity=".85" /><stop offset="1" stopColor="#fff" stopOpacity="1" />
-      </linearGradient>
-      <linearGradient id="pa-floor" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#fff" stopOpacity="1" /><stop offset=".7" stopColor="#fff" stopOpacity="1" /><stop offset="1" stopColor="#fff" stopOpacity=".1" />
-      </linearGradient>
-      <mask id="pa-mask"><rect width="640" height="300" fill="url(#pa-fade)" /></mask>
-    </defs>
-    <g mask="url(#pa-mask)">
-      <rect width="640" height="300" fill="url(#pa-sky)" />
-      {/* çatı kirişleri */}
-      <g stroke="#a9bdd3" strokeWidth="3" opacity=".7">
-        <path d="M150 20h490M150 46h490" /><path d="M170 20l26 26M230 20l26 26M290 20l26 26M350 20l26 26M410 20l26 26M470 20l26 26M530 20l26 26M590 20l26 26" strokeWidth="2" />
-      </g>
-      {/* arka depolar */}
-      <rect x="250" y="70" width="70" height="200" rx="10" fill="url(#pa-steel2)" opacity=".8" />
-      <rect x="540" y="60" width="80" height="210" rx="12" fill="url(#pa-steel2)" opacity=".85" />
-      {/* boru demetleri */}
-      <g fill="none" strokeLinecap="round">
-        <path d="M170 120h470" stroke="url(#pa-pipe)" strokeWidth="14" />
-        <path d="M170 150h470" stroke="url(#pa-pipe)" strokeWidth="10" />
-        <path d="M210 120v150M470 150v120" stroke="url(#pa-pipe)" strokeWidth="12" />
-        <path d="M330 70V40h120v30" stroke="url(#pa-pipe)" strokeWidth="12" />
-      </g>
-      {/* ön büyük kazanlar */}
-      <g>
-        <rect x="330" y="60" width="120" height="220" rx="22" fill="url(#pa-steel)" />
-        <ellipse cx="390" cy="64" rx="60" ry="12" fill="#e9f1f9" />
-        <rect x="460" y="90" width="90" height="190" rx="18" fill="url(#pa-steel)" />
-        <ellipse cx="505" cy="94" rx="45" ry="9" fill="#e9f1f9" />
-        <g stroke="#8fa7c0" strokeWidth="2" opacity=".6"><path d="M330 120h120M330 200h120M460 150h90M460 220h90" /></g>
-        <circle cx="390" cy="160" r="14" fill="#f5f9fd" stroke="#7d97b3" strokeWidth="3" />
-        <circle cx="505" cy="185" r="11" fill="#f5f9fd" stroke="#7d97b3" strokeWidth="3" />
-      </g>
-      {/* flanşlar ve vanalar */}
-      <g fill="#6f8aa8"><rect x="300" y="113" width="6" height="14" rx="2" /><rect x="455" y="113" width="6" height="14" rx="2" /><rect x="560" y="143" width="6" height="12" rx="2" /></g>
-      <rect y="250" width="640" height="50" fill="url(#pa-floor)" opacity=".75" />
-    </g>
-  </svg>
-);
+/** İllere göre: küçük harita + ilk 5 il */
+const CityCard: React.FC<{ cities: Record<string, number> }> = ({ cities }) => {
+  const top = Object.entries(cities).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const total = Object.values(cities).reduce((a, b) => a + b, 0);
+  return (
+    <div className="px-4 sm:px-5 pb-4">
+      <TurkeyMap values={cities} format={tl} className="w-full max-w-md mx-auto" />
+      <div className="mt-2 space-y-1.5">
+        {top.length === 0 && <p className="text-xs text-slate-400">Bu dönemde şehirli teklif yok.</p>}
+        {top.map(([c, v]) => (
+          <div key={c} className="flex items-center gap-2 text-xs">
+            <span className="w-24 truncate font-semibold text-slate-700">{c}</span>
+            <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><span className="block h-full rounded-full bg-brand-500" style={{ width: `${(v / (top[0][1] || 1)) * 100}%` }} /></span>
+            <span className="w-20 text-right tabular-nums text-slate-500 whitespace-nowrap">{short(v)} · %{total ? Math.round((v / total) * 100) : 0}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 /** Beyaz kart: simge + başlık, sağda isteğe bağlı bağlantı/sekme */
 const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, icon: Icon, right, className = '', children }) => (
@@ -402,38 +458,14 @@ const Tabs: React.FC<{ value: string; items: [string, string][]; onChange: (k: s
   </div>
 );
 
-/** Kart altındaki çizgi grafik (son aylar), dolgulu */
-const Spark: React.FC<{ values: number[]; color: string }> = ({ values, color }) => {
-  const id = React.useId().replace(/:/g, '');
-  const max = Math.max(1, ...values);
-  const w = 160, h = 64;
-  if (!values.length) return null;
-  const pts = values.map((v, i) => [values.length > 1 ? (i / (values.length - 1)) * w : w, h - 4 - (v / max) * (h - 14)] as const);
-  // yumuşak eğri
-  let line = `M${pts[0][0]} ${pts[0][1]}`;
-  for (let i = 1; i < pts.length; i++) {
-    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], cx = (x0 + x1) / 2;
-    line += ` C${cx} ${y0} ${cx} ${y1} ${x1} ${y1}`;
-  }
-  const [lx, ly] = pts[pts.length - 1];
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute right-0 bottom-0 w-[50%] h-10 sm:h-12" preserveAspectRatio="none" aria-hidden>
-      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={color} stopOpacity="0.38" /><stop offset="1" stopColor={color} stopOpacity="0" /></linearGradient></defs>
-      <path d={`${line} L${w} ${h} L0 ${h} Z`} fill={`url(#${id})`} />
-      <path d={line} fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={lx - 2} cy={ly} r="3.2" fill="white" stroke={color} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-};
-
 /** Önceki döneme (bu dönemse aynı günlerine kadar) göre değişim: %34 ↑ */
-const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean }> = ({ cur, prev, lowerIsBetter }) => {
-  if (!prev) return <span className="font-bold text-slate-400">–</span>;
+const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean; dark?: boolean }> = ({ cur, prev, lowerIsBetter, dark }) => {
+  if (!prev) return <span className={`font-bold ${dark ? 'text-sky-200/60' : 'text-slate-400'}`}>–</span>;
   const pct = Math.round(((cur - prev) / prev) * 100);
   const up = pct >= 0;
   const Icon = up ? TrendingUp : TrendingDown;
   const good = lowerIsBetter ? !up : up;
-  return <span className={`inline-flex items-center gap-0.5 font-bold ${good ? 'text-emerald-600' : 'text-rose-500'}`}>%{Math.abs(pct)} <Icon className="w-3.5 h-3.5" /></span>;
+  return <span className={`inline-flex items-center gap-0.5 font-bold shrink-0 ${dark ? (good ? 'text-emerald-300' : 'text-rose-300') : good ? 'text-emerald-600' : 'text-rose-500'}`}>%{Math.abs(pct)} <Icon className="w-3.5 h-3.5" /></span>;
 };
 
 type BarItem = Month & { label: string; shortLabel: string; from: string; to: string };
@@ -485,61 +517,6 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
   );
 };
 
-/** Satış dağılımı: illere göre harita, durum oranları, toplam teklif */
-const Distribution: React.FC<{
-  st: Record<'onay' | 'bekleyen' | 'iptal', { count: number; value: number }>;
-  cities: Record<string, number>;
-  onPick: (status: string) => void;
-}> = ({ st, cities, onPick }) => {
-  const rows = [
-    { key: 'onaylandi', label: 'Onaylanan', x: st.onay, c: 'bg-brand-600' },
-    { key: 'aktif', label: 'Bekleyen', x: st.bekleyen, c: 'bg-amber-400' },
-    { key: 'iptal', label: 'İptal', x: st.iptal, c: 'bg-rose-500' },
-  ];
-  const total = rows.reduce((a, r) => a + r.x.value, 0);
-  const top = Object.entries(cities).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  const cityTotal = Object.values(cities).reduce((a, b) => a + b, 0);
-  return (
-    <div className="px-4 sm:px-5 pb-5">
-      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <TurkeyMap values={cities} format={tl} className="max-w-md" />
-          <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-500">
-            <span>Az</span><span className="h-1.5 w-20 rounded-full bg-gradient-to-r from-[#a9cdf3] to-[#0a5bc0]" /><span>Çok teklif</span>
-          </div>
-        </div>
-        <div className="sm:w-[30%] shrink-0 grid grid-cols-3 sm:grid-cols-1 gap-1.5 sm:gap-2.5">
-          {rows.map(r => (
-            <button key={r.key} onClick={() => onPick(r.key)} className="flex items-start gap-2 text-left rounded-xl hover:bg-slate-50 px-1.5 py-1 sm:px-1 sm:py-0.5 bg-slate-50/70 sm:bg-transparent">
-              <i className={`mt-1 w-3 h-3 rounded-full shrink-0 ${r.c}`} />
-              <span className="min-w-0">
-                <span className="block text-xs sm:text-sm text-slate-600">{r.label}</span>
-                <span className="block text-sm sm:text-base font-black text-[#0b2a4c] tabular-nums">%{total ? Math.round((r.x.value / total) * 100) : 0}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="mt-3 pt-3 border-t border-slate-100 flex items-end justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-1">
-          {top.length === 0 && <p className="text-xs text-slate-400">Bu dönemde şehirli teklif yok.</p>}
-          {top.map(([c, v]) => (
-            <div key={c} className="flex items-center gap-2 text-xs">
-              <span className="w-20 sm:w-24 truncate font-semibold text-slate-700">{c}</span>
-              <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><span className="block h-full rounded-full bg-brand-500" style={{ width: `${(v / (top[0][1] || 1)) * 100}%` }} /></span>
-              <span className="w-9 text-right tabular-nums text-slate-500">%{cityTotal ? Math.round((v / cityTotal) * 100) : 0}</span>
-            </div>
-          ))}
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-xs sm:text-sm text-slate-500">Toplam Teklif</p>
-          <p className="text-base sm:text-lg font-black text-[#0b2a4c] tabular-nums">{tl(total)}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const STATUS_BADGE: Record<string, [string, string, React.ElementType]> = {
   onaylandi: ['Onaylandı', 'bg-emerald-50 text-emerald-700', Check],
   gonderildi: ['Beklemede', 'bg-orange-50 text-orange-600', Clock],
@@ -569,88 +546,6 @@ const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRate
           </button>
         );
       })}
-    </div>
-  );
-};
-
-/** Zil: dokununca takip bekleyen tekliflerin küçük listesi açılır (sayfa değişmez); teklife dokununca teklif açılır */
-const BellMenu: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRates>; btnCls: string; onOpenQuote: (q: Quote) => void; onAll: () => void }> = ({ quotes, rates, btnCls, onOpenQuote, onAll }) => {
-  const [open, setOpen] = useState(false);
-  const n = quotes.length;
-  return (
-    <div className="relative">
-      <button onClick={() => setOpen(o => !o)} className={btnCls} aria-expanded={open} title={n ? `${n} teklif takip bekliyor` : 'Takip bekleyen teklif yok'} aria-label="Bildirimler">
-        <Bell className="w-4.5 h-4.5" />
-        {n > 0 && <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center ring-2 ring-white">{n > 99 ? '99+' : n}</span>}
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:right-6 sm:top-20 z-50 sm:w-96 bg-white rounded-2xl border border-slate-200 shadow-[0_18px_40px_-16px_rgba(15,40,80,0.45)] overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100">
-              <p className="text-sm font-black text-[#0b2a4c]">Bildirimler</p>
-              <p className="text-[11px] text-slate-500">{n ? `${n} teklif 3 günden uzun süredir yanıt bekliyor` : 'Takip bekleyen teklif yok'}</p>
-            </div>
-            {n > 0 && (
-              <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
-                {quotes.slice(0, 8).map(q => (
-                  <button key={q.id} onClick={() => { setOpen(false); onOpenQuote(q); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left hover:bg-slate-50">
-                    <span className="w-8 h-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center shrink-0"><Clock className="w-4 h-4" /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
-                      <span className="block text-[11px] text-slate-500">{quoteAgeInDays(q)} gündür bekliyor · tekrar görüşün</span>
-                    </span>
-                    <span className="text-[12px] font-bold text-slate-700 tabular-nums shrink-0">{lira(quoteTry(q, rates))}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {n > 0 && <button onClick={() => { setOpen(false); onAll(); }} className="w-full py-2.5 text-xs font-bold text-brand-600 border-t border-slate-100 hover:bg-slate-50">Tümünü teklifler sayfasında gör{n > 8 ? ` (+${n - 8})` : ''}</button>}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-/** Yaklaşan çek/senet vadeleri: 7 ve 30 günlük özet + en yakın 4 vade */
-const DuesCard: React.FC<{ dues: Collection[]; today: string; onOpen: () => void }> = ({ dues, today, onOpen }) => {
-  if (!dues.length) return <p className="px-5 pb-5 text-sm text-slate-400">Vadesi gelecek çek/senet yok.</p>;
-  const plus = (n: number) => { const d = new Date(`${today}T00:00:00`); d.setDate(d.getDate() + n); return ymd(d); };
-  const sum = (l: Collection[]) => sumTry(l);
-  const w7 = dues.filter(c => (c.dueDate || '') <= plus(7)), w30 = dues.filter(c => (c.dueDate || '') <= plus(30));
-  const box = 'flex-1 min-w-0 rounded-2xl px-3 py-2.5 border';
-  return (
-    <div className="px-4 sm:px-5 pb-3">
-      <div className="flex gap-2">
-        <div className={`${box} bg-orange-50/70 border-orange-100`}>
-          <p className="text-[11px] font-semibold text-orange-700 truncate">7 gün · {w7.length} vade</p>
-          <p className="text-sm font-black text-[#0b2a4c] tabular-nums truncate">{lira(sum(w7))}</p>
-        </div>
-        <div className={`${box} bg-sky-50/70 border-sky-100`}>
-          <p className="text-[11px] font-semibold text-brand-700 truncate">30 gün · {w30.length} vade</p>
-          <p className="text-sm font-black text-[#0b2a4c] tabular-nums truncate">{lira(sum(w30))}</p>
-        </div>
-      </div>
-      <div className="mt-1.5 divide-y divide-slate-100">
-        {dues.slice(0, 4).map(c => {
-          const d = new Date(`${c.dueDate}T00:00:00`);
-          const days = Math.round((d.getTime() - new Date(`${today}T00:00:00`).getTime()) / 864e5);
-          return (
-            <button key={c.id} onClick={onOpen} className="w-full flex items-center gap-3 py-2 text-left hover:bg-slate-50 rounded-xl">
-              <span className="w-10 h-11 rounded-xl bg-orange-50 border border-orange-100 text-orange-500 flex flex-col items-center justify-center leading-none shrink-0">
-                <b className="text-sm font-black">{d.getDate()}</b><span className="text-[10px] font-bold mt-0.5">{AY[d.getMonth()]}</span>
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-[13px] font-semibold text-slate-800 truncate">{c.customerName}</span>
-                <span className="block text-[11px] text-slate-500 truncate">{days === 0 ? 'Bugün' : days === 1 ? 'Yarın' : `${days} gün sonra`} · {[c.method, c.bankName].filter(Boolean).join(' · ')}</span>
-              </span>
-              <span className="text-[13px] font-bold text-slate-900 tabular-nums shrink-0">{money(c.amount, c.currency)}</span>
-            </button>
-          );
-        })}
-      </div>
-      {dues.length > 4 && <button onClick={onOpen} className="w-full mt-1 text-center text-xs font-bold text-brand-600 py-1.5">+{dues.length - 4} vade daha · toplam {lira(sum(dues))}</button>}
     </div>
   );
 };
