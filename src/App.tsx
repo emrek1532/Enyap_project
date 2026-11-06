@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Loader2, Plus } from 'lucide-react';
 import {
@@ -53,6 +53,8 @@ import { CustomersPanel } from './components/CustomersPanel';
 import { readQuotePdf } from './lib/pdfQuote';
 import { AccessContext, Module, Profile, can, fetchMyProfile } from './lib/access';
 import { AdminPanel, PendingScreen } from './components/AdminPanel';
+import { useRates } from './lib/rates';
+import { pageStats } from './lib/pageStats';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -689,6 +691,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
   const [newRequest, setNewRequest] = useState(0);
   const openTool = (m: ToolMode) => { setToolMode(m); try { localStorage.setItem('home-assistant', m); } catch { /* */ } };
+  // Sayfa başlığı bandındaki özet rakamlar (cihazdaki veriden)
+  const rates = useRates(data.quotes);
+  const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, data, rates), [activeTab, data, rates]);
   const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
     : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
     : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
@@ -773,6 +778,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             tone={SECTION_META[activeTab].tone}
             onBack={goBack}
             onHome={goHome}
+            stats={headStats}
           />
         )}
         

@@ -173,7 +173,7 @@ export const CustomerAccount: React.FC<{
 
         <div className="p-3 sm:p-5 space-y-3 overflow-y-auto flex-1">
           {balance && showCollections && (
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 sm:p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+            <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] p-3.5 sm:p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Cari bakiye (tahmini güncel)</div>
                 <div className={`text-2xl font-black tabular-nums ${balance.estimate < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(balance.estimate)}</div>

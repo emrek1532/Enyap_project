@@ -45,7 +45,7 @@ export const AdminPanel: React.FC<{ meId: string; activities: ActivityLog[] }> =
     <div className="max-w-4xl mx-auto space-y-4">
       {err && <div className="px-3 py-2 rounded-xl bg-rose-50 text-rose-700 text-sm">{err}</div>}
 
-      <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         <header className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
           <UserRound className="w-4 h-4 text-slate-400" />
           <h2 className="font-black text-slate-900">Kullanıcılar</h2>
@@ -130,7 +130,7 @@ export const AdminPanel: React.FC<{ meId: string; activities: ActivityLog[] }> =
         </div>
       </section>
 
-      <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         <header className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
           <Clock className="w-4 h-4 text-slate-400" />
           <h2 className="font-black text-slate-900">Hareket kaydı</h2>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /** Liste sayfalarının ortak görünümü (Teklifler, Müşteriler, Malzemeler, Tahsilat) */
-export const listCard = 'bg-white/90 rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_-14px_rgba(15,40,80,0.25)]';
+export const listCard = 'bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]';
 export const ctrl = 'h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400';
 export const thCls = 'py-3 px-3 text-[12px] font-bold text-slate-500';
 export const rowCls = 'hover:bg-brand-50/40 transition-colors';

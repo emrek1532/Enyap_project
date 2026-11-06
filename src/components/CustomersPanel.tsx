@@ -519,7 +519,7 @@ const BalanceView: React.FC<{
           {lastMikro ? `Mikro bakiyeleri ${lastMikro.split('-').reverse().join('.')} tarihli.` : 'Henüz Mikro bakiyesi yüklenmedi.'} Tutar = Mikro bakiyesi − o tarihten sonra girilen TL tahsilatlar.
         </p>
       </div>
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100 overflow-hidden">
+      <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] divide-y divide-slate-100 overflow-hidden">
         {shown.map(({ c, b }) => (
           <button key={c.id} onClick={() => onOpen(c)} className="w-full text-left p-3 sm:px-4 hover:bg-slate-50 block">
             <div className="flex items-start justify-between gap-3">
