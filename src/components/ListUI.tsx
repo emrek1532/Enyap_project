@@ -1,7 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /** Liste sayfalarının ortak görünümü (Teklifler, Müşteriler, Malzemeler, Tahsilat) */
+/** Geniş ekran mı (xl, 1280px+): listeler ya tablo ya kart olarak çizilir, ikisi birden değil (daha hızlı) */
+const WIDE_MQ = '(min-width: 1280px)';
+export const useWide = () => {
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(WIDE_MQ).matches);
+  useEffect(() => {
+    const m = window.matchMedia(WIDE_MQ);
+    const on = () => setWide(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return wide;
+};
+/** Yalnız geniş ekranda (tablo) / yalnız dar ekranda (kartlar) çizilir */
+export const WideOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => (useWide() ? <>{children}</> : null);
+export const NarrowOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => (useWide() ? null : <>{children}</>);
+
 export const listCard = 'bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]';
 export const ctrl = 'h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400';
 export const thCls = 'py-3 px-3 text-[12px] font-bold text-slate-500';

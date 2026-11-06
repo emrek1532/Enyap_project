@@ -1,3 +1,4 @@
+import { trNum } from './num';
 import { AppData, Collection, Expense, Quote } from '../types';
 import { dayOf } from './dates';
 import { PENDING_STATUSES, needsFollowUp } from './quoteRules';
@@ -8,8 +9,8 @@ export type PageStat = { label: string; value: string; sub?: string };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const lira = (v: number) => `₺ ${Math.round(v).toLocaleString('tr-TR')}`;
-const n = (v: number) => v.toLocaleString('tr-TR');
+const lira = (v: number) => `₺ ${trNum(Math.round(v))}`;
+const n = (v: number) => trNum(v);
 const sumTry = (l: (Collection | Expense)[]) => l.filter(x => (x.currency || 'TRY') === 'TRY').reduce((t, x) => t + (x.amount || 0), 0);
 
 /**

@@ -1,3 +1,4 @@
+import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
@@ -12,18 +13,15 @@ import { Rates, quoteTry } from '../lib/rates';
 import { formatQuoteAmount } from '../lib/money';
 import { textMatcher } from '../lib/materials';
 
-export const STATUS_LABEL: Record<QuoteStatus, { label: string; cls: string }> = {
-  gonderildi: { label: 'Beklemede', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
-  onaylandi: { label: 'Onaylandı', cls: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-  iptal: { label: 'İptal', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-};
+export { STATUS_LABEL } from '../lib/constants';
+import { STATUS_LABEL } from '../lib/constants';
 
 const isApproved = (q: Quote) => q.status === 'onaylandi';
 const isPending = (q: Quote) => PENDING_STATUSES.includes(q.status);
 const tl = (n: number) => `${Math.round(n).toLocaleString('tr-TR')} TL`;
 const day = (s: string) => (s ? new Date(s).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 const curSym = (c?: string) => (c === 'USD' ? '$' : c === 'EUR' ? '€' : 'TL');
-const money = (v: number, c?: string) => `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curSym(c)}`;
+const money = (v: number, c?: string) => `${trNum(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curSym(c)}`;
 const fold = (s: string) => s.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
   .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
 
@@ -144,31 +142,31 @@ export const CustomerAccount: React.FC<{
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-slate-50 w-full sm:max-w-4xl sm:rounded-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
+        className="bg-[#f4f8fc] w-full sm:max-w-4xl sm:rounded-3xl shadow-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
         {/* Başlık */}
-        <div className="px-4 sm:px-5 py-3.5 bg-brand-600 text-white flex items-center gap-3 pt-safe">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center gap-3 pt-safe-4">
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] text-brand-100 font-bold uppercase tracking-wide">Cari hesap</div>
-            <h3 className="font-black text-base sm:text-lg leading-tight break-words">
+            <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Cari hesap</div>
+            <h3 className="font-black text-lg sm:text-[22px] tracking-tight leading-tight break-words">
               {customer.name}
               {cStatus !== 'aktif' && <span className={`ml-2 align-middle text-[10px] px-2 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>}
             </h3>
-            <p className="text-xs text-brand-100 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
+            <p className="text-xs text-sky-200/80 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
           </div>
           {onSaveCollection && (
-            <button onClick={() => setAddingCol(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-bold">
+            <button onClick={() => setAddingCol(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold">
               <Wallet className="w-4 h-4" /> Tahsilat ekle
             </button>
           )}
           <WhatsAppMenu
             phone={customer.phone || allQuotes.find(x => x.customerPhone)?.customerPhone}
             ctx={{ name: customer.name, contact: customer.contactPerson, quote: allQuotes.find(x => PENDING_STATUSES.includes(x.status)) || allQuotes[0], quoteValue: (() => { const x = allQuotes.find(y => PENDING_STATUSES.includes(y.status)) || allQuotes[0]; return x ? quoteTry(x, rates) : undefined; })(), balance: showCollections ? balance?.estimate : undefined, balanceDate: balance ? new Date().toISOString() : undefined }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-bold"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold"
           />
-          <button onClick={onNewQuote} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-bold">
+          <button onClick={onNewQuote} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold">
             <FilePlus2 className="w-4 h-4" /> Yeni teklif
           </button>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-brand-100 hover:text-white hover:bg-brand-700" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="p-3 sm:p-5 space-y-3 overflow-y-auto flex-1">

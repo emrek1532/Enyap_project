@@ -87,11 +87,11 @@ export const HelpGuide: React.FC<{ variant: 'icon' | 'wide' | 'dark'; className?
       )}
       {open && createPortal(
         <div className="fixed inset-0 z-[70] bg-slate-900/60 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setOpen(false)}>
-          <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 pt-safe">
-              <HelpCircle className="w-5 h-5 text-brand-600" />
-              <h3 className="flex-1 font-black text-slate-900">Kullanım Kılavuzu</h3>
-              <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl sm:rounded-3xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
+            <div className="flex items-center gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white pt-safe-4">
+              <HelpCircle className="w-5 h-5 text-sky-300" />
+              <h3 className="flex-1 font-black text-lg tracking-tight">Kullanım Kılavuzu</h3>
+              <button onClick={() => setOpen(false)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-safe">
               {GUIDE.map(([title, items]) => (

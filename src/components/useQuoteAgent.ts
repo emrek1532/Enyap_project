@@ -3,8 +3,7 @@ import { Customer, Quote, QuoteItem } from '../types';
 import { MATERIAL_UNITS, Material, foldTr, searchMaterials, textMatcher } from '../lib/materials';
 import { dayOf, localDay } from '../lib/dates';
 import { supabase } from '../lib/supabase';
-import { STATUS_LABEL } from './CustomerAccount';
-import { PAYMENT_TERMS } from './NewQuoteModal';
+import { STATUS_LABEL, PAYMENT_TERMS } from '../lib/constants';
 import { QuickDraft, quickDraft } from '../lib/quickDraft';
 
 type Call = { tool: string; arg: string };

@@ -1,3 +1,4 @@
+import { trNum } from './num';
 import { Quote, QuoteItem } from '../types';
 
 export type Currency = Quote['currency'];
@@ -6,7 +7,7 @@ export const CURRENCY_LABEL: Record<Currency, string> = { TRY: 'TL', USD: 'USD',
 
 export const itemCurrency = (it: QuoteItem, q?: Quote): Currency => it.currency || q?.currency || 'TRY';
 
-const fmt = (v: number) => v.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+const fmt = (v: number) => trNum(v, { maximumFractionDigits: 2 });
 
 /** Teklif tutarını döviz kırılımıyla parçalar: ["12.000 TL", "500 USD"] */
 export const quoteAmountParts = (q: Quote): string[] => {

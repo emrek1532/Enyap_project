@@ -1,3 +1,4 @@
+import { trNum } from '../lib/num';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, ChevronRight, Lightbulb, Loader2, Mic, Search, Square, X } from 'lucide-react';
 import { SpeechSession, canSpeech, listen } from '../lib/speech';
@@ -14,7 +15,7 @@ const perList = (items: SupplierItem[], per: number, max: number) => {
   const n = new Map<string, number>();
   return items.filter(x => { const c = n.get(x.listId) || 0; n.set(x.listId, c + 1); return c < per; }).slice(0, max);
 };
-const money = (v: number, c: string) => `${v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as keyof typeof CURRENCY_LABEL] || c}`;
+const money = (v: number, c: string) => `${trNum(v, { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as keyof typeof CURRENCY_LABEL] || c}`;
 const trDay = (s: string) => dayOf(s).split('-').reverse().join('.');
 // Son aramalar yalnız bu cihazda (sunucuya gitmez)
 const HIST_KEY = 'search-history';

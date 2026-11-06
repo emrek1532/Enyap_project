@@ -7,7 +7,7 @@ import { dayOf } from '../lib/dates';
 import { supabase } from '../lib/supabase';
 import { quoteTry, useRates } from '../lib/rates';
 import { AskLine, AskResult, computeAsk, findAsk, fmtMoney, lineCur, lineText } from '../lib/askQuery';
-import { STATUS_LABEL } from './CustomerAccount';
+import { STATUS_LABEL } from '../lib/constants';
 
 const statusLabel = (s: QuoteStatus) => STATUS_LABEL[s]?.label || s;
 const fmtDay = (s: string) => dayOf(s).split('-').reverse().join('.');

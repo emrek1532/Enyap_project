@@ -1,3 +1,4 @@
+import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { FileUp, Loader2, X, AlertCircle } from 'lucide-react';
 import { Customer } from '../types';
@@ -8,7 +9,7 @@ import { DateInput } from './DateInput';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
-const money = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (v: number) => trNum(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Mikro cari kodunun ilk iki hanesi plaka kodu (32 → Isparta)
 const PLATE: Record<string, string> = { '03': 'Afyonkarahisar', '06': 'Ankara', '07': 'Antalya', '15': 'Burdur', '20': 'Denizli', '32': 'Isparta', '34': 'İstanbul', '35': 'İzmir', '42': 'Konya', '43': 'Kütahya', '48': 'Muğla', '64': 'Uşak' };
 const STOP = /^(san|sanayi|tic|ticaret|ltd|şti|a\.?ş|inş|insaat|ve|müh|taah)\.?/i;
@@ -96,13 +97,13 @@ export const MikroUpload: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
-        <div className="px-4 py-3.5 bg-brand-600 text-white flex items-center gap-3 pt-safe">
+      <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-3xl shadow-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center gap-3 pt-safe-4">
           <div className="flex-1 min-w-0">
-            <div className="text-[11px] text-brand-100 font-bold uppercase tracking-wide">Mikro</div>
+            <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Mikro</div>
             <h3 className="font-black">Cari bakiye listesi yükle</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-brand-700" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
@@ -172,7 +173,7 @@ export const MikroUpload: React.FC<{
         {rows && (
           <div className="p-3 border-t border-slate-200 flex justify-end gap-2 pb-safe">
             <button onClick={onClose} className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100">Vazgeç</button>
-            <button onClick={save} className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold">Bakiyeleri kaydet</button>
+            <button onClick={save} className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-white/10 text-white text-sm font-bold">Bakiyeleri kaydet</button>
           </div>
         )}
       </div>

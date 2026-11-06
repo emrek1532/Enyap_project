@@ -37,7 +37,8 @@ interface NewQuoteModalProps {
   onOpenExisting?: (q: Quote, file: File) => void;
 }
 
-export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
+export { PAYMENT_TERMS } from '../lib/constants';
+import { PAYMENT_TERMS } from '../lib/constants';
 
 /** Tarihi yeni güne taşır, günün saati aynı kalır (yerel saat) */
 const withDay = (iso: string, day: string) => {
@@ -537,30 +538,30 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4">
-      <div className="bg-white w-full sm:max-w-6xl sm:rounded-xl shadow-2xl border border-slate-300 overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[94vh]">
+      <div className="bg-white w-full sm:max-w-6xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[94vh]">
 
         {/* Başlık çubuğu */}
-        <div className="px-3 py-2 bg-brand-600 text-white flex items-center gap-2 pt-safe">
-          <h3 className="font-black text-sm sm:text-base flex-1 min-w-0 truncate">
+        <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center gap-2 pt-safe-3 sm:pt-3.5">
+          <h3 className="font-black text-base sm:text-lg tracking-tight flex-1 min-w-0 truncate">
             {isEdit ? `Teklif Düzenle · ${editQuote!.quoteNumber}` : 'Yeni Fiyat Teklifi'}
           </h3>
           <button
             type="button"
             onClick={() => pdfInputRef.current?.click()}
             disabled={pdfBusy}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/15 hover:bg-white/25 text-xs font-bold disabled:opacity-60"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold disabled:opacity-60"
             title="Muhasebe programının teklif PDF'inden firma, teklif no ve kalemleri doldur"
           >
             {pdfBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-            <span>PDF'ten Doldur</span>
+            <span className="hidden sm:inline">PDF'ten Doldur</span><span className="sm:hidden">PDF</span>
           </button>
           <input ref={pdfInputRef} type="file" accept="application/pdf,.pdf" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) fillFromPdf(f); e.target.value = ''; }} />
-          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-white/15" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="overflow-y-auto flex-1 bg-slate-100/60">
-          <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-2.5 sm:p-3 space-y-2.5">
+        <div className="overflow-y-auto flex-1 bg-[#f4f8fc]">
+          <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-3 sm:p-4 space-y-3">
 
             {pdfNotice && !pdfMsg && (
               <div className="text-xs rounded-md px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200">{pdfNotice}</div>
@@ -664,7 +665,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             )}
 
             {/* Teklif bilgileri */}
-            <div className="bg-white border border-slate-200 rounded-md p-2.5 grid grid-cols-2 grid-flow-dense sm:grid-flow-row sm:grid-cols-12 gap-x-2 gap-y-2">
+            <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm p-2.5 grid grid-cols-2 grid-flow-dense sm:grid-flow-row sm:grid-cols-12 gap-x-2 gap-y-2">
               <div className="col-span-1 sm:col-span-2">
                 <label className="ql">Teklif No</label>
                 <input
@@ -723,7 +724,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             </div>
 
             {/* Kalemler */}
-            <div className="bg-white border border-slate-200 rounded-md">
+            <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm">
               <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-200 bg-slate-50 rounded-t-md">
                 <span className="text-[11px] font-black text-slate-700 uppercase tracking-wide">
                   Kalemler ({items.filter(it => it.productName.trim()).length})
@@ -841,7 +842,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
             {/* Not + toplamlar */}
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2.5 items-start">
-              <div className="bg-white border border-slate-200 rounded-md p-2.5">
+              <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm p-2.5">
                 <label className="ql">Not</label>
                 <textarea
                   ref={notesRef}
@@ -853,7 +854,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 />
               </div>
               {summary.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-md overflow-x-auto">
+                <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm overflow-x-auto">
                   <table className="text-xs tabular-nums w-full">
                     <thead>
                       <tr className="bg-slate-50 text-[10px] uppercase text-slate-500">
