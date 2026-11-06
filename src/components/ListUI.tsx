@@ -82,11 +82,11 @@ export const Pager: React.FC<{ page: number; total: number; size: number; onPage
  * Arama + filtreler: telefonda yalnız arama kutusu ve "Filtreler" düğmesi görünür, filtreler dokununca açılır
  * (sayfa sade kalır); tablet/bilgisayarda filtreler hep açıktır.
  */
-export const FilterBar: React.FC<{ search: React.ReactNode; active?: number; children: React.ReactNode; className?: string }> = ({ search, active = 0, children, className = 'flex flex-col lg:flex-row gap-2' }) => {
+export const FilterBar: React.FC<{ search: React.ReactNode; active?: number; children: React.ReactNode; className?: string }> = ({ search, active = 0, children, className = 'flex flex-col xl:flex-row gap-2' }) => {
   const [open, setOpen] = useState(false);
   return (
     <div className={className}>
-      <div className="flex gap-2 flex-1 min-w-0">
+      <div className="flex gap-2 flex-1 min-w-0 xl:min-w-[240px]">
         {search}
         <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
           className={`sm:hidden shrink-0 h-10 px-3 rounded-xl border text-sm font-bold inline-flex items-center gap-1.5 ${open || active ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-700'}`}>

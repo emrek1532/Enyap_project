@@ -221,9 +221,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     <div className="space-y-4">
       <div className={listCard}>
         {/* Filtreler */}
-        <FilterBar className="p-3 sm:p-4 flex flex-col lg:flex-row gap-2" active={(statusFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
-          search={<SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1 lg:min-w-[220px]" />}>
-          <div className="grid grid-cols-2 sm:flex gap-2">
+        <FilterBar className="p-3 sm:p-4 flex flex-col xl:flex-row gap-2" active={(statusFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
+          search={<SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1" />}>
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Durum">
               <option value="all">Tüm Teklifler</option>
               <option value="aktif">Beklemede</option>
