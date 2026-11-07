@@ -53,8 +53,8 @@ const sumByCurrency = (list: { amount: number; currency: Currency }[]) =>
   }, { TRY: 0, USD: 0, EUR: 0 });
 
 const multiCurrency = (t: Record<Currency, number>) => {
-  const parts = CURRENCIES.filter(c => Math.abs(t[c]) > 0.004).map(c => money(t[c], c));
-  return parts.length ? parts : [money(0, 'TRY')];
+  const parts = CURRENCIES.filter(c => Math.abs(t[c]) > 0.004).map(c => (c === 'TRY' ? tl(t[c]) : money(t[c], c)));
+  return parts.length ? parts : [tl(0)];
 };
 
 /** Eksen için "yuvarlak" üst sınır ve aralıklar */
@@ -165,8 +165,8 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
 
 // ---------- Telefon için tablo yerine kart listesi ----------
 interface MobileRow { key: string; title: React.ReactNode; aside?: React.ReactNode; fields: [string, React.ReactNode][] }
-const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, empty = 'Bu dönemde veri yok.' }) => useWide() ? null : (
-  <div className="xl:hidden divide-y divide-slate-100 border-t border-slate-200">
+const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, empty = 'Bu dönemde veri yok.' }) => useWide('md') ? null : (
+  <div className="md:hidden divide-y divide-slate-100 border-t border-slate-200">
     {rows.length === 0 && <p className="py-6 text-center text-xs text-slate-500">{empty}</p>}
     {rows.map(r => (
       <div key={r.key} className="p-3">
@@ -189,7 +189,7 @@ const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, emp
 
 // ---------- Halka grafik ----------
 const PALETTE = ['#006ec6', '#00b293', '#e8590c', '#7c3aed', '#f59e0b', '#0ea5e9', '#64748b'];
-const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string; value: number; color?: string; note?: string }[]; center?: React.ReactNode }> = ({ title, subtitle, parts, center }) => {
+const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string; value: number; color?: string; note?: string }[]; center?: React.ReactNode; centerSub?: string }> = ({ title, subtitle, parts, center, centerSub = 'toplam' }) => {
   const [hover, setHover] = useState<number | null>(null);
   const items = parts.filter(p => p.value > 0);
   const total = items.reduce((t, p) => t + p.value, 0);
@@ -218,7 +218,7 @@ const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string;
                 onMouseEnter={() => setHover(a.i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(x => (x === a.i ? null : a.i))} className="cursor-pointer transition-opacity" />
             ))}
             <text x={C} y={C - 2} textAnchor="middle" fontSize={h ? 13 : 12} fontWeight={800} fill="#0f172a">{h ? `%${Math.round((h.value / total) * 100)}` : center ?? compact(total)}</text>
-            <text x={C} y={C + 12} textAnchor="middle" fontSize={8} fill="#64748b">{h ? compact(h.value) : 'toplam'}</text>
+            <text x={C} y={C + 12} textAnchor="middle" fontSize={8} fill="#64748b">{h ? compact(h.value) : centerSub}</text>
           </svg>
           <ul className="min-w-0 flex-1 space-y-1.5 text-xs">
             {items.map((p, i) => (
@@ -432,7 +432,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     pQuotes.filter(isApproved).forEach(q => (q.items || []).forEach(it => {
       const cur = it.currency || q.currency || 'TRY';
       const r = cur === 'USD' ? rates.USD : cur === 'EUR' ? rates.EUR : 1;
-      const v = (it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100) * 1.2 * r;
+      const v = (it.quantity || 0) * (it.unitPrice || 0) * (1 - (it.discount || 0) / 100) * (1 + (it.vatRate ?? 20) / 100) * r;
       if (!(v > 0)) return;
       const code = (it.code || '').trim().toUpperCase();
       const k = code || it.productName.trim().toLocaleLowerCase('tr');
@@ -644,7 +644,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       </div>
 
       {/* Özet kutuları — dokununca ilgili liste açılır */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
         <Tile icon={FileText} tone="text-brand-600 bg-brand-50" label="Verilen Teklif" value={tl(stats.totalAmt)}
           sub={`${stats.total.toLocaleString('tr-TR')} teklif · ${stats.firms} firma`} onClick={() => setDetail('quotes')} />
         <Tile icon={CheckCircle2} tone="text-emerald-600 bg-emerald-50" label="Onaylanan" value={tl(stats.approvedAmt)}
@@ -668,7 +668,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Donut title="Teklif Durumu" subtitle="Dönemde verilen tekliflerin tutara göre dağılımı"
-          center={pct(stats.approvedAmt, stats.totalAmt)}
+          center={pct(stats.approvedAmt, stats.totalAmt)} centerSub="satış oranı"
           parts={[
             { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
             { label: 'Bekleyen', value: stats.pendingAmt, color: '#7c3aed' },
@@ -678,16 +678,18 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           parts={colByMethod.map(r => ({ label: `${r.label} (${r.count})`, value: r.value }))} />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <HBars title="En Çok Satan Ürünler · Tutar" subtitle="Onaylanan tekliflerin kalemlerinden, KDV dahil TL · ilk 10" color={C_APPROVED} rows={productStats.products} />
         <HBars title="En Çok Satan Ürünler · Adet" subtitle="Onaylanan tekliflerin kalemlerinden, satılan miktar · ilk 10" color={C_QUOTE}
           rows={productStats.byQty} fmt={v => v.toLocaleString('tr-TR')} />
       </div>
+      <div className="grid gap-3 md:grid-cols-2">
       <HBars title="Şehirlere Göre Satış" subtitle="Onaylanan teklif tutarına göre ilk 8 şehir (yanında verilen teklif ve satış oranı)" color={C_APPROVED} rows={cityRows} />
 
       <HBars title="En Çok Onay Alan Firmalar" subtitle="Onaylanan teklif tutarına göre ilk 8" color={C_QUOTE}
         rows={[...customerRows].sort((a, b) => b.approvedAmt - a.approvedAmt).filter(r => r.approvedAmt > 0).slice(0, 8)
           .map(r => ({ label: r.name, value: r.approvedAmt, sub: `${r.approved} onay · satış oranı ${pct(r.approvedAmt, r.totalAmt)}` }))} />
+      </div>
 
       {/* Bekleyen teklifler: neden bekliyor */}
       {stats.pending > 0 && (
@@ -720,7 +722,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         <div className="p-4 pb-2">
           <h3 className="font-bold text-slate-900 text-sm">Müşteri Performansı</h3>
           <p className="text-xs text-slate-500"><span className="hidden md:inline">Sütun başlığına tıklayarak sıralayın · </span>{customerRows.length} firma</p>
-          <MobileSortSelect always className="mt-2 w-full xl:hidden" sort={custSort} onChange={setCustSort} options={[
+          <MobileSortSelect always className="mt-2 w-full md:hidden" sort={custSort} onChange={setCustSort} options={[
             { key: 'approvedAmt', dir: 'desc', label: 'Onay tutarı: yüksek' },
             { key: 'totalAmt', dir: 'desc', label: 'Teklif tutarı: yüksek' },
             { key: 'rate', dir: 'desc', label: 'Satış oranı: yüksek' },
@@ -737,12 +739,12 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             ['Tahsilat', r.collected ? tl(r.collected) : '-'],
           ] as [string, React.ReactNode][],
         }))} />
-        <WideOnly><div className="overflow-x-auto hidden xl:block">
-          <table className="w-full text-right text-xs sm:text-sm tabular-nums">
-            <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-y border-slate-200">
+        <WideOnly from="md"><div className="overflow-x-auto hidden md:block">
+          <table className="w-full text-right text-[13px] xl:text-sm tabular-nums">
+            <thead className="text-slate-500 text-[12px] font-bold border-y border-slate-100">
               <tr>
                 <SortHeader label="Firma" className="text-left" active={custSort.key === 'name'} dir={custSort.dir} onClick={() => sortCust('name', 'asc')} />
-                <SortHeader label="Şehir" className="text-left" active={custSort.key === 'city'} dir={custSort.dir} onClick={() => sortCust('city', 'asc')} />
+                <SortHeader label="Şehir" className="text-left hidden xl:table-cell" active={custSort.key === 'city'} dir={custSort.dir} onClick={() => sortCust('city', 'asc')} />
                 <SortHeader label="Teklif" align="right" active={custSort.key === 'total'} dir={custSort.dir} onClick={() => sortCust('total', 'desc')} />
                 <SortHeader label="Teklif Tutarı" align="right" active={custSort.key === 'totalAmt'} dir={custSort.dir} onClick={() => sortCust('totalAmt', 'desc')} />
                 <SortHeader label="Onay" align="right" active={custSort.key === 'approved'} dir={custSort.dir} onClick={() => sortCust('approved', 'desc')} />
@@ -754,8 +756,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             <tbody className="divide-y divide-slate-100">
               {customerRows.slice(0, custLimit).map(r => (
                 <tr key={r.name} className="hover:bg-slate-50">
-                  <td className="py-2 px-3 text-left font-semibold text-slate-800">{r.name}</td>
-                  <td className="py-2 px-3 text-left text-slate-600">{r.city || '-'}</td>
+                  <td className="py-2 px-3 text-left font-semibold text-slate-800">{r.name}<div className="xl:hidden text-xs font-normal text-slate-500">{r.city || '-'}</div></td>
+                  <td className="hidden xl:table-cell py-2 px-3 text-left text-slate-600">{r.city || '-'}</td>
                   <td className="py-2 px-3">{r.total}</td>
                   <td className="py-2 px-3 whitespace-nowrap">{tl(r.totalAmt)}</td>
                   <td className="py-2 px-3">{r.approved}</td>
