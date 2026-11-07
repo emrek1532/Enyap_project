@@ -7,7 +7,7 @@ import { supabase } from './supabase';
 
 export type Module = 'quotes' | 'orders' | 'collections' | 'expenses' | 'calendar' | 'notes' | 'materials' | 'suppliers' | 'customers' | 'reports';
 /** Ek izinler (açık = 'edit', kapalı = 'none'); yoksa varsayılan */
-export type Flag = 'remove' | 'balances' | 'ai';
+export type Flag = 'others' | 'remove' | 'balances' | 'ai';
 export type Level = 'none' | 'view' | 'edit';
 export type Status = 'pending' | 'active' | 'suspended';
 
@@ -23,6 +23,7 @@ export const MODULES: { key: Module; label: string; hint: string }[] = [
 ];
 
 export const FLAGS: { key: Flag; label: string; hint: string }[] = [
+  { key: 'others', label: 'Herkesin tekliflerini görür', hint: 'Kapalıysa yalnız kendi açtığı teklifleri ve onların rakamlarını görür' },
   { key: 'remove', label: 'Kayıt silebilir', hint: 'Teklif, müşteri, tahsilat, harcama, not silme' },
   { key: 'balances', label: 'Cari bakiyeleri görür', hint: 'Müşterilerde bakiye ve Mikro bakiyesi' },
   { key: 'ai', label: 'Yapay zekâ araçları', hint: '"Tekliflere sor" ve "Teklif hazırla"' },
@@ -30,10 +31,10 @@ export const FLAGS: { key: Flag; label: string; hint: string }[] = [
 
 /** Hazır yetki şablonları (yöneticinin tek dokunuşla vermesi için) */
 export const PRESETS: { key: string; label: string; perms: Profile['perms'] }[] = [
-  { key: 'full', label: 'Tam yetki', perms: { quotes: 'edit', customers: 'edit', materials: 'edit', suppliers: 'edit', collections: 'edit', expenses: 'edit', notes: 'edit', reports: 'view', remove: 'edit', balances: 'edit', ai: 'edit' } },
-  { key: 'sales', label: 'Satış', perms: { quotes: 'edit', customers: 'edit', materials: 'view', suppliers: 'view', collections: 'none', expenses: 'edit', notes: 'edit', reports: 'none', remove: 'none', balances: 'none', ai: 'edit' } },
-  { key: 'accounting', label: 'Muhasebe', perms: { quotes: 'view', customers: 'edit', materials: 'none', suppliers: 'none', collections: 'edit', expenses: 'edit', notes: 'edit', reports: 'view', remove: 'none', balances: 'edit', ai: 'none' } },
-  { key: 'viewer', label: 'Sadece bakar', perms: { quotes: 'view', customers: 'view', materials: 'view', suppliers: 'view', collections: 'none', expenses: 'none', notes: 'view', reports: 'view', remove: 'none', balances: 'none', ai: 'none' } },
+  { key: 'full', label: 'Tam yetki', perms: { others: 'edit', quotes: 'edit', customers: 'edit', materials: 'edit', suppliers: 'edit', collections: 'edit', expenses: 'edit', notes: 'edit', reports: 'view', remove: 'edit', balances: 'edit', ai: 'edit' } },
+  { key: 'sales', label: 'Satış (yalnız kendi teklifleri)', perms: { others: 'none', quotes: 'edit', customers: 'edit', materials: 'view', suppliers: 'view', collections: 'none', expenses: 'edit', notes: 'edit', reports: 'none', remove: 'none', balances: 'none', ai: 'edit' } },
+  { key: 'accounting', label: 'Muhasebe', perms: { others: 'edit', quotes: 'view', customers: 'edit', materials: 'none', suppliers: 'none', collections: 'edit', expenses: 'edit', notes: 'edit', reports: 'view', remove: 'none', balances: 'edit', ai: 'none' } },
+  { key: 'viewer', label: 'Sadece bakar', perms: { others: 'edit', quotes: 'view', customers: 'view', materials: 'view', suppliers: 'view', collections: 'none', expenses: 'none', notes: 'view', reports: 'view', remove: 'none', balances: 'none', ai: 'none' } },
 ];
 
 export interface Profile {
@@ -91,7 +92,7 @@ export function levelOf(p: Pick<Profile, 'perms'>, k: Module | Flag): Level {
   const v = p.perms[k];
   if (v) return v;
   switch (k) {
-    case 'customers': case 'remove': case 'ai': return 'edit';
+    case 'customers': case 'remove': case 'ai': case 'others': return 'edit';
     case 'reports': return p.perms.quotes ? (p.perms.quotes === 'none' ? 'none' : 'view') : 'none';
     case 'balances': return p.perms.collections && p.perms.collections !== 'none' ? 'edit' : 'none';
     default: return 'none';

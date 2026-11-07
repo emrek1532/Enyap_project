@@ -11,6 +11,8 @@ import { SuggestInput } from './SuggestInput';
 import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
+import { allowed, useAccess } from '../lib/access';
+import { supabase } from '../lib/supabase';
 import { catalogCode, logPdfItemLoss, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
 import { BrandNote, CheckRow, Suggestion, runQuoteCheck, termClass, totalsMismatch } from '../lib/quoteCheck';
 import { SuggestMatchBox } from './SuggestMatchBox';
@@ -65,7 +67,15 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const init: Partial<Quote> | null = editQuote || draft;
   // Form fields
   // Teklif no: kullanıcı girerse o kullanılır; boş bırakılırsa kayıtta otomatik verilir (EK-2026-0001)
-  const autoNumber = useMemo(() => nextQuoteNumber(quotes), [quotes]);
+  // Yalnız kendi tekliflerini gören kullanıcı herkesin numarasını bilmez: en büyük sıra sunucudan (yalnız sayı) alınır
+  const me = useAccess();
+  const [seqFloor, setSeqFloor] = useState(0);
+  const scoped = !!me && !allowed(me, 'others');
+  useEffect(() => {
+    if (!scoped) return;
+    supabase.rpc('quote_max_seq', { y: new Date().getFullYear() }).then(({ data }) => { if (typeof data === 'number') setSeqFloor(data); }, () => {});
+  }, [scoped]);
+  const autoNumber = useMemo(() => nextQuoteNumber(quotes, new Date(), seqFloor), [quotes, seqFloor]);
   const [quoteNoInput, setQuoteNoInput] = useState(
     editQuote && editQuote.quoteNumber && editQuote.quoteNumber !== '-' ? editQuote.quoteNumber : '',
   );
@@ -507,7 +517,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     const newQuote: Quote = {
       id: quoteId,
       // Girilen numara; boşsa kaydetme anında otomatik (bu arada başka teklif eklendiyse çakışmasın)
-      quoteNumber: typedNo || nextQuoteNumber(quotes),
+      quoteNumber: typedNo || nextQuoteNumber(quotes, new Date(), seqFloor),
       customerName: customerName.trim(),
       customerPhone: '',
       city: city.trim(),

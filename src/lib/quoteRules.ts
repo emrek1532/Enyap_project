@@ -24,13 +24,13 @@ export const needsFollowUp = (q: Quote) =>
 
 
 /** Otomatik teklif numarası: EK-<yıl>-<4 haneli sıra>, o yılın en büyük numarasının bir fazlası */
-export function nextQuoteNumber(quotes: { quoteNumber?: string }[], date = new Date()): string {
+export function nextQuoteNumber(quotes: { quoteNumber?: string }[], date = new Date(), floor = 0): string {
   const year = date.getFullYear();
   const re = new RegExp(`^EK-${year}-(\\d+)$`, 'i');
   const max = quotes.reduce((m, q) => {
     const hit = re.exec((q.quoteNumber || '').trim());
     return hit ? Math.max(m, parseInt(hit[1], 10)) : m;
-  }, 0);
+  }, floor);
   return `EK-${year}-${String(max + 1).padStart(4, '0')}`;
 }
 

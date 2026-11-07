@@ -41,6 +41,8 @@ export interface Quote {
   updatedAt: string;
   createdBy: UserRole;
   assignedTo: UserRole;
+  /** Teklifi açan kullanıcı (sunucu doldurur; yalnız okunur) */
+  ownerId?: string;
   notes?: string;
   isEncrypted?: boolean;
   tags?: string[];

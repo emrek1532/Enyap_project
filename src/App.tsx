@@ -354,6 +354,24 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     }
   }, []);
 
+  // "Herkesin tekliflerini görür" kapalıysa cihazdaki eski veri (başkalarının teklifleri, son hareketler) atılır, tam indirme yapılır
+  const scoped = !allowed(profile, 'others');
+  useEffect(() => {
+    const KEY = 'enyap-scope';
+    const want = scoped ? `own:${profile.id}` : 'all';
+    let had: string | null = null;
+    try { had = localStorage.getItem(KEY); } catch { /* yok */ }
+    if (had === want) return;
+    try { localStorage.setItem(KEY, want); } catch { /* yok */ }
+    if (!scoped) { if (had) performSync(true); return; }
+    setData(prev => {
+      const next = { ...prev, quotes: prev.quotes.filter(q => q.ownerId === profile.id), activities: [], syncCursor: undefined };
+      saveLocalData(next);
+      return next;
+    });
+    performSync(true);
+  }, [scoped, profile.id, performSync]);
+
   // Queue changes for Supabase and push them right away
   const persist = useCallback((all: PendingOp[]) => {
     const ops = all.filter(op => {
