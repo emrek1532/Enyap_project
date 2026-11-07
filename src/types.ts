@@ -43,6 +43,8 @@ export interface Quote {
   assignedTo: UserRole;
   /** Teklifi açan kullanıcı (sunucu doldurur; yalnız okunur) */
   ownerId?: string;
+  /** Teklifin açıldığı diğer kullanıcılar (aynı teklifi girdiklerinde; sunucu doldurur) */
+  sharedWith?: string[];
   notes?: string;
   isEncrypted?: boolean;
   tags?: string[];

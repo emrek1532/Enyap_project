@@ -13,6 +13,7 @@ import { MaterialPicker } from './MaterialPicker';
 import { nextQuoteNumber } from '../lib/quoteRules';
 import { allowed, useAccess } from '../lib/access';
 import { supabase } from '../lib/supabase';
+import { shareQuoteWithMe } from '../lib/db';
 import { catalogCode, logPdfItemLoss, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
 import { BrandNote, CheckRow, Suggestion, runQuoteCheck, termClass, totalsMismatch } from '../lib/quoteCheck';
 import { SuggestMatchBox } from './SuggestMatchBox';
@@ -85,19 +86,21 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const localDup = !!typedNo && quotes.some(q => q.id !== editQuote?.id && (q.quoteNumber || '').trim().toLocaleUpperCase('tr') === typedNo.toLocaleUpperCase('tr'));
   // Kendi tekliflerini gören kullanıcı başkasının teklifini göremez; teklif no sunucuda herkesinkiyle karşılaştırılır
   // (yalnız firma, tarih ve ekleyen döner; tutar dönmez)
-  const [remoteDup, setRemoteDup] = useState<{ customer: string; date: string; owner: string } | null>(null);
+  const [remoteDup, setRemoteDup] = useState<{ id: string; customer: string; date: string; owner: string } | null>(null);
   useEffect(() => {
     setRemoteDup(null);
     if (!scoped || !typedNo || localDup || (isEditTop && normNoTop(editQuote?.quoteNumber) === normNoTop(typedNo))) return;
     const t = setTimeout(() => {
       supabase.rpc('quote_lookup', { no: typedNo }).then(({ data }) => {
         const r = (data as any[] | null)?.find(x => x.id !== editQuote?.id);
-        setRemoteDup(r ? { customer: r.customer_name || '', date: dayOf(r.created_at).split('-').reverse().join('.'), owner: r.owner_name || '' } : null);
+        setRemoteDup(r ? { id: r.id, customer: r.customer_name || '', date: dayOf(r.created_at).split('-').reverse().join('.'), owner: r.owner_name || '' } : null);
       }, () => {});
     }, 500);
     return () => clearTimeout(t);
   }, [typedNo, scoped, localDup]);
   const duplicateNo = localDup || !!remoteDup;
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
   const [customerName, setCustomerName] = useState(init?.customerName || initialCustomer?.name || '');
   const [city, setCity] = useState(init?.city || initialCustomer?.city || 'Isparta');
 
@@ -526,6 +529,35 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       return;
     }
 
+    // Teklif no sistemde başkasında varsa: yeni kayıt açılmaz, o teklif bana da açılıp güncellenir
+    if (remoteDup) {
+      const dup = remoteDup;
+      setSaving(true); setSaveErr('');
+      shareQuoteWithMe(dup.id).then(base => {
+        if (!base) throw new Error('Teklif bulunamadı.');
+        onSaveQuote({
+          ...base,
+          quoteNumber: typedNo || base.quoteNumber,
+          customerName: customerName.trim(),
+          city: city.trim(),
+          items: filledItems,
+          totalAmount: totalQuoteAmount,
+          currency: quoteCurrency,
+          amountTry: totalsByCurrency.TRY,
+          amountUsd: totalsByCurrency.USD,
+          amountEur: totalsByCurrency.EUR,
+          imported: false,
+          notes: notes.trim() || base.notes,
+          paymentTerm: paymentTerm || base.paymentTerm,
+          preparedBy: base.preparedBy || pdfMeta?.preparedBy,
+          updatedAt: new Date().toISOString(),
+        }, { fromPdf: !!pdfMeta });
+        onClose();
+      }).catch(err => setSaveErr(`Kaydedilemedi: ${err?.message || 'bağlantı yok'}. İnternet bağlıyken tekrar deneyin.`))
+        .finally(() => setSaving(false));
+      return;
+    }
+
     const quoteId = 'qt-' + Date.now();
     const day = quoteDate || pdfMeta?.date;
     const now = day && day !== localDay() ? new Date(`${day}T09:00:00+03:00`) : new Date();
@@ -671,7 +703,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             {remoteDup && (
               <div className="text-xs rounded-md px-3 py-2.5 bg-amber-50 text-amber-900 border border-amber-300">
                 <b>Bu teklif sistemde zaten var:</b> {typedNo} · {remoteDup.customer} · {remoteDup.date} · {remoteDup.owner} ekledi.
-                {' '}Aynı teklifi ikinci kez girmeyin; değişiklik gerekiyorsa {remoteDup.owner.split(' ')[0]} ile görüşün.
+                {' '}Kaydedince yeni kayıt açılmaz; mevcut teklif sizin girdiğinizle güncellenir (tek kayıt).
+                {saveErr && <div className="mt-1 text-rose-700">{saveErr}</div>}
               </div>
             )}
             {existing && !isEdit && (
@@ -922,10 +955,11 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
           </button>
           <button
             type="button"
+            disabled={saving}
             onClick={() => (document.getElementById('newQuoteForm') as HTMLFormElement | null)?.requestSubmit()}
-            className="px-5 py-2 rounded-md bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm"
+            className="px-5 py-2 rounded-md bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold text-sm shadow-sm"
           >
-            {isEdit ? 'Değişiklikleri Kaydet' : 'Teklifi Kaydet'}
+            {saving ? 'Kaydediliyor…' : isEdit ? 'Değişiklikleri Kaydet' : remoteDup ? 'Mevcut Teklifi Güncelle' : 'Teklifi Kaydet'}
           </button>
         </div>
       </div>

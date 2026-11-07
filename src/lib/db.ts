@@ -98,6 +98,7 @@ const rowToQuote = (r: Row): Quote => ({
   assignedTo: r.assigned_to,
   notes: r.notes ?? undefined,
   ownerId: r.owner_id ?? undefined,
+  sharedWith: r.shared_with ?? undefined,
   isEncrypted: r.is_encrypted,
   tags: r.tags ?? [],
   preparedBy: r.prepared_by ?? undefined,
@@ -243,6 +244,15 @@ async function remove(table: string, id: string) {
 }
 
 // ---------- Public API ----------
+/** Başkasının teklifini bana da aç ve getir (aynı teklif no kaydedilirken: tek kayıt kalsın) */
+export async function shareQuoteWithMe(id: string): Promise<Quote | null> {
+  const { error } = await supabase.rpc('quote_share_me', { qid: id });
+  if (error) throw error;
+  const { data, error: e2 } = await supabase.from('quotes').select('*').eq('id', id).maybeSingle();
+  if (e2) throw e2;
+  return data ? rowToQuote(data) : null;
+}
+
 /**
  * Supabase tek istekte en fazla 1000 satır döndürür; büyük tabloları
  * sayfa sayfa çekip birleştirir.
