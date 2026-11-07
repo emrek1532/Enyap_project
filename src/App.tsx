@@ -43,7 +43,7 @@ import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
 import { BottomNav } from './components/BottomNav';
 import { readQuotePdf } from './lib/pdfQuote';
-import { AccessContext, Module, Profile, can, fetchMyProfile } from './lib/access';
+import { AccessContext, Module, Profile, allowed, can, fetchMyProfile } from './lib/access';
 import { AdminPanel, PendingScreen } from './components/AdminPanel';
 import { useRates } from './lib/rates';
 import { pageStats, QuoteView, LedgerView } from './lib/pageStats';
@@ -158,8 +158,10 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   }, [profile]);
   const tabAllowed = (tab: ActiveTab): boolean => {
     switch (tab) {
-      case 'home': case 'customers': return true;
-      case 'quotes': case 'reports': return can(profile, 'quotes');
+      case 'home': return true;
+      case 'customers': return can(profile, 'customers');
+      case 'quotes': return can(profile, 'quotes');
+      case 'reports': return can(profile, 'reports');
       case 'materials': return can(profile, 'materials') || can(profile, 'suppliers');
       case 'admin': return profile.isAdmin;
       default: return can(profile, tab as Module);
@@ -354,9 +356,12 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
   // Queue changes for Supabase and push them right away
   const persist = useCallback((all: PendingOp[]) => {
-    const ops = all.filter(op => { const m = ENTITY_MODULE[op.entity]; return !m || can(profile, m, 'edit'); });
+    const ops = all.filter(op => {
+      if (op.kind === 'delete' && !allowed(profile, 'remove')) return false;
+      const m = ENTITY_MODULE[op.entity]; return !m || can(profile, m, 'edit');
+    });
     if (ops.length < all.length) {
-      setShareError('Bu bölümde düzenleme yetkiniz yok.');
+      setShareError(all.some(op => op.kind === 'delete') && !allowed(profile, 'remove') ? 'Kayıt silme yetkiniz yok.' : 'Bu bölümde düzenleme yetkiniz yok.');
       performSync();
       if (!ops.length) return;
     }
@@ -697,14 +702,20 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const userName = profile.fullName || userEmail.split('@')[0] || 'Kullanıcı';
   const roleLabel = profile.isAdmin ? 'Yönetici' : currentRole === 'istanbul' ? 'İstanbul ekibi' : 'Isparta ekibi';
   const toolAllow = { quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') };
-  const tools = toolList(tabAllowed('quotes'), toolAllow);
+  const tools = toolList(tabAllowed('quotes'), toolAllow, allowed(profile, 'ai'));
+  const canRemove = allowed(profile, 'remove');
+  const canCustomers = can(profile, 'customers', 'edit');
   const handleVoice = (r: VoiceResult) => {
     if (r.kind === 'quote') { setQuoteDraft(r.draft); setIsNewQuoteOpen(true); return; }
     setLedgerDraft(r.draft);
     setLedgerStartNew(r.kind === 'collection' ? 'collections' : 'expenses');
     setActiveTab(r.kind === 'collection' ? 'collections' : 'expenses');
   };
-  const [newRequest, setNewRequest] = useState(0);
+  // "Yeni …" düğmesi sayacı yalnız basıldığı sayfaya gider (başka sayfaya geçince form kendiliğinden açılmasın)
+  const [newReq, setNewReq] = useState<{ tab: ActiveTab; n: number }>({ tab: 'home', n: 0 });
+  const newRequest = newReq.tab === activeTab ? newReq.n : 0;
+  const bumpNew = () => setNewReq(r => ({ tab: activeTab, n: r.n + 1 }));
+  const noRemove = () => setShareError('Kayıt silme yetkiniz yok. Yöneticinizden isteyin.');
   const openTool = (m: ToolMode) => { setToolMode(m); try { localStorage.setItem('home-assistant', m); } catch { /* */ } };
   // Sayfa başlığı bandındaki özet rakamlar (cihazdaki veriden)
   const rates = useRates(data.quotes);
@@ -714,8 +725,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
     : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
     : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
-    : activeTab === 'customers' ? { label: 'Yeni Müşteri', icon: Plus, onClick: () => setNewRequest(n => n + 1) }
-    : activeTab === 'materials' && can(profile, 'materials') ? { label: 'Yeni Malzeme', icon: Plus, onClick: () => setNewRequest(n => n + 1) }
+    : activeTab === 'customers' && canCustomers ? { label: 'Yeni Müşteri', icon: Plus, onClick: bumpNew }
+    : activeTab === 'admin' && profile.isAdmin ? { label: 'Kişi Ekle', icon: Plus, onClick: bumpNew }
+    : activeTab === 'materials' && can(profile, 'materials') ? { label: 'Yeni Malzeme', icon: Plus, onClick: bumpNew }
     : undefined;
 
   return (
@@ -809,7 +821,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             currentRole={currentRole}
             onOpenNewQuote={() => setIsNewQuoteOpen(true)}
             onUpdateQuoteStatus={handleUpdateQuoteStatus}
-            onDeleteQuote={handleDeleteQuote}
+            onDeleteQuote={canRemove ? handleDeleteQuote : noRemove}
             onPrintQuote={setPrintableQuote}
             onEditQuote={setEditingQuote}
             readOnly={!can(profile, 'quotes', 'edit')}
@@ -826,7 +838,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           <CustomersPanel
             customers={data.customers || []}
             collections={data.collections || []}
-            showCollections={can(profile, 'collections')}
+            showCollections={can(profile, 'collections') && allowed(profile, 'balances')}
+            canEdit={canCustomers}
+            canRemove={canRemove}
             onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined}
             onSaveCollection={can(profile, 'collections', 'edit') ? handleSaveCollection : undefined}
             currentRole={currentRole}
@@ -852,7 +866,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             activities={data.activities}
             currentRole={currentRole}
             onSaveNote={handleSaveNote}
-            onDeleteNote={handleDeleteNote}
+            onDeleteNote={canRemove ? handleDeleteNote : noRemove}
             highlightId={highlightNote}
           />
         )}
@@ -865,7 +879,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             customers={data.customers || []}
             currentRole={currentRole}
             onSave={(r) => handleSaveCollection(r as Collection)}
-            onDelete={handleDeleteCollection}
+            onDelete={canRemove ? handleDeleteCollection : noRemove}
             startNew={ledgerStartNew === 'collections'}
             startDraft={ledgerDraft}
             onStartNewHandled={() => { setLedgerStartNew(null); setLedgerDraft(null); }}
@@ -880,7 +894,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             records={data.expenses || []}
             currentRole={currentRole}
             onSave={(r) => handleSaveExpense(r as Expense)}
-            onDelete={handleDeleteExpense}
+            onDelete={canRemove ? handleDeleteExpense : noRemove}
             startNew={ledgerStartNew === 'expenses'}
             startDraft={ledgerDraft}
             onStartNewHandled={() => { setLedgerStartNew(null); setLedgerDraft(null); }}
@@ -891,7 +905,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         {/* Malzemeler (fiyat kataloğu) */}
         {activeTab === 'materials' && <MaterialsPanel newRequest={newRequest} quotes={data.quotes} onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined} />}
 
-        {activeTab === 'admin' && profile.isAdmin && <AdminPanel meId={profile.id} activities={data.activities} />}
+        {activeTab === 'admin' && profile.isAdmin && <AdminPanel meId={profile.id} activities={data.activities} newRequest={newRequest} />}
 
         {/* Rapor */}
         {activeTab === 'reports' && (
