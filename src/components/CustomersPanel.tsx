@@ -287,7 +287,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 <option value="pasif">Pasif</option>
                 <option value="kara_liste">Kara liste</option>
               </select>
-              <MobileSortSelect always className={`${ctrl} xl:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
+              <MobileSortSelect always className={`${ctrl} md:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
                 { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
                 { key: 'name', dir: 'desc', label: 'Firma: Z → A' },
                 { key: 'total', dir: 'desc', label: 'Onaylı tutar: yüksek' },
@@ -326,7 +326,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           </p>
         ) : (<>
           {/* Telefon: kartlar */}
-          <NarrowOnly><div className="xl:hidden divide-y divide-slate-100 border-t border-slate-100">
+          <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
             {pageRows.map(({ c, st }) => (
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
@@ -358,18 +358,18 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               </div>
             ))}
           </div></NarrowOnly>
-          <WideOnly><div className="overflow-x-auto hidden xl:block border-t border-slate-100">
+          <WideOnly from="md"><div className="overflow-x-auto hidden md:block border-t border-slate-100">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-100">
                 <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
                   <SortHeader label="Firma" active={sort.key === 'name'} dir={sort.dir} onClick={() => sortBy('name', 'asc')} />
-                  <SortHeader label="Şehir" active={sort.key === 'city'} dir={sort.dir} onClick={() => sortBy('city', 'asc')} />
+                  <SortHeader className="hidden xl:table-cell" label="Şehir" active={sort.key === 'city'} dir={sort.dir} onClick={() => sortBy('city', 'asc')} />
                   <SortHeader label="Teklif" align="right" active={sort.key === 'quotes'} dir={sort.dir} onClick={() => sortBy('quotes', 'desc')} />
                   <SortHeader label="Onaylı" align="right" active={sort.key === 'approved'} dir={sort.dir} onClick={() => sortBy('approved', 'desc')} />
-                  <SortHeader label="Beklemede" align="right" active={sort.key === 'pending'} dir={sort.dir} onClick={() => sortBy('pending', 'desc')} />
+                  <SortHeader label="Bekleyen" align="right" active={sort.key === 'pending'} dir={sort.dir} onClick={() => sortBy('pending', 'desc')} />
                   <SortHeader label="Onaylı Toplam" align="right" active={sort.key === 'total'} dir={sort.dir} onClick={() => sortBy('total', 'desc')} />
-                  {showCollections && <SortHeader label="Bakiye" align="right" active={sort.key === 'balance'} dir={sort.dir} onClick={() => sortBy('balance', 'desc')} />}
-                  <SortHeader label="Son Teklif" active={sort.key === 'last'} dir={sort.dir} onClick={() => sortBy('last', 'desc')} />
+                  {showCollections && <SortHeader className="hidden xl:table-cell" label="Bakiye" align="right" active={sort.key === 'balance'} dir={sort.dir} onClick={() => sortBy('balance', 'desc')} />}
+                  <SortHeader className="hidden xl:table-cell" label="Son Teklif" active={sort.key === 'last'} dir={sort.dir} onClick={() => sortBy('last', 'desc')} />
                   <th className="py-3 px-3 text-center">İşlemler</th>
                 </tr>
               </thead>
@@ -378,19 +378,20 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   <tr key={c.id} onClick={() => setViewing(c)} className={`${rowCls} cursor-pointer`}>
                     <td className="py-3 px-3">
                       <div className="font-bold text-brand-800 min-w-[10rem] leading-snug">{c.name}<StatusBadge c={c} /></div>
+                      <div className="xl:hidden text-xs text-slate-500 whitespace-nowrap">{c.city || '—'}{st.lastDate ? ` · ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</div>
                       {st.followUp && <FollowPill />}
                     </td>
-                    <td className="py-3 px-3 text-slate-600 whitespace-nowrap">{c.city || '—'}</td>
+                    <td className="hidden xl:table-cell py-3 px-3 text-slate-600 whitespace-nowrap">{c.city || '—'}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold text-slate-800">{st.total || '-'}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-bold text-emerald-600">{st.approved || '-'}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-bold text-rose-500">{st.pending || '-'}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-black text-slate-900 whitespace-nowrap">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</td>
                     {showCollections && (
-                      <td className={`py-3 px-3 text-right tabular-nums font-bold whitespace-nowrap ${(balanceOf(c)?.estimate ?? 0) < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                      <td className={`hidden xl:table-cell py-3 px-3 text-right tabular-nums font-bold whitespace-nowrap ${(balanceOf(c)?.estimate ?? 0) < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
                         {balanceOf(c) ? tl(Math.round(balanceOf(c)!.estimate)) : '-'}
                       </td>
                     )}
-                    <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                    <td className="hidden xl:table-cell py-3 px-3 text-slate-500 whitespace-nowrap">
                       {st.lastDate ? <>{new Date(st.lastDate).toLocaleDateString('tr-TR')} <ChevronRight className="w-3.5 h-3.5 inline -mt-0.5" /></> : '-'}
                     </td>
                     <td className="py-3 px-3" onClick={e => e.stopPropagation()}>{rowActions(c)}</td>
