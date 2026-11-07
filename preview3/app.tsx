@@ -1,4 +1,4 @@
-// Tüm uygulama kabuğu deneme sayfası (yalnız geliştirme): npx vite → /preview3/app.html?p=home|quotes|customers|materials|collections|expenses|notes|reports (&tool=ask, &modal=new|edit|account)
+// Tüm uygulama kabuğu deneme sayfası (yalnız geliştirme): npx vite → /preview3/app.html?p=home|quotes|customers|materials|collections|expenses|notes|reports |admin (&tool=ask, &modal=new|edit|account|adduser)
 import { quotes, customers, collections, expenses, notes, activities } from './fixture';
 const { createRoot } = await import('react-dom/client');
 await import('../src/index.css');
@@ -11,6 +11,7 @@ const { MaterialsPanel } = await import('../src/components/MaterialsPanel');
 const { LedgerPanel } = await import('../src/components/LedgerPanel');
 const { QuickNotesPanel } = await import('../src/components/QuickNotesPanel');
 const { ReportsPanel } = await import('../src/components/ReportsPanel');
+const { AdminPanel } = await import('../src/components/AdminPanel');
 const { PageHeader, SECTION_SUB, SECTION_META } = await import('../src/components/Sections');
 const { Sidebar } = await import('../src/components/Sidebar');
 const { Header, BandTools } = await import('../src/components/Header');
@@ -38,7 +39,7 @@ const App = () => {
   const sync = { isOnline: true, isSyncing: false } as any;
   const rates = useRates(quotes);
   const user = { userName: 'Emre Karakaya', userEmail: 'e@x.com', roleLabel: 'Yönetici' };
-  const action = p === 'quotes' ? 'Yeni Teklif Oluştur' : p === 'customers' ? 'Yeni Müşteri' : p === 'materials' ? 'Yeni Malzeme' : p === 'collections' ? 'Yeni Tahsilat' : p === 'expenses' ? 'Yeni Harcama' : '';
+  const action = p === 'quotes' ? 'Yeni Teklif Oluştur' : p === 'customers' ? 'Yeni Müşteri' : p === 'materials' ? 'Yeni Malzeme' : p === 'collections' ? 'Yeni Tahsilat' : p === 'expenses' ? 'Yeni Harcama' : p === 'admin' ? 'Kişi Ekle' : '';
   return h('div', { className: 'min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#f4f8fc] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60' },
     h(Sidebar, { sections: secs, active: p, onOpen: setP, onHome: () => setP('home'), tools: h(BandTools, { syncStatus: sync, onSync: noop, onSignOut: noop, userEmail: 'e@x.com' }), ...user }),
     h('div', { className: 'sticky top-0 z-30 md:hidden' }, h(Header, { syncStatus: sync, onTriggerSync: noop, onHome: () => setP('home'), ...user, onSearch: () => setTool('search') })),
@@ -51,7 +52,12 @@ const App = () => {
       p === 'materials' && h(MaterialsPanel, { quotes }),
       (p === 'collections' || p === 'expenses') && h(LedgerPanel, { key: p, kind: p, records: p === 'collections' ? collections : expenses, customers, currentRole: 'isparta' as any, onSave: noop, onDelete: noop, onViewChange: setLv }),
       p === 'notes' && h(QuickNotesPanel, { notes, activities, currentRole: 'isparta' as any, onSaveNote: noop, onDeleteNote: noop }),
-      p === 'reports' && h(ReportsPanel, { quotes, collections, expenses, customers })),
+      p === 'reports' && h(ReportsPanel, { quotes, collections, expenses, customers }),
+      p === 'admin' && h(AdminPanel, { meId: 'x', activities, newRequest: q.get('modal') === 'adduser' ? 1 : 0, demoUsers: [
+        { ...admin, createdAt: '2026-01-02T09:00:00Z', lastSeen: '2026-11-07T07:00:00Z' },
+        { id: 'y', email: 'ali@enyap.com', fullName: 'Ali Yılmaz', isAdmin: false, status: 'active', perms: { quotes: 'edit', materials: 'view', notes: 'edit' }, lastSeen: '2026-11-06T15:20:00Z', createdAt: '2026-03-01T09:00:00Z' },
+        { id: 'z', email: 'ayse@enyap.com', fullName: 'Ayşe Demir', isAdmin: false, status: 'pending', perms: {}, lastSeen: null, createdAt: '2026-11-06T10:00:00Z' },
+      ] } as any)),
     h(BottomNav, { sections: secs as any, primary: ['quotes', 'customers', 'materials'], active: p, onOpen: setP, onHome: () => setP('home'), onSignOut: noop, userEmail: 'e@x.com' }),
     q.get('modal') === 'new' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes }),
     q.get('modal') === 'edit' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes, editQuote: quotes[0] }),

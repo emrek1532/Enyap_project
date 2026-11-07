@@ -12,11 +12,11 @@ export type ToolAllow = { quote: boolean; collection: boolean; expense: boolean 
 export type ToolInfo = { key: ToolMode; label: string; short: string; desc: string; icon: React.ElementType; tone: string };
 
 /** Hızlı kısayollar: Ara, Tekliflere sor, Teklif hazırla, Sesle kayıt (yetkiye göre) */
-export function toolList(canQuotes: boolean, allow: ToolAllow): ToolInfo[] {
+export function toolList(canQuotes: boolean, allow: ToolAllow, ai = true): ToolInfo[] {
   return [
     { key: 'search' as ToolMode, label: 'Ara', short: 'Ara', desc: 'Ürün, firma, fiyat', icon: Search, tone: 'from-brand-500 to-brand-700' },
-    canQuotes && { key: 'ask' as ToolMode, label: 'Tekliflere sor', short: 'Sor', desc: 'Soru sor, cevap al', icon: MessageCircleQuestion, tone: 'from-violet-500 to-indigo-600' },
-    allow.quote && { key: 'draft' as ToolMode, label: 'Teklif hazırla', short: 'Hazırla', desc: 'Talepten taslak', icon: Bot, tone: 'from-emerald-500 to-teal-600' },
+    canQuotes && ai && { key: 'ask' as ToolMode, label: 'Tekliflere sor', short: 'Sor', desc: 'Soru sor, cevap al', icon: MessageCircleQuestion, tone: 'from-violet-500 to-indigo-600' },
+    allow.quote && ai && { key: 'draft' as ToolMode, label: 'Teklif hazırla', short: 'Hazırla', desc: 'Talepten taslak', icon: Bot, tone: 'from-emerald-500 to-teal-600' },
     (allow.quote || allow.collection || allow.expense) && { key: 'voice' as ToolMode, label: 'Sesle kayıt', short: 'Sesle', desc: 'Konuş, kaydedeyim', icon: Mic, tone: 'from-orange-400 to-rose-500' },
   ].filter(Boolean) as ToolInfo[];
 }

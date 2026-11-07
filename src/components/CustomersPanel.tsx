@@ -30,6 +30,10 @@ interface CustomersPanelProps {
   onMikroHandled?: () => void;
   /** Sayfa başlığındaki "Yeni Müşteri" her basışta artar */
   newRequest?: number;
+  /** Müşteri ekleyip düzenleyebilir (yetki) */
+  canEdit?: boolean;
+  /** Kayıt silebilir (yetki) */
+  canRemove?: boolean;
 }
 
 const emptyForm = { name: '', city: 'Isparta' };
@@ -70,6 +74,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   openMikro,
   onMikroHandled,
   newRequest,
+  canEdit = true,
+  canRemove = true,
 }) => {
   const [mikroOpen, setMikroOpen] = useState(false);
   useEffect(() => { if (openMikro) { setMikroOpen(true); onMikroHandled?.(); } }, [openMikro]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -239,8 +245,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
       <div className="absolute right-0 top-9 z-40 w-44 rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left text-sm" onClick={e => e.stopPropagation()}>
         <button onClick={() => { setMenuFor(null); onCreateQuoteForCustomer(c); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-brand-50 text-brand-700 font-semibold"><FilePlus2 className="w-4 h-4" /> Teklif aç</button>
-        <button onClick={() => { setMenuFor(null); openEdit(c); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><Pencil className="w-4 h-4" /> Düzenle</button>
-        <button onClick={() => { setMenuFor(null); if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /> Sil</button>
+        {canEdit && <button onClick={() => { setMenuFor(null); openEdit(c); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><Pencil className="w-4 h-4" /> Düzenle</button>}
+        {canEdit && canRemove && <button onClick={() => { setMenuFor(null); if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /> Sil</button>}
       </div>
     </>
   );
@@ -261,7 +267,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
       {mode === 'balance' && showCollections && (
         <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
-          onOpen={c => { setViewing(c); }} onMikro={onSaveCollection ? () => setMikroOpen(true) : undefined} />
+          onOpen={c => { setViewing(c); }} onMikro={onSaveCollection && canEdit ? () => setMikroOpen(true) : undefined} />
       )}
 
       {mode === 'list' && (
@@ -299,7 +305,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 { key: 'last', dir: 'asc', label: 'Son teklif: eski' },
                 { key: 'city', dir: 'asc', label: 'Şehir: A → Z' },
               ]} />
-              {showCollections && onSaveCollection && (
+              {showCollections && onSaveCollection && canEdit && (
                 <button onClick={() => setMikroOpen(true)}
                   className="h-10 flex items-center justify-center gap-1.5 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-bold text-sm whitespace-nowrap shadow-[0_8px_18px_-8px_rgba(0,110,198,0.8)]">
                   <Plus className="w-4 h-4" /> Mikro bakiyesi
