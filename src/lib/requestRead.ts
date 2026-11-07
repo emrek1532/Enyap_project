@@ -162,10 +162,27 @@ const family = (prefix: string) => {
   return familyCache.get(k)!;
 };
 
+/** k elemanlı alt kümeler (sıra korunur; baştaki kelimeler önce) */
+function subsets<T>(arr: T[], k: number): T[][] {
+  if (k === arr.length) return [arr];
+  const out: T[][] = [];
+  const rec = (start: number, cur: T[]) => {
+    if (cur.length === k) { out.push(cur); return; }
+    for (let i = start; i < arr.length && out.length < 20; i++) rec(i + 1, [...cur, arr[i]]);
+  };
+  rec(0, []);
+  return out;
+}
+const dedupe = (ms: Material[]) => [...new Map(ms.map(m => [m.code, m] as [string, Material])).values()];
+
+/** Telefon/Excel'in akıllı tırnakları inç işaretine: 4’’ 4‘‘ 4´´ 4′′ → 4" */
+const inchNorm = (s: string) => s.replace(/(\d)\s*(’’|‘‘|´´|``|′′|‟)/g, '$1"');
+
 export interface Match { cands: Material[]; pick: string | null; via: 'pref' | 'unique' | 'choose' | 'none' }
 
 /** Bir talep satırı için katalog adayları ve (kesinse) seçim */
 export async function matchLine(line: ReqLine, prefs: PrefRule[]): Promise<Match> {
+  line = { ...line, item: inchNorm(line.item), text: inchNorm(line.text) };
   const f = foldTr(`${line.item} ${line.text}`);
   const size = sizeOf(line.item);
   const spareOk = SPARE.test(f);
@@ -178,20 +195,35 @@ export async function matchLine(line: ReqLine, prefs: PrefRule[]): Promise<Match
     pref = (await family(rule.prefix)).filter(m => fitsSize(m.name, size) && (spareOk || !SPARE.test(foldTr(m.name))));
     if (pref.length === 1) return { cands: pref, pick: pref[0].code, via: 'pref' };
   }
-  // 2) Katalog araması; bulamazsa kelimeleri azaltarak
+  // 2) Katalog araması; bulamazsa kelimeleri birer birer çıkararak (hangi kelime katalogda yoksa o düşer).
+  // Ölçü her aramada kalır ama tek başına aranmaz: "4'' patant dirsek" bütün 4'' ürünleri getirmesin.
   const q = searchTerms(line.item);
+  const all = q.split(' ').filter(Boolean);
+  // İnç ölçüsü (4") her aramada kalır; düz sayılar (90, 100, 6) ve kelimeler gerekirse düşer
+  const nums = all.filter(w => w.includes('"'));
+  const texts = all.filter(w => !w.includes('"'));
+  const named = (c: string[]) => c.some(w => /[a-z]/.test(w));
+  const run = (ws: string[]) => searchMaterials(ws.join(' '), { limit: 40 }).then(r => r.items, () => [] as Material[]);
   let items: Material[] = [];
-  const words = q.split(' ');
-  for (let k = words.length; k >= 1 && !items.length; k--) {
-    const sub = words.filter((w, i) => /\d/.test(w) || i < k).join(' ');
-    items = (await searchMaterials(sub, { limit: 40 }).catch(() => ({ items: [] as Material[] }))).items;
-    if (k === words.length && items.length) break;
+  // Satır başına en fazla ~12 arama (istek sayısı artmasın)
+  for (let keep = texts.length, budget = 12; keep >= 1 && !items.length && budget > 0; keep--) {
+    const combos = subsets(texts, keep).filter(named).slice(0, Math.min(6, budget));
+    if (!combos.length) continue;
+    budget -= combos.length;
+    const found = await Promise.all(combos.map(c => run([...nums, ...c])));
+    items = dedupe(found.flat());
   }
+  // Ölçü katalogda başka yazılmışsa (DN100, 114.3) ölçüsüz de dene; ölçü süzgeci aşağıda yine uygulanır
+  const words = texts.filter(w => /[a-z]/.test(w));
+  if (!items.length && nums.length && words.length) items = await run(words);
+  if (!items.length && !words.length) items = await run(all);
   items = items.filter(m => spareOk || !SPARE.test(foldTr(m.name)));
   const sized = items.filter(m => fitsSize(m.name, size));
   const pool = (sized.length ? sized : items);
-  const cands = [...pref, ...pool.filter(m => !pref.some(p => p.code === m.code))]
-    .sort((a, b) => Number(b.price > 0) - Number(a.price > 0)).slice(0, 12);
+  // Talepteki kelimelerden en çoğunu taşıyan aday üstte, sonra fiyatlı olan
+  const hits = (m: Material) => { const n = foldTr(m.name); return texts.filter(w => n.includes(w)).length; };
+  const cands = [...pref, ...pool.filter(m => !pref.some(p => p.code === m.code))
+    .sort((a, b) => hits(b) - hits(a) || Number(b.price > 0) - Number(a.price > 0))].slice(0, 12);
   if (!cands.length) return { cands, pick: null, via: 'none' };
   if (sized.length === 1 && !pref.length) return { cands, pick: sized[0].code, via: 'unique' };
   return { cands, pick: null, via: 'choose' };
