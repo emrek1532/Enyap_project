@@ -4,8 +4,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 /** Liste sayfalarının ortak görünümü (Teklifler, Müşteriler, Malzemeler, Tahsilat) */
 /** Geniş ekran mı (xl, 1280px+): listeler ya tablo ya kart olarak çizilir, ikisi birden değil (daha hızlı) */
 /** from="md": tablette (768px+) de tablo çizilir (sütunları dar tablo: Teklifler, Müşteriler) */
-type Bp = 'md' | 'xl';
-const MQ: Record<Bp, string> = { md: '(min-width: 768px)', xl: '(min-width: 1280px)' };
+type Bp = 'md' | 'lg' | 'xl';
+const MQ: Record<Bp, string> = { md: '(min-width: 768px)', lg: '(min-width: 1024px)', xl: '(min-width: 1280px)' };
 export const useWide = (from: Bp = 'xl') => {
   const q = MQ[from];
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
