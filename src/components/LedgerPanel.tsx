@@ -320,10 +320,11 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                 const overdue = !!c?.dueDate && c.dueDate < todayStr;
                 return (
                   <tr key={r.id} className="hover:bg-slate-50 align-top">
-                    <td className="py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(r.date)}</td>
+                    <td className="hidden xl:table-cell py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(r.date)}</td>
                     <td className="py-2.5 px-3 min-w-[140px]">
                       <div className="font-semibold text-slate-900">{partyOf(r) || '-'}</div>
-                      {c?.city && <div className="text-xs text-slate-500">{c.city}</div>}
+                      <div className="text-xs text-slate-500"><span className="xl:hidden tabular-nums">{fmtDate(r.date)}{c?.city ? ' · ' : ''}</span>{c?.city}</div>
+                      {r.description && <div className="xl:hidden text-xs text-slate-500 line-clamp-1 max-w-[16rem]" title={r.description}>{r.description}</div>}
                     </td>
                     {c ? (
                       <td className="py-2.5 px-3 whitespace-nowrap">
@@ -348,7 +349,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                     ) : (
                       <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{r.method || '-'}</td>
                     )}
-                    <td className="py-2.5 px-3 text-slate-600 max-w-[260px] truncate" title={r.description || ''}>{r.description || '-'}</td>
+                    <td className="hidden xl:table-cell py-2.5 px-3 text-slate-600 max-w-[260px] truncate" title={r.description || ''}>{r.description || '-'}</td>
                     <td className="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">{money(r.amount, r.currency)}</td>
                     <td className="py-2.5 px-3">
                       <div className="flex items-center justify-end gap-1">
@@ -391,14 +392,15 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
     return (
       <React.Fragment key={g.key}>
         <tr onClick={() => toggleGroup(g.key)} className="hover:bg-slate-50 cursor-pointer align-top bg-white">
-          <td className="py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(first.date)}</td>
+          <td className="hidden xl:table-cell py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(first.date)}</td>
           <td className="py-2.5 px-3 min-w-[140px]">
             <div className="font-semibold text-slate-900">{partyOf(first) || '-'}</div>
-            {first.city && <div className="text-xs text-slate-500">{first.city}</div>}
+            <div className="text-xs text-slate-500"><span className="xl:hidden tabular-nums">{fmtDate(first.date)}{first.city ? ' · ' : ''}</span>{first.city}</div>
+            <div className="xl:hidden text-xs font-bold text-brand-700">{g.items.length} parça {open ? '▲' : '▼'}</div>
           </td>
           <td className="py-2.5 px-3 whitespace-nowrap text-slate-800">{methods || '-'}</td>
           <td className="py-2.5 px-3 whitespace-nowrap text-xs text-slate-600 tabular-nums">{dues.length ? `${fmtDate(dues[0])}${dues.length > 1 ? ` – ${fmtDate(dues[dues.length - 1])}` : ''}` : '-'}</td>
-          <td className="py-2.5 px-3 text-xs font-bold text-brand-700">{g.items.length} parça {open ? '▲' : '▼'}</td>
+          <td className="hidden xl:table-cell py-2.5 px-3 text-xs font-bold text-brand-700">{g.items.length} parça {open ? '▲' : '▼'}</td>
           <td className="py-2.5 px-3 text-right font-black text-slate-900 whitespace-nowrap tabular-nums">{money(total, first.currency)}</td>
           <td />
         </tr>
@@ -484,7 +486,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       {/* Liste */}
       <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
         {/* Telefon: kart görünümü */}
-        <NarrowOnly><div className="xl:hidden divide-y divide-slate-100">
+        <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-slate-500">
               {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok.` : 'Filtrelere uygun kayıt bulunamadı.'}
@@ -492,15 +494,15 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           )}
           {groups.map(g => (g.items.length === 1 || !merge ? g.items.map(mobileItem) : mobileGroup(g)))}
         </div></NarrowOnly>
-        <WideOnly><div className="overflow-x-auto hidden xl:block">
+        <WideOnly from="md"><div className="overflow-x-auto hidden md:block">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
+            <thead className="border-b border-slate-100 text-[12px] font-bold text-slate-500">
               <tr>
-                <th className="py-3 px-3 whitespace-nowrap">Tarih</th>
+                <th className="hidden xl:table-cell py-3 px-3 whitespace-nowrap">Tarih</th>
                 <th className="py-3 px-3">{t.party}</th>
                 <th className="py-3 px-3 whitespace-nowrap">{isCollection ? 'Ödeme Şekli / Banka' : 'Şehir'}</th>
                 {isCollection ? <th className="py-3 px-3 whitespace-nowrap">Vade</th> : <th className="py-3 px-3 whitespace-nowrap">Ödeme Şekli</th>}
-                <th className="py-3 px-3">Açıklama</th>
+                <th className="hidden xl:table-cell py-3 px-3">Açıklama</th>
                 <th className="py-3 px-3 text-right">Tutar</th>
                 <th className="py-3 px-3 text-right">İşlemler</th>
               </tr>
