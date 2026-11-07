@@ -159,7 +159,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div>
 
       {/* Telefon: kartlar */}
-      <NarrowOnly><div className="xl:hidden divide-y divide-slate-100 border-t border-slate-100">
+      <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
@@ -178,7 +178,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div></NarrowOnly>
 
       {/* Tablet / masaüstü: tablo */}
-      <WideOnly><div className="hidden xl:block overflow-x-auto border-t border-slate-100">
+      <WideOnly from="md"><div className="hidden md:block overflow-x-auto border-t border-slate-100">
         <table className="w-full text-sm">
           <thead className="border-b border-slate-100 text-left">
             <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
@@ -186,9 +186,9 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
               <SortHeader label="Malzeme Adı" active={sort.key === 'name'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'name', 'asc'))} />
               <th className="py-3 px-3">Birim</th>
               <SortHeader label="Birim Fiyat" align="right" active={sort.key === 'price'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'price', 'desc'))} />
-              <th className="py-3 px-3">KDV</th>
+              <th className="hidden xl:table-cell py-3 px-3">KDV</th>
               <SortHeader label="Stok" align="right" active={sort.key === 'stock'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'stock', 'desc'))} />
-              <SortHeader label="Güncelleme" active={sort.key === 'updated'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'updated', 'desc'))} />
+              <SortHeader className="hidden xl:table-cell" label="Güncelleme" active={sort.key === 'updated'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'updated', 'desc'))} />
               <th className="py-3 px-3"></th>
             </tr>
           </thead>
@@ -201,9 +201,9 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
                 </td>
                 <td className="py-3 px-3 text-slate-500">{m.unit}</td>
                 <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-500'}`}>{priceText(m)}</td>
-                <td className="py-3 px-3 text-slate-500 tabular-nums">%{m.vatRate}</td>
+                <td className="hidden xl:table-cell py-3 px-3 text-slate-500 tabular-nums">%{m.vatRate}</td>
                 <td className={`py-3 px-3 text-right tabular-nums ${(m.stock ?? 0) < 0 ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>{fmtStock(m.stock)}</td>
-                <td className="py-3 px-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
+                <td className="hidden xl:table-cell py-3 px-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
                 <td className="py-3 px-3 text-right whitespace-nowrap">{rowActions(m)}</td>
               </tr>
             ))}
