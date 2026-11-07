@@ -390,6 +390,18 @@ export const SupplierListsPanel: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* Arama */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={current ? `${current.name} listesinde ara…` : 'Tüm listelerde ara (kod, ürün)…'}
+              className="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200 text-sm bg-white"
+            />
+          </div>
+
           {/* Firma şeridi */}
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none]">
             {[{ id: null as string | null, name: 'Tümü', count: lists.reduce((a, l) => a + l.itemCount, 0) },
@@ -524,18 +536,6 @@ export const SupplierListsPanel: React.FC = () => {
               )}
             </div>
           )}
-
-          {/* Arama */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="search"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder={current ? `${current.name} listesinde ara…` : 'Tüm listelerde ara (kod, ürün)…'}
-              className="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200 text-sm bg-white"
-            />
-          </div>
 
           {error && <div className="text-sm text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
           {notice && (
