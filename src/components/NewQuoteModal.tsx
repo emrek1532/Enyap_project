@@ -76,11 +76,28 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     supabase.rpc('quote_max_seq', { y: new Date().getFullYear() }).then(({ data }) => { if (typeof data === 'number') setSeqFloor(data); }, () => {});
   }, [scoped]);
   const autoNumber = useMemo(() => nextQuoteNumber(quotes, new Date(), seqFloor), [quotes, seqFloor]);
+  const normNoTop = (x?: string) => (x || '').trim().toLocaleUpperCase('tr');
+  const isEditTop = !!editQuote;
   const [quoteNoInput, setQuoteNoInput] = useState(
     editQuote && editQuote.quoteNumber && editQuote.quoteNumber !== '-' ? editQuote.quoteNumber : '',
   );
   const typedNo = quoteNoInput.trim();
-  const duplicateNo = !!typedNo && quotes.some(q => q.id !== editQuote?.id && (q.quoteNumber || '').trim().toLocaleUpperCase('tr') === typedNo.toLocaleUpperCase('tr'));
+  const localDup = !!typedNo && quotes.some(q => q.id !== editQuote?.id && (q.quoteNumber || '').trim().toLocaleUpperCase('tr') === typedNo.toLocaleUpperCase('tr'));
+  // Kendi tekliflerini gören kullanıcı başkasının teklifini göremez; teklif no sunucuda herkesinkiyle karşılaştırılır
+  // (yalnız firma, tarih ve ekleyen döner; tutar dönmez)
+  const [remoteDup, setRemoteDup] = useState<{ customer: string; date: string; owner: string } | null>(null);
+  useEffect(() => {
+    setRemoteDup(null);
+    if (!scoped || !typedNo || localDup || (isEditTop && normNoTop(editQuote?.quoteNumber) === normNoTop(typedNo))) return;
+    const t = setTimeout(() => {
+      supabase.rpc('quote_lookup', { no: typedNo }).then(({ data }) => {
+        const r = (data as any[] | null)?.find(x => x.id !== editQuote?.id);
+        setRemoteDup(r ? { customer: r.customer_name || '', date: dayOf(r.created_at).split('-').reverse().join('.'), owner: r.owner_name || '' } : null);
+      }, () => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [typedNo, scoped, localDup]);
+  const duplicateNo = localDup || !!remoteDup;
   const [customerName, setCustomerName] = useState(init?.customerName || initialCustomer?.name || '');
   const [city, setCity] = useState(init?.city || initialCustomer?.city || 'Isparta');
 
@@ -651,6 +668,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 </div>
               );
             })()}
+            {remoteDup && (
+              <div className="text-xs rounded-md px-3 py-2.5 bg-amber-50 text-amber-900 border border-amber-300">
+                <b>Bu teklif sistemde zaten var:</b> {typedNo} · {remoteDup.customer} · {remoteDup.date} · {remoteDup.owner} ekledi.
+                {' '}Aynı teklifi ikinci kez girmeyin; değişiklik gerekiyorsa {remoteDup.owner.split(' ')[0]} ile görüşün.
+              </div>
+            )}
             {existing && !isEdit && (
               <div className="text-xs rounded-md px-3 py-2.5 bg-amber-50 text-amber-900 border border-amber-300 space-y-2">
                 <div>
@@ -730,7 +753,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              {duplicateNo && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no başka bir teklifte de var.</p>}
+              {localDup && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no başka bir teklifte de var.</p>}
             </div>
 
             {/* Kalemler */}
