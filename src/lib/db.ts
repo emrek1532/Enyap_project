@@ -97,6 +97,7 @@ const rowToQuote = (r: Row): Quote => ({
   createdBy: r.created_by,
   assignedTo: r.assigned_to,
   notes: r.notes ?? undefined,
+  ownerId: r.owner_id ?? undefined,
   isEncrypted: r.is_encrypted,
   tags: r.tags ?? [],
   preparedBy: r.prepared_by ?? undefined,
