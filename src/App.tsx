@@ -365,7 +365,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     try { localStorage.setItem(KEY, want); } catch { /* yok */ }
     if (!scoped) { if (had) performSync(true); return; }
     setData(prev => {
-      const next = { ...prev, quotes: prev.quotes.filter(q => q.ownerId === profile.id), activities: [], syncCursor: undefined };
+      const next = { ...prev, quotes: prev.quotes.filter(q => q.ownerId === profile.id || q.sharedWith?.includes(profile.id)), activities: [], syncCursor: undefined };
       saveLocalData(next);
       return next;
     });
