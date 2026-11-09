@@ -29,7 +29,8 @@ import {
   applyOp,
   isPermanentError,
   subscribeToChanges,
-  PendingOp
+  PendingOp,
+  setQuoteReviewed,
 } from './lib/db';
 import { findCustomer } from './lib/customers';
 import { AuthScreen } from './components/AuthScreen';
@@ -519,8 +520,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     const q = data.quotes.find(x => x.id === openQuoteId);
     if (!q) return;
     window.history.replaceState(window.history.state, '', '/');
-    setActiveTab('quotes');
-    setEditingQuote(q);
+    // Kontrol bekleyen teklif: detayı açılır (kontrol et → Yazdır / PDF ile gönder)
+    if (q.reviewPending) { setQuoteFilter('all'); setQuoteRange(null); setActiveTab('quotes'); setFocusQuote({ id: q.id, n: Date.now() }); }
+    else { setActiveTab('quotes'); setEditingQuote(q); }
     setOpenQuoteId(null);
   }, [openQuoteId, data.quotes]);
 
@@ -628,6 +630,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       { kind: 'upsert', entity: 'activities', record: activity },
     ]);
     if (opts?.fromPdf) showSavedQuote(updated);
+    markReviewed(updated);
   };
 
   // Update Quote Status
@@ -650,6 +653,13 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       { kind: 'upsert', entity: 'quotes', record: updated },
       { kind: 'upsert', entity: 'activities', record: activity },
     ]);
+  };
+
+  // Yönetici, ekibin yüklediği teklifi kontrol etti (Kontrol ettim / PDF gönderdi / revize etti): "Kontrol bekliyor" kalkar
+  const markReviewed = (q: Quote) => {
+    if (!profile.isAdmin || !q.reviewPending) return;
+    mutate(d => ({ ...d, quotes: d.quotes.map(x => (x.id === q.id ? { ...x, reviewPending: false } : x)) }));
+    setQuoteReviewed(q.id).catch(err => console.warn('Kontrol işareti kaldırılamadı', err));
   };
 
   // Teklifin tek alanını değiştir (takip tarihi, geçerlilik süresi); etkinlik akışına yazılmaz
@@ -846,6 +856,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               tools={tools}
               onOpenTool={openTool}
               followCount={liveQuotes.filter(needsFollowUp).length}
+              reviewQuotes={profile.isAdmin ? liveQuotes.filter(q => q.reviewPending) : []}
               syncStatus={syncStatus}
               onSync={() => performSync(true)}
               onSignOut={handleSignOut}
@@ -882,6 +893,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onPrintQuote={printQuote}
             olderVersions={olderVersions}
             onEditQuote={setEditingQuote}
+            onMarkReviewed={markReviewed}
             readOnly={!can(profile, 'quotes', 'edit')}
             statusFilter={quoteFilter}
             onStatusFilterChange={setQuoteFilter}
@@ -1060,6 +1072,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         <PrintableQuoteModal
           quote={printableQuote}
           onClose={() => setPrintableQuote(null)}
+          onSent={() => markReviewed(printableQuote)}
         />
       )}
       </Suspense>

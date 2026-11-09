@@ -114,6 +114,7 @@ const rowToQuote = (r: Row): Quote => ({
   paymentTerm: r.payment_term ?? undefined,
   followUpAt: r.follow_up_at ?? undefined,
   rev: Number(r.rev ?? 0),
+  reviewPending: !!r.review_pending,
 });
 
 const noteToRow = (n: QuickNote): Row => ({
@@ -249,6 +250,11 @@ async function remove(table: string, id: string) {
 }
 
 // ---------- Public API ----------
+/** Yönetici teklifi kontrol etti: "Kontrol bekliyor" işaretini kaldır (yalnız yönetici; sunucu da denetler) */
+export async function setQuoteReviewed(id: string): Promise<void> {
+  check(await supabase.from('quotes').update({ review_pending: false }).eq('id', id));
+}
+
 /** Başkasının teklifini bana da aç ve getir (aynı teklif no kaydedilirken: tek kayıt kalsın) */
 export async function shareQuoteWithMe(id: string): Promise<Quote | null> {
   const { error } = await supabase.rpc('quote_share_me', { qid: id });

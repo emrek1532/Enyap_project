@@ -55,6 +55,8 @@ interface QuoteManagerProps {
   olderVersions?: Map<string, Quote[]>;
   onPrintQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
+  /** Yönetici: "Kontrol bekliyor" teklifini kontrol edildi say */
+  onMarkReviewed?: (quote: Quote) => void;
   /** Sadece görüntüleme yetkisi: onay/düzenle/sil düğmeleri gizlenir */
   readOnly?: boolean;
   statusFilter: string;
@@ -77,6 +79,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   olderVersions,
   onPrintQuote,
   onEditQuote,
+  onMarkReviewed,
   readOnly = false,
   statusFilter,
   onStatusFilterChange: setStatusFilter,
@@ -274,6 +277,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     if (!isPendingQuote(q)) return null;
     const exp = daysToExpiry(q, today);
     return (<>
+      {q.reviewPending && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-sky-50 text-sky-800 border-sky-200" title="Ekip yükledi; kontrol edip müşteriye gönderin">Kontrol bekliyor</span>}
       {q.followUpAt && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap inline-flex items-center gap-1 ${q.followUpAt <= today ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}><BellRing className="w-3 h-3" />{followLabel(q.followUpAt, today)}</span>}
       {exp !== null && isExpiring(q, today) && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${exp < 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-orange-50 text-orange-700 border-orange-200'}`}>{expiryLabel(exp)}</span>}
     </>);
@@ -554,6 +558,17 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
             {/* Modal Content */}
             <div className="p-4 sm:p-5 space-y-4 text-xs sm:text-sm">
+              {selectedQuote.reviewPending && (
+                <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 flex items-center gap-2 flex-wrap">
+                  <span className="flex-1 min-w-0 text-sky-900 font-semibold">Ekip yükledi, kontrolünüzü bekliyor. Kontrol edip "Yazdır / PDF" ile müşteriye gönderin.</span>
+                  {onMarkReviewed && (
+                    <button onClick={() => { onMarkReviewed(selectedQuote); setSelectedQuote({ ...selectedQuote, reviewPending: false }); }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 text-white hover:bg-sky-700 whitespace-nowrap">
+                      <Check className="w-3.5 h-3.5" /> Kontrol ettim
+                    </button>
+                  )}
+                </div>
+              )}
               
               {/* Stepper / Status Controller */}
               <div className={readOnly ? 'hidden' : ''}>

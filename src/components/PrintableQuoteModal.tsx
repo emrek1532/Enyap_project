@@ -6,6 +6,8 @@ import { Quote } from '../types';
 interface PrintableQuoteModalProps {
   quote: Quote | null;
   onClose: () => void;
+  /** PDF paylaşıldı / indirildi (müşteriye gönderildi) */
+  onSent?: () => void;
 }
 
 type Cur = 'USD' | 'EUR' | 'TL';
@@ -164,7 +166,7 @@ const PAGE_CSS = `
 }
 `;
 
-export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote, onClose }) => {
+export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote, onClose, onSent }) => {
   const printedAt = useMemo(() => new Date(), []);
   // Telefonda A4 sayfası ekrana sığsın diye önizleme küçültülür
   const fitZoom = () => Math.min(1, (window.innerWidth - 24) / 794);
@@ -257,6 +259,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
       // Yalnızca dosya paylaşılır: yanına yazı eklenince WhatsApp dosya adını "DOC-…-WA0001" yapıyor
       if (navigator.canShare?.({ files: [pdfFile] })) {
         await navigator.share({ files: [pdfFile] });
+        onSent?.();
         return;
       }
     } catch (e) {
@@ -267,6 +270,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
     const a = document.createElement('a');
     a.href = url; a.download = pdfFile.name; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
+    onSent?.();
     setShareMsg(`PDF indirildi (${pdfFile.name}); WhatsApp ya da e-postaya ek olarak ekleyebilirsiniz.`);
   };
 
