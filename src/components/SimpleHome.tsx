@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
-import { PENDING_STATUSES, quoteAgeInDays } from '../lib/quoteRules';
+import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { estimatedBalance } from '../lib/mikroBalance';
 import type { ActiveTab } from './Sections';
@@ -159,7 +159,17 @@ export const SimpleHome: React.FC<{
       ? customers.map(c => ({ c, b: estimatedBalance(c, collections) })).filter(x => x.b && x.b.estimate >= 1)
           .sort((a, b) => b.b!.estimate - a.b!.estimate).map(x => ({ c: x.c, v: x.b!.estimate }))
       : [];
-    const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status)).map(q => ({ q, v: quoteTry(q, rates) })).sort((a, b) => b.v - a.v);
+    // Seçili dönemde firmaya göre tahsilat (döviz kurla TL'ye çevrilir)
+    const cm = new Map<string, { name: string; v: number; n: number }>();
+    if (canMoney) for (const c of collections) {
+      if (!c.date || c.date < s.from || c.date > s.to || !c.customerName) continue;
+      const cur = c.currency || 'TRY';
+      const v = (c.amount || 0) * (cur === 'USD' ? rates.USD : cur === 'EUR' ? rates.EUR : 1);
+      const k = foldKey(c.customerName);
+      const e = cm.get(k) || { name: c.customerName.trim(), v: 0, n: 0 };
+      e.v += v; e.n += 1; cm.set(k, e);
+    }
+    const paid = [...cm.values()].sort((a, b) => b.v - a.v);
     const pm = new Map<string, { name: string; v: number; n: number }>();
     for (const q of quotes) {
       if (q.status !== 'onaylandi') continue;
@@ -174,8 +184,8 @@ export const SimpleHome: React.FC<{
       }
     }
     const products = [...pm.values()].sort((a, b) => b.v - a.v);
-    return { debtors, pending, products };
-  }, [customers, collections, quotes, rates, showBalances, s.from, s.to]);
+    return { debtors, paid, products };
+  }, [customers, collections, quotes, rates, showBalances, canMoney, s.from, s.to]);
   // Telefonda grafik / hedef / firmalar kapalı başlar (seçim cihazda hatırlanır)
   const [more, setMore] = useState(() => { try { return localStorage.getItem('home-more') === '1'; } catch { return false; } });
   const toggleMore = () => setMore(v => { try { localStorage.setItem('home-more', v ? '0' : '1'); } catch { /* yok */ } return !v; });
@@ -297,11 +307,10 @@ export const SimpleHome: React.FC<{
 
       {/* Telefonda sıra: yapılacaklar, son teklifler, (açılır) grafik + hedef + firmalar; bilgisayarda solda grafik + son teklifler, sağda diğerleri */}
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_side']">
-        {(canQuotes || (showBalances && money3.debtors.length > 0)) && (
+        {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
           <div className="lg:[grid-area:todo] min-w-0 flex flex-col max-lg:order-1">
-            <MoneyCard data={money3} canQuotes={canQuotes} periodTitle={title}
-              onOpenCustomer={onOpenCustomer} onOpenQuote={onOpenQuote} onAllDebtors={() => onOpen('customers')}
-              onAllPending={() => openQuotes({ status: 'aktif' })} />
+            <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
+              onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />
           </div>
         )}
         {canQuotes && (
@@ -350,13 +359,13 @@ export const SimpleHome: React.FC<{
 
 /** Para özeti: sekmeli tek liste — en çok alacağımız firmalar, en büyük bekleyen teklifler, dönemin en çok satılan ürünleri */
 const MoneyCard: React.FC<{
-  data: { debtors: { c: Customer; v: number }[]; pending: { q: Quote; v: number }[]; products: { name: string; v: number; n: number }[] };
-  canQuotes: boolean; periodTitle: string;
-  onOpenCustomer?: (name: string) => void; onOpenQuote: (q: Quote) => void; onAllDebtors: () => void; onAllPending: () => void;
-}> = ({ data, canQuotes, periodTitle, onOpenCustomer, onOpenQuote, onAllDebtors, onAllPending }) => {
-  type K = 'debt' | 'pending' | 'products';
-  const tabs = ([['debt', 'Alacak', data.debtors.length], ['pending', 'Bekleyen', canQuotes ? data.pending.length : 0], ['products', 'Ürünler', canQuotes ? data.products.length : 0]] as [K, string, number][])
-    .filter(([k]) => k === 'debt' ? data.debtors.length > 0 : canQuotes);
+  data: { debtors: { c: Customer; v: number }[]; paid: { name: string; v: number; n: number }[]; products: { name: string; v: number; n: number }[] };
+  canQuotes: boolean; canMoney: boolean; periodTitle: string;
+  onOpenCustomer?: (name: string) => void; onAllDebtors: () => void; onAllPaid: () => void;
+}> = ({ data, canQuotes, canMoney, periodTitle, onOpenCustomer, onAllDebtors, onAllPaid }) => {
+  type K = 'debt' | 'paid' | 'products';
+  const tabs = ([['debt', 'Alacak', data.debtors.length], ['paid', 'Tahsilat', data.paid.length], ['products', 'Ürünler', data.products.length]] as [K, string, number][])
+    .filter(([k]) => k === 'debt' ? data.debtors.length > 0 : k === 'paid' ? canMoney : canQuotes);
   const [pick, setPick] = useState<K | null>(null);
   const tab: K | undefined = tabs.find(x => x[0] === pick)?.[0] || tabs[0]?.[0];
   const SHOW = 5;
@@ -398,14 +407,14 @@ const MoneyCard: React.FC<{
             </button>
           ))}
         </>)}
-        {tab === 'pending' && (<>
-          {head('Bekleyen toplam', sum(data.pending), onAllPending, data.pending.length)}
-          {data.pending.length === 0 && <p className="px-2 py-3 text-sm text-slate-500">Bekleyen teklif yok.</p>}
-          {data.pending.slice(0, SHOW).map(({ q, v }, i) => (
-            <button key={q.id} onClick={() => onOpenQuote(q)} className={rowCls}>
+        {tab === 'paid' && (<>
+          {head(`${periodTitle} tahsilat`, sum(data.paid), onAllPaid, data.paid.length)}
+          {data.paid.length === 0 && <p className="px-2 py-3 text-sm text-slate-500">Bu dönemde tahsilat yok.</p>}
+          {data.paid.slice(0, SHOW).map((p, i) => (
+            <button key={p.name} onClick={() => onOpenCustomer?.(p.name)} className={rowCls}>
               {rank(i)}
-              <span className="flex-1 min-w-0"><span className={name}>{q.customerName}</span><span className={sub}>No {q.quoteNumber} · {quoteAgeInDays(q)} gündür bekliyor</span></span>
-              {val(v)}
+              <span className="flex-1 min-w-0"><span className={name}>{p.name}</span><span className={sub}>{p.n} tahsilat</span></span>
+              {val(p.v)}
             </button>
           ))}
         </>)}
