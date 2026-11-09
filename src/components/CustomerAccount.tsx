@@ -8,17 +8,17 @@ import { Collection, Customer, CustomerStatus, Quote, QuoteStatus, UserRole } fr
 import { CustomerInsights } from './CustomerInsights';
 import { WhatsAppMenu } from './WhatsAppMenu';
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
-import { PENDING_STATUSES } from '../lib/quoteRules';
+import { isPendingQuote } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
 import { formatQuoteAmount } from '../lib/money';
 import { textMatcher } from '../lib/materials';
-import { quoteNo } from '../lib/quoteRules';
+import { quoteNo, viewStatus } from '../lib/quoteRules';
 
 export { STATUS_LABEL } from '../lib/constants';
 import { STATUS_LABEL } from '../lib/constants';
 
 const isApproved = (q: Quote) => q.status === 'onaylandi';
-const isPending = (q: Quote) => PENDING_STATUSES.includes(q.status);
+const isPending = (q: Quote) => isPendingQuote(q);
 const tl = (n: number) => `${Math.round(n).toLocaleString('tr-TR')} TL`;
 const day = (s: string) => (s ? new Date(s).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 const curSym = (c?: string) => (c === 'USD' ? '$' : c === 'EUR' ? '€' : 'TL');
@@ -186,7 +186,7 @@ export const CustomerAccount: React.FC<{
           )}
           <WhatsAppMenu
             phone={customer.phone || allQuotes.find(x => x.customerPhone)?.customerPhone}
-            ctx={{ name: customer.name, contact: customer.contactPerson, quote: allQuotes.find(x => PENDING_STATUSES.includes(x.status)) || allQuotes[0], quoteValue: (() => { const x = allQuotes.find(y => PENDING_STATUSES.includes(y.status)) || allQuotes[0]; return x ? quoteTry(x, rates) : undefined; })(), balance: showCollections ? balance?.estimate : undefined, balanceDate: balance ? new Date().toISOString() : undefined }}
+            ctx={{ name: customer.name, contact: customer.contactPerson, quote: allQuotes.find(x => isPendingQuote(x)) || allQuotes[0], quoteValue: (() => { const x = allQuotes.find(y => isPendingQuote(y)) || allQuotes[0]; return x ? quoteTry(x, rates) : undefined; })(), balance: showCollections ? balance?.estimate : undefined, balanceDate: balance ? new Date().toISOString() : undefined }}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold"
           />
           <button onClick={onNewQuote} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold">
@@ -295,7 +295,7 @@ export const CustomerAccount: React.FC<{
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono font-black text-sm text-brand-700 underline decoration-brand-200 underline-offset-2">{quoteNo(x) || '—'}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${STATUS_LABEL[x.status].cls}`}>{STATUS_LABEL[x.status].label}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${STATUS_LABEL[viewStatus(x)].cls}`}>{STATUS_LABEL[viewStatus(x)].label}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 truncate">
                         {day(x.createdAt)}{x.preparedBy ? ` · ${x.preparedBy}` : ''}{x.items?.length ? ` · ${x.items.length} kalem` : ''}{x.notes ? ` · ${x.notes}` : ''}
@@ -337,7 +337,7 @@ export const CustomerAccount: React.FC<{
                         <div className="text-sm font-bold text-slate-900 leading-snug break-words">{l.it.productName}</div>
                         <div className="text-[11px] text-slate-500 truncate">
                           {l.it.code ? `${l.it.code} · ` : ''}<span className="font-mono">{quoteNo(l.quote)}</span>
-                          {!isApproved(l.quote) && ` · ${STATUS_LABEL[l.quote.status].label}`}
+                          {!isApproved(l.quote) && ` · ${STATUS_LABEL[viewStatus(l.quote)].label}`}
                         </div>
                       </div>
                       <div className="text-right shrink-0">

@@ -30,4 +30,4 @@ Kullanıcı yazılım ve yapay zekâyı öğrenmek istiyor: her işte, yapılan 
 - Carilere (müşteriler) ekleme/çıkarma yapma; değişiklik öncesi yedek al.
 - Yeni özellik eklemeden önce veri/istek kullanımına etkisine bak.
 - Kaldırılanlar (geri ekleme): öneriler kartı, tedarikçi siparişi, iskonto hafızası, toplu PDF yükleme, fiyat karşılaştır, sipariş/takvim modülleri, aciliyet/proje alanları, eski ziyaret planı (`visits` tablosu), sabit hızlı not düğmesi, sol menüdeki "Raporları Gör" kartı, ana sayfadaki Türkiye haritası (tablolar `orders`, `events`, `visits` arşivde durur).
-- İptal = sipariş olup sonra iptal; neden sorulmaz. Bekleyen tekliflerde "Neden bekliyor?" (`lost_reason` alanı, "neden · not").
+- İptal = sipariş olup sonra iptal; neden sorulmaz. Bekleyen tekliflerde "Neden bekliyor?" (`lost_reason` alanı, "neden · not"). "Müşteri düşünüyor" dışında bir neden seçilen teklif **Pasif** sayılır (kayıtta durum `gonderildi` kalır; `isPassive`/`isPendingQuote` `lib/quoteRules.ts`): bekleyenlerde, takipte ve tahminde sayılmaz.

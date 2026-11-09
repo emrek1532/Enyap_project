@@ -1,3 +1,4 @@
+import { isPendingQuote } from '../lib/quoteRules';
 import { trNum } from '../lib/num';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, ChevronRight, Lightbulb, Loader2, Mic, Search, Square, X } from 'lucide-react';
@@ -100,7 +101,7 @@ export const QuickPrice: React.FC<{
         const k = foldTr(c.name.trim());
         const qs = quotes.filter(x => foldTr(x.customerName.trim()) === k);
         const last = qs.reduce((m, x) => (x.createdAt > m ? x.createdAt : m), '');
-        return { c, pending: qs.filter(x => x.status === 'gonderildi').length, last, starts: foldTr(c.name).startsWith(words[0]) };
+        return { c, pending: qs.filter(isPendingQuote).length, last, starts: foldTr(c.name).startsWith(words[0]) };
       })
       .sort((a, b) => Number(b.starts) - Number(a.starts) || (b.last || '').localeCompare(a.last || ''))
       .slice(0, 5);

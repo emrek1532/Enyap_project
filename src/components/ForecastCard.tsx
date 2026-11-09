@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { Quote } from '../types';
 import { dayOf, localDay } from '../lib/dates';
-import { PENDING_STATUSES } from '../lib/quoteRules';
+import { isPendingQuote } from '../lib/quoteRules';
 import { Targets, useSetting } from '../lib/settings';
 import { trNum } from '../lib/num';
 
@@ -33,7 +33,7 @@ export const ForecastCard: React.FC<{ quotes: Quote[]; amountOf: (q: Quote) => n
       if (q.status === 'onaylandi' && day.startsWith(ym)) { approved += amt; n++; daily[Number(day.slice(8, 10))] += amt; }
       const age = (t - Date.parse(q.createdAt)) / DAY;
       if (age >= 30 && age <= 210) { histAll += amt; if (q.status === 'onaylandi') histOk += amt; }
-      if (PENDING_STATUSES.includes(q.status) && age <= 45) { pendAmt += amt; pendN++; }
+      if (isPendingQuote(q) && age <= 45) { pendAmt += amt; pendN++; }
     }
     const rate = histAll > 0 ? histOk / histAll : 0;
     const expected = pendAmt * rate;

@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, MapPin, MapPinCheck, Navigation, Phone, Plus, Trash
 import { Customer, Quote } from '../types';
 import { listCard, SearchBox } from './ListUI';
 import { directionsUrl, useRoute } from '../lib/route';
-import { followDue, PENDING_STATUSES } from '../lib/quoteRules';
+import { followDue, isPendingQuote } from '../lib/quoteRules';
 import { localDay } from '../lib/dates';
 
 const fold = (s: string) => s.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
@@ -31,7 +31,7 @@ export const RouteView: React.FC<{
   const info = useMemo(() => {
     const m = new Map<string, { pending: number; due: number }>();
     quotes.forEach(x => {
-      if (!PENDING_STATUSES.includes(x.status)) return;
+      if (!isPendingQuote(x)) return;
       const k = fold(x.customerName);
       const g = m.get(k) || { pending: 0, due: 0 };
       g.pending++; if (followDue(x, today)) g.due++;

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, X, ChevronRight, Loader2, Eye } from 'lucide-react';
 import { Collection, Customer, Expense, Quote } from '../types';
 import { foldName } from '../lib/customerInsights';
-import { PENDING_STATUSES, splitReason } from '../lib/quoteRules';
+import { isPassive, isPendingQuote, splitReason } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
 import { PrintDoc, PrintSection, useReportSender } from './ReportPrint';
@@ -45,7 +45,7 @@ const compact = (v: number) => {
 };
 
 const isApproved = (q: Quote) => q.status === 'onaylandi';
-const isPending = (q: Quote) => PENDING_STATUSES.includes(q.status);
+const isPending = (q: Quote) => isPendingQuote(q);
 
 const sumByCurrency = (list: { amount: number; currency: Currency }[]) =>
   list.reduce<Record<Currency, number>>((acc, r) => {
@@ -417,6 +417,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     const amount = (list: Quote[]) => list.reduce((s, q) => s + qTry(q), 0);
     const approved = pQuotes.filter(isApproved);
     const pending = pQuotes.filter(isPending);
+    const passive = pQuotes.filter(q => isPassive(q));
     const cancelled = pQuotes.filter(q => q.status === 'iptal');
     const firms = new Set(pQuotes.map(q => q.customerName.trim().toLocaleLowerCase('tr')));
     const approvedFirms = new Set(approved.map(q => q.customerName.trim().toLocaleLowerCase('tr')));
@@ -427,12 +428,14 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       pending: pending.length, pendingAmt: amount(pending),
       cancelled: cancelled.length, cancelledAmt: amount(cancelled),
       // Bekleyen teklifler neden bekliyor (teklif detayında seçilen neden)
-      waiting: Object.entries(pending.reduce<Record<string, { n: number; amt: number; list: Quote[] }>>((m, q) => {
+      passive: passive.length, passiveAmt: amount(passive),
+      // Neden: karar bekleyenler + pasifler (neden seçilip artık beklenmeyenler)
+      waiting: Object.entries([...pending, ...passive].reduce<Record<string, { n: number; amt: number; list: Quote[] }>>((m, q) => {
         const k = splitReason(q.lostReason).reason || 'Neden girilmemiş';
         m[k] = m[k] || { n: 0, amt: 0, list: [] }; m[k].n++; m[k].amt += qTry(q); m[k].list.push(q); return m;
       }, {})).sort((a, b) => (a[0] === 'Neden girilmemiş' ? 1 : 0) - (b[0] === 'Neden girilmemiş' ? 1 : 0) || b[1].amt - a[1].amt),
       // Rakip notları: "Rakip daha ucuz · ABC Isı 45.000 TL"
-      rivals: pending.filter(q => splitReason(q.lostReason).reason === 'Rakip daha ucuz')
+      rivals: [...pending, ...passive].filter(q => splitReason(q.lostReason).reason === 'Rakip daha ucuz')
         .map(q => ({ q, note: splitReason(q.lostReason).note })),
     };
   }, [pQuotes, rates]);
@@ -727,6 +730,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           parts={[
             { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
             { label: 'Bekleyen', value: stats.pendingAmt, color: '#7c3aed' },
+            { label: 'Pasif', value: stats.passiveAmt, color: '#d97706' },
             { label: 'İptal', value: stats.cancelledAmt, color: '#e11d48' },
           ]} />
         <Donut title="Tahsilat · Ödeme Şekli" subtitle="Seçilen dönemdeki TL tahsilatlar"
@@ -747,11 +751,11 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       </div>
 
       {/* Bekleyen teklifler: neden bekliyor */}
-      {stats.pending > 0 && (
+      {stats.pending + stats.passive > 0 && (
         <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] p-4">
-          <h3 className="font-bold text-slate-900 text-sm">Bekleyen Teklifler · Neden Bekliyor?</h3>
-          <p className="text-xs text-slate-500 mb-3">{stats.pending} teklif · {tl(stats.pendingAmt)} · teklif detayında seçilen neden</p>
-          <WaitingReasons rows={stats.waiting} total={stats.pending} totalAmt={stats.pendingAmt} amountOf={qTry} />
+          <h3 className="font-bold text-slate-900 text-sm">Bekleyen ve Pasif Teklifler · Neden?</h3>
+          <p className="text-xs text-slate-500 mb-3">{stats.pending} bekleyen · {stats.passive} pasif · {tl(stats.pendingAmt + stats.passiveAmt)} · teklif detayında seçilen neden ("Müşteri düşünüyor" dışındakiler pasif sayılır)</p>
+          <WaitingReasons rows={stats.waiting} total={stats.pending + stats.passive} totalAmt={stats.pendingAmt + stats.passiveAmt} amountOf={qTry} />
           {stats.rivals.length > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-100">
               <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Rakip notları</div>

@@ -62,7 +62,9 @@ export const StatusPill: React.FC<{ status: string }> = ({ status }) => {
     ? { l: 'Onaylandı', c: 'bg-emerald-50 text-emerald-700 border-emerald-200', i: '✓' }
     : status === 'iptal'
       ? { l: 'İptal', c: 'bg-slate-100 text-slate-600 border-slate-200', i: '✕' }
-      : { l: 'Beklemede', c: 'bg-violet-50 text-violet-700 border-violet-200', i: '◷' };
+      : status === 'pasif'
+        ? { l: 'Pasif', c: 'bg-amber-50 text-amber-800 border-amber-200', i: '‖' }
+        : { l: 'Beklemede', c: 'bg-violet-50 text-violet-700 border-violet-200', i: '◷' };
   return <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${m.c}`}><span aria-hidden>{m.i}</span>{m.l}</span>;
 };
 

@@ -1,5 +1,5 @@
 import { Collection, Customer, CustomerStatus, Quote } from '../types';
-import { PENDING_STATUSES } from './quoteRules';
+import { isPendingQuote } from './quoteRules';
 import { Rates, quoteTry } from './rates';
 
 /** Firma adı eşleştirme: büyük/küçük harf ve Türkçe karakter farkı gözetmez */
@@ -42,7 +42,7 @@ export interface Evaluation {
 export function evaluate(quotes: Quote[], collections: Collection[], rates: Rates, maxWon: number, now = Date.now()): Evaluation {
   const live = quotes.filter(q => q.status !== 'iptal');
   const won = live.filter(isWon);
-  const pending = live.filter(q => PENDING_STATUSES.includes(q.status));
+  const pending = live.filter(q => isPendingQuote(q));
   const v = (q: Quote) => quoteTry(q, rates);
   const quoteTotal = live.reduce((s, q) => s + v(q), 0);
   const wonTotal = won.reduce((s, q) => s + v(q), 0);
