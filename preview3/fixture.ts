@@ -27,7 +27,7 @@ for (const [off, n, sum, ok] of MONTHS) {
   });
 }
 quotes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-export const customers: any[] = firms.map((f, i) => ({ id: 'c' + i, name: f.name, city: f.city, status: 'aktif', mikroBalance: Math.round((rnd() - 0.2) * 900000), createdAt: iso(now), updatedAt: iso(now) }));
+export const customers: any[] = firms.map((f, i) => ({ id: 'c' + i, name: f.name, city: f.city, status: 'aktif', ...(i % 3 === 0 ? { lastVisit: '2026-11-0' + (1 + (i % 8)) } : {}), mikroBalance: Math.round((rnd() - 0.2) * 900000), createdAt: iso(now), updatedAt: iso(now) }));
 export const collections: any[] = Array.from({ length: 371 }, (_, i) => {
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - Math.floor(rnd() * 240));
   const method = i < 351 ? 'Çek' : pick(['Nakit', 'Senet', 'Havale/EFT', 'Kredi Kartı']);
