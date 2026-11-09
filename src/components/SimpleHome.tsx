@@ -9,6 +9,7 @@ import { estimatedBalance } from '../lib/mikroBalance';
 import type { ActiveTab } from './Sections';
 import type { ToolInfo, ToolMode } from './QuickTools';
 import { Targets, useSetting } from '../lib/settings';
+import { TodayCalls } from './TodayCalls';
 
 type Tab = Exclude<ActiveTab, 'home'>;
 /** Teklifler sayfasını süzülmüş açar: durum (all, aktif, takip, onaylandi, iptal) ve tarih aralığı */
@@ -58,6 +59,8 @@ export const SimpleHome: React.FC<{
   onOpen: (tab: Tab) => void;
   onOpenQuotes?: (v: QuoteView) => void;
   onOpenQuote: (q: Quote) => void;
+  /** Teklifin detayını Teklifler sayfasında aç (takip kartından) */
+  onShowQuote?: (q: Quote) => void;
   canAdd: { quote: boolean; collection: boolean; expense: boolean };
   onNewQuote: () => void;
   onNewCollection: () => void;
@@ -74,7 +77,7 @@ export const SimpleHome: React.FC<{
   userEmail?: string;
   /** Cari bakiyeleri görebilir (Alacak sekmesi) */
   showBalances?: boolean;
-}> = ({ quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
+}> = ({ quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -308,7 +311,8 @@ export const SimpleHome: React.FC<{
       {/* Telefonda sıra: yapılacaklar, son teklifler, (açılır) grafik + hedef + firmalar; bilgisayarda solda grafik + son teklifler, sağda diğerleri */}
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_side']">
         {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
-          <div className="lg:[grid-area:todo] min-w-0 flex flex-col max-lg:order-1">
+          <div className="lg:[grid-area:todo] min-w-0 flex flex-col gap-4 sm:gap-5 max-lg:order-1">
+            {canQuotes && <TodayCalls quotes={quotes} rates={rates} onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })} />}
             <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
               onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />
           </div>

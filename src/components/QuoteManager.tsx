@@ -1,9 +1,13 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays } from 'lucide-react';
+import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X } from 'lucide-react';
 import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
-import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES } from '../lib/quoteRules';
+import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES, isExpiring, daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
+import { localDay } from '../lib/dates';
+import { QuoteBoard, BoardCol } from './QuoteBoard';
+import { FollowUpBox, ValidityBox, RevisionsBox } from './QuoteExtras';
+import { SwipeRow } from './SwipeRow';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
@@ -29,6 +33,12 @@ const addedKey = (q: Quote) => {
   return imp ? Number(imp) : 0;
 };
 const SORT_KEY = 'enyap-quote-sort';
+const VIEW_KEY = 'enyap-quote-view';
+const SAVED_KEY = 'enyap-quote-saved-filters';
+/** Kayıtlı filtre: sık kullanılan arama/durum/şehir/tarih birleşimi (bu cihazda saklanır) */
+interface SavedFilter { name: string; status: string; city: string; from: string; to: string; search: string; preset?: string | null }
+const readJson = <T,>(k: string, d: T): T => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? d; } catch { return d; } };
+const writeJson = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* */ } };
 /** Durum sırası: Beklemede → Onaylandı → İptal */
 const STATUS_RANK: Record<string, number> = { gonderildi: 0, onaylandi: 1, iptal: 2 };
 
@@ -37,6 +47,8 @@ interface QuoteManagerProps {
   currentRole: UserRole;
   onOpenNewQuote: () => void;
   onUpdateQuoteStatus: (id: string, status: QuoteStatus, lostReason?: string) => void;
+  /** Takip tarihi / geçerlilik / pano taşıması (durum + takip birlikte) */
+  onPatchQuote?: (id: string, patch: Partial<Pick<Quote, 'followUpAt' | 'validUntil' | 'status' | 'lostReason'>>) => void;
   onDeleteQuote: (id: string) => void;
   onPrintQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
@@ -57,6 +69,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   currentRole,
   onOpenNewQuote,
   onUpdateQuoteStatus,
+  onPatchQuote,
   onDeleteQuote,
   onPrintQuote,
   onEditQuote,
@@ -75,7 +88,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [cityFilter, setCityFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState(initialRange?.from || '');
   const [dateTo, setDateTo] = useState(initialRange?.to || '');
-  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [selectedQuoteRaw, setSelectedQuote] = useState<Quote | null>(null);
+  // Açık teklifin güncel hâli (takip tarihi vb. değişince pencere de güncellenir)
+  const selectedQuote = selectedQuoteRaw ? (quotes.find(x => x.id === selectedQuoteRaw.id) ? { ...selectedQuoteRaw, ...quotes.find(x => x.id === selectedQuoteRaw.id)! } : selectedQuoteRaw) : null;
+  const [view, setViewState] = useState<'list' | 'board'>(() => (readJson<string>(VIEW_KEY, 'list') === 'board' ? 'board' : 'list'));
+  const setView = (v: 'list' | 'board') => { setViewState(v); writeJson(VIEW_KEY, v); };
+  const [saved, setSavedState] = useState<SavedFilter[]>(() => { const v = readJson<SavedFilter[]>(SAVED_KEY, []); return Array.isArray(v) ? v : []; });
+  const setSaved = (v: SavedFilter[]) => { setSavedState(v); writeJson(SAVED_KEY, v); };
+  const today = localDay();
   const [reasonNote, setReasonNote] = useState('');
   useEffect(() => setReasonNote(splitReason(selectedQuote?.lostReason).note), [selectedQuote?.id]);
   useEffect(() => {
@@ -137,7 +157,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             ? PENDING_STATUSES.includes(quote.status)
             : statusFilter === 'takip'
               ? needsFollowUp(quote)
-              : quote.status === statusFilter);
+              : statusFilter === 'expiring'
+                ? isExpiring(quote, today)
+                : quote.status === statusFilter);
         const matchesCity = cityFilter === 'all' || quote.city === cityFilter;
         const day = dayOf(quote.createdAt);
         const matchesDate = (!dateFrom || day >= dateFrom) && (!dateTo || day <= dateTo);
@@ -158,13 +180,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         return (sort.dir === 'asc' ? r : -r) || (b.createdAt || '').localeCompare(a.createdAt || '');
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotes, searchIndex, deferredSearch, statusFilter, cityFilter, dateFrom, dateTo, sort, netTry]);
+  }, [quotes, searchIndex, deferredSearch, statusFilter, cityFilter, dateFrom, dateTo, sort, netTry, today]);
 
   const cities = useMemo(
     () => [...new Set(quotes.map((q) => q.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr')),
     [quotes]
   );
   const followUpCount = useMemo(() => quotes.filter(needsFollowUp).length, [quotes]);
+  const expiringCount = useMemo(() => quotes.filter(q => isExpiring(q, today)).length, [quotes, today]);
   // Hızlı tarih aralıkları: [etiket, başlangıç, bitiş]
   const datePresets = useMemo((): [string, string, string][] => {
     const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -221,6 +244,57 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   useEffect(() => { viewCb.current?.(viewFiltering ? { quotes: filteredQuotes, label: viewLabel } : null); }, [filteredQuotes, viewFiltering, viewLabel]);
   useEffect(() => () => viewCb.current?.(null), []);
 
+  // Pano: kart başka sütuna bırakılınca durum ve takip tarihi birlikte değişir
+  const moveQuote = (q: Quote, to: BoardCol) => {
+    if (readOnly) return;
+    if (to === 'onaylandi' || to === 'iptal') {
+      if (to === 'iptal' && !confirm(`${q.quoteNumber} · ${q.customerName} iptal olarak işaretlensin mi? (İptal = sipariş olup sonradan iptal)`)) return;
+      onUpdateQuoteStatus(q.id, to);
+      return;
+    }
+    const followUpAt = to === 'takip' ? (q.followUpAt || plusDays(1)) : undefined;
+    if (onPatchQuote) onPatchQuote(q.id, { status: 'gonderildi', followUpAt });
+    else if (q.status !== 'gonderildi') onUpdateQuoteStatus(q.id, 'gonderildi');
+  };
+  const setFollow = (q: Quote, day: string | undefined) => onPatchQuote?.(q.id, { followUpAt: day });
+
+  // Takip / geçerlilik rozetleri (liste ve kartlarda)
+  const extraBadges = (q: Quote) => {
+    if (!PENDING_STATUSES.includes(q.status)) return null;
+    const exp = daysToExpiry(q, today);
+    return (<>
+      {q.followUpAt && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap inline-flex items-center gap-1 ${q.followUpAt <= today ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}><BellRing className="w-3 h-3" />{followLabel(q.followUpAt, today)}</span>}
+      {exp !== null && isExpiring(q, today) && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${exp < 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-orange-50 text-orange-700 border-orange-200'}`}>{expiryLabel(exp)}</span>}
+    </>);
+  };
+
+  // Telefonda kartı sola kaydırınca: Onayla / Ara / Yarın ara
+  const swipeActions = (q: Quote) => {
+    const pending = PENDING_STATUSES.includes(q.status);
+    const tel = (q.customerPhone || '').replace(/[^\d+]/g, '');
+    return [
+      ...(pending && !readOnly ? [{ key: 'ok', label: 'Onayla', icon: <Check className="w-5 h-5" />, cls: 'bg-emerald-600', onClick: () => onUpdateQuoteStatus(q.id, 'onaylandi') }] : []),
+      ...(tel ? [{ key: 'tel', label: 'Ara', icon: <Phone className="w-5 h-5" />, cls: 'bg-sky-600', onClick: () => { window.location.href = `tel:${tel}`; } }] : []),
+      ...(pending && !readOnly && onPatchQuote ? [{ key: 'fu', label: 'Yarın ara', icon: <BellRing className="w-5 h-5" />, cls: 'bg-amber-500', onClick: () => setFollow(q, plusDays(1)) }] : []),
+    ];
+  };
+
+  // Kayıtlı filtreler
+  const saveCurrent = () => {
+    const def = [statusFilter !== 'all' ? ({ aktif: 'Beklemede', takip: 'Görüşülecek', expiring: 'Süresi dolan', onaylandi: 'Onaylı', iptal: 'İptal' } as Record<string, string>)[statusFilter] : '', cityFilter !== 'all' ? cityFilter : '', activePreset || '', searchTerm.trim()].filter(Boolean).join(' · ');
+    const name = prompt('Bu filtreye bir ad verin', def || 'Filtrem')?.trim();
+    if (!name) return;
+    setSaved([...saved.filter(f => f.name !== name), { name, status: statusFilter, city: cityFilter, from: dateFrom, to: dateTo, search: searchTerm, preset: activePreset }].slice(-8));
+  };
+  const applySaved = (f: SavedFilter) => {
+    setStatusFilter(f.status || 'all'); setCityFilter(f.city || 'all'); setSearchTerm(f.search || '');
+    // "Bu ay" gibi ön ayarlar bugüne göre yeniden hesaplanır
+    const p = f.preset ? datePresets.find(x => x[0] === f.preset) : undefined;
+    setDateFrom(p ? p[1] : f.from || ''); setDateTo(p ? p[2] : f.to || ''); setPage(0);
+  };
+  const savedActive = (f: SavedFilter) => f.status === statusFilter && f.city === cityFilter && (f.search || '') === searchTerm
+    && (f.preset ? f.preset === activePreset : (f.from || '') === dateFrom && (f.to || '') === dateTo);
+
   const moreMenu = (quote: Quote) => menuFor === quote.id && (
     <>
       <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
@@ -245,6 +319,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <option value="all">Tüm Teklifler</option>
               <option value="aktif">Beklemede</option>
               <option value="takip">Tekrar Görüşülecek ({followUpCount})</option>
+              <option value="expiring">Süresi Dolanlar ({expiringCount})</option>
               <option value="onaylandi">Onaylandı</option>
               <option value="iptal">İptal</option>
             </select>
@@ -262,6 +337,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               className={`${ctrl} col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 font-bold ${showMore ? 'border-brand-300 text-brand-700 bg-brand-50' : ''}`}>
               <Filter className="w-4 h-4" /> Sırala
             </button>
+            <div className="col-span-2 sm:col-span-1 flex h-10 p-1 rounded-xl bg-slate-100" role="tablist" aria-label="Görünüm">
+              {([['list', 'Liste', LayoutList], ['board', 'Pano', Columns3]] as const).map(([k, label, Icon]) => (
+                <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}
+                  className={`flex-1 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold ${view === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
+                  <Icon className="w-4 h-4" />{label}
+                </button>
+              ))}
+            </div>
           </div>
         </FilterBar>
         {showMore && (
@@ -290,6 +373,25 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             setPage(0);
           }} items={datePresets.map(([label]) => ({ key: label, label }))} />
         </div>
+        {/* Kayıtlı filtreler: tek dokunuşla uygula */}
+        {(saved.length > 0 || filtering) && (
+          <div className="px-3 sm:px-4 pt-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <Bookmark className="w-4 h-4 text-slate-400 shrink-0" />
+            {saved.map(f => {
+              const on = savedActive(f);
+              return (
+                <span key={f.name} className={`shrink-0 inline-flex items-center rounded-full border text-xs font-bold ${on ? 'bg-[#0b2a4c] border-[#0b2a4c] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+                  <button type="button" onClick={() => (on ? resetFilters() : applySaved(f))} className="pl-3 pr-1.5 py-1.5 whitespace-nowrap">{f.name}</button>
+                  <button type="button" onClick={() => confirm(`"${f.name}" kayıtlı filtresi kaldırılsın mı?`) && setSaved(saved.filter(x => x.name !== f.name))}
+                    aria-label={`${f.name} filtresini kaldır`} className={`pr-2 py-1.5 ${on ? 'text-sky-200' : 'text-slate-400 hover:text-rose-600'}`}><X className="w-3.5 h-3.5" /></button>
+                </span>
+              );
+            })}
+            {filtering && !saved.some(savedActive) && (
+              <button type="button" onClick={saveCurrent} className="shrink-0 px-3 py-1.5 rounded-full border border-dashed border-brand-300 text-xs font-bold text-brand-700 hover:bg-brand-50 whitespace-nowrap">+ Bu filtreyi kaydet</button>
+            )}
+          </div>
+        )}
 
         {selected.size > 0 && (
           <div className="mx-3 sm:mx-4 mt-3 flex items-center gap-2 rounded-xl bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-brand-800">
@@ -301,11 +403,17 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           </div>
         )}
 
-        {/* Telefon: kartlar */}
+        {view === 'board' && (
+          <QuoteBoard quotes={filteredQuotes} netTry={netTry} readOnly={readOnly} onOpen={setSelectedQuote} onMove={moveQuote} />
+        )}
+
+        {view === 'list' && (<>
+        {/* Telefon: kartlar (sola kaydırınca hızlı işlem) */}
         <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100 mt-1">
           {pageRows.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Arama kriterine uygun teklif bulunamadı.</p>}
           {pageRows.map(quote => (
-            <div key={quote.id} className="p-3 space-y-2">
+            <SwipeRow key={quote.id} actions={swipeActions(quote)}>
+            <div className="p-3 space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <button onClick={() => setSelectedQuote(quote)} className="font-black text-brand-700 text-base leading-tight tabular-nums">{quote.quoteNumber}</button>
@@ -322,6 +430,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <StatusPill status={quote.status} />
                   {priceBadge(quote.id)}
                   {quote.status === 'gonderildi' && quote.lostReason && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
+                  {extraBadges(quote)}
                 </div>
                 <div className="relative flex items-center shrink-0">
                   <IconBtn title="Detay" onClick={() => setSelectedQuote(quote)}><Eye className="w-4 h-4" /></IconBtn>
@@ -331,6 +440,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 </div>
               </div>
             </div>
+            </SwipeRow>
           ))}
         </div></NarrowOnly>
 
@@ -362,7 +472,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     <StatusPill status={quote.status} />
                     {priceChanges.has(quote.id) && <span className="mt-1 block w-fit">{priceBadge(quote.id)}</span>}
                     {quote.status === 'gonderildi' && quote.lostReason && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
-                    {needsFollowUp(quote) && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)</span>}
+                    {needsFollowUp(quote) && !quote.followUpAt && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)</span>}
+                    {PENDING_STATUSES.includes(quote.status) && <span className="mt-1 flex flex-wrap gap-1">{extraBadges(quote)}</span>}
                   </td>
                   <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}<div className="text-xs">{quote.city || '-'}</div></td>
                   <td className="py-3 px-3 text-right font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</td>
@@ -381,6 +492,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div></WideOnly>
         <Pager page={page} total={filteredQuotes.length} size={LIST_PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           label={<>Toplam {filteredQuotes.length.toLocaleString('tr-TR')} teklif</>} />
+        </>)}
       </div>
 
       {/* Müşteri kartı: verilen tüm teklifler */}
@@ -485,7 +597,16 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     </div>
                   );
                 })()}
+                {selectedQuote.status === 'gonderildi' && onPatchQuote && (
+                  <div className="mt-2"><FollowUpBox quote={selectedQuote} onChange={d => setFollow(selectedQuote, d)} /></div>
+                )}
               </div>
+
+              {!readOnly && onPatchQuote && (
+                <ValidityBox quote={selectedQuote} priceChanged={priceChanges.get(selectedQuote.id)?.length || 0}
+                  onExtend={day => onPatchQuote(selectedQuote.id, { validUntil: day })}
+                  onRevise={() => { onEditQuote(selectedQuote); setSelectedQuote(null); }} />
+              )}
 
               {priceChanges.get(selectedQuote.id) && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3">
@@ -537,6 +658,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 </div>
               </div>
               )}
+
+              <RevisionsBox quote={selectedQuote} />
 
               {/* Notes */}
               {selectedQuote.notes && (

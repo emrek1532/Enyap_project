@@ -6,6 +6,8 @@ import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { CustomerAccount } from './CustomerAccount';
+import { RouteView } from './RouteView';
+import { addToRoute, useRoute } from '../lib/route';
 import { CityInput } from './TextSuggest';
 import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
@@ -88,7 +90,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const balanceOf = (c: Customer) => (showCollections ? estimatedBalance(c, collections) : null);
   const lastMikro = useMemo(() => customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), ''), [customers]);
   const rates = useRates(quotes);
-  const [mode, setMode] = useState<'list' | 'balance'>('list');
+  const [mode, setMode] = useState<'list' | 'balance' | 'route'>('list');
+  const [routeIds] = useRoute();
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
@@ -272,6 +275,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
       <div className="absolute right-0 top-9 z-40 w-44 rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left text-sm" onClick={e => e.stopPropagation()}>
         <button onClick={() => { setMenuFor(null); onCreateQuoteForCustomer(c); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-brand-50 text-brand-700 font-semibold"><FilePlus2 className="w-4 h-4" /> Teklif aç</button>
+        <button onClick={() => { setMenuFor(null); addToRoute(c.id); }} disabled={routeIds.includes(c.id)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700 disabled:text-slate-400"><MapPin className="w-4 h-4" /> {routeIds.includes(c.id) ? 'Rotada' : 'Bugünün rotasına ekle'}</button>
         {canEdit && <button onClick={() => { setMenuFor(null); openEdit(c); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><Pencil className="w-4 h-4" /> Düzenle</button>}
         {canEdit && canRemove && <button onClick={() => { setMenuFor(null); if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /> Sil</button>}
       </div>
@@ -299,7 +303,12 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <UnderlineTabs<typeof mode> value={mode} onChange={setMode} items={[
         { key: 'list' as const, label: 'Müşteri Listesi' },
         ...(showCollections ? [{ key: 'balance' as const, label: 'Cari Bakiyeler' }] : []),
+        { key: 'route' as const, label: <>Bugünün Rotası{routeIds.length ? <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-brand-100 text-brand-700 text-[11px] tabular-nums">{routeIds.length}</span> : null}</> },
       ]} />
+
+      {mode === 'route' && (
+        <RouteView customers={customers} quotes={quotes} canEdit={canEdit} onSaveCustomer={onSaveCustomer} onOpen={c => setViewing(c)} />
+      )}
 
       {mode === 'balance' && showCollections && (
         <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
