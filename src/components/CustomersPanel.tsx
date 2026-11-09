@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight, MapPin, MapPinCheck } from 'lucide-react';
 import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
@@ -54,6 +54,9 @@ const fold = (s: string) =>
 const normalize = (s: string) => s.toLocaleLowerCase('tr');
 
 const isApproved = (q: Quote) => q.status === 'onaylandi';
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const visitTxt = (d: string) => d.split('-').reverse().join('.');
+type VisitFilter = 'all' | 'visited' | 'not';
 const tl = (n: number) => `${n.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} TL`;
 
 type CustomerSortKey = 'name' | 'city' | 'quotes' | 'approved' | 'pending' | 'total' | 'last' | 'balance';
@@ -86,6 +89,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
+  const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
   const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
   // Sütun başlığına tıklayarak sıralama (varsayılan: onaylı toplamı en yüksek en üstte)
   const [sort, setSort] = useState<SortState<CustomerSortKey>>(DEFAULT_SORT);
@@ -123,6 +127,12 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     customers.forEach(c => { const k = fold(c.name.trim()); map.set(c.id, evaluate(quotesByCustomer.get(k) || [], colMap.get(k) || [], rates, max)); });
     return { map, max };
   }, [customers, quotesByCustomer, collections, rates]);
+
+  // "Uğradım": bugünün tarihi yazılır; işaretliyse sorup kaldırır
+  const toggleVisit = (c: Customer) => {
+    if (c.lastVisit && !confirm(`"${c.name}" ziyaret işareti (${visitTxt(c.lastVisit)}) kaldırılsın mı?`)) return;
+    onSaveCustomer({ ...c, lastVisit: c.lastVisit ? undefined : todayIso(), updatedAt: new Date().toISOString() });
+  };
 
   const setStatus = (c: Customer, status: CustomerStatus, note: string) => {
     const next = { ...c, status, statusNote: status === 'aktif' ? '' : note, updatedAt: new Date().toISOString() };
@@ -165,7 +175,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   };
 
   const deferredSearch = useDeferredValue(search);
-  const filtered = useMemo(() => {
+  const base = useMemo(() => {
     const q = fold(deferredSearch.trim());
     return customers
       .filter(c => cityFilter === 'all' || (c.city || '—') === cityFilter)
@@ -179,6 +189,15 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         (quoteFilter === 'followup' && st.followUp) ||
         (quoteFilter === 'none' && st.total === 0)
       )
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers, statsCache, deferredSearch, cityFilter, quoteFilter, statusFilter]);
+  const visitCounts = useMemo(() => {
+    const visited = base.filter(({ c }) => !!c.lastVisit).length;
+    return { all: base.length, visited, not: base.length - visited };
+  }, [base]);
+  const filtered = useMemo(() => {
+    return base
+      .filter(({ c }) => visitFilter === 'all' || (visitFilter === 'visited' ? !!c.lastVisit : !c.lastVisit))
       .sort((a, b) => {
         let r = 0;
         switch (sort.key) {
@@ -194,11 +213,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         return (sort.dir === 'asc' ? r : -r) || trCompare(a.c.name, b.c.name);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customers, statsCache, deferredSearch, cityFilter, quoteFilter, statusFilter, sort, rates, collections]);
+  }, [base, visitFilter, sort, rates, collections]);
 
-  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
+  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || visitFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
   const resetFilters = () => {
-    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setSort(DEFAULT_SORT); setPage(0);
+    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setVisitFilter('all'); setSort(DEFAULT_SORT); setPage(0);
   };
 
   const openNew = () => {
@@ -250,8 +269,17 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       </div>
     </>
   );
+  const visitBtn = (c: Customer) => canEdit && (
+    <button type="button" onClick={e => { e.stopPropagation(); toggleVisit(c); }}
+      title={c.lastVisit ? `Uğrandı: ${visitTxt(c.lastVisit)} (kaldırmak için dokun)` : 'Uğradım olarak işaretle'}
+      className={`h-8 px-2 inline-flex items-center gap-1 rounded-lg text-[11px] font-bold whitespace-nowrap border ${c.lastVisit ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-700'}`}>
+      {c.lastVisit ? <MapPinCheck className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+      {c.lastVisit ? visitTxt(c.lastVisit).slice(0, 5) : 'Uğradım'}
+    </button>
+  );
   const rowActions = (c: Customer) => (
     <div className="relative flex items-center justify-center gap-0.5">
+      {visitBtn(c)}
       <IconBtn title="Cari hesabı aç" onClick={() => setViewing(c)}><Eye className="w-4 h-4" /></IconBtn>
       <IconBtn title="Diğer" onClick={() => setMenuFor(c.id)}><MoreVertical className="w-4 h-4" /></IconBtn>
       {custMenu(c)}
@@ -274,7 +302,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <div className={listCard}>
         <div className="p-3 sm:p-4 space-y-3">
           <FilterBar active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
-            search={<SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma adı veya şehir ara..." className="flex-1" />}>
+            search={<SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma adı veya şehir ara (ör. Isparta)..." className="flex-1" />}>
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
               <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Şehir">
                 <option value="all">Tüm Şehirler</option>
@@ -313,6 +341,16 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               )}
             </div>
           </FilterBar>
+          <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1" role="tablist" aria-label="Ziyaret durumu">
+            {([['all', 'Tümü'], ['visited', 'Uğradıklarım'], ['not', 'Uğramadıklarım']] as [VisitFilter, string][]).map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={visitFilter === k} onClick={() => { setVisitFilter(k); setPage(0); }}
+                className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border whitespace-nowrap ${visitFilter === k
+                  ? (k === 'visited' ? 'bg-emerald-600 border-emerald-600 text-white' : k === 'not' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-brand-600 border-brand-600 text-white')
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                {label} <span className="tabular-nums opacity-80">{visitCounts[k]}</span>
+              </button>
+            ))}
+          </div>
           <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
             <span>
               {filtered.length === customers.length ? `${customers.length} kayıtlı müşteri` : `${filtered.length} / ${customers.length} müşteri`}
@@ -339,7 +377,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}<StatusBadge c={c} /></div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
-                      {c.city || '—'}{st.lastDate ? ` · son teklif ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}
+                      {c.city || '—'}{st.lastDate ? ` · son teklif ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}{c.lastVisit ? ` · uğrandı ${visitTxt(c.lastVisit)}` : ''}
                     </div>
                   </div>
                   <div className="text-right shrink-0">

@@ -25,6 +25,7 @@ const customerToRow = (c: Customer): Row => ({
   mikro_title: orNull(c.mikroTitle),
   mikro_balance: c.mikroBalance ?? null,
   mikro_balance_date: orNull(c.mikroBalanceDate),
+  last_visit: orNull(c.lastVisit),
   created_at: c.createdAt,
   updated_at: c.updatedAt,
 });
@@ -43,6 +44,7 @@ const rowToCustomer = (r: Row): Customer => ({
   mikroTitle: r.mikro_title ?? undefined,
   mikroBalance: r.mikro_balance == null ? null : Number(r.mikro_balance),
   mikroBalanceDate: r.mikro_balance_date ?? undefined,
+  lastVisit: r.last_visit ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });

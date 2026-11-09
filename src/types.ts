@@ -100,6 +100,8 @@ export interface Customer {
   mikroTitle?: string;
   mikroBalance?: number | null;
   mikroBalanceDate?: string;
+  /** Son uğrama tarihi (YYYY-MM-DD); boşsa uğranmadı */
+  lastVisit?: string;
   createdAt: string;
   updatedAt: string;
 }
