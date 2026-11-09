@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
-import { isPendingQuote } from '../lib/quoteRules';
+import { PENDING_STATUSES } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { estimatedBalance } from '../lib/mikroBalance';
 import type { ActiveTab } from './Sections';
@@ -131,7 +131,7 @@ export const SimpleHome: React.FC<{
     const firms = [...fm.values()].sort((a, b) => b.onay - a.onay || b.teklif - a.teklif).slice(0, 5);
     return {
       cur, prevSame, from, to, dim, spark, firms,
-      status: { onay: st(q => q.status === 'onaylandi'), bekleyen: st(q => isPendingQuote(q)), iptal: st(q => q.status === 'iptal') },
+      status: { onay: st(q => q.status === 'onaylandi'), bekleyen: st(q => PENDING_STATUSES.includes(q.status)), iptal: st(q => q.status === 'iptal') },
     };
   }, [quotes, collections, expenses, rates, t, period.kind, period.y, period.m]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -459,7 +459,7 @@ const MoneyCard: React.FC<{
 const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count: number; value: number }>; conv: number; title: string; onPick: (status: string) => void }> = ({ st, conv, title, onPick }) => {
   const rows = [
     { key: 'onaylandi', label: 'Onaylanan', x: st.onay, c: 'bg-emerald-500' },
-    { key: 'aktif', label: 'Bekleyen', x: st.bekleyen, c: 'bg-amber-400' },
+    { key: 'gonderildi', label: 'Bekleyen / Pasif', x: st.bekleyen, c: 'bg-amber-400' },
     { key: 'iptal', label: 'İptal', x: st.iptal, c: 'bg-rose-400' },
   ];
   const total = rows.reduce((a, r) => a + r.x.value, 0);
