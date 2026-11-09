@@ -76,6 +76,7 @@ const quoteToRow = (q: Quote): Row => ({
   total_usd: q.totalUsd ?? 0,
   imported: !!q.imported,
   payment_term: orNull(q.paymentTerm),
+  follow_up_at: orNull(q.followUpAt),
   created_at: q.createdAt,
   updated_at: q.updatedAt,
 });
@@ -111,6 +112,7 @@ const rowToQuote = (r: Row): Quote => ({
   totalUsd: Number(r.total_usd ?? 0),
   imported: !!r.imported,
   paymentTerm: r.payment_term ?? undefined,
+  followUpAt: r.follow_up_at ?? undefined,
 });
 
 const noteToRow = (n: QuickNote): Row => ({
@@ -253,6 +255,19 @@ export async function shareQuoteWithMe(id: string): Promise<Quote | null> {
   const { data, error: e2 } = await supabase.from('quotes').select('*').eq('id', id).maybeSingle();
   if (e2) throw e2;
   return data ? rowToQuote(data) : null;
+}
+
+/** Teklifin eski sürümleri (R1, R2, …): yalnız istenince okunur, eşitlemeye girmez */
+export interface QuoteRevision { rev: number; items: Quote['items']; totalAmount: number; currency: Quote['currency']; validUntil?: string; at: string }
+export async function fetchQuoteRevisions(quoteId: string): Promise<QuoteRevision[]> {
+  const { data, error } = await supabase.from('quote_revisions')
+    .select('rev, items, total_amount, currency, valid_until, quote_updated_at, created_at')
+    .eq('quote_id', quoteId).order('rev', { ascending: true }).limit(30);
+  if (error) throw error;
+  return (data || []).map((r: Row) => ({
+    rev: r.rev, items: r.items || [], totalAmount: Number(r.total_amount ?? 0), currency: r.currency || 'TRY',
+    validUntil: r.valid_until ?? undefined, at: r.quote_updated_at || r.created_at,
+  }));
 }
 
 /**

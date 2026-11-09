@@ -57,6 +57,8 @@ export interface Quote {
   totalUsd?: number;
   imported?: boolean;
   paymentTerm?: string;  // Ödeme / vade: PEŞİN, KREDİ KARTI, 60 GÜN, 90 GÜN
+  /** Takip tarihi (YYYY-MM-DD): o gün müşteriyi ara; sabah bildirim gider */
+  followUpAt?: string;
 }
 
 export interface QuickNote {

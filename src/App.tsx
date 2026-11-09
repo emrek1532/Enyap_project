@@ -652,6 +652,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     ]);
   };
 
+  // Teklifin tek alanını değiştir (takip tarihi, geçerlilik süresi); etkinlik akışına yazılmaz
+  const handlePatchQuote = (id: string, patch: Partial<Pick<Quote, 'followUpAt' | 'validUntil'>>) => {
+    const target = data.quotes.find(q => q.id === id);
+    if (!target) return;
+    const updated: Quote = { ...target, ...patch, updatedAt: new Date().toISOString() };
+    mutate(d => ({ ...d, quotes: d.quotes.map(q => (q.id === id ? updated : q)) }));
+    persist([{ kind: 'upsert', entity: 'quotes', record: updated }]);
+  };
+
   // Delete Quote
   const handleDeleteQuote = (id: string) => {
     mutate(d => ({ ...d, quotes: d.quotes.filter(q => q.id !== id) }));
@@ -735,6 +744,22 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const bumpNew = () => setNewReq(r => ({ tab: activeTab, n: r.n + 1 }));
   const noRemove = () => setShareError('Kayıt silme yetkiniz yok. Yöneticinizden isteyin.');
   const openTool = (m: ToolMode) => { setToolMode(m); try { localStorage.setItem('home-assistant', m); } catch { /* */ } };
+
+  // Klavye kısayolları (bilgisayarda): N = yeni teklif, / = ara. Yazı yazılırken ya da pencere açıkken çalışmaz.
+  const shortcutRef = useRef<(e: KeyboardEvent) => void>(() => undefined);
+  shortcutRef.current = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (isNewQuoteOpen || editingQuote || printableQuote || toolMode || document.querySelector('.fixed.inset-0')) return;
+    if ((e.key === 'n' || e.key === 'N') && can(profile, 'quotes', 'edit')) { e.preventDefault(); setIsNewQuoteOpen(true); }
+    else if (e.key === '/') { e.preventDefault(); openTool('search'); }
+  };
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => shortcutRef.current(e);
+    window.addEventListener('keydown', on);
+    return () => window.removeEventListener('keydown', on);
+  }, []);
   // Sayfa başlığı bandındaki özet rakamlar (cihazdaki veriden)
   const rates = useRates(data.quotes);
   const [quoteView, setQuoteView] = useState<QuoteView | null>(null);
@@ -799,6 +824,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               onOpen={setActiveTab}
               onOpenQuotes={v => { setQuoteFilter(v.status); setQuoteRange(v.from || v.to ? { from: v.from, to: v.to } : null); setActiveTab('quotes'); }}
               onOpenQuote={setEditingQuote}
+              onShowQuote={q => { setQuoteFilter('all'); setQuoteRange(null); setActiveTab('quotes'); setFocusQuote({ id: q.id, n: Date.now() }); }}
               canAdd={{ quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') }}
               onNewQuote={() => setIsNewQuoteOpen(true)}
               onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
@@ -840,6 +866,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             currentRole={currentRole}
             onOpenNewQuote={() => setIsNewQuoteOpen(true)}
             onUpdateQuoteStatus={handleUpdateQuoteStatus}
+            onPatchQuote={handlePatchQuote}
             onDeleteQuote={canRemove ? handleDeleteQuote : noRemove}
             onPrintQuote={setPrintableQuote}
             onEditQuote={setEditingQuote}
