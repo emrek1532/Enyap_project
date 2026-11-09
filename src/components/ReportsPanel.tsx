@@ -9,6 +9,7 @@ import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
 import { PrintDoc, PrintSection, useReportSender } from './ReportPrint';
 import { DateInput } from './DateInput';
+import { ForecastCard } from './ForecastCard';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
 interface ReportsPanelProps {
@@ -262,6 +263,57 @@ const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; 
   );
 };
 
+/** Neden bekliyor: nedenlere göre adet ve tutar payı; satıra dokununca o nedendeki teklifler ve en sık geçen kalem */
+const WaitingReasons: React.FC<{ rows: [string, { n: number; amt: number; list: Quote[] }][]; total: number; totalAmt: number; amountOf: (q: Quote) => number }> = ({ rows, total, totalAmt, amountOf }) => {
+  const [open, setOpen] = useState<string | null>(null);
+  const known = rows.filter(([k]) => k !== 'Neden girilmemiş');
+  const top = known[0];
+  // En çok tutar kaybettiren nedendeki tekliflerde en sık geçen kalem
+  const topItem = useMemo(() => {
+    if (!top) return null;
+    const m = new Map<string, { name: string; n: number }>();
+    top[1].list.forEach(q => new Set((q.items || []).map(it => it.productName.trim())).forEach(name => {
+      if (!name) return; const k = name.toLocaleLowerCase('tr'); const g = m.get(k) || { name, n: 0 }; g.n++; m.set(k, g);
+    }));
+    return [...m.values()].sort((a, b) => b.n - a.n)[0] || null;
+  }, [top]);
+  return (
+    <div className="space-y-1">
+      {top && (
+        <p className="mb-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-900">
+          En çok tutar <b>{top[0]}</b> nedeniyle bekliyor: {top[1].n} teklif, {pct(top[1].amt, totalAmt)} pay.
+          {topItem && topItem.n > 1 && <> Bu tekliflerin {topItem.n} tanesinde <b>{topItem.name}</b> var.</>}
+        </p>
+      )}
+      {rows.map(([k, v]) => {
+        const isOpen = open === k;
+        return (
+          <div key={k} className="text-xs">
+            <button type="button" onClick={() => setOpen(isOpen ? null : k)} aria-expanded={isOpen} className="w-full text-left rounded-lg px-1.5 py-1 hover:bg-slate-50">
+              <div className="flex justify-between gap-2 mb-0.5">
+                <span className="font-semibold text-slate-700 flex items-center gap-1"><ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />{k}</span>
+                <span className="tabular-nums text-slate-500 whitespace-nowrap"><b className="text-slate-800">{pct(v.n, total)}</b> · {v.n} teklif · {tl(v.amt)}</span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${k === 'Neden girilmemiş' ? 'bg-slate-300' : 'bg-amber-400'}`} style={{ width: `${Math.max(2, (v.amt / Math.max(1, totalAmt)) * 100)}%` }} /></div>
+            </button>
+            {isOpen && (
+              <ul className="mt-1 mb-2 ml-5 divide-y divide-slate-100 rounded-lg border border-slate-100">
+                {[...v.list].sort((a, b) => amountOf(b) - amountOf(a)).slice(0, 10).map(q => (
+                  <li key={q.id} className="flex justify-between gap-2 px-2 py-1.5">
+                    <span className="min-w-0 truncate"><b className="text-slate-800">{q.customerName}</b> <span className="text-slate-500">{q.quoteNumber}{splitReason(q.lostReason).note ? ` · ${splitReason(q.lostReason).note}` : ''}</span></span>
+                    <span className="tabular-nums font-bold text-slate-800 whitespace-nowrap">{tl(amountOf(q))}</span>
+                  </li>
+                ))}
+                {v.list.length > 10 && <li className="px-2 py-1.5 text-slate-500">+{v.list.length - 10} teklif daha</li>}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; value: React.ReactNode; sub?: React.ReactNode; onClick?: () => void }> = ({ icon: Icon, tone, label, value, sub, onClick }) => (
   <button type="button" onClick={onClick}
     className="group text-left bg-gradient-to-br from-white to-slate-50 p-3 sm:p-4 rounded-2xl border border-white shadow-[0_10px_26px_-18px_rgba(15,60,120,0.6)] min-w-0 transition-all hover:-translate-y-0.5 active:scale-[0.99]">
@@ -375,9 +427,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       pending: pending.length, pendingAmt: amount(pending),
       cancelled: cancelled.length, cancelledAmt: amount(cancelled),
       // Bekleyen teklifler neden bekliyor (teklif detayında seçilen neden)
-      waiting: Object.entries(pending.reduce<Record<string, { n: number; amt: number }>>((m, q) => {
+      waiting: Object.entries(pending.reduce<Record<string, { n: number; amt: number; list: Quote[] }>>((m, q) => {
         const k = splitReason(q.lostReason).reason || 'Neden girilmemiş';
-        m[k] = m[k] || { n: 0, amt: 0 }; m[k].n++; m[k].amt += qTry(q); return m;
+        m[k] = m[k] || { n: 0, amt: 0, list: [] }; m[k].n++; m[k].amt += qTry(q); m[k].list.push(q); return m;
       }, {})).sort((a, b) => (a[0] === 'Neden girilmemiş' ? 1 : 0) - (b[0] === 'Neden girilmemiş' ? 1 : 0) || b[1].amt - a[1].amt),
       // Rakip notları: "Rakip daha ucuz · ABC Isı 45.000 TL"
       rivals: pending.filter(q => splitReason(q.lostReason).reason === 'Rakip daha ucuz')
@@ -659,6 +711,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           value={tl(stats.total ? stats.totalAmt / stats.total : 0)} sub={`onaylananlarda ort. ${tl(stats.approved ? stats.approvedAmt / stats.approved : 0)}`} onClick={() => setDetail('quotes')} />
       </div>
 
+      {/* Bu ay tahmini ciro (dönem seçiminden bağımsız) */}
+      <ForecastCard quotes={quotes} amountOf={qTry} />
+
       {/* Aylık grafik */}
       <ColumnChart title="Aylık Teklif ve Onay" subtitle="Verilen teklif tutarı ile onaylanan tutar (TL)" months={months}
         series={[
@@ -696,14 +751,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] p-4">
           <h3 className="font-bold text-slate-900 text-sm">Bekleyen Teklifler · Neden Bekliyor?</h3>
           <p className="text-xs text-slate-500 mb-3">{stats.pending} teklif · {tl(stats.pendingAmt)} · teklif detayında seçilen neden</p>
-          <div className="space-y-2">
-            {stats.waiting.map(([k, v]) => (
-              <div key={k} className="text-xs">
-                <div className="flex justify-between gap-2 mb-0.5"><span className="font-semibold text-slate-700">{k}</span><span className="tabular-nums text-slate-500">{v.n} teklif · {tl(v.amt)}</span></div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${k === 'Neden girilmemiş' ? 'bg-slate-300' : 'bg-amber-400'}`} style={{ width: `${Math.max(2, (v.amt / Math.max(1, stats.pendingAmt)) * 100)}%` }} /></div>
-              </div>
-            ))}
-          </div>
+          <WaitingReasons rows={stats.waiting} total={stats.pending} totalAmt={stats.pendingAmt} amountOf={qTry} />
           {stats.rivals.length > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-100">
               <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Rakip notları</div>

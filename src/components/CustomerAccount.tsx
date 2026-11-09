@@ -25,7 +25,7 @@ const money = (v: number, c?: string) => `${trNum(v, { minimumFractionDigits: 2,
 const fold = (s: string) => s.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
   .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
 
-type Tab = 'quotes' | 'items' | 'collections';
+type Tab = 'timeline' | 'quotes' | 'items' | 'collections';
 type QFilter = 'all' | 'approved' | 'pending' | 'cancelled';
 
 /**
@@ -55,7 +55,7 @@ export const CustomerAccount: React.FC<{
   const ev = useMemo(() => evaluate(allQuotes, allCollections, rates, maxWon), [allQuotes, allCollections, rates, maxWon]);
   const cStatus = statusOf(customer);
   const [addingCol, setAddingCol] = useState(false);
-  const [tab, setTab] = useState<Tab>('quotes');
+  const [tab, setTab] = useState<Tab>('timeline');
   const [qFilter, setQFilter] = useState<QFilter>('all');
   const [q, setQ] = useState('');
   const [onlyBought, setOnlyBought] = useState(true);
@@ -139,6 +139,31 @@ export const CustomerAccount: React.FC<{
   );
   const open = (x: Quote) => onOpenQuote?.(x);
 
+  // Akış: teklifler, onay/iptal, planlı aramalar, tahsilatlar ve ziyaret tek zaman çizelgesinde (yeni üstte)
+  type Ev = { key: string; day: string; kind: 'quote' | 'won' | 'lost' | 'call' | 'col' | 'visit'; title: string; sub?: string; amount?: string; quote?: Quote };
+  const events = useMemo(() => {
+    const out: Ev[] = [];
+    const today = dayOf(new Date().toISOString());
+    quotes.forEach(x => {
+      const d = dayOf(x.createdAt);
+      out.push({ key: `q-${x.id}`, day: d, kind: 'quote', title: `Teklif ${x.quoteNumber || ''} verildi`, sub: [x.preparedBy, x.items?.length ? `${x.items.length} kalem` : '', x.notes].filter(Boolean).join(' · '), amount: tl(quoteTry(x, rates)), quote: x });
+      const u = dayOf(x.updatedAt);
+      if (x.status === 'onaylandi' || x.status === 'iptal') {
+        out.push({ key: `s-${x.id}`, day: u > d ? u : d, kind: x.status === 'onaylandi' ? 'won' : 'lost', title: `Teklif ${x.quoteNumber || ''} ${x.status === 'onaylandi' ? 'onaylandı' : 'iptal edildi'}`, amount: tl(quoteTry(x, rates)), quote: x });
+      }
+      if (isPending(x) && x.followUpAt) {
+        out.push({ key: `f-${x.id}`, day: x.followUpAt, kind: 'call', title: x.followUpAt > today ? 'Arama planlandı' : 'Arama günü', sub: `${x.quoteNumber || ''}${x.lostReason ? ` · ${x.lostReason}` : ''}`, quote: x });
+      }
+    });
+    if (showCollections) collections.forEach(c => out.push({ key: `c-${c.id}`, day: c.date, kind: 'col', title: `Tahsilat · ${c.method || '—'}`, sub: [c.checkNo ? `No ${c.checkNo}` : '', c.dueDate ? `vade ${day(c.dueDate)}` : '', c.description].filter(Boolean).join(' · '), amount: money(c.amount, c.currency) }));
+    if (customer.lastVisit) out.push({ key: 'visit', day: customer.lastVisit, kind: 'visit', title: 'Uğrandı (ziyaret)' });
+    const rank: Record<Ev['kind'], number> = { call: 0, col: 1, won: 2, lost: 2, visit: 3, quote: 4 };
+    return out.sort((a, b) => b.day.localeCompare(a.day) || rank[a.kind] - rank[b.kind]);
+  }, [quotes, collections, showCollections, customer.lastVisit, rates]);
+  const EV_STYLE: Record<Ev['kind'], string> = {
+    quote: 'bg-sky-500', won: 'bg-emerald-500', lost: 'bg-slate-400', call: 'bg-amber-500', col: 'bg-teal-600', visit: 'bg-indigo-500',
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
@@ -214,17 +239,44 @@ export const CustomerAccount: React.FC<{
           {/* Sekmeler + arama */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
+              {tabBtn('timeline', 'Akış')}
               {tabBtn('quotes', `Teklifler · ${quotes.length}`)}
               {tabBtn('items', `Malzemeler · ${lines.length}`)}
               {showCollections && tabBtn('collections', `Tahsilatlar · ${collections.length}`)}
             </div>
-            <div className="relative flex-1 min-w-0">
+            <div className="relative flex-1 min-w-0" hidden={tab === 'timeline'}>
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input value={q} onChange={e => { setQ(e.target.value); setLimit(60); }}
                 placeholder={tab === 'items' ? 'Malzeme ara (ör. küresel vana 1")…' : tab === 'quotes' ? 'Teklif no, not ya da malzeme ara…' : 'Tahsilat ara…'}
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-400" />
             </div>
           </div>
+
+          {tab === 'timeline' && (
+            <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
+              {events.length === 0 && <p className="py-6 text-center text-sm text-slate-500">Bu firma için kayıt yok.</p>}
+              <ol className="relative ml-2 border-l-2 border-slate-100">
+                {events.slice(0, limit).map((e, i) => {
+                  const newDay = i === 0 || events[i - 1].day !== e.day;
+                  const clickable = !!(e.quote && onOpenQuote);
+                  return (
+                    <li key={e.key} className="relative pl-5 pb-3">
+                      <span className={`absolute -left-[7px] top-1.5 w-3 h-3 rounded-full ring-4 ring-white ${EV_STYLE[e.kind]}`} />
+                      {newDay && <div className="text-[11px] font-bold text-slate-500 tabular-nums mb-0.5">{day(e.day)}{e.day > dayOf(new Date().toISOString()) ? ' · planlı' : ''}</div>}
+                      <button type="button" disabled={!clickable} onClick={() => e.quote && open(e.quote)}
+                        className={`w-full flex items-start justify-between gap-3 text-left rounded-lg ${clickable ? 'hover:bg-slate-50 -mx-1 px-1' : 'cursor-default'}`}>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold text-slate-800">{e.title}</span>
+                          {e.sub && <span className="block text-[11px] text-slate-500 truncate">{e.sub}</span>}
+                        </span>
+                        {e.amount && <span className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{e.amount}</span>}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          )}
 
           {tab === 'quotes' && (
             <>
@@ -345,7 +397,7 @@ export const CustomerAccount: React.FC<{
             </div>
           )}
 
-          {((tab === 'quotes' && shownQuotes.length > limit) || (tab === 'items' && shownLines.length > limit) || (tab === 'collections' && colGroups.length > limit)) && (
+          {((tab === 'timeline' && events.length > limit) || (tab === 'quotes' && shownQuotes.length > limit) || (tab === 'items' && shownLines.length > limit) || (tab === 'collections' && colGroups.length > limit)) && (
             <button onClick={() => setLimit(l => l + 60)} className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-brand-700">Daha fazla göster</button>
           )}
 

@@ -47,6 +47,10 @@ if (demo) {
 const allow = { quote: true, collection: true, expense: true };
 const tools = toolList(true, allow);
 const q = new URLSearchParams(location.search);
+// Kayıp nedeni ve rota denemesi
+const RS = ['Fiyat yüksek', 'Fiyat yüksek', 'Rakip daha ucuz · ABC Isı %8 altında', 'Müşteri düşünüyor', 'Fiyat yüksek', 'Proje ertelendi', 'Teslim süresi'];
+pend.forEach((x: any, i: number) => { if (i % 2 === 0) x.lostReason = RS[i % RS.length]; });
+if (q.get('route')) { const c0 = customers.find((c: any) => c.name === (demo?.customerName)) || customers[0]; const same = customers.filter((c: any) => c.city === c0.city && c.id !== c0.id).slice(0, 3); localStorage.setItem('enyap-route', JSON.stringify({ day: localDay(), ids: [c0.id, ...same.map((c: any) => c.id)] })); c0.phone = '0532 000 00 00'; }
 if (q.get('view')) localStorage.setItem('enyap-quote-view', JSON.stringify(q.get('view')));
 const TITLE: any = { collections: 'Tahsilat', expenses: 'Harcama' };
 const secs = (['quotes', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'] as const).map(id => ({ id, ...SECTION_META[id], title: TITLE[id] || SECTION_META[id].title }));
@@ -83,7 +87,7 @@ const App = () => {
     h(BottomNav, { sections: secs as any, primary: ['quotes', 'customers', 'materials'], active: p, onOpen: setP, onHome: () => setP('home'), onSignOut: noop, userEmail: 'e@x.com' }),
     q.get('modal') === 'new' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes }),
     q.get('modal') === 'edit' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes, editQuote: quotes[0] }),
-    q.get('modal') === 'account' && h(CustomerAccount, { customer: customers.find((c: any) => c.name === quotes[0].customerName) || customers[0], quotes, collections, rates, showCollections: true, onClose: noop, onNewQuote: noop, onOpenQuote: noop } as any),
+    q.get('modal') === 'account' && (() => { const nm = demo?.customerName || quotes[0].customerName; const cu = customers.find((c: any) => c.name === nm) || customers[0]; return h(CustomerAccount, { customer: cu, quotes: qs.filter((x: any) => x.customerName === nm), collections: collections.filter((c: any) => c.customerName === nm), rates, showCollections: true, onClose: noop, onNewQuote: noop, onOpenQuote: noop } as any); })(),
     tool && h(QuickToolsModal, { mode: tool, tools, onMode: setTool, onClose: () => setTool(null), quotes, customers, allow, onVoice: noop, onOpenQuote: noop }),
   );
 };
