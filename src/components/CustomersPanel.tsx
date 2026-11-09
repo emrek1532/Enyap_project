@@ -529,6 +529,14 @@ const StatusBadge: React.FC<{ c: Customer }> = ({ c }) => {
 };
 
 /** Cari bakiyeler: Mikro bakiyesi − sonradan girilen tahsilatlar (tahmini güncel bakiye) */
+const AMOUNT_FILTERS: [string, string][] = [
+  ['all', 'Tüm tutarlar'],
+  ['lt:10000', '10.000 TL altı'],
+  ['lt:50000', '50.000 TL altı'],
+  ['lt:100000', '100.000 TL altı'],
+  ['gte:100000', '100.000 TL ve üstü'],
+];
+
 const BalanceView: React.FC<{
   customers: Customer[];
   balanceOf: (c: Customer) => ReturnType<typeof estimatedBalance>;
@@ -539,13 +547,20 @@ const BalanceView: React.FC<{
   onMikro?: () => void;
 }> = ({ customers, balanceOf, lastMikro, search, setSearch, onOpen, onMikro }) => {
   const [side, setSide] = useState<'alacak' | 'borc' | 'all'>('alacak');
+  // Tutar süzgeci (bakiyenin mutlak değeri; kutulardaki toplamları da süzer): "lt:10000" = 10.000 TL altı, "gte:100000" = 100.000 TL ve üstü
+  const [amount, setAmount] = useState('all');
   // Arama kutuları da süzer: şehir adı birebir yazılırsa yalnız o şehrin firmaları (Isparta → Isparta'dakiler), yoksa ad/şehir içinde arar
   const q = fold(search.trim());
   const cityHit = useMemo(() => !!q && customers.some(c => fold(c.city || '') === q), [customers, q]);
   const rows = useMemo(() => customers
     .filter(c => !q || (cityHit ? fold(c.city || '') === q : fold(c.name).includes(q) || fold(c.city || '').includes(q)))
-    .map(c => ({ c, b: balanceOf(c) })).filter(x => x.b && Math.round(x.b.estimate) !== 0) as { c: Customer; b: NonNullable<ReturnType<typeof estimatedBalance>> }[],
-    [customers, balanceOf, q, cityHit]);
+    .map(c => ({ c, b: balanceOf(c) })).filter(x => x.b && Math.round(x.b.estimate) !== 0)
+    .filter(x => {
+      if (amount === 'all') return true;
+      const [op, lim] = amount.split(':'); const v = Math.abs(x.b!.estimate);
+      return op === 'lt' ? v < Number(lim) : v >= Number(lim);
+    }) as { c: Customer; b: NonNullable<ReturnType<typeof estimatedBalance>> }[],
+    [customers, balanceOf, q, cityHit, amount]);
   const alacak = rows.filter(r => r.b.estimate > 0), borc = rows.filter(r => r.b.estimate < 0);
   const sum = (l: typeof rows) => l.reduce((t, r) => t + r.b.estimate, 0);
   const shown = (side === 'alacak' ? alacak : side === 'borc' ? borc : rows)
@@ -562,7 +577,7 @@ const BalanceView: React.FC<{
         </button>
         <button onClick={() => setSide('borc')} className={`text-left rounded-2xl border p-3 ${side === 'borc' ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-white'}`}>
           <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide">Borcumuz / avans</span>
-          <span className="block text-lg font-black text-rose-600 tabular-nums">{tl(Math.round(-sum(borc)))}</span>
+          <span className="block text-lg font-black text-rose-600 tabular-nums">{tl(Math.round(-sum(borc)) || 0)}</span>
           <span className="block text-[11px] text-slate-500">{borc.length} firma</span>
         </button>
       </div>
@@ -578,6 +593,14 @@ const BalanceView: React.FC<{
               <FileUp className="w-4 h-4" /> Mikro yükle
             </button>
           )}
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1" role="tablist" aria-label="Tutar">
+          {AMOUNT_FILTERS.map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={amount === k} onClick={() => setAmount(k)}
+              className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border whitespace-nowrap ${amount === k ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+              {label}
+            </button>
+          ))}
         </div>
         <p className={`text-[11px] ${old ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
           {lastMikro ? `Mikro bakiyeleri ${lastMikro.split('-').reverse().join('.')} tarihli.` : 'Henüz Mikro bakiyesi yüklenmedi.'} Tutar = Mikro bakiyesi − o tarihten sonra girilen TL tahsilatlar.
@@ -600,7 +623,7 @@ const BalanceView: React.FC<{
             </div>
           </button>
         ))}
-        {shown.length === 0 && <p className="p-6 text-center text-sm text-slate-500">Bakiyesi olan müşteri yok.</p>}
+        {shown.length === 0 && <p className="p-6 text-center text-sm text-slate-500">{amount !== 'all' || q ? 'Bu süzgece uyan bakiyeli müşteri yok.' : 'Bakiyesi olan müşteri yok.'}</p>}
       </div>
     </div>
   );
