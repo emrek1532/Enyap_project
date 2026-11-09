@@ -804,6 +804,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               onNewCollection={() => { setLedgerStartNew('collections'); setActiveTab('collections'); }}
               onNewExpense={() => { setLedgerStartNew('expenses'); setActiveTab('expenses'); }}
               onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
+              onSaveCustomer={can(profile, 'customers', 'edit') ? handleSaveCustomer : undefined}
               userName={userName}
               tools={tools}
               onOpenTool={openTool}
