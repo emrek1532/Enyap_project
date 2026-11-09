@@ -560,7 +560,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             <div className="p-4 sm:p-5 space-y-4 text-xs sm:text-sm">
               {selectedQuote.reviewPending && (
                 <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 flex items-center gap-2 flex-wrap">
-                  <span className="flex-1 min-w-0 text-sky-900 font-semibold">Ekip yükledi, kontrolünüzü bekliyor. Kontrol edip "Yazdır / PDF" ile müşteriye gönderin.</span>
+                  <span className="flex-1 min-w-0 text-sky-900 font-semibold">Ekip yükledi, kontrolünüzü bekliyor. Kontrol edip aşağıdaki "Resmi Teklif" ile PDF olarak müşteriye gönderin.</span>
                   {onMarkReviewed && (
                     <button onClick={() => { onMarkReviewed(selectedQuote); setSelectedQuote({ ...selectedQuote, reviewPending: false }); }}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 text-white hover:bg-sky-700 whitespace-nowrap">
