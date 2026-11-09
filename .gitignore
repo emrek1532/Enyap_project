@@ -11,3 +11,4 @@ enyap-isi-cloudflare.zip
 .wrangler
 .dev.vars*
 *.tsbuildinfo
+.npm/
