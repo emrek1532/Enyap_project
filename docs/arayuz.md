@@ -14,5 +14,5 @@ Bu dosya `CLAUDE.md`'den taşındı; içerik aynıdır. Yalnız bu konuda çalı
 - Ana sayfa "Takip" kartı (`TodayCalls.tsx`): Bugün aranacak / Süresi dolan; dokununca teklif detayı.
 - Telefonda teklif kartı sola kaydırılınca Onayla / Ara / Yarın ara (`SwipeRow.tsx`). Kayıtlı filtreler `localStorage` `enyap-quote-saved-filters` (en çok 8). Kısayollar (App): `N` yeni teklif, `/` ara.
 - Raporlar: "Bu Ay Tahmini Ciro" (`ForecastCard.tsx`: onaylı + son 45 gün bekleyen × 30–210 gün önceki satış oranı) ve "Neden bekliyor" satırları açılır listeli.
-- Cari kart ilk sekme "Akış": teklif, onay/iptal, planlı arama, tahsilat, uğrama tek zaman çizelgesinde.
+- Cari kart Teklifler sekmesiyle açılır; ikinci sekme "Akış": teklif, onay/iptal, planlı arama, tahsilat, uğrama tek zaman çizelgesinde.
 - Müşteriler → "Bugünün Rotası" (`RouteView.tsx`, `lib/route.ts`): liste yalnız bu cihazda (gün değişince boşalır), "Yol tarifi" Google Haritalar (ilk 10 durak), "Uğradım" `last_visit` yazar. Eski `visits` tablosu kullanılmaz.
