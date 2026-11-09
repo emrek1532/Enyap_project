@@ -55,7 +55,7 @@ export const CustomerAccount: React.FC<{
   const ev = useMemo(() => evaluate(allQuotes, allCollections, rates, maxWon), [allQuotes, allCollections, rates, maxWon]);
   const cStatus = statusOf(customer);
   const [addingCol, setAddingCol] = useState(false);
-  const [tab, setTab] = useState<Tab>('timeline');
+  const [tab, setTab] = useState<Tab>('quotes');
   const [qFilter, setQFilter] = useState<QFilter>('all');
   const [q, setQ] = useState('');
   const [onlyBought, setOnlyBought] = useState(true);
@@ -239,8 +239,8 @@ export const CustomerAccount: React.FC<{
           {/* Sekmeler + arama */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
-              {tabBtn('timeline', 'Akış')}
               {tabBtn('quotes', `Teklifler · ${quotes.length}`)}
+              {tabBtn('timeline', 'Akış')}
               {tabBtn('items', `Malzemeler · ${lines.length}`)}
               {showCollections && tabBtn('collections', `Tahsilatlar · ${collections.length}`)}
             </div>
