@@ -1,6 +1,6 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v11';
+const CACHE = 'enyap-shell-v12';
 // WhatsApp vb. uygulamalardan "Paylaş" ile gelen PDF burada bekletilir, uygulama açılınca okunur
 const SHARE_CACHE = 'enyap-share';
 const SHELL = ['/', '/index.html', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
@@ -27,7 +27,20 @@ self.addEventListener('fetch', (event) => {
         const form = await req.clone().formData();
         // Alan adı ne olursa olsun ilk dosyayı al
         let file = null;
-        for (const [, v] of form.entries()) { if (v && typeof v !== 'string' && v.size > 0) { file = v; break; } }
+        let text = '';
+        for (const [k, v] of form.entries()) {
+          if (v && typeof v !== 'string' && v.size > 0) { if (!file) file = v; }
+          else if (typeof v === 'string' && (k === 'text' || k === 'title') && v.trim()) text = text ? `${text}\n${v.trim()}` : v.trim();
+        }
+        const isPdf = file && (/pdf/i.test(file.type || '') || /\.pdf$/i.test(file.name || ''));
+        // WhatsApp yazısı / fotoğraf / Excel: müşteri talebi olarak açılır (Talepler → Talep gir)
+        if ((file && !isPdf) || (!file && text)) {
+          const cache = await caches.open(SHARE_CACHE);
+          await cache.put('/shared-request', file
+            ? new Response(file, { headers: { 'content-type': file.type || 'application/octet-stream', 'x-kind': 'file', 'x-file-name': encodeURIComponent(file.name || 'talep'), 'x-text': encodeURIComponent(text.slice(0, 2000)) } })
+            : new Response(text, { headers: { 'content-type': 'text/plain; charset=utf-8', 'x-kind': 'text' } }));
+          return Response.redirect('/?shared-request=1', 303);
+        }
         if (file) {
           const cache = await caches.open(SHARE_CACHE);
           await cache.put('/shared-pdf', new Response(file, {

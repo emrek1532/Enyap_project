@@ -25,6 +25,23 @@ const { CustomerAccount } = await import('../src/components/CustomerAccount');
 const { pageStats } = await import('../src/lib/pageStats');
 const { useRates } = await import('../src/lib/rates');
 const noop = () => {};
+// Talepler denemesi (&p=requests, &req=form|1|2): örnek talepler
+const { RequestsPanel } = await import('../src/components/RequestsPanel');
+const ME = 'x', SILA = 's';
+const mt = (code: string, name: string, price: number, currency = 'TRY') => ({ code, name, price, currency, unit: 'Adet', vatRate: 20 });
+const ago = (h: number) => new Date(Date.now() - h * 3600000).toISOString();
+const reqs: any[] = [
+  { id: 'r1', customerName: 'AFYON MEKANİK', note: 'Acil, proje fiyatı', rawText: '10 adet 2" küresel vana\n2 ad 500 lt genleşme tankı\n15 mt 1" PPRC boru', files: [], status: 'yeni', assignedTo: SILA, createdBy: ME, createdAt: ago(0.4), updatedAt: ago(0.4),
+    lines: [
+      { text: '10 adet 2" küresel vana', item: '2" küresel vana', qty: 10, unit: 'Adet', unsure: false, m: { cands: [mt('KV-200', 'KÜRESEL VANA 2" PN25', 1240)], pick: 'KV-200', via: 'unique' }, pick: 'KV-200', skip: false },
+      { text: '2 ad 500 lt genleşme tankı', item: '500 lt genleşme tankı', qty: 2, unit: 'Adet', unsure: false, m: { cands: [mt('VTSKGD500', '500 LT DİK KAPALI GENL. DEPOSU', 9850), mt('APAGD500', 'APA 500 LT GENL. DEPOSU', 10400)], pick: null, via: 'choose' }, pick: null, skip: false },
+      { text: '15 mt 1" PPRC boru', item: '1" PPRC boru', qty: 15, unit: 'Metre', unsure: false, m: { cands: [], pick: null, via: 'none' }, pick: null, skip: false },
+    ] },
+  { id: 'r2', customerName: 'Gemfa Kazan', note: 'Fotoğraf: el yazısı liste', files: [{ path: 'r2/a.jpg', name: 'talep.jpg', type: 'image/jpeg', size: 220000 }], status: 'hazirlaniyor', assignedTo: SILA, createdBy: ME, createdAt: ago(3), updatedAt: ago(1), lines: null },
+  { id: 'r3', customerName: 'Burdur Termo', rawText: '3 adet sirkülasyon pompası', files: [{ path: 'r3/b.xlsx', name: 'malzeme-listesi.xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', size: 18000 }], status: 'yeni', assignedTo: ME, createdBy: SILA, createdAt: ago(26), updatedAt: ago(26), lines: null },
+  { id: 'r4', customerName: 'Ege Mekanik', rawText: '1 adet boyler 300 lt', files: [], status: 'yuklendi', assignedTo: SILA, createdBy: ME, createdAt: ago(50), updatedAt: ago(30), quoteId: 'q1', lines: [] },
+];
+const people = [{ id: ME, fullName: 'Emre KARAKAYA' }, { id: SILA, fullName: 'Sıla Nur Alçı' }];
 // Takip / geçerlilik / revizyon denemesi: bekleyen tekliflerin bir kısmına örnek tarihler ve kalemler
 const { localDay } = await import('../src/lib/dates');
 const dd = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return localDay(d); };
@@ -65,26 +82,28 @@ quotes.forEach((x: any) => { const l = sup.get(x.id); if (l) olderVersions.set(l
 const liveQ = quotes.filter((x: any) => !sup.has(x.id));
 if (q.get('view')) localStorage.setItem('enyap-quote-view', JSON.stringify(q.get('view')));
 const TITLE: any = { collections: 'Tahsilat', expenses: 'Harcama' };
-const secs = (['quotes', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'] as const).map(id => ({ id, ...SECTION_META[id], title: TITLE[id] || SECTION_META[id].title }));
+const secs = (['quotes', 'requests', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'] as const).map(id => ({ id, ...SECTION_META[id], title: TITLE[id] || SECTION_META[id].title }));
 const App = () => {
   const [qs, setQs] = React.useState<any[]>(liveQ);
   const patch = (id: string, p: any) => setQs(l => l.map(x => (x.id === id ? { ...x, ...p, updatedAt: new Date().toISOString() } : x)));
   const [p, setP] = React.useState<any>(q.get('p') || 'home');
   const [tool, setTool] = React.useState<any>(q.get('tool'));
+  const [rd, setRd] = React.useState<any>(null);
   const [f, setF] = React.useState('all');
   const [qv, setQv] = React.useState<any>(null);
   const [lv, setLv] = React.useState<any>(null);
   const sync = { isOnline: true, isSyncing: false } as any;
   const rates = useRates(quotes);
   const user = { userName: 'Emre Karakaya', userEmail: 'e@x.com', roleLabel: 'Yönetici' };
-  const action = p === 'quotes' ? 'Yeni Teklif Oluştur' : p === 'customers' ? 'Yeni Müşteri' : p === 'materials' ? 'Yeni Malzeme' : p === 'collections' ? 'Yeni Tahsilat' : p === 'expenses' ? 'Yeni Harcama' : p === 'admin' ? 'Kişi Ekle' : '';
+  const action = p === 'quotes' ? 'Yeni Teklif Oluştur' : p === 'customers' ? 'Yeni Müşteri' : p === 'materials' ? 'Yeni Malzeme' : p === 'collections' ? 'Yeni Tahsilat' : p === 'expenses' ? 'Yeni Harcama' : p === 'admin' ? 'Kişi Ekle' : p === 'requests' ? 'Talep gir' : '';
   return h('div', { className: 'min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#f4f8fc] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60' },
     h(Sidebar, { sections: secs, active: p, onOpen: setP, onHome: () => setP('home'), tools: h(BandTools, { syncStatus: sync, onSync: noop, onSignOut: noop, userEmail: 'e@x.com' }), ...user }),
     h('div', { className: 'sticky top-0 z-30 md:hidden' }, h(Header, { syncStatus: sync, onTriggerSync: noop, onHome: () => setP('home'), ...user, onSearch: () => setTool('search') })),
     h('main', { className: 'max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1 min-w-0' },
       p !== 'home' && h(PageHeader, { title: SECTION_META[p as 'quotes'].title, subtitle: SECTION_SUB[p as 'quotes'], icon: SECTION_META[p as 'quotes'].icon, onBack: () => setP('home'), action: action ? { label: action, icon: Plus, onClick: noop } : undefined, stats: pageStats(p, { quotes, customers, collections, expenses, notes, activities } as any, rates, undefined, p === 'quotes' ? qv : null, lv) }),
       p === 'home' && h(SimpleHome, { showBalances: true, quotes: qs, customers, collections, expenses, sections: ['quotes', 'customers', 'collections', 'expenses', 'reports'], onOpen: setP, onOpenQuotes: () => setP('quotes'), onOpenQuote: noop,
-        canAdd: allow, onNewQuote: noop, onNewCollection: noop, onNewExpense: noop, ...user, tools, onOpenTool: setTool, reviewQuotes: qs.filter((x: any) => x.reviewPending), followCount: 7, syncStatus: sync, onSync: noop, onSignOut: noop }),
+        canAdd: allow, onNewQuote: noop, onNewCollection: noop, onNewExpense: noop, ...user, tools, onOpenTool: setTool, reviewQuotes: qs.filter((x: any) => x.reviewPending), myRequests: q.get('me') === 'sila' ? reqs.filter(r => r.assignedTo === SILA && r.status !== 'yuklendi') : [], followCount: 7, syncStatus: sync, onSync: noop, onSignOut: noop }),
+      p === 'requests' && h(RequestsPanel, { requests: reqs, customers, quotes, meId: q.get('me') === 'sila' ? SILA : ME, assignees: people, canEdit: true, reading: new Set(q.get('reading') ? ['r2'] : []), onSaved: noop, onRead: noop, onDraft: (d: any) => { (window as any).__draft = d; setRd(d); }, onOpenQuote: noop, openId: q.get('req') && q.get('req') !== 'form' ? 'r' + q.get('req') : null, newRequest: q.get('req') === 'form' ? 1 : 0, shared: q.get('shared') ? { text: 'Merhaba\n5 adet 1" pislik tutucu\n2 adet 24 kw kombi' } : null } as any),
       p === 'quotes' && h(QuoteManager, { quotes: qs, onMarkReviewed: (x: any) => patch(x.id, { reviewPending: false }), focusQuote: q.get('open') ? { id: q.get('open') === 'review' ? rv[0]?.id : q.get('open') === '2' ? base?.id + '-r1' : demo?.id, n: 1 } : null, onPatchQuote: patch, olderVersions, currentRole: 'isparta' as any, onOpenNewQuote: noop, onUpdateQuoteStatus: (id: string, status: any) => patch(id, { status }), onDeleteQuote: noop, onPrintQuote: noop, onEditQuote: noop, statusFilter: f, onStatusFilterChange: setF, onViewChange: setQv }),
       p === 'customers' && h(CustomersPanel, { customers, quotes, collections, showCollections: true, onSaveCollection: noop, onSaveCustomer: noop, onDeleteCustomer: noop, onCreateQuoteForCustomer: noop, currentRole: 'isparta' } as any),
       p === 'materials' && h(MaterialsPanel, { quotes }),
@@ -97,6 +116,7 @@ const App = () => {
         { id: 'z', email: 'ayse@enyap.com', fullName: 'Ayşe Demir', isAdmin: false, status: 'pending', perms: {}, lastSeen: null, createdAt: '2026-11-06T10:00:00Z' },
       ] } as any)),
     h(BottomNav, { sections: secs as any, primary: ['quotes', 'customers', 'materials'], active: p, onOpen: setP, onHome: () => setP('home'), onSignOut: noop, userEmail: 'e@x.com' }),
+    rd && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: () => setRd(null), customers, quotes, draft: rd }),
     q.get('modal') === 'new' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes }),
     q.get('modal') === 'edit' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes, editQuote: quotes[0] }),
     q.get('modal') === 'account' && (() => { const nm = demo?.customerName || quotes[0].customerName; const cu = customers.find((c: any) => c.name === nm) || customers[0]; return h(CustomerAccount, { customer: cu, quotes: qs.filter((x: any) => x.customerName === nm), collections: collections.filter((c: any) => c.customerName === nm), rates, showCollections: true, onClose: noop, onNewQuote: noop, onOpenQuote: noop } as any); })(),

@@ -1,11 +1,12 @@
 import React from 'react';
-import { FileText, Users, Wallet, Receipt, BarChart3, StickyNote, Package, ChevronRight, ShieldCheck } from 'lucide-react';
+import { FileText, Inbox, Users, Wallet, Receipt, BarChart3, StickyNote, Package, ChevronRight, ShieldCheck } from 'lucide-react';
 
 /** Uygulamanın bölümleri */
-export type ActiveTab = 'home' | 'quotes' | 'customers' | 'notes' | 'collections' | 'expenses' | 'reports' | 'materials' | 'admin';
+export type ActiveTab = 'home' | 'quotes' | 'requests' | 'customers' | 'notes' | 'collections' | 'expenses' | 'reports' | 'materials' | 'admin';
 
 export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; icon: React.ElementType; tone: string }> = {
   quotes: { title: 'Teklifler', icon: FileText, tone: 'bg-brand-50 text-brand-600' },
+  requests: { title: 'Talepler', icon: Inbox, tone: 'bg-emerald-50 text-emerald-600' },
   customers: { title: 'Müşteriler', icon: Users, tone: 'bg-sky-50 text-sky-600' },
   collections: { title: 'Yapılan Tahsilatlar', icon: Wallet, tone: 'bg-accent-50 text-accent-700' },
   expenses: { title: 'Yapılan Harcamalar', icon: Receipt, tone: 'bg-slate-100 text-brand-800' },
@@ -17,6 +18,7 @@ export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; i
 /** Bölüm başlıklarının altındaki kısa açıklama */
 export const SECTION_SUB: Record<Exclude<ActiveTab, 'home'>, string> = {
   quotes: 'Tüm tekliflerinizi buradan görüntüleyin ve yönetin.',
+  requests: 'Müşteri talepleri: girin, atayın, teklife dönüştürün.',
   customers: 'Müşteri bilgilerini yönetin.',
   collections: 'Tahsilat kayıtlarınızı görüntüleyin ve yönetin.',
   expenses: 'Harcama kayıtlarınızı görüntüleyin ve yönetin.',

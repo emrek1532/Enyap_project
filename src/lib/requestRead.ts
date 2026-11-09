@@ -37,7 +37,7 @@ function splitQty(raw: string): { item: string; qty: number; unit: string } {
   // "... - 1+1", "... - 3 adet", "...: 12 mt"
   take(/[-–:]\s*(\d+(?:[.,]\d+)?(?:\s*\+\s*\d+)*)\s*(adet|ad|tane|mt|metre)?\.?\s*$/i, m => sum(m[1]));
   // "10 adet ...", "... 10 adet", "25 mt ..."
-  take(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(adet|ad\.|tane|mt|metre)\b/i, m => Number(m[1].replace(',', '.')));
+  take(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(adet|ad|tane|mt|metre)\.?(?=\s|$)/i, m => Number(m[1].replace(',', '.')));
   // "... x 5", "... x5"
   take(/\s[x×*]\s*(\d+)\s*$/i, m => Number(m[1]));
   // Madde işareti / sıra numarası ("- ", "• ", "3) ", "3. ") atılır; "200 lt" gibi ölçüler kalır
