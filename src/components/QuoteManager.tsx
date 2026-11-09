@@ -8,6 +8,7 @@ import { localDay } from '../lib/dates';
 import { QuoteBoard, BoardCol } from './QuoteBoard';
 import { FollowUpBox, ValidityBox, RevisionsBox } from './QuoteExtras';
 import { SwipeRow } from './SwipeRow';
+import { quoteNo } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
@@ -50,6 +51,8 @@ interface QuoteManagerProps {
   /** Takip tarihi / geçerlilik / pano taşıması (durum + takip birlikte) */
   onPatchQuote?: (id: string, patch: Partial<Pick<Quote, 'followUpAt' | 'validUntil' | 'status' | 'lostReason'>>) => void;
   onDeleteQuote: (id: string) => void;
+  /** Ayrı numarayla girilmiş eski sürümler (güncel teklif id → eski kayıtlar); listelerde sayılmazlar */
+  olderVersions?: Map<string, Quote[]>;
   onPrintQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
   /** Sadece görüntüleme yetkisi: onay/düzenle/sil düğmeleri gizlenir */
@@ -71,6 +74,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onUpdateQuoteStatus,
   onPatchQuote,
   onDeleteQuote,
+  olderVersions,
   onPrintQuote,
   onEditQuote,
   readOnly = false,
@@ -136,7 +140,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   // Arama dizini: her teklifin aranacak yazıları bir kez sadeleştirilir (her tuşta yeniden değil)
   const searchIndex = useMemo(() => new Map(quotes.map(qt => {
     const items = (qt.items || []).map(it => `${it.productName} ${it.code || ''}`);
-    return [qt.id, { head: fold(`${qt.customerName}\n${qt.quoteNumber}\n${qt.city || ''}\n${qt.notes || ''}`), items, itemsF: items.map(fold) }];
+    return [qt.id, { head: fold(`${qt.customerName}\n${qt.quoteNumber}\n${quoteNo(qt)}\n${qt.city || ''}\n${qt.notes || ''}`), items, itemsF: items.map(fold) }];
   })), [quotes]);
   // Yazarken liste bir adım geriden gelir: kutu takılmaz
   const deferredSearch = useDeferredValue(searchTerm);
@@ -248,7 +252,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const moveQuote = (q: Quote, to: BoardCol) => {
     if (readOnly) return;
     if (to === 'onaylandi' || to === 'iptal') {
-      if (to === 'iptal' && !confirm(`${q.quoteNumber} · ${q.customerName} iptal olarak işaretlensin mi? (İptal = sipariş olup sonradan iptal)`)) return;
+      if (to === 'iptal' && !confirm(`${quoteNo(q)} · ${q.customerName} iptal olarak işaretlensin mi? (İptal = sipariş olup sonradan iptal)`)) return;
       onUpdateQuoteStatus(q.id, to);
       return;
     }
@@ -416,7 +420,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             <div className="p-3 space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <button onClick={() => setSelectedQuote(quote)} className="font-black text-brand-700 text-base leading-tight tabular-nums">{quote.quoteNumber}</button>
+                  <button onClick={() => setSelectedQuote(quote)} className="font-black text-brand-700 text-base leading-tight tabular-nums">{quoteNo(quote)}</button>
                   <button onClick={() => setCustomerView(quote.customerName)} className="block font-semibold text-slate-900 text-sm leading-snug text-left mt-0.5">{quote.customerName}</button>
                   <div className="text-[11px] text-slate-500">{quote.city || '-'} · {new Date(quote.createdAt).toLocaleDateString('tr-TR')}</div>
                 </div>
@@ -465,7 +469,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <tr key={quote.id} className={`${rowCls} ${selected.has(quote.id) ? 'bg-brand-50/50' : ''}`}>
                   <td className="py-2.5 pl-4 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
                   <td className="py-2.5 px-3">
-                    <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-black text-[15px] text-brand-700 hover:text-brand-900 whitespace-nowrap tabular-nums leading-tight">{quote.quoteNumber}</button>
+                    <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-black text-[15px] text-brand-700 hover:text-brand-900 whitespace-nowrap tabular-nums leading-tight">{quoteNo(quote)}</button>
                     <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="block font-semibold text-slate-900 text-left hover:text-brand-700 leading-snug">{quote.customerName}</button>
                   </td>
                   <td className="py-3 px-3">
@@ -517,7 +521,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono font-bold bg-white/15 text-white px-2 py-0.5 rounded-md">
-                    {selectedQuote.quoteNumber}
+                    {quoteNo(selectedQuote)}
                   </span>
                   <span className="text-xs font-bold text-white">
                     {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-sky-200/80">KDV dahil</span>
@@ -659,7 +663,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               </div>
               )}
 
-              <RevisionsBox quote={selectedQuote} rates={rates} />
+              <RevisionsBox quote={selectedQuote} rates={rates} older={olderVersions?.get(selectedQuote.id)} onPrint={q => { onPrintQuote(q); setSelectedQuote(null); }} />
 
               {/* Notes */}
               {selectedQuote.notes && (
@@ -798,7 +802,7 @@ export const CustomerQuotes: React.FC<{
                   <button onClick={() => onOpenQuote(q)} className="w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-brand-50/60 active:bg-brand-50">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-brand-700 text-sm">{q.quoteNumber}</span>
+                        <span className="font-mono font-bold text-brand-700 text-sm">{quoteNo(q)}</span>
                         <span className="text-xs text-slate-500 whitespace-nowrap">{new Date(q.createdAt).toLocaleDateString('tr-TR')}</span>
                       </div>
                       {b && <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${b.color}`}>{b.label}</span>}

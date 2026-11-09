@@ -74,3 +74,33 @@ export const splitReason = (r?: string) => {
   const [reason, ...rest] = (r || '').split(' · ');
   return { reason: reason || '', note: rest.join(' · ') };
 };
+
+/** Revizyon eki: "69349-R2" → taban "69349", sıra 2 (eski usulde ayrı kayıt olarak girilen revizyonlar) */
+const REV_RE = /\s*[-/ ]\s*R(\d+)$/i;
+export const revBase = (no = '') => no.trim().replace(REV_RE, '');
+export const revOf = (no = '') => Number(REV_RE.exec(no.trim())?.[1] || 0);
+
+/** Ekranda/PDF'te gösterilen numara: düzenlenen teklif "69349-R1", "69349-R2"… (kayıttaki numara değişmez) */
+export const quoteNo = (q: Pick<Quote, 'quoteNumber' | 'rev'>) =>
+  q.rev ? `${revBase(q.quoteNumber)}-R${revOf(q.quoteNumber) + q.rev}` : q.quoteNumber;
+
+/**
+ * Aynı numaranın daha yeni revizyonu ayrı kayıt olarak girilmişse ("63470" → "63470-R1") eskisi geride kalır:
+ * listelerde, bekleyenlerde ve raporlarda sayılmaz. Dönen harita: eski kayıt id → güncel kayıt.
+ */
+export function supersededMap(quotes: Quote[]): Map<string, Quote> {
+  const groups = new Map<string, Quote[]>();
+  for (const q of quotes) {
+    const base = revBase(q.quoteNumber || '').toLocaleUpperCase('tr');
+    if (!base) continue;
+    const g = groups.get(base);
+    if (g) g.push(q); else groups.set(base, [q]);
+  }
+  const out = new Map<string, Quote>();
+  for (const g of groups.values()) {
+    if (g.length < 2 || !g.some(q => revOf(q.quoteNumber) > 0)) continue;
+    const live = g.reduce((a, b) => (revOf(b.quoteNumber) > revOf(a.quoteNumber) || (revOf(b.quoteNumber) === revOf(a.quoteNumber) && (b.createdAt || '') > (a.createdAt || '')) ? b : a));
+    g.forEach(q => { if (q.id !== live.id) out.set(q.id, live); });
+  }
+  return out;
+}

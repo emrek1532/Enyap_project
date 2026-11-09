@@ -5,6 +5,7 @@ import { localDay } from '../lib/dates';
 import { daysToExpiry, expiryLabel, followDue, followLabel, isExpiring } from '../lib/quoteRules';
 import { quoteTry, Rates } from '../lib/rates';
 import { trNum } from '../lib/num';
+import { quoteNo } from '../lib/quoteRules';
 
 const lira = (v: number) => `₺ ${trNum(Math.round(v))}`;
 const SHOW = 5;
@@ -55,7 +56,7 @@ export const TodayCalls: React.FC<{
               <button onClick={() => onOpen(q)} className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-slate-50">
                 <span className="flex-1 min-w-0">
                   <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
-                  <span className="block text-[11px] text-slate-500 truncate">{q.quoteNumber} · {lira(quoteTry(q, rates))}</span>
+                  <span className="block text-[11px] text-slate-500 truncate">{quoteNo(q)} · {lira(quoteTry(q, rates))}</span>
                 </span>
                 <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold border ${late ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
                   {tab === 'calls' ? followLabel(q.followUpAt!, today) : expiryLabel(exp ?? 0)}

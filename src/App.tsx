@@ -37,7 +37,7 @@ import { Header, BandTools } from './components/Header';
 import type { ActiveTab } from './components/Sections';
 import { PageHeader, SECTION_META, SECTION_SUB } from './components/Sections';
 import { Sidebar } from './components/Sidebar';
-import { needsFollowUp } from './lib/quoteRules';
+import { needsFollowUp, quoteNo, supersededMap } from './lib/quoteRules';
 import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
 import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
@@ -761,10 +761,21 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     return () => window.removeEventListener('keydown', on);
   }, []);
   // Sayfa başlığı bandındaki özet rakamlar (cihazdaki veriden)
+  // Ayrı kayıt olarak girilmiş eski revizyonlar ("63470" → "63470-R1"): listelerde, bekleyenlerde ve raporlarda sayılmaz
+  const superseded = useMemo(() => supersededMap(data.quotes), [data.quotes]);
+  const liveQuotes = useMemo(() => (superseded.size ? data.quotes.filter(q => !superseded.has(q.id)) : data.quotes), [data.quotes, superseded]);
+  const olderVersions = useMemo(() => {
+    const m = new Map<string, Quote[]>();
+    data.quotes.forEach(q => { const live = superseded.get(q.id); if (live) m.set(live.id, [...(m.get(live.id) || []), q]); });
+    return m;
+  }, [data.quotes, superseded]);
+  const liveData = useMemo(() => ({ ...data, quotes: liveQuotes }), [data, liveQuotes]);
+  // PDF'te ekrandaki numara ("69349-R2") yazılır
+  const printQuote = (q: Quote) => setPrintableQuote({ ...q, quoteNumber: quoteNo(q) });
   const rates = useRates(data.quotes);
   const [quoteView, setQuoteView] = useState<QuoteView | null>(null);
   const [ledgerView, setLedgerView] = useState<LedgerView | null>(null);
-  const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, data, rates, undefined, activeTab === 'quotes' ? quoteView : null, ledgerView), [activeTab, data, rates, quoteView, ledgerView]);
+  const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, liveData, rates, undefined, activeTab === 'quotes' ? quoteView : null, ledgerView), [activeTab, liveData, rates, quoteView, ledgerView]);
   const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
     : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
     : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
@@ -816,7 +827,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         {activeTab === 'home' && (
           <>
           <SimpleHome
-              quotes={data.quotes}
+              quotes={liveQuotes}
               customers={data.customers || []}
               collections={data.collections || []}
               expenses={data.expenses || []}
@@ -834,7 +845,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               userName={userName}
               tools={tools}
               onOpenTool={openTool}
-              followCount={data.quotes.filter(needsFollowUp).length}
+              followCount={liveQuotes.filter(needsFollowUp).length}
               syncStatus={syncStatus}
               onSync={() => performSync(true)}
               onSignOut={handleSignOut}
@@ -862,13 +873,14 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         {/* Tab 1: Teklifler (Kanban & List) */}
         {activeTab === 'quotes' && (
           <QuoteManager
-            quotes={data.quotes}
+            quotes={liveQuotes}
             currentRole={currentRole}
             onOpenNewQuote={() => setIsNewQuoteOpen(true)}
             onUpdateQuoteStatus={handleUpdateQuoteStatus}
             onPatchQuote={handlePatchQuote}
             onDeleteQuote={canRemove ? handleDeleteQuote : noRemove}
-            onPrintQuote={setPrintableQuote}
+            onPrintQuote={printQuote}
+            olderVersions={olderVersions}
             onEditQuote={setEditingQuote}
             readOnly={!can(profile, 'quotes', 'edit')}
             statusFilter={quoteFilter}
@@ -890,7 +902,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined}
             onSaveCollection={can(profile, 'collections', 'edit') ? handleSaveCollection : undefined}
             currentRole={currentRole}
-            quotes={data.quotes}
+            quotes={liveQuotes}
             onSaveCustomer={handleSaveCustomer}
             onDeleteCustomer={handleDeleteCustomer}
             focusName={focusCustomer}
@@ -949,14 +961,14 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         )}
 
         {/* Malzemeler (fiyat kataloğu) */}
-        {activeTab === 'materials' && <MaterialsPanel newRequest={newRequest} quotes={data.quotes} onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined} />}
+        {activeTab === 'materials' && <MaterialsPanel newRequest={newRequest} quotes={liveQuotes} onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined} />}
 
         {activeTab === 'admin' && profile.isAdmin && <AdminPanel meId={profile.id} activities={data.activities} newRequest={newRequest} />}
 
         {/* Rapor */}
         {activeTab === 'reports' && (
           <ReportsPanel
-            quotes={data.quotes}
+            quotes={liveQuotes}
             collections={data.collections || []}
             expenses={data.expenses || []}
             customers={data.customers || []}
@@ -982,7 +994,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           tools={tools}
           onMode={openTool}
           onClose={() => setToolMode(null)}
-          quotes={data.quotes}
+          quotes={liveQuotes}
           customers={data.customers || []}
           allow={toolAllow}
           onVoice={handleVoice}

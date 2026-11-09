@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BellRing, CalendarClock, History, Loader2 } from 'lucide-react';
+import { BellRing, CalendarClock, FileText, History, Loader2 } from 'lucide-react';
 import { Quote, QuoteItem } from '../types';
 import { localDay } from '../lib/dates';
-import { daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
+import { daysToExpiry, expiryLabel, followLabel, plusDays, quoteNo, revOf } from '../lib/quoteRules';
 import { fetchQuoteRevisions, QuoteRevision } from '../lib/db';
 import { CURRENCY_LABEL, itemCurrency } from '../lib/money';
-import { Rates } from '../lib/rates';
+import { Rates, quoteTry } from '../lib/rates';
 import { DateInput } from './DateInput';
 
 const trDate = (d: string) => d.slice(0, 10).split('-').reverse().join('.');
@@ -82,65 +82,93 @@ const linesOf = (items: QuoteItem[], q: Quote, r: Rates): Line[] => {
 };
 const num = (v: number) => v.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
-/** Revizyon geçmişi: teklif her değiştiğinde eski hâli saklanır; iki sürüm kalem kalem karşılaştırılır */
-export const RevisionsBox: React.FC<{ quote: Quote; rates: Rates }> = ({ quote, rates }) => {
+/** Bir sürüm: ayrı kayıt olarak girilmiş eski teklif ("63470") ya da aynı kaydın saklanan eski hâli (R1, R2…) */
+type Version = { key: string; label: string; at: string; quote: Quote };
+
+/**
+ * Revizyon geçmişi: teklif her değiştiğinde eski hâli saklanır; seçilen sürüm şimdiki hâlle kalem kalem karşılaştırılır,
+ * her sürümün PDF'i alınabilir. Eski usulde ayrı numarayla girilmiş önceki sürümler (63470 → 63470-R1) de burada çıkar.
+ */
+export const RevisionsBox: React.FC<{ quote: Quote; rates: Rates; older?: Quote[]; onPrint?: (q: Quote) => void }> = ({ quote, rates, older = [], onPrint }) => {
   const [open, setOpen] = useState(false);
   const [revs, setRevs] = useState<QuoteRevision[] | null>(null);
   const [err, setErr] = useState('');
-  const [pick, setPick] = useState<number | null>(null);
+  const [pick, setPick] = useState<string | null>(null);
   useEffect(() => { setOpen(false); setRevs(null); setPick(null); setErr(''); }, [quote.id]);
   useEffect(() => {
     if (!open || revs) return;
-    const demo = (globalThis as { __enyapDemoRevisions?: QuoteRevision[] }).__enyapDemoRevisions; // yalnız deneme sayfası
-    (demo ? Promise.resolve(demo) : fetchQuoteRevisions(quote.id))
-      .then(r => { setRevs(r); setPick(r.length ? r[r.length - 1].rev : null); })
+    const demo = (globalThis as { __enyapDemoRevisions?: Record<string, QuoteRevision[]> }).__enyapDemoRevisions; // yalnız deneme sayfası
+    (demo ? Promise.resolve(demo[quote.id] || []) : fetchQuoteRevisions(quote.id))
+      .then(r => setRevs(r))
       .catch(() => setErr('Revizyonlar okunamadı (internet bağlantısını kontrol edin).'));
   }, [open, revs, quote.id]);
   // Teklif bu ekranda değişirse (ör. başka cihazdan) listeyi yeniden oku
   useEffect(() => { if (open) setRevs(null); }, [quote.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const versions = useMemo<Version[]>(() => {
+    const day = (s: string) => new Date(s).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
+    const recs = [...older].sort((a, b) => revOf(a.quoteNumber) - revOf(b.quoteNumber) || (a.createdAt || '').localeCompare(b.createdAt || ''))
+      .map(o => ({ key: `q-${o.id}`, label: quoteNo(o), at: day(o.createdAt), quote: o }));
+    const snaps = (revs || []).map(r => ({
+      key: `r-${r.rev}`, label: quoteNo({ quoteNumber: quote.quoteNumber, rev: r.rev - 1 }), at: day(r.at),
+      quote: { ...quote, items: r.items, totalAmount: r.totalAmount, currency: r.currency, validUntil: r.validUntil || quote.validUntil, amountTry: 0, amountUsd: 0, amountEur: 0, totalUsd: 0, rev: r.rev - 1 },
+    }));
+    return [...recs, ...snaps];
+  }, [older, revs, quote]);
+  const sel = versions.find(v => v.key === pick) || versions[versions.length - 1];
+
   const cmp = useMemo(() => {
-    const old = revs?.find(r => r.rev === pick);
-    if (!old) return null;
-    const a = linesOf(old.items, quote, rates), b = linesOf(quote.items, quote, rates);
+    if (!sel) return null;
+    const old = sel.quote;
+    const a = linesOf(old.items || [], old, rates), b = linesOf(quote.items || [], quote, rates);
     const bm = new Map(b.map(l => [l.key, l]));
     const rows = a.map(l => ({ name: l.name, old: l, now: bm.get(l.key) }));
     const am = new Set(a.map(l => l.key));
     b.filter(l => !am.has(l.key)).forEach(l => rows.push({ name: l.name, old: undefined as unknown as Line, now: l }));
-    // Toplamlar: her kalem TL'ye çevrilip (KDV dahil) toplanır; kalemsiz eski sürümde kayıtlı tutar kullanılır
+    // Toplamlar: her kalem TL'ye çevrilip (KDV dahil) toplanır; kalemsiz sürümde kayıtlı tutar kullanılır
     const sum = (l: Line[]) => l.reduce((t, x) => t + x.tl, 0);
-    const oldTl = a.length ? sum(a) : old.totalAmount * (old.currency === 'USD' ? rates.USD : old.currency === 'EUR' ? rates.EUR : 1);
-    const nowTl = b.length ? sum(b) : quote.totalAmount * (quote.currency === 'USD' ? rates.USD : quote.currency === 'EUR' ? rates.EUR : 1);
+    const conv = (q: Quote) => quoteTry(q, rates);
+    const oldTl = a.length ? sum(a) : conv(old);
+    const nowTl = b.length ? sum(b) : conv(quote);
     const mixed = [...a, ...b].some(l => l.code !== 'TRY');
-    return { old, rows, oldTl, nowTl, mixed };
-  }, [revs, pick, quote, rates]);
+    return { rows, oldTl, nowTl, mixed };
+  }, [sel, quote, rates]);
 
-  const nextRev = (revs?.length || 0) + 1;
+  const nowLabel = quoteNo(quote);
+  const btn = 'h-7 px-2.5 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50';
   return (
     <div className="rounded-xl border border-slate-200">
       <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left">
-        <span className="flex items-center gap-1.5 text-xs font-bold text-slate-700"><History className="w-4 h-4 text-brand-500" />Revizyon geçmişi</span>
+        <span className="flex items-center gap-1.5 text-xs font-bold text-slate-700"><History className="w-4 h-4 text-brand-500" />Revizyon geçmişi{older.length ? <span className="text-slate-500 font-normal">· {older.length} eski kayıt</span> : null}</span>
         <span className="text-[11px] font-bold text-brand-600">{open ? 'Gizle' : 'Göster'}</span>
       </button>
       {open && (
         <div className="px-3 pb-3 space-y-2">
           {!revs && !err && <div className="py-3 flex items-center gap-2 text-xs text-slate-500"><Loader2 className="w-4 h-4 animate-spin" />Okunuyor…</div>}
           {err && <p className="text-xs text-rose-600">{err}</p>}
-          {revs && revs.length === 0 && <p className="text-xs text-slate-500">Henüz revizyon yok. Teklif düzenlenip kalemleri ya da tutarı değişince eski hâli burada R1, R2… olarak saklanır.</p>}
-          {revs && revs.length > 0 && (<>
+          {revs && versions.length === 0 && <p className="text-xs text-slate-500">Henüz revizyon yok. Teklif düzenlenip kalemleri ya da tutarı değişince eski hâli burada saklanır ve numara {quote.quoteNumber}-R1, -R2… diye ilerler.</p>}
+          {revs && versions.length > 0 && sel && (<>
             <div className="flex flex-wrap gap-1.5">
-              {revs.map(r => (
-                <button key={r.rev} type="button" onClick={() => setPick(r.rev)} className={chipCls(pick === r.rev)}>
-                  R{r.rev} · {new Date(r.at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })}
+              {versions.map(v => (
+                <button key={v.key} type="button" onClick={() => setPick(v.key)} className={chipCls(sel.key === v.key)}>
+                  {v.label} · {v.at}
                 </button>
               ))}
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">R{nextRev} · şimdiki</span>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">{nowLabel} · şimdiki</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-500"><b className="text-slate-700">{sel.label}</b> ile <b className="text-slate-700">{nowLabel}</b> karşılaştırılıyor</span>
+              {onPrint && (
+                <span className="flex gap-1.5">
+                  <button type="button" onClick={() => onPrint(sel.quote)} className={btn}><FileText className="w-3.5 h-3.5 text-rose-600" />{sel.label} PDF</button>
+                </span>
+              )}
             </div>
             {cmp && (
               <div className="overflow-x-auto rounded-lg border border-slate-200">
                 <table className="w-full text-[11px] tabular-nums">
                   <thead className="bg-slate-50 text-slate-500">
-                    <tr><th className="p-2 text-left font-bold">Kalem</th><th className="p-2 text-right font-bold">R{cmp.old.rev}</th><th className="p-2 text-right font-bold">R{nextRev}</th><th className="p-2 text-right font-bold">Fark</th></tr>
+                    <tr><th className="p-2 text-left font-bold">Kalem</th><th className="p-2 text-right font-bold">{sel.label}</th><th className="p-2 text-right font-bold">{nowLabel}</th><th className="p-2 text-right font-bold">Fark</th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {cmp.rows.map((r, i) => {
@@ -160,6 +188,7 @@ export const RevisionsBox: React.FC<{ quote: Quote; rates: Rates }> = ({ quote, 
                         </tr>
                       );
                     })}
+                    {cmp.rows.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-slate-500">Bu sürümlerde kalem yok; yalnız toplamlar karşılaştırılıyor.</td></tr>}
                     <tr className="bg-slate-50 font-black align-top">
                       <td className="p-2">Toplam<span className="block text-[10px] font-normal text-slate-500">TL, KDV dahil</span></td>
                       <td className="p-2 text-right whitespace-nowrap">{num(Math.round(cmp.oldTl))}<span className="block text-[10px] font-normal text-slate-500">TL</span></td>

@@ -113,6 +113,7 @@ const rowToQuote = (r: Row): Quote => ({
   imported: !!r.imported,
   paymentTerm: r.payment_term ?? undefined,
   followUpAt: r.follow_up_at ?? undefined,
+  rev: Number(r.rev ?? 0),
 });
 
 const noteToRow = (n: QuickNote): Row => ({

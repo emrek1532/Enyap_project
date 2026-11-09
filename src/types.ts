@@ -59,6 +59,8 @@ export interface Quote {
   paymentTerm?: string;  // Ödeme / vade: PEŞİN, KREDİ KARTI, 60 GÜN, 90 GÜN
   /** Takip tarihi (YYYY-MM-DD): o gün müşteriyi ara; sabah bildirim gider */
   followUpAt?: string;
+  /** Revizyon sayısı (sunucu artırır; ekranda "69349-R2") */
+  rev?: number;
 }
 
 export interface QuickNote {
