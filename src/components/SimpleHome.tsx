@@ -77,7 +77,9 @@ export const SimpleHome: React.FC<{
   userEmail?: string;
   /** Cari bakiyeleri görebilir (Alacak sekmesi) */
   showBalances?: boolean;
-}> = ({ quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
+  /** Yönetici: ekibin yüklediği, kontrol bekleyen teklifler */
+  reviewQuotes?: Quote[];
+}> = ({ reviewQuotes = [], quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -312,6 +314,21 @@ export const SimpleHome: React.FC<{
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_side']">
         {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
           <div className="lg:[grid-area:todo] min-w-0 flex flex-col gap-4 sm:gap-5 max-lg:order-1">
+            {reviewQuotes.length > 0 && (
+              <section className="rounded-2xl border border-sky-200 bg-sky-50 p-3 sm:p-4">
+                <h3 className="text-sm font-black text-sky-900 mb-2">Kontrol bekleyen teklifler ({reviewQuotes.length})</h3>
+                <div className="space-y-1.5">
+                  {reviewQuotes.slice(0, 5).map(q => (
+                    <button key={q.id} onClick={() => (onShowQuote || onOpenQuote)(q)}
+                      className="w-full text-left rounded-xl bg-white border border-sky-100 hover:border-sky-300 px-3 py-2 flex items-center gap-2">
+                      <span className="font-black text-sky-800 tabular-nums whitespace-nowrap text-xs">{q.quoteNumber}</span>
+                      <span className="flex-1 min-w-0 truncate text-sm font-semibold text-slate-900">{q.customerName}</span>
+                      <ArrowRight className="w-4 h-4 text-sky-500 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             {canQuotes && <TodayCalls quotes={quotes} rates={rates} onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })} />}
             <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
               onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />

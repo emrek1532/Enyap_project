@@ -61,6 +61,8 @@ export interface Quote {
   followUpAt?: string;
   /** Revizyon sayısı (sunucu artırır; ekranda "69349-R2") */
   rev?: number;
+  /** Yönetici olmayan biri yükledi; yönetici kontrol edene kadar "Kontrol bekliyor" (sunucu doldurur) */
+  reviewPending?: boolean;
 }
 
 export interface QuickNote {
