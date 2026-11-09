@@ -39,10 +39,10 @@ if (demo) {
   const it = (id: string, productName: string, quantity: number, unitPrice: number) => ({ id, productName, quantity, unit: 'Adet', unitPrice, discount: 0, vatRate: 20, totalPrice: quantity * unitPrice });
   demo.items = [it('a', 'Yoğuşmalı kazan 150 kW', 2, 342000), it('b', 'Sirkülasyon pompası', 4, 53000), it('c', 'Kollektör ve vana grubu', 1, 139400), { ...it('d', 'AVASOFT-V301 OTO. SİNGLE YUMUŞATMA CİHAZI SİSTEMİ', 1, 2940), currency: 'USD' }, { ...it('e', 'HF22 WF TMG 10-41 PLAKALI EŞANJÖR DN100 SESİNOKS', 1, 1620), currency: 'EUR' }];
   demo.totalAmount = demo.items.reduce((t: number, x: any) => t + x.totalPrice, 0); demo.currency = 'TRY';
-  (globalThis as any).__enyapDemoRevisions = [
+  (globalThis as any).__enyapDemoRevisions = { [demo.id]: [
     { rev: 1, items: [it('a', 'Yoğuşmalı kazan 150 kW', 2, 368000), it('b', 'Sirkülasyon pompası', 4, 51000)], totalAmount: 940000, currency: 'TRY', at: dd(-19) },
     { rev: 2, items: [it('a', 'Yoğuşmalı kazan 150 kW', 2, 356000), it('b', 'Sirkülasyon pompası', 4, 53000), { ...it('d', 'AVASOFT-V301 OTO. SİNGLE YUMUŞATMA CİHAZI SİSTEMİ', 1, 2800), currency: 'USD' }], totalAmount: 924000, currency: 'TRY', at: dd(-12) },
-  ];
+  ] };
 }
 const allow = { quote: true, collection: true, expense: true };
 const tools = toolList(true, allow);
@@ -51,11 +51,20 @@ const q = new URLSearchParams(location.search);
 const RS = ['Fiyat yüksek', 'Fiyat yüksek', 'Rakip daha ucuz · ABC Isı %8 altında', 'Müşteri düşünüyor', 'Fiyat yüksek', 'Proje ertelendi', 'Teslim süresi'];
 pend.forEach((x: any, i: number) => { if (i % 2 === 0) x.lostReason = RS[i % RS.length]; });
 if (q.get('route')) { const c0 = customers.find((c: any) => c.name === (demo?.customerName)) || customers[0]; const same = customers.filter((c: any) => c.city === c0.city && c.id !== c0.id).slice(0, 3); localStorage.setItem('enyap-route', JSON.stringify({ day: localDay(), ids: [c0.id, ...same.map((c: any) => c.id)] })); c0.phone = '0532 000 00 00'; }
+// Revizyon numarası denemesi: demo teklif 2 kez düzenlenmiş (R2); başka bir teklifin eski usul ayrı kaydı (-R1)
+if (demo) demo.rev = 2;
+const base: any = pend[1];
+if (base) quotes.unshift({ ...base, id: base.id + '-r1', quoteNumber: base.quoteNumber + '-R1', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), rev: 0 });
+const { supersededMap } = await import('../src/lib/quoteRules');
+const sup = supersededMap(quotes);
+const olderVersions = new Map<string, any[]>();
+quotes.forEach((x: any) => { const l = sup.get(x.id); if (l) olderVersions.set(l.id, [...(olderVersions.get(l.id) || []), x]); });
+const liveQ = quotes.filter((x: any) => !sup.has(x.id));
 if (q.get('view')) localStorage.setItem('enyap-quote-view', JSON.stringify(q.get('view')));
 const TITLE: any = { collections: 'Tahsilat', expenses: 'Harcama' };
 const secs = (['quotes', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'] as const).map(id => ({ id, ...SECTION_META[id], title: TITLE[id] || SECTION_META[id].title }));
 const App = () => {
-  const [qs, setQs] = React.useState<any[]>(quotes);
+  const [qs, setQs] = React.useState<any[]>(liveQ);
   const patch = (id: string, p: any) => setQs(l => l.map(x => (x.id === id ? { ...x, ...p, updatedAt: new Date().toISOString() } : x)));
   const [p, setP] = React.useState<any>(q.get('p') || 'home');
   const [tool, setTool] = React.useState<any>(q.get('tool'));
@@ -73,7 +82,7 @@ const App = () => {
       p !== 'home' && h(PageHeader, { title: SECTION_META[p as 'quotes'].title, subtitle: SECTION_SUB[p as 'quotes'], icon: SECTION_META[p as 'quotes'].icon, onBack: () => setP('home'), action: action ? { label: action, icon: Plus, onClick: noop } : undefined, stats: pageStats(p, { quotes, customers, collections, expenses, notes, activities } as any, rates, undefined, p === 'quotes' ? qv : null, lv) }),
       p === 'home' && h(SimpleHome, { showBalances: true, quotes: qs, customers, collections, expenses, sections: ['quotes', 'customers', 'collections', 'expenses', 'reports'], onOpen: setP, onOpenQuotes: () => setP('quotes'), onOpenQuote: noop,
         canAdd: allow, onNewQuote: noop, onNewCollection: noop, onNewExpense: noop, ...user, tools, onOpenTool: setTool, followCount: 7, syncStatus: sync, onSync: noop, onSignOut: noop }),
-      p === 'quotes' && h(QuoteManager, { quotes: qs, focusQuote: q.get('open') ? { id: demo?.id, n: 1 } : null, onPatchQuote: patch, currentRole: 'isparta' as any, onOpenNewQuote: noop, onUpdateQuoteStatus: (id: string, status: any) => patch(id, { status }), onDeleteQuote: noop, onPrintQuote: noop, onEditQuote: noop, statusFilter: f, onStatusFilterChange: setF, onViewChange: setQv }),
+      p === 'quotes' && h(QuoteManager, { quotes: qs, focusQuote: q.get('open') ? { id: q.get('open') === '2' ? base?.id + '-r1' : demo?.id, n: 1 } : null, onPatchQuote: patch, olderVersions, currentRole: 'isparta' as any, onOpenNewQuote: noop, onUpdateQuoteStatus: (id: string, status: any) => patch(id, { status }), onDeleteQuote: noop, onPrintQuote: noop, onEditQuote: noop, statusFilter: f, onStatusFilterChange: setF, onViewChange: setQv }),
       p === 'customers' && h(CustomersPanel, { customers, quotes, collections, showCollections: true, onSaveCollection: noop, onSaveCustomer: noop, onDeleteCustomer: noop, onCreateQuoteForCustomer: noop, currentRole: 'isparta' } as any),
       p === 'materials' && h(MaterialsPanel, { quotes }),
       (p === 'collections' || p === 'expenses') && h(LedgerPanel, { key: p, kind: p, records: p === 'collections' ? collections : expenses, customers, currentRole: 'isparta' as any, onSave: noop, onDelete: noop, onViewChange: setLv }),

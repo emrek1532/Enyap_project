@@ -12,6 +12,7 @@ import { PENDING_STATUSES } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
 import { formatQuoteAmount } from '../lib/money';
 import { textMatcher } from '../lib/materials';
+import { quoteNo } from '../lib/quoteRules';
 
 export { STATUS_LABEL } from '../lib/constants';
 import { STATUS_LABEL } from '../lib/constants';
@@ -101,7 +102,7 @@ export const CustomerAccount: React.FC<{
   const lineMatch = textMatcher(q);
   const shownQuotes = quotes.filter(x =>
     (qFilter === 'all' || (qFilter === 'approved' ? isApproved(x) : qFilter === 'pending' ? isPending(x) : x.status === 'iptal'))
-    && (!nq || fold(`${x.quoteNumber} ${x.notes || ''} ${x.preparedBy || ''} ${(x.items || []).map(i => `${i.productName} ${i.code || ''}`).join(' ')}`).includes(nq)));
+    && (!nq || fold(`${x.quoteNumber} ${quoteNo(x)} ${x.notes || ''} ${x.preparedBy || ''} ${(x.items || []).map(i => `${i.productName} ${i.code || ''}`).join(' ')}`).includes(nq)));
   const shownLines = lines.filter(l => (!onlyBought || isApproved(l.quote))
     && (!lineMatch || lineMatch(`${l.it.productName} ${l.it.code || ''} ${l.quote.quoteNumber}`)));
   const shownCols = collections.filter(c => !nq || fold(`${c.method} ${c.description || ''} ${c.checkNo || ''} ${c.bankName || ''}`).includes(nq));
@@ -146,10 +147,10 @@ export const CustomerAccount: React.FC<{
     const today = dayOf(new Date().toISOString());
     quotes.forEach(x => {
       const d = dayOf(x.createdAt);
-      out.push({ key: `q-${x.id}`, day: d, kind: 'quote', title: `Teklif ${x.quoteNumber || ''} verildi`, sub: [x.preparedBy, x.items?.length ? `${x.items.length} kalem` : '', x.notes].filter(Boolean).join(' · '), amount: tl(quoteTry(x, rates)), quote: x });
+      out.push({ key: `q-${x.id}`, day: d, kind: 'quote', title: `Teklif ${quoteNo(x) || ''} verildi`, sub: [x.preparedBy, x.items?.length ? `${x.items.length} kalem` : '', x.notes].filter(Boolean).join(' · '), amount: tl(quoteTry(x, rates)), quote: x });
       const u = dayOf(x.updatedAt);
       if (x.status === 'onaylandi' || x.status === 'iptal') {
-        out.push({ key: `s-${x.id}`, day: u > d ? u : d, kind: x.status === 'onaylandi' ? 'won' : 'lost', title: `Teklif ${x.quoteNumber || ''} ${x.status === 'onaylandi' ? 'onaylandı' : 'iptal edildi'}`, amount: tl(quoteTry(x, rates)), quote: x });
+        out.push({ key: `s-${x.id}`, day: u > d ? u : d, kind: x.status === 'onaylandi' ? 'won' : 'lost', title: `Teklif ${quoteNo(x) || ''} ${x.status === 'onaylandi' ? 'onaylandı' : 'iptal edildi'}`, amount: tl(quoteTry(x, rates)), quote: x });
       }
       if (isPending(x) && x.followUpAt) {
         out.push({ key: `f-${x.id}`, day: x.followUpAt, kind: 'call', title: x.followUpAt > today ? 'Arama planlandı' : 'Arama günü', sub: `${x.quoteNumber || ''}${x.lostReason ? ` · ${x.lostReason}` : ''}`, quote: x });
@@ -293,7 +294,7 @@ export const CustomerAccount: React.FC<{
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono font-black text-sm text-brand-700 underline decoration-brand-200 underline-offset-2">{x.quoteNumber || '—'}</span>
+                        <span className="font-mono font-black text-sm text-brand-700 underline decoration-brand-200 underline-offset-2">{quoteNo(x) || '—'}</span>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${STATUS_LABEL[x.status].cls}`}>{STATUS_LABEL[x.status].label}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 truncate">
@@ -335,7 +336,7 @@ export const CustomerAccount: React.FC<{
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold text-slate-900 leading-snug break-words">{l.it.productName}</div>
                         <div className="text-[11px] text-slate-500 truncate">
-                          {l.it.code ? `${l.it.code} · ` : ''}<span className="font-mono">{l.quote.quoteNumber}</span>
+                          {l.it.code ? `${l.it.code} · ` : ''}<span className="font-mono">{quoteNo(l.quote)}</span>
                           {!isApproved(l.quote) && ` · ${STATUS_LABEL[l.quote.status].label}`}
                         </div>
                       </div>
