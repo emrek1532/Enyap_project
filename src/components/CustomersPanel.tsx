@@ -534,12 +534,16 @@ const BalanceView: React.FC<{
   onMikro?: () => void;
 }> = ({ customers, balanceOf, lastMikro, search, setSearch, onOpen, onMikro }) => {
   const [side, setSide] = useState<'alacak' | 'borc' | 'all'>('alacak');
-  const rows = useMemo(() => customers.map(c => ({ c, b: balanceOf(c) })).filter(x => x.b && Math.round(x.b.estimate) !== 0) as { c: Customer; b: NonNullable<ReturnType<typeof estimatedBalance>> }[],
-    [customers, balanceOf]);
+  // Arama kutuları da süzer: şehir adı birebir yazılırsa yalnız o şehrin firmaları (Isparta → Isparta'dakiler), yoksa ad/şehir içinde arar
+  const q = fold(search.trim());
+  const cityHit = useMemo(() => !!q && customers.some(c => fold(c.city || '') === q), [customers, q]);
+  const rows = useMemo(() => customers
+    .filter(c => !q || (cityHit ? fold(c.city || '') === q : fold(c.name).includes(q) || fold(c.city || '').includes(q)))
+    .map(c => ({ c, b: balanceOf(c) })).filter(x => x.b && Math.round(x.b.estimate) !== 0) as { c: Customer; b: NonNullable<ReturnType<typeof estimatedBalance>> }[],
+    [customers, balanceOf, q, cityHit]);
   const alacak = rows.filter(r => r.b.estimate > 0), borc = rows.filter(r => r.b.estimate < 0);
   const sum = (l: typeof rows) => l.reduce((t, r) => t + r.b.estimate, 0);
   const shown = (side === 'alacak' ? alacak : side === 'borc' ? borc : rows)
-    .filter(r => !search || fold(r.c.name).includes(fold(search.trim())) || fold(r.c.city || '').includes(fold(search.trim())))
     .sort((a, b) => Math.abs(b.b.estimate) - Math.abs(a.b.estimate));
   const max = Math.max(1, ...shown.map(r => Math.abs(r.b.estimate)));
   const old = lastMikro && (Date.now() - Date.parse(lastMikro)) / 864e5 > 15;
