@@ -5,6 +5,7 @@ import { localDay } from '../lib/dates';
 import { daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
 import { fetchQuoteRevisions, QuoteRevision } from '../lib/db';
 import { CURRENCY_LABEL, itemCurrency } from '../lib/money';
+import { Rates } from '../lib/rates';
 import { DateInput } from './DateInput';
 
 const trDate = (d: string) => d.slice(0, 10).split('-').reverse().join('.');
@@ -62,22 +63,27 @@ export const ValidityBox: React.FC<{ quote: Quote; priceChanged?: number; onExte
   );
 };
 
-type Line = { key: string; name: string; qty: number; unit: string; total: number; cur: string };
-const linesOf = (items: QuoteItem[], q: Quote): Line[] => {
+type Line = { key: string; name: string; qty: number; unit: string; total: number; cur: string; code: string; tl: number };
+/** Kalem tutarı TL'ye (güncel TCMB kuru) ve KDV dahile çevrilir: farklı para birimli kalemler toplanabilsin */
+const lineTl = (it: QuoteItem, code: string, r: Rates) =>
+  (it.totalPrice || 0) * (code === 'USD' ? r.USD : code === 'EUR' ? r.EUR : 1) * (1 + (it.vatRate ?? 20) / 100);
+const linesOf = (items: QuoteItem[], q: Quote, r: Rates): Line[] => {
   const m = new Map<string, Line>();
   (items || []).forEach(it => {
     const key = ((it.code || '').trim() || it.productName.trim()).toLocaleLowerCase('tr');
-    const cur = CURRENCY_LABEL[itemCurrency(it, q)];
+    const code = itemCurrency(it, q);
+    const cur = CURRENCY_LABEL[code];
+    const tl = lineTl(it, code, r);
     const prev = m.get(key);
-    if (prev) { prev.qty += it.quantity || 0; prev.total += it.totalPrice || 0; }
-    else m.set(key, { key, name: it.productName, qty: it.quantity || 0, unit: it.unit, total: it.totalPrice || 0, cur });
+    if (prev) { prev.qty += it.quantity || 0; prev.total += it.totalPrice || 0; prev.tl += tl; }
+    else m.set(key, { key, name: it.productName, qty: it.quantity || 0, unit: it.unit, total: it.totalPrice || 0, cur, code, tl });
   });
   return [...m.values()];
 };
 const num = (v: number) => v.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
 /** Revizyon geçmişi: teklif her değiştiğinde eski hâli saklanır; iki sürüm kalem kalem karşılaştırılır */
-export const RevisionsBox: React.FC<{ quote: Quote }> = ({ quote }) => {
+export const RevisionsBox: React.FC<{ quote: Quote; rates: Rates }> = ({ quote, rates }) => {
   const [open, setOpen] = useState(false);
   const [revs, setRevs] = useState<QuoteRevision[] | null>(null);
   const [err, setErr] = useState('');
@@ -96,15 +102,19 @@ export const RevisionsBox: React.FC<{ quote: Quote }> = ({ quote }) => {
   const cmp = useMemo(() => {
     const old = revs?.find(r => r.rev === pick);
     if (!old) return null;
-    const a = linesOf(old.items, quote), b = linesOf(quote.items, quote);
+    const a = linesOf(old.items, quote, rates), b = linesOf(quote.items, quote, rates);
     const bm = new Map(b.map(l => [l.key, l]));
     const rows = a.map(l => ({ name: l.name, old: l, now: bm.get(l.key) }));
     const am = new Set(a.map(l => l.key));
     b.filter(l => !am.has(l.key)).forEach(l => rows.push({ name: l.name, old: undefined as unknown as Line, now: l }));
-    return { old, rows, nowTotal: quote.totalAmount };
-  }, [revs, pick, quote]);
+    // Toplamlar: her kalem TL'ye çevrilip (KDV dahil) toplanır; kalemsiz eski sürümde kayıtlı tutar kullanılır
+    const sum = (l: Line[]) => l.reduce((t, x) => t + x.tl, 0);
+    const oldTl = a.length ? sum(a) : old.totalAmount * (old.currency === 'USD' ? rates.USD : old.currency === 'EUR' ? rates.EUR : 1);
+    const nowTl = b.length ? sum(b) : quote.totalAmount * (quote.currency === 'USD' ? rates.USD : quote.currency === 'EUR' ? rates.EUR : 1);
+    const mixed = [...a, ...b].some(l => l.code !== 'TRY');
+    return { old, rows, oldTl, nowTl, mixed };
+  }, [revs, pick, quote, rates]);
 
-  const cur = CURRENCY_LABEL[quote.currency] || 'TL';
   const nextRev = (revs?.length || 0) + 1;
   return (
     <div className="rounded-xl border border-slate-200">
@@ -134,28 +144,33 @@ export const RevisionsBox: React.FC<{ quote: Quote }> = ({ quote }) => {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {cmp.rows.map((r, i) => {
-                      const o = r.old?.total ?? 0, n = r.now?.total ?? 0, d = n - o;
+                      // Aynı para biriminde fark o birimde; birim değiştiyse TL karşılığıyla
+                      const same = !!(r.old && r.now && r.old.code === r.now.code);
+                      const d = same ? r.now!.total - r.old.total : (r.now?.tl ?? 0) - (r.old?.tl ?? 0);
+                      const dCur = same ? r.now!.cur : 'TL';
+                      const amt = (v: number, c: string) => <>{num(v)}<span className="block text-[10px] font-normal text-slate-500">{c}</span></>;
                       return (
-                        <tr key={i}>
-                          <td className="p-2 text-slate-800">{r.name}{r.old && r.now && r.old.qty !== r.now.qty && <span className="block text-[10px] text-slate-500">miktar {num(r.old.qty)} → {num(r.now.qty)} {r.now.unit}</span>}</td>
-                          <td className="p-2 text-right text-slate-600 whitespace-nowrap">{r.old ? `${num(o)} ${r.old.cur}` : '—'}</td>
-                          <td className="p-2 text-right text-slate-900 whitespace-nowrap">{r.now ? `${num(n)} ${r.now.cur}` : '—'}</td>
+                        <tr key={i} className="align-top">
+                          <td className="p-2 text-slate-800 break-words">{r.name}{r.old && r.now && r.old.qty !== r.now.qty && <span className="block text-[10px] text-slate-500">miktar {num(r.old.qty)} → {num(r.now.qty)} {r.now.unit}</span>}</td>
+                          <td className="p-2 text-right text-slate-600 whitespace-nowrap">{r.old ? amt(r.old.total, r.old.cur) : '—'}</td>
+                          <td className="p-2 text-right text-slate-900 whitespace-nowrap">{r.now ? amt(r.now.total, r.now.cur) : '—'}</td>
                           <td className={`p-2 text-right font-bold whitespace-nowrap ${!r.old ? 'text-amber-700' : !r.now ? 'text-slate-500' : d > 0 ? 'text-rose-600' : d < 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                            {!r.old ? 'yeni kalem' : !r.now ? 'çıkarıldı' : Math.abs(d) < 0.005 ? '—' : `${d > 0 ? '+' : '−'}${num(Math.abs(d))}`}
+                            {!r.old ? 'yeni' : !r.now ? 'çıktı' : Math.abs(d) < 0.005 ? '—' : <>{d > 0 ? '+' : '−'}{num(Math.abs(d))}<span className="block text-[10px] font-normal text-slate-500">{dCur}</span></>}
                           </td>
                         </tr>
                       );
                     })}
-                    <tr className="bg-slate-50 font-black">
-                      <td className="p-2">Toplam</td>
-                      <td className="p-2 text-right whitespace-nowrap">{num(cmp.old.totalAmount)} {CURRENCY_LABEL[cmp.old.currency] || cur}</td>
-                      <td className="p-2 text-right whitespace-nowrap">{num(cmp.nowTotal)} {cur}</td>
-                      <td className={`p-2 text-right whitespace-nowrap ${cmp.nowTotal - cmp.old.totalAmount > 0 ? 'text-rose-600' : cmp.nowTotal - cmp.old.totalAmount < 0 ? 'text-emerald-600' : ''}`}>
-                        {Math.abs(cmp.nowTotal - cmp.old.totalAmount) < 0.005 ? '—' : `${cmp.nowTotal > cmp.old.totalAmount ? '+' : '−'}${num(Math.abs(cmp.nowTotal - cmp.old.totalAmount))}`}
+                    <tr className="bg-slate-50 font-black align-top">
+                      <td className="p-2">Toplam<span className="block text-[10px] font-normal text-slate-500">TL, KDV dahil</span></td>
+                      <td className="p-2 text-right whitespace-nowrap">{num(Math.round(cmp.oldTl))}<span className="block text-[10px] font-normal text-slate-500">TL</span></td>
+                      <td className="p-2 text-right whitespace-nowrap">{num(Math.round(cmp.nowTl))}<span className="block text-[10px] font-normal text-slate-500">TL</span></td>
+                      <td className={`p-2 text-right whitespace-nowrap ${cmp.nowTl - cmp.oldTl > 0.5 ? 'text-rose-600' : cmp.nowTl - cmp.oldTl < -0.5 ? 'text-emerald-600' : ''}`}>
+                        {Math.abs(cmp.nowTl - cmp.oldTl) < 0.5 ? '—' : <>{cmp.nowTl > cmp.oldTl ? '+' : '−'}{num(Math.round(Math.abs(cmp.nowTl - cmp.oldTl)))}<span className="block text-[10px] font-normal text-slate-500">TL</span></>}
                       </td>
                     </tr>
                   </tbody>
                 </table>
+                {cmp.mixed && rates.date && <p className="px-2 py-1.5 text-[10px] text-slate-500 border-t border-slate-100">USD/EUR kalemler TCMB kuruyla çevrildi ({rates.date}: 1 USD = {num(rates.USD)} TL · 1 EUR = {num(rates.EUR)} TL).</p>}
               </div>
             )}
           </>)}

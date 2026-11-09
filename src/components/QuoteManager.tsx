@@ -659,7 +659,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               </div>
               )}
 
-              <RevisionsBox quote={selectedQuote} />
+              <RevisionsBox quote={selectedQuote} rates={rates} />
 
               {/* Notes */}
               {selectedQuote.notes && (

@@ -37,11 +37,11 @@ const pend = quotes.filter((x: any) => x.status === 'gonderildi');
 const demo: any = pend[0];
 if (demo) {
   const it = (id: string, productName: string, quantity: number, unitPrice: number) => ({ id, productName, quantity, unit: 'Adet', unitPrice, discount: 0, vatRate: 20, totalPrice: quantity * unitPrice });
-  demo.items = [it('a', 'Yoğuşmalı kazan 150 kW', 2, 342000), it('b', 'Sirkülasyon pompası', 4, 53000), it('c', 'Kollektör ve vana grubu', 1, 139400)];
+  demo.items = [it('a', 'Yoğuşmalı kazan 150 kW', 2, 342000), it('b', 'Sirkülasyon pompası', 4, 53000), it('c', 'Kollektör ve vana grubu', 1, 139400), { ...it('d', 'AVASOFT-V301 OTO. SİNGLE YUMUŞATMA CİHAZI SİSTEMİ', 1, 2940), currency: 'USD' }, { ...it('e', 'HF22 WF TMG 10-41 PLAKALI EŞANJÖR DN100 SESİNOKS', 1, 1620), currency: 'EUR' }];
   demo.totalAmount = demo.items.reduce((t: number, x: any) => t + x.totalPrice, 0); demo.currency = 'TRY';
   (globalThis as any).__enyapDemoRevisions = [
     { rev: 1, items: [it('a', 'Yoğuşmalı kazan 150 kW', 2, 368000), it('b', 'Sirkülasyon pompası', 4, 51000)], totalAmount: 940000, currency: 'TRY', at: dd(-19) },
-    { rev: 2, items: [it('a', 'Yoğuşmalı kazan 150 kW', 2, 356000), it('b', 'Sirkülasyon pompası', 4, 53000)], totalAmount: 924000, currency: 'TRY', at: dd(-12) },
+    { rev: 2, items: [it('a', 'Yoğuşmalı kazan 150 kW', 2, 356000), it('b', 'Sirkülasyon pompası', 4, 53000), { ...it('d', 'AVASOFT-V301 OTO. SİNGLE YUMUŞATMA CİHAZI SİSTEMİ', 1, 2800), currency: 'USD' }], totalAmount: 924000, currency: 'TRY', at: dd(-12) },
   ];
 }
 const allow = { quote: true, collection: true, expense: true };
