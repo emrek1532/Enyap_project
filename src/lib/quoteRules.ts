@@ -6,6 +6,21 @@ const DAY = 24 * 60 * 60 * 1000;
 /** Henüz sonuçlanmamış (müşteriden yanıt bekleyen) teklif durumları */
 export const PENDING_STATUSES: QuoteStatus[] = ['gonderildi'];
 
+/**
+ * Pasif: beklemedeki teklife "neden bekliyor" seçildi (Rakip daha ucuz, Proje ertelendi…); artık beklenmiyor.
+ * Kayıtta durum "gonderildi" kalır; uygulama bekleyenlerde saymaz. "Müşteri düşünüyor" beklemede tutar.
+ */
+export const ACTIVE_REASONS = ['Müşteri düşünüyor'];
+export const isPassive = (q: Pick<Quote, 'status' | 'lostReason'>) => {
+  if (q.status !== 'gonderildi' || !q.lostReason) return false;
+  const r = q.lostReason.split(' · ')[0];
+  return !!r && !ACTIVE_REASONS.includes(r);
+};
+/** Gerçekten karar bekleyen teklif (pasifler hariç) */
+export const isPendingQuote = (q: Pick<Quote, 'status' | 'lostReason'>) => PENDING_STATUSES.includes(q.status) && !isPassive(q);
+/** Ekranda gösterilecek durum: pasifse 'pasif' */
+export const viewStatus = (q: Pick<Quote, 'status' | 'lostReason'>): QuoteStatus | 'pasif' => (isPassive(q) ? 'pasif' : q.status);
+
 /** Beklemede kalan teklif için bu kadar günden sonra "müşteri ile tekrar görüş" uyarısı çıkar */
 export const FOLLOW_UP_AFTER_DAYS = 3;
 
@@ -20,13 +35,13 @@ export const FOLLOW_UP_START = new Date('2026-10-06T22:05:00Z').getTime();
 
 /** Takip tarihi verilmişse o gün (ve sonrası) "tekrar görüş"; verilmemişse 3 gün kuralı */
 export const needsFollowUp = (q: Quote) =>
-  PENDING_STATUSES.includes(q.status) && (q.followUpAt
+  isPendingQuote(q) && (q.followUpAt
     ? q.followUpAt <= localDay()
     : new Date(q.createdAt).getTime() >= FOLLOW_UP_START && quoteAgeInDays(q) >= FOLLOW_UP_AFTER_DAYS);
 
 /** Takip günü bugün ya da geçmiş (bekleyen tekliflerde) */
 export const followDue = (q: Quote, today = localDay()) =>
-  PENDING_STATUSES.includes(q.status) && !!q.followUpAt && q.followUpAt <= today;
+  isPendingQuote(q) && !!q.followUpAt && q.followUpAt <= today;
 
 /** Bugünden n gün sonrası (YYYY-MM-DD) */
 export const plusDays = (n: number, from = new Date()) => { const d = new Date(from); d.setDate(d.getDate() + n); return localDay(d); };
@@ -36,7 +51,7 @@ export const dayDiff = (a: string, b: string) => Math.round((Date.parse(b) - Dat
 
 /** Geçerlilik: bekleyen teklifin süresinin dolmasına kaç gün var (eksi = doldu); süre yoksa null */
 export const daysToExpiry = (q: Quote, today = localDay()): number | null =>
-  PENDING_STATUSES.includes(q.status) && /^\d{4}-\d{2}-\d{2}/.test(q.validUntil || '') ? dayDiff(today, q.validUntil.slice(0, 10)) : null;
+  isPendingQuote(q) && /^\d{4}-\d{2}-\d{2}/.test(q.validUntil || '') ? dayDiff(today, q.validUntil.slice(0, 10)) : null;
 
 /** Süresi 3 gün içinde dolacak ya da son 30 günde dolmuş bekleyen teklif */
 export const EXPIRY_WARN_DAYS = 3;

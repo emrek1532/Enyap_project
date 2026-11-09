@@ -1,3 +1,4 @@
+import { viewStatus } from '../lib/quoteRules';
 import { trNum } from '../lib/num';
 import React, { useEffect, useRef, useState } from 'react';
 import { Eye, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
@@ -262,7 +263,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
           {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-500">Bu malzeme henüz hiçbir teklifte yok.</p>}
           {rows.map(({ q, it, cur }, i) => {
             const net = (it.unitPrice || 0) * (1 - (it.discount || 0) / 100);
-            const st = STATUS_LABEL[q.status];
+            const st = STATUS_LABEL[viewStatus(q)];
             return (
               <button key={`${q.id}-${i}`} type="button" disabled={!onOpenQuote} onClick={() => onOpenQuote?.(q)}
                 className="w-full text-left px-4 py-2.5 flex items-start gap-3 hover:bg-slate-50 disabled:hover:bg-transparent">

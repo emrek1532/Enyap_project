@@ -4,17 +4,18 @@ import { Quote } from '../types';
 import { formatTl } from '../lib/rates';
 import { daysToExpiry, expiryLabel, followLabel, quoteAgeInDays, isExpiring } from '../lib/quoteRules';
 import { localDay } from '../lib/dates';
-import { quoteNo } from '../lib/quoteRules';
+import { quoteNo, isPassive, isPendingQuote } from '../lib/quoteRules';
 
 /** Pano sütunları: Beklemede (takip tarihi yok), Takipte (takip tarihi var), Onaylandı, İptal */
-export type BoardCol = 'bekliyor' | 'takip' | 'onaylandi' | 'iptal';
+export type BoardCol = 'bekliyor' | 'takip' | 'pasif' | 'onaylandi' | 'iptal';
 
 export const colOf = (q: Quote): BoardCol =>
-  q.status === 'onaylandi' ? 'onaylandi' : q.status === 'iptal' ? 'iptal' : q.followUpAt ? 'takip' : 'bekliyor';
+  q.status === 'onaylandi' ? 'onaylandi' : q.status === 'iptal' ? 'iptal' : isPassive(q) ? 'pasif' : q.followUpAt ? 'takip' : 'bekliyor';
 
 const COLS: { key: BoardCol; label: string; hint: string; dot: string; over: string }[] = [
   { key: 'bekliyor', label: 'Beklemede', hint: 'Takip tarihi verilmemiş', dot: 'bg-purple-500', over: 'ring-purple-300 bg-purple-50/60' },
   { key: 'takip', label: 'Takipte', hint: 'Arama günü belli', dot: 'bg-amber-500', over: 'ring-amber-300 bg-amber-50/60' },
+  { key: 'pasif', label: 'Pasif', hint: 'Neden seçilmiş, beklenmiyor', dot: 'bg-amber-700', over: 'ring-amber-300 bg-amber-50/60' },
   { key: 'onaylandi', label: 'Onaylandı', hint: 'Sipariş oldu', dot: 'bg-emerald-500', over: 'ring-emerald-300 bg-emerald-50/60' },
   { key: 'iptal', label: 'İptal', hint: 'Sipariş olup iptal', dot: 'bg-slate-400', over: 'ring-slate-300 bg-slate-100' },
 ];
@@ -38,10 +39,10 @@ export const QuoteBoard: React.FC<{
   const [more, setMore] = useState<Record<string, number>>({});
 
   const cols = useMemo(() => {
-    const m: Record<BoardCol, Quote[]> = { bekliyor: [], takip: [], onaylandi: [], iptal: [] };
+    const m: Record<BoardCol, Quote[]> = { bekliyor: [], takip: [], pasif: [], onaylandi: [], iptal: [] };
     quotes.forEach(q => m[colOf(q)].push(q));
     m.takip.sort((a, b) => (a.followUpAt || '').localeCompare(b.followUpAt || ''));
-    (['bekliyor', 'onaylandi', 'iptal'] as BoardCol[]).forEach(k => m[k].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')));
+    (['bekliyor', 'pasif', 'onaylandi', 'iptal'] as BoardCol[]).forEach(k => m[k].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')));
     return m;
   }, [quotes]);
 
@@ -53,7 +54,7 @@ export const QuoteBoard: React.FC<{
 
   const card = (q: Quote) => {
     const exp = daysToExpiry(q, today);
-    const pending = q.status === 'gonderildi';
+    const pending = isPendingQuote(q);
     return (
       <div key={q.id} draggable={!readOnly}
         onDragStart={e => { e.dataTransfer.setData('text/plain', q.id); e.dataTransfer.effectAllowed = 'move'; setDragId(q.id); }}
@@ -67,6 +68,7 @@ export const QuoteBoard: React.FC<{
           <div className="mt-0.5 text-[13px] font-bold text-slate-900 leading-snug line-clamp-2">{q.customerName}</div>
           <div className="text-[11px] text-slate-500">{q.city || '—'} · {new Date(q.createdAt).toLocaleDateString('tr-TR')}</div>
         </button>
+        {isPassive(q) && <div className="mt-2"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold border bg-amber-50 text-amber-800 border-amber-200">{(q.lostReason || '').split(' · ')[0]}</span></div>}
         {(pending || exp !== null) && (
           <div className="mt-2 flex flex-wrap gap-1">
             {pending && q.followUpAt && (
@@ -104,7 +106,7 @@ export const QuoteBoard: React.FC<{
 
   return (
     <div className="overflow-x-auto px-3 sm:px-4 pb-4 pt-2 -mb-1">
-      <div className="grid grid-cols-[repeat(4,minmax(240px,1fr))] gap-3 min-w-[1000px] xl:min-w-0">
+      <div className="grid grid-cols-[repeat(5,minmax(220px,1fr))] gap-3 min-w-[1150px] 2xl:min-w-0">
         {COLS.map(c => {
           const list = cols[c.key];
           const sum = list.reduce((t, q) => t + (netTry.get(q.id) || 0), 0);

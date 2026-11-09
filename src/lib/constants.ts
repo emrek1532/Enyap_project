@@ -16,8 +16,9 @@ export const BANKS = [
 /** Teklif vade seçenekleri */
 export const PAYMENT_TERMS = ['PEŞİN', 'KREDİ KARTI', '60 GÜN', '90 GÜN'];
 
-export const STATUS_LABEL: Record<QuoteStatus, { label: string; cls: string }> = {
+export const STATUS_LABEL: Record<QuoteStatus | 'pasif', { label: string; cls: string }> = {
   gonderildi: { label: 'Beklemede', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
   onaylandi: { label: 'Onaylandı', cls: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   iptal: { label: 'İptal', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  pasif: { label: 'Pasif', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
 };

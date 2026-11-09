@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Quote } from '../types';
 import { supabase } from './supabase';
-import { PENDING_STATUSES } from './quoteRules';
+import { isPendingQuote } from './quoteRules';
 
 export interface PriceChange { code: string; name: string; old: number; now: number; currency: string; pct: number }
 
@@ -31,7 +31,7 @@ export function usePriceChanges(quotes: Quote[], enabled = true): Map<string, Pr
   useEffect(() => {
     if (!enabled) return;
     const now = Date.now();
-    const pending = quotes.filter(q => PENDING_STATUSES.includes(q.status) && q.items?.length && now - Date.parse(q.createdAt) <= 120 * DAY);
+    const pending = quotes.filter(q => isPendingQuote(q) && q.items?.length && now - Date.parse(q.createdAt) <= 120 * DAY);
     const codes = [...new Set(pending.flatMap(q => q.items.map(i => i.code).filter((c): c is string => !!c)))];
     if (!codes.length) { setRes(new Map()); return; }
     let off = false;

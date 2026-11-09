@@ -1,7 +1,7 @@
 import { trNum } from './num';
 import { AppData, Collection, Expense, Quote } from '../types';
 import { dayOf } from './dates';
-import { PENDING_STATUSES, needsFollowUp } from './quoteRules';
+import { isPendingQuote, needsFollowUp } from './quoteRules';
 import { Rates, quoteTry } from './rates';
 
 /** Sayfa başlığındaki (koyu bant) özet rakam */
@@ -36,7 +36,7 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
   if (tab === 'quotes' && view) {
     const all = view.quotes.filter(q => q.status !== 'iptal');
     const won = all.filter(q => q.status === 'onaylandi');
-    const pend = view.quotes.filter(q => PENDING_STATUSES.includes(q.status));
+    const pend = view.quotes.filter(q => isPendingQuote(q));
     const follow = view.quotes.filter(needsFollowUp).length;
     const av = all.reduce((a, q) => a + qv(q), 0), wv = won.reduce((a, q) => a + qv(q), 0);
     return [
@@ -49,7 +49,7 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
   if (tab === 'quotes') {
     const month = quotes.filter(q => inR(q.createdAt, mFrom) && q.status !== 'iptal');
     const won = month.filter(q => q.status === 'onaylandi');
-    const pend = quotes.filter(q => PENDING_STATUSES.includes(q.status));
+    const pend = quotes.filter(q => isPendingQuote(q));
     const follow = quotes.filter(needsFollowUp).length;
     const mv = month.reduce((a, q) => a + qv(q), 0), wv = won.reduce((a, q) => a + qv(q), 0);
     return [
@@ -63,7 +63,7 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
     const custs = d.customers || [];
     const key = (s: string) => s.trim().toLocaleUpperCase('tr-TR');
     const month = new Set(quotes.filter(q => inR(q.createdAt, mFrom)).map(q => key(q.customerName || '')));
-    const pend = new Set(quotes.filter(q => PENDING_STATUSES.includes(q.status)).map(q => key(q.customerName || '')));
+    const pend = new Set(quotes.filter(q => isPendingQuote(q)).map(q => key(q.customerName || '')));
     const six = ymd(new Date(now.getFullYear(), now.getMonth() - 6, now.getDate()));
     const active = new Set(quotes.filter(q => q.status === 'onaylandi' && inR(q.createdAt, six)).map(q => key(q.customerName || '')));
     return [

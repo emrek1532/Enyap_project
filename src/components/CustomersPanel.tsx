@@ -9,7 +9,7 @@ import { CustomerAccount } from './CustomerAccount';
 import { RouteView } from './RouteView';
 import { addToRoute, useRoute } from '../lib/route';
 import { CityInput } from './TextSuggest';
-import { PENDING_STATUSES, needsFollowUp } from '../lib/quoteRules';
+import { isPendingQuote, needsFollowUp } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
@@ -173,7 +173,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     return {
       total: list.length,
       approved: approved.length,
-      pending: list.filter(q => PENDING_STATUSES.includes(q.status)).length,
+      pending: list.filter(q => isPendingQuote(q)).length,
       followUp: list.some(needsFollowUp),
       approvedTotal: approved.reduce((sum, q) => sum + quoteTry(q, rates), 0),
       lastDate: list[0]?.createdAt || '',

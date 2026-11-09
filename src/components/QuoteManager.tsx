@@ -3,12 +3,12 @@ import { dayOf } from '../lib/dates';
 import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X } from 'lucide-react';
 import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
-import { needsFollowUp, quoteAgeInDays, PENDING_STATUSES, isExpiring, daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
+import { needsFollowUp, quoteAgeInDays, isPendingQuote, isExpiring, daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
 import { localDay } from '../lib/dates';
 import { QuoteBoard, BoardCol } from './QuoteBoard';
 import { FollowUpBox, ValidityBox, RevisionsBox } from './QuoteExtras';
 import { SwipeRow } from './SwipeRow';
-import { quoteNo } from '../lib/quoteRules';
+import { quoteNo, isPassive, viewStatus, ACTIVE_REASONS } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
@@ -158,9 +158,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         const matchesStatus =
           statusFilter === 'all' ||
           (statusFilter === 'aktif'
-            ? PENDING_STATUSES.includes(quote.status)
+            ? isPendingQuote(quote)
             : statusFilter === 'takip'
               ? needsFollowUp(quote)
+              : statusFilter === 'pasif'
+                ? isPassive(quote)
               : statusFilter === 'expiring'
                 ? isExpiring(quote, today)
                 : quote.status === statusFilter);
@@ -214,8 +216,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     setCityFilter('all'); setDateFrom(''); setDateTo(''); setPage(0);
   };
 
-  const getStatusBadge = (status: QuoteStatus) => {
+  const getStatusBadge = (status: QuoteStatus | 'pasif') => {
     switch (status) {
+      case 'pasif':
+        return { label: 'Pasif', color: 'bg-amber-50 text-amber-800 border-amber-200' };
       case 'gonderildi':
         return { label: 'Beklemede', color: 'bg-purple-100 text-purple-800 border-purple-200' };
       case 'onaylandi':
@@ -230,7 +234,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const toggleSel = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const toggleAll = () => setSelected(s => { const n = new Set(s); pageRows.forEach(q => (allOnPage ? n.delete(q.id) : n.add(q.id))); return n; });
   const approveSelected = () => {
-    const ids = quotes.filter(q => selected.has(q.id) && PENDING_STATUSES.includes(q.status)).map(q => q.id);
+    const ids = quotes.filter(q => selected.has(q.id) && isPendingQuote(q)).map(q => q.id);
     if (!ids.length || !confirm(`${ids.length} bekleyen teklif onaylandı olarak işaretlensin mi?`)) return;
     ids.forEach(id => onUpdateQuoteStatus(id, 'onaylandi'));
     setSelected(new Set());
@@ -256,15 +260,18 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       onUpdateQuoteStatus(q.id, to);
       return;
     }
+    // Pasif için neden seçilmeli: teklif açılır, "Neden bekliyor?"dan seçilir
+    if (to === 'pasif') { setSelectedQuote(q); return; }
     const followUpAt = to === 'takip' ? (q.followUpAt || plusDays(1)) : undefined;
-    if (onPatchQuote) onPatchQuote(q.id, { status: 'gonderildi', followUpAt });
+    // Pasiften geri alınınca neden kaldırılır (yeniden karar bekler)
+    if (onPatchQuote) onPatchQuote(q.id, { status: 'gonderildi', followUpAt, ...(isPassive(q) ? { lostReason: undefined } : {}) });
     else if (q.status !== 'gonderildi') onUpdateQuoteStatus(q.id, 'gonderildi');
   };
   const setFollow = (q: Quote, day: string | undefined) => onPatchQuote?.(q.id, { followUpAt: day });
 
   // Takip / geçerlilik rozetleri (liste ve kartlarda)
   const extraBadges = (q: Quote) => {
-    if (!PENDING_STATUSES.includes(q.status)) return null;
+    if (!isPendingQuote(q)) return null;
     const exp = daysToExpiry(q, today);
     return (<>
       {q.followUpAt && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap inline-flex items-center gap-1 ${q.followUpAt <= today ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}><BellRing className="w-3 h-3" />{followLabel(q.followUpAt, today)}</span>}
@@ -274,7 +281,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
   // Telefonda kartı sola kaydırınca: Onayla / Ara / Yarın ara
   const swipeActions = (q: Quote) => {
-    const pending = PENDING_STATUSES.includes(q.status);
+    const pending = isPendingQuote(q);
     const tel = (q.customerPhone || '').replace(/[^\d+]/g, '');
     return [
       ...(pending && !readOnly ? [{ key: 'ok', label: 'Onayla', icon: <Check className="w-5 h-5" />, cls: 'bg-emerald-600', onClick: () => onUpdateQuoteStatus(q.id, 'onaylandi') }] : []),
@@ -303,7 +310,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     <>
       <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
       <div className="absolute right-0 top-9 z-40 w-48 rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left text-sm">
-        {PENDING_STATUSES.includes(quote.status) && !readOnly && (
+        {isPendingQuote(quote) && !readOnly && (
           <button onClick={() => { onUpdateQuoteStatus(quote.id, 'onaylandi'); setMenuFor(null); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-semibold"><Check className="w-4 h-4" /> Onayla</button>
         )}
         <button onClick={() => { onPrintQuote(quote); setMenuFor(null); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><Share2 className="w-4 h-4" /> Gönder / yazdır</button>
@@ -322,6 +329,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Durum">
               <option value="all">Tüm Teklifler</option>
               <option value="aktif">Beklemede</option>
+              <option value="pasif">Pasif (neden seçilmiş)</option>
               <option value="takip">Tekrar Görüşülecek ({followUpCount})</option>
               <option value="expiring">Süresi Dolanlar ({expiringCount})</option>
               <option value="onaylandi">Onaylandı</option>
@@ -431,7 +439,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               </div>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1 flex-wrap">
-                  <StatusPill status={quote.status} />
+                  <StatusPill status={viewStatus(quote)} />
                   {priceBadge(quote.id)}
                   {quote.status === 'gonderildi' && quote.lostReason && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
                   {extraBadges(quote)}
@@ -473,11 +481,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="block font-semibold text-slate-900 text-left hover:text-brand-700 leading-snug">{quote.customerName}</button>
                   </td>
                   <td className="py-3 px-3">
-                    <StatusPill status={quote.status} />
+                    <StatusPill status={viewStatus(quote)} />
                     {priceChanges.has(quote.id) && <span className="mt-1 block w-fit">{priceBadge(quote.id)}</span>}
                     {quote.status === 'gonderildi' && quote.lostReason && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
                     {needsFollowUp(quote) && !quote.followUpAt && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)</span>}
-                    {PENDING_STATUSES.includes(quote.status) && <span className="mt-1 flex flex-wrap gap-1">{extraBadges(quote)}</span>}
+                    {isPendingQuote(quote) && <span className="mt-1 flex flex-wrap gap-1">{extraBadges(quote)}</span>}
                   </td>
                   <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}<div className="text-xs">{quote.city || '-'}</div></td>
                   <td className="py-3 px-3 text-right font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</td>
@@ -552,16 +560,19 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Teklif Durumu
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className={`grid gap-2 ${isPassive(selectedQuote) ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                  {isPassive(selectedQuote) && <span className="p-2 rounded-lg text-xs font-bold border text-center bg-amber-500 text-white border-amber-600 shadow-sm" title="Neden seçildi: bekleyenlerde sayılmaz">Pasif</span>}
                   {(['gonderildi', 'onaylandi', 'iptal'] as QuoteStatus[]).map((st) => {
-                    const isCurrent = selectedQuote.status === st;
+                    const isCurrent = selectedQuote.status === st && !(st === 'gonderildi' && isPassive(selectedQuote));
                     const badge = getStatusBadge(st);
                     return (
                       <button
                         key={st}
                         onClick={() => {
-                          onUpdateQuoteStatus(selectedQuote.id, st);
-                          setSelectedQuote({ ...selectedQuote, status: st, lostReason: st === 'onaylandi' ? undefined : selectedQuote.lostReason });
+                          // Pasif teklifte "Beklemede"ye basmak nedeni kaldırır (yeniden karar bekler)
+                          const clear = st === 'gonderildi' && isPassive(selectedQuote);
+                          onUpdateQuoteStatus(selectedQuote.id, st, clear ? '' : undefined);
+                          setSelectedQuote({ ...selectedQuote, status: st, lostReason: st === 'onaylandi' || clear ? undefined : selectedQuote.lostReason });
                         }}
                         className={`p-2 rounded-lg text-xs font-bold border transition-all text-center ${
                           isCurrent
@@ -583,7 +594,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   };
                   return (
                     <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 space-y-2">
-                      <div className="text-[11px] font-bold text-slate-600">Neden bekliyor?</div>
+                      <div className="text-[11px] font-bold text-slate-600">Neden bekliyor? <span className="font-normal text-slate-500">· "{ACTIVE_REASONS.join('", "')}" dışındaki bir neden seçilirse teklif Pasif olur, bekleyenlerde sayılmaz</span></div>
+                      {isPassive(selectedQuote) && <div className="rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-[11px] font-bold text-amber-800">Pasif: bu teklif artık beklenmiyor. Nedeni kaldırırsanız yeniden Beklemede olur.</div>}
                       <div className="flex flex-wrap gap-1.5">
                         {PENDING_REASONS.map(r => (
                           <button key={r} onClick={() => save(cur.reason === r ? '' : r, reasonNote)}
@@ -601,7 +613,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     </div>
                   );
                 })()}
-                {selectedQuote.status === 'gonderildi' && onPatchQuote && (
+                {selectedQuote.status === 'gonderildi' && !isPassive(selectedQuote) && onPatchQuote && (
                   <div className="mt-2"><FollowUpBox quote={selectedQuote} onChange={d => setFollow(selectedQuote, d)} /></div>
                 )}
               </div>
@@ -736,7 +748,7 @@ export const CustomerQuotes: React.FC<{
   name: string;
   quotes: Quote[];
   netTry: Map<string, number>;
-  statusBadge: (s: QuoteStatus) => { label: string; color: string } | undefined;
+  statusBadge: (s: QuoteStatus | 'pasif') => { label: string; color: string } | undefined;
   onOpenQuote: (q: Quote) => void;
   onClose: () => void;
 }> = ({ name, quotes, netTry, statusBadge, onOpenQuote, onClose }) => {
@@ -746,7 +758,7 @@ export const CustomerQuotes: React.FC<{
   );
   const sum = (xs: Quote[]) => xs.reduce((t, q) => t + (netTry.get(q.id) || 0), 0);
   const approved = list.filter(q => q.status === 'onaylandi');
-  const pending = list.filter(q => PENDING_STATUSES.includes(q.status));
+  const pending = list.filter(q => isPendingQuote(q));
   const cancelled = list.filter(q => q.status === 'iptal');
   const city = list.find(q => q.city)?.city;
   const first = list[list.length - 1]?.createdAt;
@@ -796,7 +808,7 @@ export const CustomerQuotes: React.FC<{
           </div>
           <ul className="divide-y divide-slate-100">
             {list.map(q => {
-              const b = statusBadge(q.status);
+              const b = statusBadge(viewStatus(q));
               return (
                 <li key={q.id}>
                   <button onClick={() => onOpenQuote(q)} className="w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-brand-50/60 active:bg-brand-50">
