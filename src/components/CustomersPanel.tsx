@@ -191,13 +191,16 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       )
       // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customers, statsCache, deferredSearch, cityFilter, quoteFilter, statusFilter]);
+  // Ziyaret sekmelerinde yalnız aktif firmalar (pasif / kara liste uğrama planına girmez; durum filtresinden açıkça seçilirse görünür)
+  const inPlan = (c: Customer) => statusFilter !== 'all' || statusOf(c) === 'aktif';
   const visitCounts = useMemo(() => {
-    const visited = base.filter(({ c }) => !!c.lastVisit).length;
-    return { all: base.length, visited, not: base.length - visited };
-  }, [base]);
+    const plan = base.filter(({ c }) => inPlan(c));
+    const visited = plan.filter(({ c }) => !!c.lastVisit).length;
+    return { all: base.length, visited, not: plan.length - visited };
+  }, [base, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const filtered = useMemo(() => {
     return base
-      .filter(({ c }) => visitFilter === 'all' || (visitFilter === 'visited' ? !!c.lastVisit : !c.lastVisit))
+      .filter(({ c }) => visitFilter === 'all' || (inPlan(c) && (visitFilter === 'visited' ? !!c.lastVisit : !c.lastVisit)))
       .sort((a, b) => {
         let r = 0;
         switch (sort.key) {
@@ -213,7 +216,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         return (sort.dir === 'asc' ? r : -r) || trCompare(a.c.name, b.c.name);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, visitFilter, sort, rates, collections]);
+  }, [base, visitFilter, statusFilter, sort, rates, collections]);
 
   const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || visitFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
   const resetFilters = () => {
