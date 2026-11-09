@@ -56,7 +56,10 @@ const normalize = (s: string) => s.toLocaleLowerCase('tr');
 const isApproved = (q: Quote) => q.status === 'onaylandi';
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const visitTxt = (d: string) => d.split('-').reverse().join('.');
-type VisitFilter = 'all' | 'visited' | 'not';
+type VisitFilter = 'all' | 'visited' | 'not' | 'stale';
+/** 3 ay önceki gün (YYYY-MM-DD): bundan eski ya da hiç uğranmamış = "3 aydır uğranmadı" */
+const staleSince = () => { const d = new Date(); d.setMonth(d.getMonth() - 3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const isStale = (c: Customer, since: string) => !c.lastVisit || c.lastVisit < since;
 const tl = (n: number) => `${n.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} TL`;
 
 type CustomerSortKey = 'name' | 'city' | 'quotes' | 'approved' | 'pending' | 'total' | 'last' | 'balance';
@@ -196,11 +199,13 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const visitCounts = useMemo(() => {
     const plan = base.filter(({ c }) => inPlan(c));
     const visited = plan.filter(({ c }) => !!c.lastVisit).length;
-    return { all: base.length, visited, not: plan.length - visited };
+    const since = staleSince();
+    return { all: base.length, visited, not: plan.length - visited, stale: plan.filter(({ c }) => isStale(c, since)).length };
   }, [base, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const filtered = useMemo(() => {
+    const since = staleSince();
     return base
-      .filter(({ c }) => visitFilter === 'all' || (inPlan(c) && (visitFilter === 'visited' ? !!c.lastVisit : !c.lastVisit)))
+      .filter(({ c }) => visitFilter === 'all' || (inPlan(c) && (visitFilter === 'visited' ? !!c.lastVisit : visitFilter === 'stale' ? isStale(c, since) : !c.lastVisit)))
       .sort((a, b) => {
         let r = 0;
         switch (sort.key) {
@@ -345,10 +350,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             </div>
           </FilterBar>
           <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1" role="tablist" aria-label="Ziyaret durumu">
-            {([['all', 'Tümü'], ['visited', 'Uğradıklarım'], ['not', 'Uğramadıklarım']] as [VisitFilter, string][]).map(([k, label]) => (
+            {([['all', 'Tümü'], ['visited', 'Uğradıklarım'], ['not', 'Uğramadıklarım'], ['stale', 'Son 3 ayda uğramadıklarım']] as [VisitFilter, string][]).map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={visitFilter === k} onClick={() => { setVisitFilter(k); setPage(0); }}
                 className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border whitespace-nowrap ${visitFilter === k
-                  ? (k === 'visited' ? 'bg-emerald-600 border-emerald-600 text-white' : k === 'not' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-brand-600 border-brand-600 text-white')
+                  ? (k === 'visited' ? 'bg-emerald-600 border-emerald-600 text-white' : k === 'not' ? 'bg-amber-500 border-amber-500 text-white' : k === 'stale' ? 'bg-rose-600 border-rose-600 text-white' : 'bg-brand-600 border-brand-600 text-white')
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                 {label} <span className="tabular-nums opacity-80">{visitCounts[k]}</span>
               </button>
