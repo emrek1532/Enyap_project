@@ -647,11 +647,12 @@ async function handleShare(req: Request, url: URL): Promise<Response> {
     Response.redirect(new URL(`/?shared-pdf=${ok ? 1 : 0}${why ? `&why=${encodeURIComponent(why.slice(0, 300))}` : ''}`, url).toString(), 303);
   if (req.method !== 'POST') return back(false, `srv:${req.method}`);
   let file = null as File | null;
+  let sharedText = '';
   const seen: string[] = [];
   try {
     const form = await req.formData();
     form.forEach((v, k) => {
-      if (typeof v === 'string') seen.push(`${k}=txt(${v.slice(0, 40)})`);
+      if (typeof v === 'string') { seen.push(`${k}=txt(${v.slice(0, 40)})`); if ((k === 'text' || k === 'title') && v.trim()) sharedText = sharedText ? `${sharedText}\n${v.trim()}` : v.trim(); }
       else {
         seen.push(`${k}=file(${(v as File).type || '?'},${(v as File).size})`);
         if (!file && (v as File).size > 0) file = v as File;
@@ -659,6 +660,13 @@ async function handleShare(req: Request, url: URL): Promise<Response> {
     });
   } catch (e) {
     return back(false, `srv:form-hata ${(req.headers.get('content-type') || '').slice(0, 60)} ${String((e as Error)?.message || e)}`);
+  }
+  // Dosyasız yazı (WhatsApp mesajı): müşteri talebi olarak açılır
+  if (!file && sharedText) {
+    const t = JSON.stringify(sharedText.slice(0, 20000)).replace(/</g, '\\u003c');
+    return new Response(`<!doctype html><meta charset="utf-8"><title>Enyap Isı</title><body style="font-family:sans-serif;padding:24px">Talep açılıyor…
+<script>caches.open('enyap-share').then(c=>c.put('/shared-request',new Response(${t},{headers:{'content-type':'text/plain; charset=utf-8','x-kind':'text'}}))).then(()=>location.replace('/?shared-request=1'),()=>location.replace('/'));</script>`,
+      { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
   }
   if (!file) return back(false, `srv:dosya-yok [${seen.join(' ') || 'bos'}] ${(req.headers.get('content-type') || '').slice(0, 50)}`);
   if (file.size > 15_000_000) return back(false, 'srv:cok-buyuk');
@@ -671,9 +679,10 @@ async function handleShare(req: Request, url: URL): Promise<Response> {
 <script>
 const d=${data.replace(/</g, '\\u003c')};
 const u=Uint8Array.from(atob(d.b64),c=>c.charCodeAt(0));
+const r=!/pdf/i.test(d.type)&&!/\\.pdf$/i.test(d.name);
 caches.open('enyap-share')
-  .then(c=>c.put('/shared-pdf',new Response(new Blob([u],{type:d.type}),{headers:{'content-type':d.type,'x-file-name':encodeURIComponent(d.name)}})))
-  .then(()=>location.replace('/?shared-pdf=1'),()=>location.replace('/?shared-pdf=0'));
+  .then(c=>c.put(r?'/shared-request':'/shared-pdf',new Response(new Blob([u],{type:d.type}),{headers:{'content-type':d.type,'x-kind':'file','x-file-name':encodeURIComponent(d.name)}})))
+  .then(()=>location.replace(r?'/?shared-request=1':'/?shared-pdf=1'),()=>location.replace('/?shared-pdf=0'));
 </script>`;
   return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }

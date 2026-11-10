@@ -79,7 +79,10 @@ export const SimpleHome: React.FC<{
   showBalances?: boolean;
   /** Yönetici: ekibin yüklediği, kontrol bekleyen teklifler */
   reviewQuotes?: Quote[];
-}> = ({ reviewQuotes = [], quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
+  /** Bana atanan açık talepler */
+  myRequests?: { id: string; customerName: string; note?: string; createdAt: string }[];
+  onOpenRequest?: (id: string) => void;
+}> = ({ reviewQuotes = [], myRequests = [], onOpenRequest, quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -314,6 +317,23 @@ export const SimpleHome: React.FC<{
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_side']">
         {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
           <div className="lg:[grid-area:todo] min-w-0 flex flex-col gap-4 sm:gap-5 max-lg:order-1">
+            {myRequests.length > 0 && (
+              <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 sm:p-4">
+                <h3 className="text-sm font-black text-emerald-900 mb-2">Size atanan talepler ({myRequests.length})</h3>
+                <div className="space-y-1.5">
+                  {myRequests.slice(0, 5).map(r => (
+                    <button key={r.id} onClick={() => onOpenRequest?.(r.id)}
+                      className="w-full text-left rounded-xl bg-white border border-emerald-100 hover:border-emerald-300 px-3 py-2 flex items-center gap-2">
+                      <span className="flex-1 min-w-0">
+                        <span className="block truncate text-sm font-semibold text-slate-900">{r.customerName}</span>
+                        {r.note && <span className="block truncate text-[11px] text-slate-500">{r.note}</span>}
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-emerald-500 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             {reviewQuotes.length > 0 && (
               <section className="rounded-2xl border border-sky-200 bg-sky-50 p-3 sm:p-4">
                 <h3 className="text-sm font-black text-sky-900 mb-2">Kontrol bekleyen teklifler ({reviewQuotes.length})</h3>

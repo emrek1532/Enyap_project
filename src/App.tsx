@@ -42,6 +42,10 @@ import { needsFollowUp, quoteNo, supersededMap } from './lib/quoteRules';
 import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
 import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
+import { RequestsPanel, SharedRequestInput, readAndStore } from './components/RequestsPanel';
+import { Assignee, QuoteRequest, fetchAssignees, fetchRequest, fetchRequests, patchRequest, rowsToDraft, subscribeRequests } from './lib/requests';
+import { PREF_KEY, PrefRule } from './lib/requestRead';
+import { useSetting } from './lib/settings';
 import { BottomNav } from './components/BottomNav';
 import { readQuotePdf } from './lib/pdfQuote';
 import { AccessContext, Module, Profile, allowed, can, fetchMyProfile } from './lib/access';
@@ -142,7 +146,7 @@ function Gate({ session }: { session: Session }) {
 }
 
 // Üstteki "Menü" sırası
-const MENU_ORDER: Exclude<ActiveTab, 'home'>[] = ['quotes', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'];
+const MENU_ORDER: Exclude<ActiveTab, 'home'>[] = ['quotes', 'requests', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'];
 const MENU_TITLE: Partial<Record<ActiveTab, string>> = { collections: 'Tahsilat', expenses: 'Harcama' };
 
 // Kayıt türü → yetki bölümü (müşteriler ve hareketler tüm aktif kullanıcılara açık)
@@ -162,6 +166,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       case 'home': return true;
       case 'customers': return can(profile, 'customers');
       case 'quotes': return can(profile, 'quotes');
+      case 'requests': return can(profile, 'quotes');
       case 'reports': return can(profile, 'reports');
       case 'materials': return can(profile, 'materials') || can(profile, 'suppliers');
       case 'admin': return profile.isAdmin;
@@ -580,7 +585,80 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     if (q.items?.length) setPrintableQuote(q);
   };
 
+  // ---- Talepler: liste açılışta tek sorguyla, sonra canlı güncelleme ----
+  const canReq = can(profile, 'quotes');
+  const [requests, setRequests] = useState<QuoteRequest[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [readingReq, setReadingReq] = useState<Set<string>>(() => new Set());
+  const [openRequestId, setOpenRequestId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('open-request'));
+  const [sharedReq, setSharedReq] = useState<SharedRequestInput | null>(null);
+  const linkReqRef = useRef<string | null>(null);
+  const reqPrefs = useSetting<PrefRule[]>(PREF_KEY, [])[0];
+  const upsertReq = useCallback((r: QuoteRequest) => setRequests(list => [r, ...list.filter(x => x.id !== r.id)].sort((a, b) => b.createdAt.localeCompare(a.createdAt))), []);
+  useEffect(() => {
+    if (!canReq) return;
+    let off = false;
+    fetchRequests().then(r => { if (!off) setRequests(r); }).catch(() => undefined);
+    fetchAssignees().then(a => { if (!off) setAssignees(a); }).catch(() => undefined);
+    const unsub = subscribeRequests(id => { if (id) fetchRequest(id).then(r => { if (r && !off) upsertReq(r); }).catch(() => undefined); });
+    return () => { off = true; unsub(); };
+  }, [canReq, upsertReq]);
+  // Bildirimden açılan talep: Talepler sayfası (listede yoksa tek kayıt getirilir)
+  useEffect(() => {
+    if (!openRequestId || !canReq) return;
+    window.history.replaceState(window.history.state, '', '/');
+    setActiveTab('requests');
+    fetchRequest(openRequestId).then(r => r && upsertReq(r)).catch(() => undefined);
+  }, [openRequestId, canReq, upsertReq, setActiveTab]);
+  const openDraftFromRequest = (draft: Partial<Quote>, req: QuoteRequest) => {
+    linkReqRef.current = req.id;
+    setQuoteDraft(draft);
+    setIsNewQuoteOpen(true);
+  };
+  // Talebi oku ve sakla (arka planda); otomatik hazırla seçildiyse ardından teklif formu dolu açılır
+  const readReq = (r: QuoteRequest, auto = false) => {
+    if (readingReq.has(r.id)) return;
+    setReadingReq(s => new Set(s).add(r.id));
+    readAndStore(r, reqPrefs)
+      .then(async done => {
+        upsertReq(done);
+        if (auto && done.lines) {
+          const city = (data.customers || []).find(c => c.name === done.customerName)?.city;
+          const { draft } = await rowsToDraft(done.lines, done.customerName, data.quotes, { auto: true, city, note: done.note ? `Talep notu: ${done.note}` : undefined });
+          openDraftFromRequest(draft, done);
+        }
+      })
+      .catch(e => setShareError(`Talep okunamadı: ${(e as Error)?.message || ''} Talep kaydedildi; detayından "Talebi oku" ile tekrar deneyin.`))
+      .finally(() => setReadingReq(s => { const n = new Set(s); n.delete(r.id); return n; }));
+  };
+  // Paylaş menüsünden (WhatsApp) gelen yazı / fotoğraf / Excel: Talep gir formu dolu açılır
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('shared-request') === null) return;
+    window.history.replaceState(window.history.state, '', '/');
+    (async () => {
+      try {
+        const cache = await caches.open('enyap-share');
+        const res = await cache.match('/shared-request');
+        if (!res) { setShareError('Paylaşılan talep bulunamadı.'); return; }
+        await cache.delete('/shared-request');
+        const kind = res.headers.get('x-kind');
+        const name = decodeURIComponent(res.headers.get('x-file-name') || 'talep');
+        if (kind === 'text') setSharedReq({ text: await res.text() });
+        else setSharedReq({ file: new File([await res.blob()], name, { type: res.headers.get('content-type') || '' }), text: decodeURIComponent(res.headers.get('x-text') || '') || undefined });
+        setActiveTab('requests');
+      } catch {
+        setShareError('Paylaşılan talep açılamadı.');
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSaveQuote = (newQuote: Quote) => {
+    // Talepten hazırlandıysa talep "Teklif yüklendi" olur ve teklife bağlanır
+    if (linkReqRef.current) {
+      const rid = linkReqRef.current;
+      linkReqRef.current = null;
+      patchRequest(rid, { status: 'yuklendi', quoteId: newQuote.id }).then(upsertReq).catch(() => undefined);
+    }
     const activity = logActivity(
       'Yeni Teklif Talebi Açıldı',
       `${newQuote.customerName} için ${newQuote.quoteNumber} nolu talep oluşturuldu.`,
@@ -787,6 +865,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [ledgerView, setLedgerView] = useState<LedgerView | null>(null);
   const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, liveData, rates, undefined, activeTab === 'quotes' ? quoteView : null, ledgerView), [activeTab, liveData, rates, quoteView, ledgerView]);
   const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
+    : activeTab === 'requests' && toolAllow.quote ? { label: 'Talep gir', icon: Plus, onClick: bumpNew }
     : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
     : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
     : activeTab === 'customers' && canCustomers ? { label: 'Yeni Müşteri', icon: Plus, onClick: bumpNew }
@@ -857,6 +936,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               onOpenTool={openTool}
               followCount={liveQuotes.filter(needsFollowUp).length}
               reviewQuotes={profile.isAdmin ? liveQuotes.filter(q => q.reviewPending) : []}
+              myRequests={requests.filter(r => r.assignedTo === profile.id && (r.status === 'yeni' || r.status === 'hazirlaniyor'))}
+              onOpenRequest={id => setOpenRequestId(id)}
               syncStatus={syncStatus}
               onSync={() => performSync(true)}
               onSignOut={handleSignOut}
@@ -881,6 +962,27 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         
 
         <Suspense fallback={<PageSpinner />}>
+        {activeTab === 'requests' && (
+          <RequestsPanel
+            requests={requests}
+            customers={data.customers || []}
+            quotes={data.quotes}
+            meId={profile.id}
+            assignees={assignees}
+            canEdit={can(profile, 'quotes', 'edit')}
+            reading={readingReq}
+            onSaved={(r, o) => { upsertReq(r); if (o?.created && !r.lines && (r.rawText || r.files.length)) readReq(r, !!o.auto); }}
+            onRead={r => readReq(r)}
+            onDraft={openDraftFromRequest}
+            onOpenQuote={id => { const q = data.quotes.find(x => x.id === id); if (q) { setQuoteFilter('all'); setQuoteRange(null); setActiveTab('quotes'); setFocusQuote({ id: q.id, n: Date.now() }); } }}
+            openId={openRequestId}
+            onOpenedId={() => setOpenRequestId(null)}
+            newRequest={newRequest}
+            shared={sharedReq}
+            onSharedUsed={() => setSharedReq(null)}
+          />
+        )}
+
         {/* Tab 1: Teklifler (Kanban & List) */}
         {activeTab === 'quotes' && (
           <QuoteManager
@@ -1042,6 +1144,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             setPdfNotice('');
             setQuoteCustomer(null);
             setQuoteDraft(null);
+            linkReqRef.current = null;
           }}
         />
       )}

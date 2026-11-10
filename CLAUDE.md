@@ -12,6 +12,7 @@ Kullanıcı yazılım ve yapay zekâyı öğrenmek istiyor: her işte, yapılan 
 
 ## Dosya haritası (iş → bakılacak yer)
 - Teklif/müşteri/tahsilat/harcama ekranları: `src/components/*Manager|*Panel*.tsx`, ana sayfa `SimpleHome.tsx`, yönlendirme `src/App.tsx`.
+- Müşteri talepleri (Talepler, talep gir → ata → oku → teklife dönüştür): `RequestsPanel.tsx`, `lib/requests.ts`, tablo `quote_requests`; ayrıntı `docs/yapay-zeka.md`.
 - Veri, eşitleme, Supabase: `src/lib/db.ts`, `src/lib/supabase.ts`; şema `supabase/migrations/`; Edge Function'lar `supabase/functions/`.
 - Yapay zekâ uçları ve bildirimler: `worker/index.ts`.
 - Yetkiler: `src/lib/access.ts`. Para/sayı/tarih: `lib/money.ts`, `lib/num.ts`, `lib/dates.ts`.

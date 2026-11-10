@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Chip, PastList, ToolCard, pushPast, readPast } from './ToolCard';
-import { Bot, Camera, ChevronDown, Star, CheckCircle2, FileSpreadsheet, Loader2, Plus, Send, Settings2, Trash2, X } from 'lucide-react';
+import { Bot, Camera, ChevronDown, Star, FileSpreadsheet, Loader2, Plus, Send, Settings2, Trash2 } from 'lucide-react';
 import { Customer, Quote, QuoteItem } from '../types';
-import { Material, foldTr } from '../lib/materials';
+import { foldTr } from '../lib/materials';
 import { useSetting } from '../lib/settings';
 import { useQuoteAgent } from './useQuoteAgent';
-import { Match, PREF_KEY, PrefRule, ReqLine, excelToText, imageToDataUrl, listDiscounts, matchLine, readRequest } from '../lib/requestRead';
+import { RequestLines } from './RequestLines';
+import type { ReqRow } from '../lib/requests';
+import { PREF_KEY, PrefRule, excelToText, imageToDataUrl, listDiscounts, matchLine, readRequest } from '../lib/requestRead';
 
-type Row = ReqLine & { m: Match; pick: string | null; skip: boolean };
+type Row = ReqRow;
 
-const money = (m: Material) => (m.price > 0
-  ? `${m.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${m.currency === 'TRY' ? 'TL' : m.currency}` : 'fiyat yok');
 
 // Örnek istekler (dokununca kutuya yazılır; firma adını kendinize göre değiştirin)
 const EXAMPLES = [
@@ -90,7 +90,6 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
     run({ text: t });
   };
 
-  const update = (i: number, p: Partial<Row>) => setRows(prev => prev && prev.map((r, k) => (k === i ? { ...r, ...p } : r)));
   const open = rows?.filter(r => !r.skip && !r.pick).length || 0;
 
   const toQuote = async () => {
@@ -193,39 +192,7 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
             <input value={customer} onChange={e => setCustomer(e.target.value)} list="req-customers" placeholder="Firma (isteğe bağlı)"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm" />
             <datalist id="req-customers">{customers.map(c => <option key={c.id} value={c.name} />)}</datalist>
-            {rows.map((r, i) => (
-              <div key={i} className={`rounded-xl border p-2.5 space-y-1.5 ${r.skip ? 'opacity-50 border-slate-200' : r.pick ? 'border-emerald-200 bg-emerald-50/40' : 'border-amber-300 bg-amber-50/50'}`}>
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] text-slate-500">Talepte: <span className="font-semibold text-slate-700">"{r.text}"</span>{r.unsure && <span className="text-rose-600 font-bold"> · okunuşu belirsiz</span>}</div>
-                    <div className="text-sm font-bold text-slate-900">{r.item}</div>
-                  </div>
-                  <input type="number" min={0} step="any" value={r.qty} onChange={e => update(i, { qty: Number(e.target.value) || 0 })}
-                    className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-sm text-right tabular-nums" aria-label="Adet" />
-                  <button onClick={() => update(i, { skip: !r.skip })} title={r.skip ? 'Teklife ekle' : 'Bu satırı atla'} className="p-1 text-slate-500 hover:text-slate-700">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                {!r.skip && (r.m.cands.length ? (
-                  <div className="flex items-center gap-2">
-                    {r.pick ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <span className="w-4 h-4 rounded-full bg-amber-400 shrink-0" />}
-                    <select value={r.pick || ''} onChange={e => update(i, { pick: e.target.value || null })}
-                      className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
-                      <option value="">— ürün seçin ({r.m.cands.length} aday) —</option>
-                      {r.m.cands.map(c => <option key={c.code} value={c.code}>{c.name} · {c.code} · {money(c)}</option>)}
-                    </select>
-                  </div>
-                ) : <div className="text-xs text-rose-700">Katalogda bulunamadı: teklif formunda elle ekleyin ya da atlayın.</div>)}
-                {!r.skip && r.pick && (() => {
-                  const m = r.m.cands.find(c => c.code === r.pick);
-                  return m && (
-                    <div className="text-[11px] text-emerald-700 tabular-nums">
-                      <span className="font-mono">{m.code}</span> · {money(m)}{r.m.via === 'pref' ? ' · tercihli ürün kuralıyla seçildi' : ''}
-                    </div>
-                  );
-                })()}
-              </div>
-            ))}
+            <RequestLines rows={rows} onChange={setRows} />
             <button onClick={toQuote} disabled={!!busy || open > 0 || !rows.some(r => !r.skip && r.pick)}
               className="w-full py-2.5 rounded-xl bg-brand-600 text-white text-sm font-bold disabled:opacity-40">
               {open > 0 ? `${open} satırda ürün seçin ya da atlayın` : 'Teklif formuna aktar'}
