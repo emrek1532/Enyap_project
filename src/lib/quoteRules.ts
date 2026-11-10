@@ -100,6 +100,17 @@ export const quoteNo = (q: Pick<Quote, 'quoteNumber' | 'rev'>) =>
   q.rev ? `${revBase(q.quoteNumber)}-R${revOf(q.quoteNumber) + q.rev}` : q.quoteNumber;
 
 /**
+ * Üstüne yazılan teklifin revizyon sayısı (veritabanındaki quote_rev_bump tetikleyicisiyle aynı kural):
+ * eski kayıtta kalem/tutar varken kalemler ya da tutar değiştiyse 1 artar. Ekranda hemen "-R1" görünsün diye.
+ */
+export const nextRev = (prev: Pick<Quote, 'items' | 'totalAmount' | 'rev'> | undefined, next: Pick<Quote, 'items' | 'totalAmount'>) => {
+  const base = prev?.rev || 0;
+  if (!prev || (!(prev.items?.length) && !prev.totalAmount)) return base;
+  const changed = JSON.stringify(prev.items || []) !== JSON.stringify(next.items || []) || Number(prev.totalAmount || 0) !== Number(next.totalAmount || 0);
+  return changed ? base + 1 : base;
+};
+
+/**
  * Aynı numaranın daha yeni revizyonu ayrı kayıt olarak girilmişse ("63470" → "63470-R1") eskisi geride kalır:
  * listelerde, bekleyenlerde ve raporlarda sayılmaz. Dönen harita: eski kayıt id → güncel kayıt.
  */
