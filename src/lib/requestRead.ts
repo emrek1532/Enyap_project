@@ -177,12 +177,16 @@ const dedupe = (ms: Material[]) => [...new Map(ms.map(m => [m.code, m] as [strin
 
 /** Telefon/Excel'in akıllı tırnakları inç işaretine: 4’’ 4‘‘ 4´´ 4′′ → 4" */
 const inchNorm = (s: string) => s.replace(/(\d)\s*(’’|‘‘|´´|``|′′|‟)/g, '$1"');
+/** Ondalıkla yazılan boru ölçüsü inçe: "2,5 dirsek" → 2 1/2" (yanında birim varsa dokunulmaz: 2,5 kw, 1,5 mm) */
+const DEC_INCH: Record<string, string> = { '0,5': '1/2', '0,75': '3/4', '1,25': '1 1/4', '1,5': '1 1/2', '2,5': '2 1/2' };
+const decInch = (s: string) => (/"/.test(s) ? s : s.replace(/(^|[^0-9.,])(0,5|0,75|1,25|1,5|2,5)(?=\s+(?!(kw|w|mm|cm|m|mt|metre|m2|m3|lt|litre|bar|kg|ton|kva|amp?|a|v)\b)[a-zçğıöşü])/gi,
+  (_, pre, d) => `${pre}${DEC_INCH[d]}"`));
 
 export interface Match { cands: Material[]; pick: string | null; via: 'pref' | 'unique' | 'choose' | 'none' }
 
 /** Bir talep satırı için katalog adayları ve (kesinse) seçim */
 export async function matchLine(line: ReqLine, prefs: PrefRule[]): Promise<Match> {
-  line = { ...line, item: inchNorm(line.item), text: inchNorm(line.text) };
+  line = { ...line, item: decInch(inchNorm(line.item)), text: inchNorm(line.text) };
   const f = foldTr(`${line.item} ${line.text}`);
   const size = sizeOf(line.item);
   const spareOk = SPARE.test(f);
