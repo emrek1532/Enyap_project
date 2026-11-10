@@ -69,8 +69,8 @@ export const StatusPill: React.FC<{ status: string }> = ({ status }) => {
 };
 
 /** Satır simge düğmesi */
-export const IconBtn: React.FC<{ title: string; onClick: () => void; children: React.ReactNode; danger?: boolean }> = ({ title, onClick, children, danger }) => (
-  <button type="button" title={title} aria-label={title} onClick={e => { e.stopPropagation(); onClick(); }}
+export const IconBtn: React.FC<{ title: string; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode; danger?: boolean }> = ({ title, onClick, children, danger }) => (
+  <button type="button" title={title} aria-label={title} onClick={e => { e.stopPropagation(); onClick(e); }}
     className={`w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${danger ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50' : 'text-brand-600 hover:bg-brand-50'}`}>
     {children}
   </button>
