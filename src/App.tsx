@@ -980,8 +980,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             meId={profile.id}
             assignees={assignees}
             canEdit={can(profile, 'quotes', 'edit')}
+            canAi={allowed(profile, 'reqAi')}
             reading={readingReq}
-            onSaved={(r, o) => { upsertReq(r); if (o?.created && !r.lines && (r.rawText || r.files.length)) readReq(r, !!o.auto); }}
+            onSaved={(r, o) => { upsertReq(r); if (o?.created && allowed(profile, 'reqAi') && !r.lines && (r.rawText || r.files.length)) readReq(r, !!o.auto); }}
             onRead={r => readReq(r)}
             onDraft={openDraftFromRequest}
             onOpenQuote={id => { const q = data.quotes.find(x => x.id === id); if (q) { setQuoteFilter('all'); setQuoteRange(null); setActiveTab('quotes'); setFocusQuote({ id: q.id, n: Date.now() }); } }}
