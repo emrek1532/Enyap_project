@@ -10,7 +10,7 @@ import { Material, MATERIAL_UNITS, foldTr, rememberMaterial } from '../lib/mater
 import { SuggestInput } from './SuggestInput';
 import { DecimalInput } from './DecimalInput';
 import { MaterialPicker } from './MaterialPicker';
-import { nextQuoteNumber } from '../lib/quoteRules';
+import { nextQuoteNumber, quoteNo, revBase, revOf } from '../lib/quoteRules';
 import { allowed, useAccess } from '../lib/access';
 import { supabase } from '../lib/supabase';
 import { shareQuoteWithMe } from '../lib/db';
@@ -64,7 +64,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   draft = null,
   initialPdf = null,
   pdfNotice = '',
-  onOpenExisting,
   requireCheck = false,
 }) => {
   const [checked, setChecked] = useState(false);
@@ -740,18 +739,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
             )}
             {existing && !isEdit && (
-              <div className="text-xs rounded-md px-3 py-2.5 bg-amber-50 text-amber-900 border border-amber-300 space-y-2">
-                <div>
-                  <b>Bu teklif sistemde zaten var:</b> {existing.q.quoteNumber} · {existing.q.customerName} · {dayOf(existing.q.createdAt).split('-').reverse().join('.')} · {formatQuoteAmount(existing.q)}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {onOpenExisting && (
-                    <button type="button" onClick={() => onOpenExisting(existing.q, existing.file)}
-                      className="px-3 py-1.5 rounded-md bg-amber-600 text-white font-bold">Mevcut teklifi bu PDF ile güncelle (revize)</button>
-                  )}
-                  <button type="button" onClick={() => setExisting(null)}
-                    className="px-3 py-1.5 rounded-md bg-white border border-amber-300 font-bold">Üstüne yaz (tek kayıt)</button>
-                </div>
+              <div className="text-xs rounded-md px-3 py-2.5 bg-amber-50 text-amber-900 border border-amber-300">
+                <b>Bu teklif sistemde zaten var:</b> {quoteNo(existing.q)} · {existing.q.customerName} · {dayOf(existing.q.createdAt).split('-').reverse().join('.')} · {formatQuoteAmount(existing.q)}
+                <div className="mt-1">Kaydedince yeni kayıt açılmaz, mevcut teklifin üstüne yazılır. Kalemler/tutar değiştiyse numara revize olur (ör. {revBase(existing.q.quoteNumber)}-R{revOf(existing.q.quoteNumber) + (existing.q.rev || 0) + 1}).</div>
               </div>
             )}
             {isEdit && pdfMeta && (
@@ -818,7 +808,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              {localDup && !isEdit && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no sistemde var; kaydedince yeni kayıt açılmaz, mevcut teklifin üstüne yazılır.</p>}
+              {localDup && !isEdit && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no sistemde var; kaydedince yeni kayıt açılmaz, mevcut teklifin üstüne yazılır (değiştiyse -R1, -R2… olur).</p>}
               {localDup && isEdit && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no başka bir teklifte de var.</p>}
             </div>
 

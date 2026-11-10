@@ -38,7 +38,7 @@ import { Header, BandTools } from './components/Header';
 import type { ActiveTab } from './components/Sections';
 import { PageHeader, SECTION_META, SECTION_SUB } from './components/Sections';
 import { Sidebar } from './components/Sidebar';
-import { needsFollowUp, quoteNo, supersededMap } from './lib/quoteRules';
+import { needsFollowUp, nextRev, quoteNo, supersededMap } from './lib/quoteRules';
 import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
 import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
@@ -582,7 +582,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     setQuoteFilter('all');
     setActiveTab('quotes');
     setFocusQuote({ id: q.id, n: Date.now() });
-    if (q.items?.length) setPrintableQuote(q);
+    if (q.items?.length) setPrintableQuote({ ...q, quoteNumber: quoteNo(q) });
   };
 
   // ---- Talepler: liste açılışta tek sorguyla, sonra canlı güncelleme ----
@@ -652,7 +652,10 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSaveQuote = (newQuote: Quote) => {
+  const handleSaveQuote = (saved: Quote) => {
+    // Mevcut teklifin üstüne yazıldıysa revizyon sayısı hemen artar (veritabanı da aynısını yapar)
+    const prevQ = data.quotes.find(q => q.id === saved.id);
+    const newQuote = prevQ ? { ...saved, rev: nextRev(prevQ, saved) } : saved;
     // Talepten hazırlandıysa talep "Teklif yüklendi" olur ve teklife bağlanır
     if (linkReqRef.current) {
       const rid = linkReqRef.current;
@@ -680,16 +683,17 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     setQuoteFilter('all');
     setActiveTab('quotes');
     // Teklif çıktısı hemen açılır: buradan PDF'i WhatsApp ile gönderebilir ya da yazdırabilirsiniz
-    if (newQuote.items?.length) setPrintableQuote(newQuote);
+    if (newQuote.items?.length) setPrintableQuote({ ...newQuote, quoteNumber: quoteNo(newQuote) });
   };
 
   // Mevcut teklifi düzenle / revize et
   const handleUpdateQuote = (edited: Quote, opts?: { fromPdf: boolean }) => {
     // Düzenleme açıkken başka cihazdan durum değiştiyse (onay/iptal) eski durum geri yazılmaz
     const latest = data.quotes.find(q => q.id === edited.id);
-    const updated = latest && editingQuote && edited.status === editingQuote.status && latest.status !== editingQuote.status
+    const merged = latest && editingQuote && edited.status === editingQuote.status && latest.status !== editingQuote.status
       ? { ...edited, status: latest.status, lostReason: latest.lostReason }
       : edited;
+    const updated = latest ? { ...merged, rev: nextRev(latest, merged) } : merged;
     const activity = logActivity(
       'Teklif Revize Edildi',
       `${updated.customerName} için ${updated.quoteNumber} nolu teklif güncellendi.`,
