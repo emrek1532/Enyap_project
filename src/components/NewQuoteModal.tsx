@@ -83,7 +83,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     editQuote && editQuote.quoteNumber && editQuote.quoteNumber !== '-' ? editQuote.quoteNumber : '',
   );
   const typedNo = quoteNoInput.trim();
-  const localDup = !!typedNo && quotes.some(q => q.id !== editQuote?.id && (q.quoteNumber || '').trim().toLocaleUpperCase('tr') === typedNo.toLocaleUpperCase('tr'));
+  // Aynı numaralı (görünen) teklif: yeni teklifte kaydedince yeni kayıt açılmaz, en sonuncusunun üstüne yazılır
+  const localMatch = typedNo ? quotes.filter(q => q.id !== editQuote?.id && (q.quoteNumber || '').trim().toLocaleUpperCase('tr') === typedNo.toLocaleUpperCase('tr'))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0] : undefined;
+  const localDup = !!localMatch;
   // Kendi tekliflerini gören kullanıcı başkasının teklifini göremez; teklif no sunucuda herkesinkiyle karşılaştırılır
   // (yalnız firma, tarih ve ekleyen döner; tutar dönmez)
   const [remoteDup, setRemoteDup] = useState<{ id: string; customer: string; date: string; owner: string } | null>(null);
@@ -529,6 +532,29 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       return;
     }
 
+    // Teklif no bende zaten varsa: yeni kayıt açılmaz, mevcut teklifin üstüne yazılır (numara, durum, tarih korunur)
+    if (localMatch) {
+      onSaveQuote({
+        ...localMatch,
+        quoteNumber: typedNo || localMatch.quoteNumber,
+        customerName: customerName.trim(),
+        city: city.trim(),
+        items: filledItems,
+        totalAmount: totalQuoteAmount,
+        currency: quoteCurrency,
+        amountTry: totalsByCurrency.TRY,
+        amountUsd: totalsByCurrency.USD,
+        amountEur: totalsByCurrency.EUR,
+        imported: false,
+        notes: notes.trim() || localMatch.notes,
+        paymentTerm: paymentTerm || localMatch.paymentTerm,
+        preparedBy: localMatch.preparedBy || pdfMeta?.preparedBy,
+        updatedAt: new Date().toISOString(),
+      }, { fromPdf: !!pdfMeta });
+      onClose();
+      return;
+    }
+
     // Teklif no sistemde başkasında varsa: yeni kayıt açılmaz, o teklif bana da açılıp güncellenir
     if (remoteDup) {
       const dup = remoteDup;
@@ -718,7 +744,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       className="px-3 py-1.5 rounded-md bg-amber-600 text-white font-bold">Mevcut teklifi bu PDF ile güncelle (revize)</button>
                   )}
                   <button type="button" onClick={() => setExisting(null)}
-                    className="px-3 py-1.5 rounded-md bg-white border border-amber-300 font-bold">Yine de yeni teklif aç</button>
+                    className="px-3 py-1.5 rounded-md bg-white border border-amber-300 font-bold">Üstüne yaz (tek kayıt)</button>
                 </div>
               </div>
             )}
@@ -786,7 +812,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              {localDup && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no başka bir teklifte de var.</p>}
+              {localDup && !isEdit && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no sistemde var; kaydedince yeni kayıt açılmaz, mevcut teklifin üstüne yazılır.</p>}
+              {localDup && isEdit && <p className="col-span-2 sm:col-span-12 text-[11px] text-amber-700 -mt-1">Bu teklif no başka bir teklifte de var.</p>}
             </div>
 
             {/* Kalemler */}
@@ -959,7 +986,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             onClick={() => (document.getElementById('newQuoteForm') as HTMLFormElement | null)?.requestSubmit()}
             className="px-5 py-2 rounded-md bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold text-sm shadow-sm"
           >
-            {saving ? 'Kaydediliyor…' : isEdit ? 'Değişiklikleri Kaydet' : remoteDup ? 'Mevcut Teklifi Güncelle' : 'Teklifi Kaydet'}
+            {saving ? 'Kaydediliyor…' : isEdit ? 'Değişiklikleri Kaydet' : (remoteDup || localDup) ? 'Mevcut Teklifi Güncelle' : 'Teklifi Kaydet'}
           </button>
         </div>
       </div>
