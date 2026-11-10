@@ -1,7 +1,7 @@
 import { trNum } from './num';
 import { AppData, Collection, Expense, Quote } from '../types';
 import { dayOf } from './dates';
-import { isPendingQuote, needsFollowUp } from './quoteRules';
+import { isPassive, isPendingQuote, needsFollowUp } from './quoteRules';
 import { Rates, quoteTry } from './rates';
 
 /** Sayfa başlığındaki (koyu bant) özet rakam */
@@ -11,6 +11,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const lira = (v: number) => `₺ ${trNum(Math.round(v))}`;
 const n = (v: number) => trNum(v);
+/** Bekleyen + pasif: "8 teklif · 3 pasif" */
+const pendSub = (l: Quote[]) => { const p = l.filter(isPassive).length; return `${n(l.length)} teklif${p ? ` · ${n(p)} pasif` : ''}`; };
 const sumTry = (l: (Collection | Expense)[]) => l.filter(x => (x.currency || 'TRY') === 'TRY').reduce((t, x) => t + (x.amount || 0), 0);
 
 /**
@@ -36,26 +38,26 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
   if (tab === 'quotes' && view) {
     const all = view.quotes.filter(q => q.status !== 'iptal');
     const won = all.filter(q => q.status === 'onaylandi');
-    const pend = view.quotes.filter(q => isPendingQuote(q));
+    const pend = view.quotes.filter(q => q.status === 'gonderildi');
     const follow = view.quotes.filter(needsFollowUp).length;
     const av = all.reduce((a, q) => a + qv(q), 0), wv = won.reduce((a, q) => a + qv(q), 0);
     return [
       { label: `${view.label} verilen`, value: lira(av), sub: `${n(all.length)} teklif` },
       { label: `${view.label} onaylanan`, value: lira(wv), sub: `${n(won.length)} teklif · %${av ? Math.round((wv / av) * 100) : 0} dönüşüm` },
-      { label: `${view.label} bekleyen`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: `${n(pend.length)} teklif` },
+      { label: `${view.label} bekleyen + pasif`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: pendSub(pend) },
       { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
     ];
   }
   if (tab === 'quotes') {
     const month = quotes.filter(q => inR(q.createdAt, mFrom) && q.status !== 'iptal');
     const won = month.filter(q => q.status === 'onaylandi');
-    const pend = month.filter(q => isPendingQuote(q));
+    const pend = month.filter(q => q.status === 'gonderildi');
     const follow = quotes.filter(needsFollowUp).length;
     const mv = month.reduce((a, q) => a + qv(q), 0), wv = won.reduce((a, q) => a + qv(q), 0);
     return [
       { label: 'Bu ay verilen', value: lira(mv), sub: `${n(month.length)} teklif` },
       { label: 'Bu ay onaylanan', value: lira(wv), sub: `${n(won.length)} teklif · %${mv ? Math.round((wv / mv) * 100) : 0} dönüşüm` },
-      { label: 'Bu ay bekleyen', value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: `${n(pend.length)} teklif` },
+      { label: 'Bu ay bekleyen + pasif', value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: pendSub(pend) },
       { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
     ];
   }
