@@ -594,7 +594,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [sharedReq, setSharedReq] = useState<SharedRequestInput | null>(null);
   const linkReqRef = useRef<string | null>(null);
   const reqPrefs = useSetting<PrefRule[]>(PREF_KEY, [])[0];
-  const upsertReq = useCallback((r: QuoteRequest) => setRequests(list => [r, ...list.filter(x => x.id !== r.id)].sort((a, b) => b.createdAt.localeCompare(a.createdAt))), []);
+  const upsertReq = useCallback((r: QuoteRequest) => setRequests(list => [...(r.deletedAt ? [] : [r]), ...list.filter(x => x.id !== r.id)].sort((a, b) => b.createdAt.localeCompare(a.createdAt))), []);
   useEffect(() => {
     if (!canReq) return;
     let off = false;
