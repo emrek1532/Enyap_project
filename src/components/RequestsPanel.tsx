@@ -6,6 +6,8 @@ import { RequestLines, openCount } from './RequestLines';
 import { useSetting } from '../lib/settings';
 import { PREF_KEY, PrefRule } from '../lib/requestRead';
 import { foldTr } from '../lib/materials';
+import { findCustomer } from '../lib/customers';
+import { SuggestInput } from './SuggestInput';
 import {
   Assignee, QuoteRequest, REQUEST_STATUS, ReqRow, RequestStatus, createRequest, fileUrl, patchRequest, readRequestLines, rowsToDraft,
 } from '../lib/requests';
@@ -164,7 +166,19 @@ const RequestForm: React.FC<{
   const [to, setTo] = useState<string>(others[0]?.id || meId);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
-  const known = customers.some(c => c.name === customer);
+  const match = findCustomer(customers, customer);
+  // Teklif formundaki gibi: yazdıkça carilerden öneri (kelimelerin hepsi geçen, baştan eşleşen önce), Enter / Tab ile seçilir
+  const suggestions = useMemo(() => {
+    const q = foldTr(customer.trim());
+    if (!q || customers.some(c => foldTr(c.name) === q)) return [];
+    const toks = q.split(/\s+/);
+    return customers
+      .map(c => ({ c, f: foldTr(c.name) }))
+      .filter(x => toks.every(t => x.f.includes(t)))
+      .sort((a, b) => Number(b.f.startsWith(q)) - Number(a.f.startsWith(q)) || a.f.localeCompare(b.f, 'tr'))
+      .slice(0, 8)
+      .map(x => x.c);
+  }, [customers, customer]);
   // Seçilen dosyalar hemen diziye alınır (input sıfırlanınca liste boşalmasın)
   const add = (l: FileList | null) => { const picked = l ? Array.from(l) : []; if (picked.length) setFiles(f => [...f, ...picked].slice(0, 6)); };
 
@@ -173,7 +187,7 @@ const RequestForm: React.FC<{
     if (!text.trim() && !files.length) { setErr('Talep yazısı ya da dosya ekleyin.'); return; }
     setErr(''); setBusy(files.length ? 'Dosyalar yükleniyor…' : 'Kaydediliyor…');
     try {
-      const r = await createRequest({ customerName: customer, note, rawText: text, files, assignedTo: auto ? meId : to, status: auto ? 'hazirlaniyor' : 'yeni' });
+      const r = await createRequest({ customerName: match?.name || customer, note, rawText: text, files, assignedTo: auto ? meId : to, status: auto ? 'hazirlaniyor' : 'yeni' });
       onSaved(r, auto);
     } catch (e) {
       setErr((e as Error)?.message || 'Kaydedilemedi'); setBusy('');
@@ -184,9 +198,29 @@ const RequestForm: React.FC<{
     <Modal title="Talep gir" sub="Müşterinin talebini yükleyin; atanan kişiye bildirim gider." onClose={onClose}>
       <div>
         <label className={label}>Müşteri</label>
-        <input value={customer} onChange={e => setCustomer(e.target.value)} list="req-form-customers" placeholder="Cari adı yazın, listeden seçin" className={input} autoFocus />
-        <datalist id="req-form-customers">{customers.map(c => <option key={c.id} value={c.name}>{c.city || ''}</option>)}</datalist>
-        {customer.trim() && !known && <p className="text-[11px] text-amber-700 mt-1">Carilerde bu ad yok; doğru yazıldığından emin olun.</p>}
+        <SuggestInput<Customer>
+          value={customer}
+          placeholder="Yazın, Enter / Tab ile seçin"
+          onChange={setCustomer}
+          onPick={c => setCustomer(c.name)}
+          suggestions={suggestions}
+          getKey={c => c.id}
+          inputClassName={input}
+          autoFocus
+          dataAttrs={{ 'data-req-customer': '1' }}
+          renderItem={c => (
+            <span className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-semibold text-slate-800 truncate">{c.name}</span>
+              <span className="text-xs text-slate-500 shrink-0">{c.city}</span>
+            </span>
+          )}
+        />
+        {match && match.status && match.status !== 'aktif' && (
+          <p className={`mt-1 text-[11px] font-bold rounded-md px-2 py-1 ${match.status === 'kara_liste' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>
+            {match.status === 'kara_liste' ? '⚠ Bu firma kara listede' : 'Bu firma pasif'}{match.statusNote ? `: ${match.statusNote}` : ''}
+          </p>
+        )}
+        {customer.trim() && !match && !suggestions.length && <p className="text-[11px] text-amber-700 mt-1">Carilerde bu ad yok; doğru yazıldığından emin olun.</p>}
       </div>
       <div>
         <label className={label}>Talep (WhatsApp yazısı)</label>

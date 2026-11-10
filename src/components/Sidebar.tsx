@@ -1,7 +1,7 @@
 import React from 'react';
 import { Home } from 'lucide-react';
 
-export type SideSection = { id: string; title: string; icon: React.ElementType };
+export type SideSection = { id: string; title: string; icon: React.ElementType; badge?: number };
 
 /** Kullanıcı adının baş harfleri (avatar) */
 export const initials = (name: string) =>
@@ -22,14 +22,15 @@ export const Sidebar: React.FC<{
   userEmail: string;
   roleLabel: string;
 }> = ({ sections, active, onOpen, onHome, tools, userName, userEmail, roleLabel }) => {
-  const item = (id: string, title: string, Icon: React.ElementType, onClick: () => void) => {
+  const item = (id: string, title: string, Icon: React.ElementType, onClick: () => void, badge = 0) => {
     const on = active === id;
     return (
       <button key={id} onClick={onClick} aria-current={on ? 'page' : undefined}
         className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${on
           ? 'bg-gradient-to-r from-brand-500 to-sky-500 text-white shadow-[0_8px_20px_-8px_rgba(14,140,240,0.8)]'
           : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
-        <Icon className="w-5 h-5 shrink-0" /> <span className="truncate">{title}</span>
+        <Icon className="w-5 h-5 shrink-0" /> <span className="truncate flex-1 text-left">{title}</span>
+        {badge > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-black flex items-center justify-center tabular-nums" aria-label={`${badge} bekleyen`}>{badge > 99 ? '99+' : badge}</span>}
       </button>
     );
   };
@@ -41,7 +42,7 @@ export const Sidebar: React.FC<{
       </button>
       <nav className="flex-1 overflow-y-auto px-3 space-y-1">
         {item('home', 'Ana Sayfa', Home, onHome)}
-        {sections.map(s => item(s.id, s.title, s.icon, () => onOpen(s.id)))}
+        {sections.map(s => item(s.id, s.title, s.icon, () => onOpen(s.id), s.badge))}
       </nav>
       <div className="m-3 p-3 rounded-2xl bg-white/5 border border-white/10">
         <div className="flex items-center gap-3">

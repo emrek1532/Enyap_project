@@ -1,6 +1,6 @@
 // Enyap Isı Portalı service worker: uygulama kabuğunu önbelleğe alır,
 // böylece portal mobilde çevrimdışıyken de açılır. Supabase istekleri önbelleğe alınmaz.
-const CACHE = 'enyap-shell-v12';
+const CACHE = 'enyap-shell-v13';
 // WhatsApp vb. uygulamalardan "Paylaş" ile gelen PDF burada bekletilir, uygulama açılınca okunur
 const SHARE_CACHE = 'enyap-share';
 const SHELL = ['/', '/index.html', '/icon.svg', '/logo.png', '/icon-192.png', '/icon-512.png', '/logo-splash.png'];
@@ -97,10 +97,14 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = { title: 'Enyap', body: event.data ? event.data.text() : '' }; }
-  event.waitUntil(self.registration.showNotification(d.title || 'Enyap', {
+  // Uygulama simgesindeki sayı (bekleyen talep + kontrol bekleyen teklif); uygulama kapalıyken de güncellenir
+  const setBadge = typeof d.badge === 'number' && self.navigator && 'setAppBadge' in self.navigator
+    ? (d.badge > 0 ? self.navigator.setAppBadge(d.badge) : self.navigator.clearAppBadge()).catch(() => undefined)
+    : Promise.resolve();
+  event.waitUntil(Promise.all([setBadge, self.registration.showNotification(d.title || 'Enyap', {
     body: d.body || '', tag: d.tag, data: { url: d.url || '/' },
     icon: '/icon-192.png', badge: '/icon-192.png', vibrate: [120, 60, 120],
-  }));
+  })]));
 });
 
 self.addEventListener('notificationclick', (event) => {
