@@ -42,20 +42,20 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
     return [
       { label: `${view.label} verilen`, value: lira(av), sub: `${n(all.length)} teklif` },
       { label: `${view.label} onaylanan`, value: lira(wv), sub: `${n(won.length)} teklif · %${av ? Math.round((wv / av) * 100) : 0} dönüşüm` },
-      { label: 'Bekleyen', value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: `${n(pend.length)} teklif` },
+      { label: `${view.label} bekleyen`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: `${n(pend.length)} teklif` },
       { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
     ];
   }
   if (tab === 'quotes') {
     const month = quotes.filter(q => inR(q.createdAt, mFrom) && q.status !== 'iptal');
     const won = month.filter(q => q.status === 'onaylandi');
-    const pend = quotes.filter(q => isPendingQuote(q));
+    const pend = month.filter(q => isPendingQuote(q));
     const follow = quotes.filter(needsFollowUp).length;
     const mv = month.reduce((a, q) => a + qv(q), 0), wv = won.reduce((a, q) => a + qv(q), 0);
     return [
       { label: 'Bu ay verilen', value: lira(mv), sub: `${n(month.length)} teklif` },
       { label: 'Bu ay onaylanan', value: lira(wv), sub: `${n(won.length)} teklif · %${mv ? Math.round((wv / mv) * 100) : 0} dönüşüm` },
-      { label: 'Bekleyen', value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: `${n(pend.length)} teklif` },
+      { label: 'Bu ay bekleyen', value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: `${n(pend.length)} teklif` },
       { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
     ];
   }
