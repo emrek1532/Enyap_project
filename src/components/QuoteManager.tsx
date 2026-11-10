@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X } from 'lucide-react';
@@ -91,6 +92,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  /** "Diğer" menüsünün konumu: satırlar kırpılan (overflow-hidden) kutuda olduğu için menü body'ye taşınır */
+  const [menuPos, setMenuPos] = useState<React.CSSProperties>({});
+  const openMenu = (e: React.MouseEvent<HTMLButtonElement>, id: string) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const right = Math.max(8, window.innerWidth - r.right);
+    setMenuPos(window.innerHeight - r.bottom < 180 ? { right, bottom: window.innerHeight - r.top + 4 } : { right, top: r.bottom + 4 });
+    setMenuFor(id);
+  };
   const [showMore, setShowMore] = useState(false);
   const [cityFilter, setCityFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState(initialRange?.from || '');
@@ -310,17 +319,18 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const savedActive = (f: SavedFilter) => f.status === statusFilter && f.city === cityFilter && (f.search || '') === searchTerm
     && (f.preset ? f.preset === activePreset : (f.from || '') === dateFrom && (f.to || '') === dateTo);
 
-  const moreMenu = (quote: Quote) => menuFor === quote.id && (
-    <>
-      <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
-      <div className="absolute right-0 top-9 z-40 w-48 rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left text-sm">
+  const moreMenu = (quote: Quote) => menuFor === quote.id && createPortal(
+    <div onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
+      <div className="fixed inset-0 z-[60]" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
+      <div style={menuPos} className="fixed z-[61] w-48 rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left text-sm">
         {isPendingQuote(quote) && !readOnly && (
           <button onClick={() => { onUpdateQuoteStatus(quote.id, 'onaylandi'); setMenuFor(null); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-semibold"><Check className="w-4 h-4" /> Onayla</button>
         )}
         <button onClick={() => { onPrintQuote(quote); setMenuFor(null); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><Share2 className="w-4 h-4" /> Gönder / yazdır</button>
         <button onClick={() => { setCustomerView(quote.customerName); setMenuFor(null); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-slate-700"><FileText className="w-4 h-4" /> Müşterinin teklifleri</button>
       </div>
-    </>
+    </div>,
+    document.body
   );
 
   return (
@@ -451,7 +461,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <div className="relative flex items-center shrink-0">
                   <IconBtn title="Detay" onClick={() => setSelectedQuote(quote)}><Eye className="w-4 h-4" /></IconBtn>
                   {!readOnly && <IconBtn title="Düzenle / Revize Et" onClick={() => onEditQuote(quote)}><Pencil className="w-4 h-4" /></IconBtn>}
-                  <IconBtn title="Diğer" onClick={() => setMenuFor(quote.id)}><MoreHorizontal className="w-4 h-4" /></IconBtn>
+                  <IconBtn title="Diğer" onClick={e => openMenu(e, quote.id)}><MoreHorizontal className="w-4 h-4" /></IconBtn>
                   {moreMenu(quote)}
                 </div>
               </div>
@@ -497,7 +507,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     <div className="relative flex items-center justify-center gap-0.5">
                       <IconBtn title="Detay" onClick={() => setSelectedQuote(quote)}><Eye className="w-4 h-4" /></IconBtn>
                       {!readOnly && <IconBtn title="Düzenle / Revize Et" onClick={() => onEditQuote(quote)}><Pencil className="w-4 h-4" /></IconBtn>}
-                      <IconBtn title="Diğer" onClick={() => setMenuFor(quote.id)}><MoreHorizontal className="w-4 h-4" /></IconBtn>
+                      <IconBtn title="Diğer" onClick={e => openMenu(e, quote.id)}><MoreHorizontal className="w-4 h-4" /></IconBtn>
                       {moreMenu(quote)}
                     </div>
                   </td>
