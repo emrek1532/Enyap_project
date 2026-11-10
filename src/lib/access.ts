@@ -7,7 +7,7 @@ import { supabase } from './supabase';
 
 export type Module = 'quotes' | 'orders' | 'collections' | 'expenses' | 'calendar' | 'notes' | 'materials' | 'suppliers' | 'customers' | 'reports';
 /** Ek izinler (açık = 'edit', kapalı = 'none'); yoksa varsayılan */
-export type Flag = 'others' | 'remove' | 'balances' | 'ai';
+export type Flag = 'others' | 'remove' | 'balances' | 'ai' | 'reqAi';
 export type Level = 'none' | 'view' | 'edit';
 export type Status = 'pending' | 'active' | 'suspended';
 
@@ -27,11 +27,12 @@ export const FLAGS: { key: Flag; label: string; hint: string }[] = [
   { key: 'remove', label: 'Kayıt silebilir', hint: 'Teklif, müşteri, tahsilat, harcama, not silme' },
   { key: 'balances', label: 'Cari bakiyeleri görür', hint: 'Müşterilerde bakiye ve Mikro bakiyesi' },
   { key: 'ai', label: 'Yapay zekâ araçları', hint: '"Tekliflere sor" ve "Teklif hazırla"' },
+  { key: 'reqAi', label: 'Talepten otomatik teklif', hint: 'Talebi okuma (malzeme çıkarma), "Teklife dönüştür" ve "Otomatik hazırla". Kapalıysa talebi ve notları görür, teklifi kendisi yükler' },
 ];
 
 /** Hazır yetki şablonları (yöneticinin tek dokunuşla vermesi için) */
 export const PRESETS: { key: string; label: string; perms: Profile['perms'] }[] = [
-  { key: 'full', label: 'Tam yetki', perms: { others: 'edit', quotes: 'edit', customers: 'edit', materials: 'edit', suppliers: 'edit', collections: 'edit', expenses: 'edit', notes: 'edit', reports: 'view', remove: 'edit', balances: 'edit', ai: 'edit' } },
+  { key: 'full', label: 'Tam yetki', perms: { others: 'edit', quotes: 'edit', customers: 'edit', materials: 'edit', suppliers: 'edit', collections: 'edit', expenses: 'edit', notes: 'edit', reports: 'view', remove: 'edit', balances: 'edit', ai: 'edit', reqAi: 'edit' } },
   { key: 'sales', label: 'Satış (yalnız kendi teklifleri)', perms: { others: 'none', quotes: 'edit', customers: 'edit', materials: 'view', suppliers: 'view', collections: 'none', expenses: 'edit', notes: 'edit', reports: 'none', remove: 'none', balances: 'none', ai: 'edit' } },
   { key: 'accounting', label: 'Muhasebe', perms: { others: 'edit', quotes: 'view', customers: 'edit', materials: 'none', suppliers: 'none', collections: 'edit', expenses: 'edit', notes: 'edit', reports: 'view', remove: 'none', balances: 'edit', ai: 'none' } },
   { key: 'viewer', label: 'Sadece bakar', perms: { others: 'edit', quotes: 'view', customers: 'view', materials: 'view', suppliers: 'view', collections: 'none', expenses: 'none', notes: 'view', reports: 'view', remove: 'none', balances: 'none', ai: 'none' } },

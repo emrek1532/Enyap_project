@@ -38,6 +38,8 @@ export const RequestsPanel: React.FC<{
   meId: string;
   assignees: Assignee[];
   canEdit: boolean;
+  /** Talep okuma / otomatik teklif (yapay zekâ) yetkisi; kapalıysa yalnız talep + not görünür, teklif elle yüklenir */
+  canAi: boolean;
   /** Okunmakta olan talepler (id) */
   reading: Set<string>;
   onSaved: (r: QuoteRequest, opts?: { created?: boolean; auto?: boolean }) => void;
@@ -51,7 +53,7 @@ export const RequestsPanel: React.FC<{
   newRequest?: number;
   shared?: SharedRequestInput | null;
   onSharedUsed?: () => void;
-}> = ({ requests, customers, quotes, meId, assignees, canEdit, reading, onSaved, onRead, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
+}> = ({ requests, customers, quotes, meId, assignees, canEdit, canAi, reading, onSaved, onRead, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
   const [tab, setTab] = useState<Tab>('open');
   const [q, setQ] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -120,12 +122,12 @@ export const RequestsPanel: React.FC<{
       </div>
 
       {formOpen && (
-        <RequestForm customers={customers} assignees={assignees} meId={meId} shared={shared || null}
+        <RequestForm customers={customers} assignees={assignees} meId={meId} canAi={canAi} shared={shared || null}
           onClose={() => { setFormOpen(false); onSharedUsed?.(); }}
           onSaved={(r, auto) => { setFormOpen(false); onSharedUsed?.(); onSaved(r, { created: true, auto }); setDetailId(r.id); }} />
       )}
       {detail && (
-        <RequestDetail req={detail} customers={customers} quotes={quotes} assignees={assignees} names={names} canEdit={canEdit}
+        <RequestDetail req={detail} customers={customers} quotes={quotes} assignees={assignees} names={names} canEdit={canEdit} canAi={canAi}
           reading={reading.has(detail.id)} onRead={() => onRead(detail)}
           onSaved={r => onSaved(r)} onDraft={d => { setDetailId(null); onDraft(d, detail); }} onOpenQuote={onOpenQuote}
           onClose={() => setDetailId(null)} />
@@ -156,8 +158,8 @@ const input = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus
 /** Talep gir: müşteri, WhatsApp yazısı / fotoğraf / Excel, kime */
 const RequestForm: React.FC<{
   customers: Customer[]; assignees: Assignee[]; meId: string; shared: SharedRequestInput | null;
-  onClose: () => void; onSaved: (r: QuoteRequest, auto: boolean) => void;
-}> = ({ customers, assignees, meId, shared, onClose, onSaved }) => {
+  onClose: () => void; onSaved: (r: QuoteRequest, auto: boolean) => void; canAi: boolean;
+}> = ({ customers, assignees, meId, canAi, shared, onClose, onSaved }) => {
   const others = assignees.filter(a => a.id !== meId);
   const [customer, setCustomer] = useState('');
   const [text, setText] = useState(shared?.text || '');
@@ -267,15 +269,15 @@ const RequestForm: React.FC<{
         </div>
       </div>
       {err && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{err}</div>}
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className={`grid gap-2 ${canAi ? 'sm:grid-cols-2' : ''}`}>
         <button onClick={() => save(false)} disabled={!!busy} className="py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {busy || (to === meId ? 'Kaydet' : 'Kaydet ve gönder')}
         </button>
-        <button onClick={() => save(true)} disabled={!!busy} className="py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+        {canAi && <button onClick={() => save(true)} disabled={!!busy} className="py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center gap-2 disabled:opacity-50">
           <Wand2 className="w-4 h-4" /> Kaydet ve otomatik hazırla
-        </button>
+        </button>}
       </div>
-      <p className="text-[11px] text-slate-500">Otomatik hazırla: talep okunur, ürünler kataloğa eşleştirilir ve teklif formu dolu açılır. Müşteriye siz göndermeden gitmez.</p>
+      {canAi && <p className="text-[11px] text-slate-500">Otomatik hazırla: talep okunur, ürünler kataloğa eşleştirilir ve teklif formu dolu açılır. Müşteriye siz göndermeden gitmez.</p>}
     </Modal>
   );
 };
@@ -284,8 +286,8 @@ const RequestForm: React.FC<{
 const RequestDetail: React.FC<{
   req: QuoteRequest; customers: Customer[]; quotes: Quote[]; assignees: Assignee[]; names: Map<string, string>; canEdit: boolean;
   reading: boolean; onRead: () => void; onSaved: (r: QuoteRequest) => void; onDraft: (d: Partial<Quote>) => void;
-  onOpenQuote: (id: string) => void; onClose: () => void;
-}> = ({ req, customers, quotes, assignees, names, canEdit, reading, onRead, onSaved, onDraft, onOpenQuote, onClose }) => {
+  onOpenQuote: (id: string) => void; onClose: () => void; canAi: boolean;
+}> = ({ req, customers, quotes, assignees, names, canEdit, canAi, reading, onRead, onSaved, onDraft, onOpenQuote, onClose }) => {
   const [rows, setRows] = useState<ReqRow[] | null>(req.lines || null);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
@@ -317,6 +319,11 @@ const RequestDetail: React.FC<{
     if (req.status === 'yeni') p.status = 'hazirlaniyor';
     if (Object.keys(p).length) patchRequest(req.id, p).then(r => onSaved(r), () => undefined);
   }, auto ? 'Otomatik hazırlanıyor…' : 'Teklif hazırlanıyor…');
+  // Yapay zekâsız: müşteri + not dolu boş teklif formu (kaydedince talebe bağlanır)
+  const manualQuote = () => {
+    onDraft({ customerName: req.customerName, ...(city ? { city } : {}), ...(req.note ? { notes: `Talep notu: ${req.note}` } : {}) });
+    if (req.status === 'yeni') patchRequest(req.id, { status: 'hazirlaniyor' }).then(r => onSaved(r), () => undefined);
+  };
   const left = openCount(rows);
   const closed = req.status === 'yuklendi' || req.status === 'iptal';
 
@@ -356,7 +363,7 @@ const RequestDetail: React.FC<{
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 p-3 space-y-2">
+      {canAi && <div className="rounded-2xl border border-slate-200 p-3 space-y-2">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-emerald-600" />
           <span className="font-bold text-slate-900 flex-1">Okunan ürünler</span>
@@ -371,12 +378,12 @@ const RequestDetail: React.FC<{
         )}
         {rows && <RequestLines rows={rows} readOnly={!canEdit || closed} onChange={r => { dirty.current = true; setRows(r); }} />}
         {rows && canEdit && !closed && <button onClick={onRead} disabled={reading} className="text-[11px] text-slate-500 underline">Yeniden oku</button>}
-      </div>
+      </div>}
 
       {err && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{err}</div>}
       {canEdit && !closed && (
         <div className="space-y-2">
-          <div className="grid sm:grid-cols-2 gap-2">
+          {canAi ? <div className="grid sm:grid-cols-2 gap-2">
             <button onClick={() => toDraft(false)} disabled={!!busy || !rows || left > 0}
               className="py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -386,12 +393,19 @@ const RequestDetail: React.FC<{
               className="py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center gap-2 disabled:opacity-40">
               <Wand2 className="w-4 h-4" /> Otomatik hazırla
             </button>
-          </div>
+          </div> : (
+            <button onClick={manualQuote} disabled={!!busy}
+              className="w-full py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {busy || 'Teklif yükle'}
+            </button>
+          )}
           <div className="flex gap-2 text-xs">
             {req.status === 'yeni' && <button onClick={() => patch({ status: 'hazirlaniyor' })} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-slate-200 font-bold">Hazırlıyorum</button>}
             <button onClick={() => { if (confirm('Talep iptal edilsin mi?')) patch({ status: 'iptal' }); }} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 font-bold">Talebi iptal et</button>
           </div>
-          <p className="text-[11px] text-slate-500">Otomatik hazırla: seçilmemiş satırlarda en uygun aday alınır, bulunamayanlar teklif notuna yazılır. Teklif formunu kontrol edip kaydedin.</p>
+          {canAi ? <p className="text-[11px] text-slate-500">Otomatik hazırla: seçilmemiş satırlarda en uygun aday alınır, bulunamayanlar teklif notuna yazılır. Teklif formunu kontrol edip kaydedin.</p>
+            : <p className="text-[11px] text-slate-500">Teklif yükle: müşteri ve talep notu dolu, boş teklif formu açılır. Kaydedince talep "Teklif yüklendi" olur.</p>}
         </div>
       )}
       {canEdit && req.status === 'iptal' && <button onClick={() => patch({ status: 'yeni' })} className="text-xs font-bold text-brand-700">Talebi yeniden aç</button>}
