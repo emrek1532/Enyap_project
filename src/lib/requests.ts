@@ -33,13 +33,15 @@ export interface QuoteRequest {
   quoteId?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Silinme zamanı (yumuşak silme; listelerde görünmez) */
+  deletedAt?: string | null;
 }
 
 type Row = Record<string, any>;
 const fromRow = (r: Row): QuoteRequest => ({
   id: r.id, customerName: r.customer_name, note: r.note ?? undefined, rawText: r.raw_text ?? undefined,
   files: r.files || [], lines: r.lines ?? null, status: r.status, assignedTo: r.assigned_to, createdBy: r.created_by,
-  quoteId: r.quote_id, createdAt: r.created_at, updatedAt: r.updated_at,
+  quoteId: r.quote_id, createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at ?? null,
 });
 
 const must = <T,>(res: { data: T; error: any }): T => { if (res.error) throw res.error; return res.data; };
@@ -47,7 +49,7 @@ const must = <T,>(res: { data: T; error: any }): T => { if (res.error) throw res
 /** Açık talepler + son 60 günün kapananları */
 export async function fetchRequests(): Promise<QuoteRequest[]> {
   const since = new Date(Date.now() - 60 * 86400000).toISOString();
-  const data = must(await supabase.from('quote_requests').select('*')
+  const data = must(await supabase.from('quote_requests').select('*').is('deleted_at', null)
     .or(`status.in.(yeni,hazirlaniyor),created_at.gte.${since}`)
     .order('created_at', { ascending: false }).limit(200));
   return (data || []).map(fromRow);
@@ -94,6 +96,12 @@ export async function createRequest(input: { customerName: string; note?: string
     id, customer_name: input.customerName.trim(), note: input.note?.trim() || null, raw_text: input.rawText?.trim() || null,
     files, assigned_to: input.assignedTo || null, status: input.status || 'yeni',
   }).select('*').single());
+  return fromRow(data);
+}
+
+/** Talebi siler (yumuşak): tarih yazılır ve iptal edilir; kayıt ve dosyalar veritabanında kalır */
+export async function removeRequest(id: string): Promise<QuoteRequest> {
+  const data = must(await supabase.from('quote_requests').update({ deleted_at: new Date().toISOString(), status: 'iptal' }).eq('id', id).select('*').single());
   return fromRow(data);
 }
 

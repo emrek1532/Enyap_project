@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, Paperclip, Send, Sparkles, Wand2, X } from 'lucide-react';
+import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, Paperclip, Send, Sparkles, Trash2, Wand2, X } from 'lucide-react';
 import type { Customer, Quote } from '../types';
 import { listCard, SearchBox, UnderlineTabs } from './ListUI';
 import { RequestLines, openCount } from './RequestLines';
@@ -9,7 +9,7 @@ import { foldTr } from '../lib/materials';
 import { findCustomer } from '../lib/customers';
 import { SuggestInput } from './SuggestInput';
 import {
-  Assignee, QuoteRequest, REQUEST_STATUS, ReqRow, RequestStatus, createRequest, fileUrl, patchRequest, readRequestLines, rowsToDraft,
+  Assignee, QuoteRequest, REQUEST_STATUS, ReqRow, RequestStatus, createRequest, fileUrl, patchRequest, removeRequest, readRequestLines, rowsToDraft,
 } from '../lib/requests';
 
 const ago = (iso: string) => {
@@ -408,7 +408,13 @@ const RequestDetail: React.FC<{
             : <p className="text-[11px] text-slate-500">Teklif yükle: müşteri ve talep notu dolu, boş teklif formu açılır. Kaydedince talep "Teklif yüklendi" olur.</p>}
         </div>
       )}
-      {canEdit && req.status === 'iptal' && <button onClick={() => patch({ status: 'yeni' })} className="text-xs font-bold text-brand-700">Talebi yeniden aç</button>}
+      {canEdit && (
+        <div className="flex items-center justify-between gap-2">
+          {req.status === 'iptal' ? <button onClick={() => patch({ status: 'yeni' })} className="text-xs font-bold text-brand-700">Talebi yeniden aç</button> : <span />}
+          <button onClick={() => { if (confirm(`"${req.customerName}" talebi silinsin mi?`)) run(async () => { onSaved(await removeRequest(req.id)); onClose(); }, 'Siliniyor…'); }}
+            disabled={!!busy} className="text-xs font-bold text-rose-700 inline-flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Talebi sil</button>
+        </div>
+      )}
     </Modal>
   );
 };
