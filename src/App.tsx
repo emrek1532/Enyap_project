@@ -820,6 +820,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   useEffect(() => {
     const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
     const total = myOpenRequests + reviewCount;
+    // Pencere başlığında da sayı (WhatsApp Web gibi): "(1) Enyap Isı - …"; görev çubuğunda simgenin üstüne gelince görünür
+    const base = document.title.replace(/^\(\d+\+?\)\s*/, '');
+    document.title = total > 0 ? `(${total > 99 ? '99+' : total}) ${base}` : base;
     if (!nav.setAppBadge) return;
     (total > 0 ? nav.setAppBadge(total) : nav.clearAppBadge?.())?.catch(() => undefined);
   }, [myOpenRequests, reviewCount]);
