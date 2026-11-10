@@ -38,6 +38,8 @@ interface NewQuoteModalProps {
   pdfNotice?: string;
   /** PDF'teki teklif no sistemde varsa: o teklifi bu PDF ile revize etmek için */
   onOpenExisting?: (q: Quote, file: File) => void;
+  /** Talepten elle yüklenen teklif: kaydetmeden önce "Kontrol ettim" işaretlenmeli */
+  requireCheck?: boolean;
 }
 
 export { PAYMENT_TERMS } from '../lib/constants';
@@ -63,7 +65,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   initialPdf = null,
   pdfNotice = '',
   onOpenExisting,
+  requireCheck = false,
 }) => {
+  const [checked, setChecked] = useState(false);
+  const [checkWarn, setCheckWarn] = useState(false);
   // Düzenlemede mevcut teklif, sesli taslakta taslak; ikisi de yoksa boş form
   const init: Partial<Quote> | null = editQuote || draft;
   // Form fields
@@ -496,6 +501,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (requireCheck && !checked) { setCheckWarn(true); return; }
     if (!customerName.trim()) return;
     if (!paymentTerm && !isEdit) return; // yeni teklifte vade zorunlu (tarayıcı da uyarır)
 
@@ -975,14 +981,20 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         </div>
 
         {/* Alt çubuk */}
-        <div className="px-3 py-2 bg-white border-t border-slate-200 flex items-center justify-end gap-2 pb-safe">
+        <div className="px-3 py-2 bg-white border-t border-slate-200 flex items-center justify-end gap-2 pb-safe flex-wrap">
+          {requireCheck && (
+            <label className={`mr-auto flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-bold cursor-pointer select-none ${checked ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : checkWarn ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
+              <input type="checkbox" checked={checked} onChange={e => { setChecked(e.target.checked); setCheckWarn(false); }} className="w-4 h-4 accent-emerald-600" />
+              Kontrol ettim{checkWarn && !checked ? ' — kaydetmeden önce işaretleyin' : ''}
+            </label>
+          )}
           <button type="button" onClick={onClose}
             className="px-4 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">
             Vazgeç
           </button>
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || (requireCheck && !checked)}
             onClick={() => (document.getElementById('newQuoteForm') as HTMLFormElement | null)?.requestSubmit()}
             className="px-5 py-2 rounded-md bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold text-sm shadow-sm"
           >
