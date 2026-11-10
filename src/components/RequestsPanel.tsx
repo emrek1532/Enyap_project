@@ -38,6 +38,8 @@ export const RequestsPanel: React.FC<{
   meId: string;
   assignees: Assignee[];
   canEdit: boolean;
+  /** Talep silme yalnız yönetici */
+  canDelete?: boolean;
   /** Talep okuma / otomatik teklif (yapay zekâ) yetkisi; kapalıysa yalnız talep + not görünür, teklif elle yüklenir */
   canAi: boolean;
   /** Okunmakta olan talepler (id) */
@@ -53,7 +55,7 @@ export const RequestsPanel: React.FC<{
   newRequest?: number;
   shared?: SharedRequestInput | null;
   onSharedUsed?: () => void;
-}> = ({ requests, customers, quotes, meId, assignees, canEdit, canAi, reading, onSaved, onRead, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
+}> = ({ requests, customers, quotes, meId, assignees, canEdit, canDelete, canAi, reading, onSaved, onRead, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
   const [tab, setTab] = useState<Tab>('open');
   const [q, setQ] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -127,7 +129,7 @@ export const RequestsPanel: React.FC<{
           onSaved={(r, auto) => { setFormOpen(false); onSharedUsed?.(); onSaved(r, { created: true, auto }); setDetailId(r.id); }} />
       )}
       {detail && (
-        <RequestDetail req={detail} customers={customers} quotes={quotes} assignees={assignees} names={names} canEdit={canEdit} canAi={canAi}
+        <RequestDetail req={detail} customers={customers} quotes={quotes} assignees={assignees} names={names} canEdit={canEdit} canDelete={!!canDelete} canAi={canAi}
           reading={reading.has(detail.id)} onRead={() => onRead(detail)}
           onSaved={r => onSaved(r)} onDraft={d => { setDetailId(null); onDraft(d, detail); }} onOpenQuote={onOpenQuote}
           onClose={() => setDetailId(null)} />
@@ -284,10 +286,10 @@ const RequestForm: React.FC<{
 
 /** Talep detayı: dosyalar, okunan satırlar, teklife dönüştür / otomatik hazırla */
 const RequestDetail: React.FC<{
-  req: QuoteRequest; customers: Customer[]; quotes: Quote[]; assignees: Assignee[]; names: Map<string, string>; canEdit: boolean;
+  req: QuoteRequest; customers: Customer[]; quotes: Quote[]; assignees: Assignee[]; names: Map<string, string>; canEdit: boolean; canDelete: boolean;
   reading: boolean; onRead: () => void; onSaved: (r: QuoteRequest) => void; onDraft: (d: Partial<Quote>) => void;
   onOpenQuote: (id: string) => void; onClose: () => void; canAi: boolean;
-}> = ({ req, customers, quotes, assignees, names, canEdit, canAi, reading, onRead, onSaved, onDraft, onOpenQuote, onClose }) => {
+}> = ({ req, customers, quotes, assignees, names, canEdit, canDelete, canAi, reading, onRead, onSaved, onDraft, onOpenQuote, onClose }) => {
   const [rows, setRows] = useState<ReqRow[] | null>(req.lines || null);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
@@ -408,11 +410,11 @@ const RequestDetail: React.FC<{
             : <p className="text-[11px] text-slate-500">Teklif yükle: müşteri ve talep notu dolu, boş teklif formu açılır. Kaydedince talep "Teklif yüklendi" olur.</p>}
         </div>
       )}
-      {canEdit && (
+      {(canEdit || canDelete) && (
         <div className="flex items-center justify-between gap-2">
-          {req.status === 'iptal' ? <button onClick={() => patch({ status: 'yeni' })} className="text-xs font-bold text-brand-700">Talebi yeniden aç</button> : <span />}
-          <button onClick={() => { if (confirm(`"${req.customerName}" talebi silinsin mi?`)) run(async () => { onSaved(await removeRequest(req.id)); onClose(); }, 'Siliniyor…'); }}
-            disabled={!!busy} className="text-xs font-bold text-rose-700 inline-flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Talebi sil</button>
+          {canEdit && req.status === 'iptal' ? <button onClick={() => patch({ status: 'yeni' })} className="text-xs font-bold text-brand-700">Talebi yeniden aç</button> : <span />}
+          {canDelete && <button onClick={() => { if (confirm(`"${req.customerName}" talebi silinsin mi?`)) run(async () => { onSaved(await removeRequest(req.id)); onClose(); }, 'Siliniyor…'); }}
+            disabled={!!busy} className="text-xs font-bold text-rose-700 inline-flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Talebi sil</button>}
         </div>
       )}
     </Modal>

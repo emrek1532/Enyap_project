@@ -974,6 +974,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         <Suspense fallback={<PageSpinner />}>
         {activeTab === 'requests' && (
           <RequestsPanel
+            canDelete={profile.isAdmin}
             requests={requests}
             customers={data.customers || []}
             quotes={data.quotes}
