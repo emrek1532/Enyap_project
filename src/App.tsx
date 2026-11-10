@@ -1142,6 +1142,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           initialPdf={sharedPdf}
           pdfNotice={pdfNotice}
           onSaveQuote={handleSaveQuote}
+          requireCheck={!!linkReqRef.current && !allowed(profile, 'reqAi')}
           onOpenExisting={(q, file) => {
             setIsNewQuoteOpen(false);
             setPdfNotice('');
