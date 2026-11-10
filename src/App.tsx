@@ -812,7 +812,17 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
 
 
-  const navSections = MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title }));
+  // Bekleyen işler: bana atanan açık talepler, (yöneticiyse) kontrol bekleyen teklifler → menüde ve uygulama simgesinde sayı
+  const myOpenRequests = requests.filter(r => r.assignedTo === profile.id && (r.status === 'yeni' || r.status === 'hazirlaniyor')).length;
+  const reviewCount = profile.isAdmin ? data.quotes.filter(q => q.reviewPending).length : 0;
+  const navBadge: Partial<Record<ActiveTab, number>> = { requests: myOpenRequests, quotes: reviewCount };
+  const navSections = MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title, badge: navBadge[id] || 0 }));
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    const total = myOpenRequests + reviewCount;
+    if (!nav.setAppBadge) return;
+    (total > 0 ? nav.setAppBadge(total) : nav.clearAppBadge?.())?.catch(() => undefined);
+  }, [myOpenRequests, reviewCount]);
   const userEmail = session.user.email || '';
   const userName = profile.fullName || userEmail.split('@')[0] || 'Kullanıcı';
   const roleLabel = profile.isAdmin ? 'Yönetici' : currentRole === 'istanbul' ? 'İstanbul ekibi' : 'Isparta ekibi';
@@ -1094,7 +1104,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
       <BottomNav
         sections={navSections}
-        primary={['quotes', 'customers', 'materials'].filter(id => tabAllowed(id as ActiveTab))}
+        primary={['quotes', 'requests', 'customers'].filter(id => tabAllowed(id as ActiveTab))}
         active={activeTab}
         onOpen={id => setActiveTab(id as ActiveTab)}
         onHome={goHome}

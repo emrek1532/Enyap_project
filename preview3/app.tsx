@@ -82,7 +82,7 @@ quotes.forEach((x: any) => { const l = sup.get(x.id); if (l) olderVersions.set(l
 const liveQ = quotes.filter((x: any) => !sup.has(x.id));
 if (q.get('view')) localStorage.setItem('enyap-quote-view', JSON.stringify(q.get('view')));
 const TITLE: any = { collections: 'Tahsilat', expenses: 'Harcama' };
-const secs = (['quotes', 'requests', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'] as const).map(id => ({ id, ...SECTION_META[id], title: TITLE[id] || SECTION_META[id].title }));
+const secs = (['quotes', 'requests', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'] as const).map(id => ({ id, ...SECTION_META[id], title: TITLE[id] || SECTION_META[id].title, badge: id === 'requests' ? 2 : id === 'quotes' ? 1 : 0 }));
 const App = () => {
   const [qs, setQs] = React.useState<any[]>(liveQ);
   const patch = (id: string, p: any) => setQs(l => l.map(x => (x.id === id ? { ...x, ...p, updatedAt: new Date().toISOString() } : x)));
@@ -115,7 +115,7 @@ const App = () => {
         { id: 'y', email: 'ali@enyap.com', fullName: 'Ali Yılmaz', isAdmin: false, status: 'active', perms: { quotes: 'edit', materials: 'view', notes: 'edit' }, lastSeen: '2026-11-06T15:20:00Z', createdAt: '2026-03-01T09:00:00Z' },
         { id: 'z', email: 'ayse@enyap.com', fullName: 'Ayşe Demir', isAdmin: false, status: 'pending', perms: {}, lastSeen: null, createdAt: '2026-11-06T10:00:00Z' },
       ] } as any)),
-    h(BottomNav, { sections: secs as any, primary: ['quotes', 'customers', 'materials'], active: p, onOpen: setP, onHome: () => setP('home'), onSignOut: noop, userEmail: 'e@x.com' }),
+    h(BottomNav, { sections: secs as any, primary: ['quotes', 'requests', 'customers'], active: p, onOpen: setP, onHome: () => setP('home'), onSignOut: noop, userEmail: 'e@x.com' }),
     rd && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: () => setRd(null), customers, quotes, draft: rd }),
     q.get('modal') === 'new' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes }),
     q.get('modal') === 'edit' && h(NewQuoteModal, { currentRole: 'isparta' as any, onSaveQuote: noop, onClose: noop, customers, quotes, editQuote: quotes[0] }),

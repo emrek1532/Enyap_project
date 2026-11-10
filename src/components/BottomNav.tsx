@@ -3,7 +3,12 @@ import { Home, MoreHorizontal, LogOut, Bell, BellOff, X } from 'lucide-react';
 import { disablePush, enablePush, pushEnabled, pushSupported } from '../lib/push';
 import { HelpGuide } from './HelpGuide';
 
-export type NavSection = { id: string; title: string; icon: React.ElementType; tone: string };
+export type NavSection = { id: string; title: string; icon: React.ElementType; tone: string; badge?: number };
+
+/** Kırmızı sayı rozeti (bekleyen iş) */
+const Dot: React.FC<{ n?: number; className?: string }> = ({ n, className = '' }) => (n && n > 0
+  ? <span className={`absolute min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center tabular-nums ring-2 ring-white ${className}`}>{n > 99 ? '99+' : n}</span>
+  : null);
 
 /**
  * Telefonda ekranın altındaki sabit menü: en çok kullanılan bölümler tek dokunuşla açılır,
@@ -29,10 +34,10 @@ export const BottomNav: React.FC<{
       else { await enablePush(userEmail); setPush(true); }
     } catch (e) { alert(e instanceof Error ? e.message : 'Bildirim açılamadı.'); }
   };
-  const item = (key: string, label: string, Icon: React.ElementType, on: boolean, onClick: () => void) => (
+  const item = (key: string, label: string, Icon: React.ElementType, on: boolean, onClick: () => void, badge = 0) => (
     <button key={key} onClick={onClick}
       className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-bold ${on ? 'text-brand-600' : 'text-slate-500'}`}>
-      <span className={`w-11 h-7 rounded-full flex items-center justify-center transition ${on ? 'bg-gradient-to-r from-brand-500 to-sky-500 text-white shadow-sm' : ''}`}><Icon className="w-5 h-5" /></span>
+      <span className={`relative w-11 h-7 rounded-full flex items-center justify-center transition ${on ? 'bg-gradient-to-r from-brand-500 to-sky-500 text-white shadow-sm' : ''}`}><Icon className="w-5 h-5" /><Dot n={badge} className="-top-1.5 -right-1" /></span>
       <span className="truncate max-w-full">{label}</span>
     </button>
   );
@@ -42,8 +47,8 @@ export const BottomNav: React.FC<{
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur rounded-t-3xl shadow-[0_-8px_24px_-12px_rgba(15,50,100,0.25)] border-t border-slate-100 pb-[env(safe-area-inset-bottom,0px)]">
         <div className="flex items-stretch px-1 pt-1">
           {item('home', 'Ana Sayfa', Home, active === 'home', onHome)}
-          {main.map(s => item(s.id, s.title, s.icon, active === s.id, () => onOpen(s.id)))}
-          {item('more', 'Diğer', MoreHorizontal, more || moreActive, () => setMore(true))}
+          {main.map(s => item(s.id, s.title, s.icon, active === s.id, () => onOpen(s.id), s.badge))}
+          {item('more', 'Diğer', MoreHorizontal, more || moreActive, () => setMore(true), rest.reduce((a, s) => a + (s.badge || 0), 0))}
         </div>
       </nav>
       {more && (
@@ -57,7 +62,7 @@ export const BottomNav: React.FC<{
               {rest.map(s => (
                 <button key={s.id} onClick={() => { setMore(false); onOpen(s.id); }}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-xs font-bold ${active === s.id ? 'border-brand-300 bg-brand-50 text-brand-800' : 'border-slate-200 text-slate-700'}`}>
-                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.tone}`}><s.icon className="w-5 h-5" /></span>
+                  <span className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${s.tone}`}><s.icon className="w-5 h-5" /><Dot n={s.badge} className="-top-1.5 -right-1.5" /></span>
                   <span className="text-center leading-tight">{s.title}</span>
                 </button>
               ))}
