@@ -38,10 +38,10 @@ const STAT_TONES: Record<StatTone, ToneCls> = {
   /* Müşteriler (ENYAP: lacivert #0B2343, mavi #006DBB, turkuaz #00B49A, kenar #E2EAF3) */
   cBlue: { box: 'bg-gradient-to-br from-white to-[#F1F6FC] border-[#E2EAF3]', icon: 'bg-[#EAF5FC] text-[#006DBB] ring-1 ring-[#006DBB]/10', wave: 'text-[#009FE3]/20', label: 'text-[#7186A3]', value: 'text-[#0B2343]', dot: 'bg-[#006DBB]' },
   cTeal: { box: 'bg-gradient-to-br from-white to-[#EFF9F7] border-[#E2EAF3]', icon: 'bg-[#E6F7F4] text-[#00B49A] ring-1 ring-[#00B49A]/10', wave: 'text-[#00B49A]/20', label: 'text-[#7186A3]', value: 'text-[#0B2343]', dot: 'bg-[#00B49A]' },
-  green: { box: 'bg-emerald-50 border-emerald-200/80', icon: 'bg-emerald-500 text-white', wave: 'text-emerald-300' },
-  blue: { box: 'bg-sky-50 border-sky-200/80', icon: 'bg-brand-500 text-white', wave: 'text-sky-300' },
-  violet: { box: 'bg-violet-50 border-violet-200/80', icon: 'bg-violet-500 text-white', wave: 'text-violet-300' },
-  orange: { box: 'bg-orange-50 border-orange-200/80', icon: 'bg-orange-500 text-white', wave: 'text-orange-300' },
+  green: { box: 'bg-[#EFF9F7] border-[#D5EFE9]', icon: 'bg-[#00A68C] text-white', wave: 'text-[#00B49A]/25' },
+  blue: { box: 'bg-[#F1F6FC] border-[#DCE8F5]', icon: 'bg-[#0072CE] text-white', wave: 'text-[#0072CE]/25' },
+  violet: { box: 'bg-[#F1F6FC] border-[#DCE8F5]', icon: 'bg-[#5DA9D6] text-white', wave: 'text-[#5DA9D6]/25' },
+  orange: { box: 'bg-[#EFF9F7] border-[#D5EFE9]', icon: 'bg-[#008F7C] text-white', wave: 'text-[#00B49A]/25' },
 };
 const TONE_ORDER: StatTone[] = ['green', 'blue', 'violet', 'orange'];
 const statIcon = (label: string): React.ElementType =>
