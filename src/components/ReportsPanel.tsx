@@ -192,7 +192,7 @@ const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, emp
 );
 
 // ---------- Halka grafik ----------
-const PALETTE = ['#006ec6', '#00b293', '#e8590c', '#7c3aed', '#f59e0b', '#0ea5e9', '#64748b'];
+const PALETTE = ['#006EC6', '#00B293', '#17477D', '#5DA9D6', '#008F7C', '#90BBD8', '#7186A3'];
 const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string; value: number; color?: string; note?: string }[]; center?: React.ReactNode; centerSub?: string }> = ({ title, subtitle, parts, center, centerSub = 'toplam' }) => {
   const [hover, setHover] = useState<number | null>(null);
   const items = parts.filter(p => p.value > 0);
@@ -326,7 +326,7 @@ const WaitingReasons: React.FC<{ rows: [string, { n: number; amt: number; list: 
 const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: boolean; onPrint: () => void; onClose: () => void }> = ({ section, period, busy, onPrint, onClose }) => (
   <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
     <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-5xl rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white">
+      <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 bg-gradient-to-r from-[#0B2343] to-[#006DBB] text-white">
         <div className="min-w-0">
           <h3 className="font-black text-lg tracking-tight truncate">{section.heading}</h3>
           <p className="text-xs text-sky-200/80">{period} · {section.rows.length.toLocaleString('tr-TR')} kayıt</p>
@@ -613,7 +613,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
       { type: 'bars', title: 'En Çok Satan Ürünler (TL)', color: C_APPROVED, rows: productStats.products },
       { type: 'share', title: 'Teklif Durumu', center: `Satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`, parts: [
         { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
-        { label: 'Bekleyen', value: stats.pendingAmt, color: '#7c3aed' },
+        { label: 'Bekleyen', value: stats.pendingAmt, color: '#5DA9D6' },
         { label: 'İptal', value: stats.cancelledAmt, color: '#e11d48' },
       ] },
       { type: 'share', title: 'Tahsilat · Ödeme Şekli', parts: colByMethod.map((r, i) => ({ label: `${r.label} (${r.count})`, value: r.value, color: PALETTE[i % PALETTE.length] })) },
@@ -697,11 +697,11 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           sub={`${stats.total.toLocaleString('tr-TR')} teklif · ${stats.firms} firma`} onClick={() => setDetail('quotes')} />
         <StatBox icon={CheckCircle2} tone="green" label="Onaylanan" value={tl(stats.approvedAmt)}
           sub={`${stats.approved.toLocaleString('tr-TR')} teklif · satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`} onClick={() => setDetail('approved')} />
-        <StatBox icon={Clock} tone="violet" label="Bekleyen" value={tl(stats.pendingAmt)}
+        <StatBox icon={Clock} tone="eBlue" label="Bekleyen" value={tl(stats.pendingAmt)}
           sub={`${stats.pending.toLocaleString('tr-TR')} teklif karar bekliyor`} onClick={() => setDetail('pending')} />
         <StatBox icon={Wallet} tone="green" label="Yapılan Tahsilat"
           value={multiCurrency(colTotals).map(x => <span key={x} className="block">{x}</span>)} sub={`${pCollections.length} kayıt`} onClick={() => setDetail('collections')} />
-        <StatBox icon={Receipt} tone="orange" label="Yapılan Harcama"
+        <StatBox icon={Receipt} tone="eTeal" label="Yapılan Harcama"
           value={multiCurrency(expTotals).map(x => <span key={x} className="block">{x}</span>)} sub={`${pExpenses.length} kayıt`} onClick={() => setDetail('expenses')} />
         <StatBox icon={BarChart3} tone="blue" label="Ortalama Teklif"
           value={tl(stats.total ? stats.totalAmt / stats.total : 0)} sub={`onaylananlarda ort. ${tl(stats.approved ? stats.approvedAmt / stats.approved : 0)}`} onClick={() => setDetail('quotes')} />
@@ -722,8 +722,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           center={pct(stats.approvedAmt, stats.totalAmt)} centerSub="satış oranı"
           parts={[
             { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
-            { label: 'Bekleyen', value: stats.pendingAmt, color: '#7c3aed' },
-            { label: 'Pasif', value: stats.passiveAmt, color: '#d97706' },
+            { label: 'Bekleyen', value: stats.pendingAmt, color: '#5DA9D6' },
+            { label: 'Pasif', value: stats.passiveAmt, color: '#7186A3' },
             { label: 'İptal', value: stats.cancelledAmt, color: '#e11d48' },
           ]} />
         <Donut title="Tahsilat · Ödeme Şekli" subtitle="Seçilen dönemdeki TL tahsilatlar"
