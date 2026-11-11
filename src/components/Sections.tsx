@@ -29,8 +29,12 @@ export const SECTION_SUB: Record<Exclude<ActiveTab, 'home'>, string> = {
 };
 
 /** Özet kutusu renkleri: belirgin açık zemin + dolu renkli simge; yazılar sade (lacivert/gri); sağ altta hafif dalga */
-export type StatTone = 'green' | 'blue' | 'violet' | 'orange';
-const STAT_TONES: Record<StatTone, { box: string; icon: string; wave: string }> = {
+export type StatTone = 'green' | 'blue' | 'violet' | 'orange' | 'eBlue' | 'eTeal';
+type ToneCls = { box: string; icon: string; wave: string; label?: string; value?: string; dot?: string };
+const STAT_TONES: Record<StatTone, ToneCls> = {
+  /* ENYAP kurumsal (yalnız Teklifler): beyaz → çok açık mavi yüzey, açık zeminli mavi/turkuaz simge */
+  eBlue: { box: 'bg-gradient-to-br from-white to-[#F3F8FD] border-[#DCE8F5]', icon: 'bg-[#EAF4FC] text-[#0072CE] ring-1 ring-[#0072CE]/10', wave: 'text-[#0072CE]/25', label: 'text-[#17477D]', value: 'text-[#173B63]', dot: 'bg-[#0072CE]' },
+  eTeal: { box: 'bg-gradient-to-br from-white to-[#F2FBF9] border-[#D5EFE9]', icon: 'bg-[#E8F8F4] text-[#00B89C] ring-1 ring-[#00B89C]/10', wave: 'text-[#00B89C]/25', label: 'text-[#17477D]', value: 'text-[#173B63]', dot: 'bg-[#00B89C]' },
   green: { box: 'bg-emerald-50 border-emerald-200/80', icon: 'bg-emerald-500 text-white', wave: 'text-emerald-300' },
   blue: { box: 'bg-sky-50 border-sky-200/80', icon: 'bg-brand-500 text-white', wave: 'text-sky-300' },
   violet: { box: 'bg-violet-50 border-violet-200/80', icon: 'bg-violet-500 text-white', wave: 'text-violet-300' },
@@ -68,20 +72,20 @@ export const StatBox: React.FC<{
     <Wave cls={t.wave} />
     <span className={`relative hidden sm:flex w-11 h-11 rounded-xl items-center justify-center shrink-0 shadow-sm ${t.icon}`}><SI className="w-5 h-5" /></span>
     <span className="relative min-w-0 flex-1">
-      <span className="flex items-center gap-1.5 text-[11px] sm:text-[13px] font-bold text-slate-600 truncate">
-        <span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.icon}`} />{label}
+      <span className={`flex items-center gap-1.5 text-[11px] sm:text-[13px] font-bold truncate ${t.label || 'text-slate-600'}`}>
+        <span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.dot || t.icon}`} />{label}
       </span>
-      <span className="block mt-0.5 text-base sm:text-xl font-black tabular-nums break-words leading-tight text-[#1a3d6d]">{value}</span>
+      <span className={`block mt-0.5 text-base sm:text-xl font-black tabular-nums break-words leading-tight ${t.value ? `sm:text-[22px] tracking-tight ${t.value}` : 'text-[#1a3d6d]'}`}>{value}</span>
       {trend != null ? (
         <span className="flex items-center gap-1 text-[11px] sm:text-xs truncate">
-          <b className={`tabular-nums ${trend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
+          <b className={`tabular-nums ${trend >= 0 ? 'text-[#00A68C]' : 'text-red-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
           <span className="text-slate-500 truncate">geçen aya göre</span>
         </span>
       ) : sub && <span className="block text-[11px] sm:text-xs text-slate-500 truncate">{sub}</span>}
     </span>
     {onClick && <ChevronRight className="relative hidden sm:block w-4 h-4 text-slate-400 shrink-0 self-start" />}
   </>);
-  const cls = `${className} relative overflow-hidden flex items-center gap-3 rounded-2xl border ${t.box} px-3 py-3 sm:px-4 sm:py-3.5 min-w-0 text-left shadow-[0_10px_26px_-22px_rgba(15,60,120,0.6)]`;
+  const cls = `${className} relative overflow-hidden flex items-center gap-3 rounded-2xl border ${t.box} px-3 py-3 sm:px-4 sm:py-3.5 min-w-0 text-left shadow-[0_10px_26px_-22px_rgba(15,60,120,0.6)]${t.value ? ' transition-shadow duration-200 hover:shadow-[0_14px_30px_-20px_rgba(15,60,120,0.55)]' : ''}`;
   return onClick
     ? <button type="button" onClick={onClick} title={typeof sub === 'string' ? sub : undefined} className={`${cls} transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]`}>{body}</button>
     : <div className={cls} title={typeof sub === 'string' && trend != null ? sub : undefined}>{body}</div>;
@@ -89,10 +93,10 @@ export const StatBox: React.FC<{
 export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 type Stat = { label: string; value: string; sub?: string; trend?: number | null };
-const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
+const StatGrid: React.FC<{ stats: Stat[]; brand?: boolean }> = ({ stats, brand }) => (
   <div className={`grid grid-cols-2 ${stats.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5 sm:gap-3`}>
     {stats.map((s, i) => (
-      <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)}
+      <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={brand ? (i % 2 ? 'eTeal' : 'eBlue') : toneAt(i)}
         className={stats.length % 2 && i === stats.length - 1 ? 'col-span-2 lg:col-span-1' : ''} />
     ))}
   </div>
@@ -123,28 +127,31 @@ export const PageHeader: React.FC<{
 }> = ({ title, subtitle, icon: Icon, onBack, action, stats, tools, hero }) => (
   <div className="mb-4 sm:mb-5 space-y-3 sm:space-y-4">
     {hero ? (
-      <section className="relative overflow-hidden rounded-3xl border border-white bg-[#eef4fb] shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]">
+      /* ENYAP Teklifler bandı: ~130px, solda simge + başlık, sağda fotoğraf (solu açık zemine karışır) */
+      <section className="relative overflow-hidden rounded-2xl border border-[#DCE8F5] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF4FC] shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)]">
         <picture aria-hidden>
           <source media="(min-width: 768px)" srcSet={hero.lg} />
-          <img src={hero.sm} alt="" draggable={false} className="pointer-events-none select-none absolute inset-y-0 right-0 h-full w-[62%] sm:w-[55%] lg:w-[48%] object-cover object-[30%_45%]" />
+          <img src={hero.sm} alt="" draggable={false} className="pointer-events-none select-none absolute inset-y-0 right-0 h-full w-[58%] sm:w-[52%] lg:w-[46%] object-cover object-center" />
         </picture>
-        {/* Fotoğrafın solu zemine karışır: yazı okunur kalsın */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#eef4fb] from-[38%] via-[#eef4fb]/60 via-[58%] to-transparent to-[85%] sm:from-[45%] sm:via-[64%] lg:from-[52%] lg:via-[70%]" />
-        <div className="relative flex items-center gap-3 px-4 py-5 sm:px-7 sm:py-7 lg:py-9">
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]" />
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#0072CE] via-[#0072CE] to-[#00B89C]" />
+        <div className="relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 min-h-[104px] sm:min-h-[124px] lg:min-h-[132px] py-4">
           <button onClick={onBack} aria-label="Geri"
-            className="md:hidden self-start w-9 h-9 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200 text-slate-600 shrink-0">
+            className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#DCE8F5] text-[#17477D] shrink-0">
             <ChevronRight className="w-4 h-4 rotate-180" />
           </button>
+          <span className="hidden sm:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0072CE] to-[#17477D] text-white items-center justify-center shrink-0 shadow-[0_12px_24px_-12px_rgba(0,114,206,0.9)]">
+            <Icon className="w-7 h-7" />
+          </span>
           <div className="min-w-0 flex-1">
-            <span aria-hidden className="block w-12 sm:w-16 h-1 sm:h-1.5 rounded-full bg-gradient-to-r from-brand-600 to-sky-400 mb-2 sm:mb-3" />
-            <h1 className="font-black text-[28px] sm:text-4xl lg:text-5xl tracking-tight leading-none text-[#1a3d6d]">{title}</h1>
-            {subtitle && <p className="mt-1.5 sm:mt-2 text-xs sm:text-base text-slate-600 max-w-[60%] sm:max-w-none line-clamp-2">{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
+            <h1 className="font-black text-2xl sm:text-[30px] tracking-tight leading-tight text-[#123B68]">{title}</h1>
+            {subtitle && <p className="mt-0.5 text-xs sm:text-[15px] text-[#17477D]/80 line-clamp-2 max-w-[62%] sm:max-w-none">{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
           </div>
           {tools}
           {action && (
             <button onClick={action.onClick}
-              className="self-end sm:self-center flex items-center gap-1.5 sm:gap-2 h-11 sm:h-12 px-3.5 sm:pl-5 sm:pr-4 rounded-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white text-sm sm:text-base font-bold shadow-[0_12px_26px_-10px_rgba(0,110,198,0.95)] ring-4 ring-white/50 shrink-0">
-              <action.icon className="w-5 h-5" /> <span className="hidden sm:inline">{action.label}</span><ChevronRight className="hidden sm:block w-4 h-4 opacity-80" />
+              className="group flex items-center gap-2 h-11 sm:h-12 px-3.5 sm:pl-5 sm:pr-4 rounded-xl bg-[#0072CE] hover:bg-[#17477D] text-white text-sm sm:text-[15px] font-bold shadow-[0_12px_26px_-12px_rgba(0,114,206,0.95)] transition-colors duration-200 shrink-0">
+              <action.icon className="w-5 h-5" /> <span className="hidden sm:inline">{action.label}</span><ChevronRight className="hidden sm:block w-4 h-4 opacity-80 transition-transform duration-200 group-hover:translate-x-0.5" />
             </button>
           )}
         </div>
@@ -175,6 +182,6 @@ export const PageHeader: React.FC<{
       </div>
     </section>
     )}
-    {stats && stats.length > 0 && <StatGrid stats={stats} />}
+    {stats && stats.length > 0 && <StatGrid stats={stats} brand={!!hero} />}
   </div>
 );

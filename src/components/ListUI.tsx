@@ -39,7 +39,7 @@ export function ChipRow<K extends string>({ items, value, onChange }: {
         const on = it.key === value;
         return (
           <button key={it.key} type="button" onClick={() => onChange(it.key)} aria-pressed={on}
-            className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${on ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'}`}>
+            className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${on ? 'bg-[#0072CE] border-[#0072CE] text-white shadow-sm' : 'bg-white border-[#DCE8F5] text-[#17477D] hover:border-[#0072CE]/50 hover:bg-[#EAF4FC]'}`}>
             {it.label}
           </button>
         );
@@ -77,15 +77,15 @@ export function UnderlineTabs<K extends string>({ items, value, onChange, small 
   );
 }
 
-/** Durum rozeti: Beklemede (mavi, saat) / Onaylandı (yeşil, onay) / İptal (gri) / Pasif (amber) */
+/** Durum rozeti (ENYAP renkleri): Onaylandı turkuaz / Beklemede mavi / İptal gri / Pasif lacivert-gri */
 export const StatusPill: React.FC<{ status: string }> = ({ status }) => {
   const m = status === 'onaylandi'
-    ? { l: 'Onaylandı', c: 'bg-emerald-50 text-emerald-700 border-emerald-200', I: CheckCircle2, ic: 'text-white fill-emerald-500' }
+    ? { l: 'Onaylandı', c: 'bg-[#E8F8F4] text-[#008F79] border-[#00B89C]/30', I: CheckCircle2, ic: 'text-white fill-[#00B89C]' }
     : status === 'iptal'
-      ? { l: 'İptal', c: 'bg-slate-100 text-slate-600 border-slate-200', I: XCircle, ic: 'text-slate-500' }
+      ? { l: 'İptal', c: 'bg-slate-100 text-slate-700 border-slate-200', I: XCircle, ic: 'text-slate-500' }
       : status === 'pasif'
-        ? { l: 'Pasif', c: 'bg-amber-50 text-amber-800 border-amber-200', I: PauseCircle, ic: 'text-amber-600' }
-        : { l: 'Beklemede', c: 'bg-brand-50 text-brand-700 border-brand-200', I: Clock, ic: 'text-brand-600' };
+        ? { l: 'Pasif', c: 'bg-[#EEF2F7] text-[#17477D] border-[#17477D]/15', I: PauseCircle, ic: 'text-[#17477D]/70' }
+        : { l: 'Beklemede', c: 'bg-[#EAF4FC] text-[#0072CE] border-[#0072CE]/25', I: Clock, ic: 'text-[#0072CE]' };
   return <span className={`inline-flex items-center gap-1 text-[11px] sm:text-xs pl-1.5 pr-2.5 py-0.5 sm:py-1 rounded-full font-bold border whitespace-nowrap ${m.c}`}><m.I aria-hidden className={`w-3.5 h-3.5 shrink-0 ${m.ic}`} />{m.l}</span>;
 };
 
