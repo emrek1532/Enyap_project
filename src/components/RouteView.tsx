@@ -70,7 +70,7 @@ export const RouteView: React.FC<{
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
       <div className={`${listCard} overflow-hidden`}>
-        <div className="px-4 sm:px-5 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex flex-wrap items-center gap-3">
+        <div className="px-4 sm:px-5 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-[12rem]">
             <h2 className="text-base font-black flex items-center gap-2"><Navigation className="w-5 h-5 text-sky-300" />Bugünün rotası</h2>
             <p className="text-xs text-sky-200/80">{stops.length ? `${stops.length} durak · ${done} uğrandı` : 'Henüz durak yok'} · {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })}</p>
@@ -114,7 +114,7 @@ export const RouteView: React.FC<{
               const v = visited(c);
               return (
                 <li key={c.id} className="flex items-center gap-3 py-2.5">
-                  <span className={`w-7 h-7 rounded-full grid place-items-center text-xs font-black shrink-0 ${v ? 'bg-emerald-500 text-white' : 'bg-[#0b2a4c] text-white'}`}>{v ? '✓' : i + 1}</span>
+                  <span className={`w-7 h-7 rounded-full grid place-items-center text-xs font-black shrink-0 ${v ? 'bg-emerald-500 text-white' : 'bg-[#1a3d6d] text-white'}`}>{v ? '✓' : i + 1}</span>
                   <button type="button" onClick={() => onOpen(c)} className="flex-1 min-w-0 text-left">
                     <span className={`block text-sm font-bold truncate ${v ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-900'}`}>{c.name}</span>
                     <span className="block text-[11px] text-slate-500 truncate">
@@ -142,7 +142,7 @@ export const RouteView: React.FC<{
       </div>
 
       <aside className={`${listCard} p-4 h-fit`}>
-        <h3 className="text-sm font-black text-[#0b2a4c]">Öneriler</h3>
+        <h3 className="text-sm font-black text-[#1a3d6d]">Öneriler</h3>
         <p className="text-[11px] text-slate-500 mb-2">Takip günü gelen firmalar; rotadaki şehirlerde 3 aydır uğranmayanlar</p>
         {suggest.length === 0 && <p className="text-xs text-slate-500 py-3">Şu an öneri yok. Rotaya firma ekledikçe aynı şehirdeki uğranmayan firmalar burada çıkar.</p>}
         <ul className="divide-y divide-slate-100">

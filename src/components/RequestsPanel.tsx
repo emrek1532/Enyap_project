@@ -142,7 +142,7 @@ export const RequestsPanel: React.FC<{
 const Modal: React.FC<{ title: string; sub?: string; onClose: () => void; children: React.ReactNode }> = ({ title, sub, onClose, children }) => (
   <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-end sm:items-center justify-center" onClick={onClose}>
     <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
-      <div className="sticky top-0 z-10 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white px-4 sm:px-5 py-3.5 pt-safe-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white px-4 sm:px-5 py-3.5 pt-safe-3 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="font-black text-lg truncate">{title}</h3>
           {sub && <p className="text-xs text-sky-200/80 truncate">{sub}</p>}

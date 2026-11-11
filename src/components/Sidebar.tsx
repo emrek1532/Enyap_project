@@ -35,7 +35,7 @@ export const Sidebar: React.FC<{
     );
   };
   return (
-    <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[88px] lg:w-60 flex-col bg-gradient-to-b from-[#0b2a4c] via-[#0a2442] to-[#071a31] text-white pt-safe">
+    <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[88px] lg:w-60 flex-col bg-gradient-to-b from-[#21508c] via-[#1d4680] to-[#193c70] text-white pt-safe">
       <button onClick={onHome} className="mx-2 lg:mx-3 mt-5 mb-4 flex flex-col items-center gap-2 px-2 py-3 rounded-2xl hover:bg-white/5 text-center" title="Ana Sayfa">
         <span className="w-full flex justify-center px-1.5 lg:px-4 py-2 lg:py-2.5 rounded-xl bg-white shadow-sm"><img src="/logo-splash.png" alt="ENYAP" draggable={false} className="h-5 lg:h-8 w-auto max-w-full select-none" /></span>
         <span className="hidden lg:block text-[11px] font-medium text-slate-300 tracking-wide">Isı Sistemleri · Teklif & Satış</span>

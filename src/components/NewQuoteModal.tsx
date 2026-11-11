@@ -630,7 +630,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       <div className="bg-white w-full sm:max-w-6xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[94vh]">
 
         {/* Başlık çubuğu */}
-        <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center gap-2 pt-safe-3 sm:pt-3.5">
+        <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center gap-2 pt-safe-3 sm:pt-3.5">
           <div className="flex-1 min-w-0">
             <h3 className="font-black text-base sm:text-lg tracking-tight truncate">
               {isEdit ? `Teklif Düzenle · ${editQuote!.quoteNumber}` : 'Yeni Fiyat Teklifi'}

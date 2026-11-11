@@ -9,7 +9,7 @@ import { Rates, quoteTry } from '../lib/rates';
 import { DateInput } from './DateInput';
 
 const trDate = (d: string) => d.slice(0, 10).split('-').reverse().join('.');
-const chipCls = (on: boolean) => `px-2.5 py-1 rounded-full border text-[11px] font-bold ${on ? 'bg-[#0b2a4c] border-[#0b2a4c] text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`;
+const chipCls = (on: boolean) => `px-2.5 py-1 rounded-full border text-[11px] font-bold ${on ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`;
 
 /** Takip tarihi: "ne zaman arayayım?" — o sabah telefona bildirim gider, ana sayfada "Bugün aranacaklar"da çıkar */
 export const FollowUpBox: React.FC<{ quote: Quote; onChange: (day: string | undefined) => void }> = ({ quote, onChange }) => {
@@ -56,7 +56,7 @@ export const ValidityBox: React.FC<{ quote: Quote; priceChanged?: number; onExte
         <button type="button" onClick={onRevise} className="h-8 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold">Güncel fiyatla revize et</button>
       )}
       <button type="button" onClick={() => onExtend(plusDays(15, base))}
-        className={`h-8 px-3 rounded-lg text-[11px] font-bold ${warn ? 'bg-[#0b2a4c] text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}>
+        className={`h-8 px-3 rounded-lg text-[11px] font-bold ${warn ? 'bg-[#1a3d6d] text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}>
         Süreyi 15 gün uzat
       </button>
     </div>
