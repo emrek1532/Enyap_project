@@ -886,7 +886,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
     : activeTab === 'customers' && canCustomers ? { label: 'Yeni Müşteri', icon: Plus, onClick: bumpNew }
     : activeTab === 'admin' && profile.isAdmin ? { label: 'Kişi Ekle', icon: Plus, onClick: bumpNew }
-    : activeTab === 'materials' && can(profile, 'materials') ? { label: 'Yeni Malzeme', icon: Plus, onClick: bumpNew }
     : undefined;
 
   return (
@@ -965,7 +964,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         )}
 
         {/* Bölüm başlığı: geri / ana sayfa */}
-        {activeTab !== 'home' && (
+        {/* Malzemeler başlığını kendisi çizer (Excel düğmesi ve sunucudan sayılan kutular) */}
+        {activeTab !== 'home' && activeTab !== 'materials' && (
           <PageHeader
             title={SECTION_META[activeTab].title}
             subtitle={SECTION_SUB[activeTab]}
@@ -1096,7 +1096,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         )}
 
         {/* Malzemeler (fiyat kataloğu) */}
-        {activeTab === 'materials' && <MaterialsPanel newRequest={newRequest} quotes={liveQuotes} onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined} />}
+        {activeTab === 'materials' && <MaterialsPanel onBack={goBack} canAdd={can(profile, 'materials')} newRequest={newRequest} quotes={liveQuotes} onOpenQuote={can(profile, 'quotes') ? setEditingQuote : undefined} />}
 
         {activeTab === 'admin' && profile.isAdmin && <AdminPanel meId={profile.id} activities={data.activities} newRequest={newRequest} />}
 

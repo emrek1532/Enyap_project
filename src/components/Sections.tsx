@@ -22,7 +22,7 @@ export const SECTION_SUB: Record<Exclude<ActiveTab, 'home'>, string> = {
   customers: 'Müşteri bilgilerini yönetin.',
   collections: 'Tahsilat kayıtlarınızı görüntüleyin ve yönetin.',
   expenses: 'Harcama kayıtlarınızı görüntüleyin ve yönetin.',
-  materials: 'Malzeme listesini görüntüleyin ve yönetin.',
+  materials: 'Malzeme envanterinizi, stok durumunuzu ve firma fiyat listelerinizi yönetin.',
   reports: 'Satış, tahsilat ve harcama raporları.',
   notes: 'Notlarınız ve son hareketler.',
   admin: 'Kullanıcılar ve yetkiler.',
@@ -103,7 +103,8 @@ const StatGrid: React.FC<{ stats: Stat[]; brand?: boolean }> = ({ stats, brand }
 );
 
 /** Fotoğraflı başlık (Teklifler): sağda tesisat fotoğrafı, solda büyük başlık; telefonda küçük fotoğraf */
-export const HERO_IMG: Partial<Record<ActiveTab, { lg: string; sm: string }>> = {
+export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode };
+export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   quotes: { lg: '/hero-teklif.webp', sm: '/hero-teklif-sm.webp' },
 };
 
@@ -121,18 +122,24 @@ export const PageHeader: React.FC<{
   onHome?: () => void;
   action?: { label: string; icon: React.ElementType; onClick: () => void };
   stats?: Stat[];
+  /** İkinci düğme (çerçeveli; telefonda yalnız simge) */
+  secondary?: { label: string; icon: React.ElementType; onClick: () => void };
+  /** Rakamlar yerine özel içerik (Malzemeler: sunucudan sayılan kutular) */
+  below?: React.ReactNode;
   /** Sağ üstteki düğmeler (ara, eşitle, bildirim, kılavuz, çıkış) */
   tools?: React.ReactNode;
-  hero?: { lg: string; sm: string };
-}> = ({ title, subtitle, icon: Icon, onBack, action, stats, tools, hero }) => (
+  hero?: Hero;
+}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero }) => (
   <div className="mb-4 sm:mb-5 space-y-3 sm:space-y-4">
     {hero ? (
       /* ENYAP Teklifler bandı: ~130px, solda simge + başlık, sağda fotoğraf (solu açık zemine karışır) */
       <section className="relative overflow-hidden rounded-2xl border border-[#DCE8F5] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF4FC] shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)]">
-        <picture aria-hidden>
-          <source media="(min-width: 768px)" srcSet={hero.lg} />
-          <img src={hero.sm} alt="" draggable={false} className="pointer-events-none select-none absolute inset-y-0 right-0 h-full w-[58%] sm:w-[52%] lg:w-[46%] object-cover object-center" />
-        </picture>
+        {hero.art
+          ? <div aria-hidden className="pointer-events-none select-none absolute inset-y-0 right-0 w-[64%] sm:w-[58%] lg:w-[54%] [&>svg]:w-full [&>svg]:h-full">{hero.art}</div>
+          : <picture aria-hidden>
+            <source media="(min-width: 768px)" srcSet={hero.lg} />
+            <img src={hero.sm} alt="" draggable={false} className="pointer-events-none select-none absolute inset-y-0 right-0 h-full w-[58%] sm:w-[52%] lg:w-[46%] object-cover object-center" />
+          </picture>}
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]" />
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#0072CE] via-[#0072CE] to-[#00B89C]" />
         <div className="relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 min-h-[104px] sm:min-h-[124px] lg:min-h-[132px] py-4">
@@ -148,6 +155,12 @@ export const PageHeader: React.FC<{
             {subtitle && <p className="mt-0.5 text-xs sm:text-[15px] text-[#17477D]/80 line-clamp-2 max-w-[62%] sm:max-w-none">{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
           </div>
           {tools}
+          {secondary && (
+            <button onClick={secondary.onClick} title={secondary.label}
+              className="flex items-center gap-2 h-11 sm:h-12 px-3 sm:px-4 rounded-xl bg-white/95 hover:bg-white border border-[#C9DDF1] text-[#173F73] text-sm sm:text-[15px] font-bold shadow-[0_10px_24px_-16px_rgba(18,59,104,0.7)] backdrop-blur-sm transition-colors shrink-0">
+              <secondary.icon className="w-5 h-5 text-[#00A08A]" /> <span className="hidden xl:inline">{secondary.label}</span>
+            </button>
+          )}
           {action && (
             <button onClick={action.onClick}
               className="group flex items-center gap-2 h-11 sm:h-12 px-3.5 sm:pl-5 sm:pr-4 rounded-xl bg-[#0072CE] hover:bg-[#17477D] text-white text-sm sm:text-[15px] font-bold shadow-[0_12px_26px_-12px_rgba(0,114,206,0.95)] transition-colors duration-200 shrink-0">
@@ -182,6 +195,7 @@ export const PageHeader: React.FC<{
       </div>
     </section>
     )}
-    {stats && stats.length > 0 && <StatGrid stats={stats} brand={!!hero} />}
+    {below}
+    {!below && stats && stats.length > 0 && <StatGrid stats={stats} brand={!!hero} />}
   </div>
 );

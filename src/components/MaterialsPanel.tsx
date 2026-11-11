@@ -1,10 +1,10 @@
 import { viewStatus } from '../lib/quoteRules';
 import { trNum } from '../lib/num';
 import React, { useEffect, useRef, useState } from 'react';
-import { Eye, FileSpreadsheet, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Boxes, CircleAlert, CircleCheck, CircleSlash, Eye, FileSpreadsheet, Loader2, Package, PackageSearch, Pencil, Plus, Tag, Trash2, Wallet, Warehouse, X } from 'lucide-react';
 import { MaterialImport } from './MaterialImport';
 import { LastImport, fetchLastImport } from '../lib/materialImport';
-import { listCard, ctrl, rowCls, theadCls, SearchBox, IconBtn, Pager, WideOnly, NarrowOnly, LastEdit } from './ListUI';
+import { listCard, ctrl, theadCls, SearchBox, IconBtn, Pager, WideOnly, NarrowOnly, LastEdit } from './ListUI';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
@@ -16,23 +16,62 @@ import { allowed, can, useAccess } from '../lib/access';
 import { Quote } from '../types';
 import { STATUS_LABEL } from '../lib/constants';
 import { dayOf } from '../lib/dates';
+import { PageHeader, SECTION_SUB, StatBox } from './Sections';
+import { PipeArt } from './HeroArt';
 
 const PAGE = 25;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
 const EMPTY: Material = { code: '', name: '', price: 0, currency: 'TRY', unit: 'Adet', vatRate: 20, stock: null };
+type StockKey = NonNullable<MaterialFilters['stock']>;
 
-const selectCls = `${ctrl} w-full text-xs`;
+/**
+ * Hızlı kategori: veritabanında kategori alanı yok; düğme, malzeme adında o kelimeyi arar
+ * (sayılar 11.2026: vana ~6.000, pompa ~2.400, flanş ~2.300 …). Yeni sütun/sorgu gerekmez.
+ */
+const CATS: [label: string, word: string][] = [
+  ['Vanalar', 'vana'], ['Pompalar', 'pompa'], ['Flanşlar', 'flanş'], ['Borular', 'boru'], ['Dirsekler', 'dirsek'],
+  ['Kollektörler', 'kollektör'], ['Manometreler', 'manometre'], ['Radyatörler', 'radyatör'], ['Kazanlar', 'kazan'],
+  ['Kombiler', 'kombi'], ['Termostatlar', 'termostat'], ['Genleşme Tankları', 'genleşme'],
+];
+
+const selectCls = `${ctrl} w-full text-xs !border-[#E2EAF3] !text-[#17365D]`;
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('tr-TR') : '-');
 const fmtStock = (v?: number | null) => (v == null ? '-' : v.toLocaleString('tr-TR', { maximumFractionDigits: 2 }));
 
-const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void; newRequest?: number }> = ({ quotes, onOpenQuote, newRequest }) => {
+/** Stok: eksi → koyu lacivert + "Eksi" etiketi, 0/boş → gri + "Yok"; kırmızı kullanılmaz */
+const StockCell: React.FC<{ v?: number | null; right?: boolean }> = ({ v, right }) => {
+  const n = v ?? 0;
+  const tag = n < 0 ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#E6F1FB] text-[#006DBB] border border-[#C7DFF5]">Eksi</span>
+    : n === 0 ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#F1F6FC] text-[#7186A3] border border-[#E2EAF3]">Yok</span>
+      : null;
+  return (
+    <span className={`inline-flex items-center gap-1.5 tabular-nums ${right ? 'flex-row-reverse' : ''}`}>
+      <span className={n < 0 ? 'font-extrabold text-[#173F73]' : n === 0 ? 'text-[#7186A3]' : 'font-semibold text-[#17365D]'}>{fmtStock(v)}</span>
+      {tag}
+    </span>
+  );
+};
+
+const CurBadge: React.FC<{ c: Currency }> = ({ c }) => (
+  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#F1F6FC] text-[#204D84] border border-[#E2EAF3]">{CURRENCY_LABEL[c]}</span>
+);
+
+const OwnMaterials: React.FC<{
+  quotes: Quote[]; onOpenQuote?: (q: Quote) => void; newRequest?: number; importRequest?: number;
+  stockPick?: { v: StockKey; n: number }; onStock?: (v: StockKey) => void; onChanged?: () => void;
+  /** istek karşılandı (sayaç sıfırlanır; sekme değişip geri gelince form yeniden açılmaz) */
+  onConsumed?: (k: 'new' | 'import') => void;
+}> = ({ quotes, onOpenQuote, newRequest, importRequest, stockPick, onStock, onChanged, onConsumed }) => {
   const [page, setPage] = useState(0);
-  useEffect(() => { if (newRequest) setEditing({ m: { ...EMPTY } }); }, [newRequest]);
+  useEffect(() => { if (newRequest) { setEditing({ m: { ...EMPTY } }); onConsumed?.('new'); } }, [newRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   const [query, setQuery] = useState('');
   const [codeQuery, setCodeQuery] = useState('');
+  const [cat, setCat] = useState('');
   const [filters, setFilters] = useState<MaterialFilters>({ currency: '', unit: '', price: '', stock: '' });
   const [sort, setSort] = useState<SortState<MaterialSortKey>>({ key: 'default', dir: 'asc' });
   const setFilter = <K extends keyof MaterialFilters>(k: K, v: MaterialFilters[K]) => setFilters(prev => ({ ...prev, [k]: v }));
+  useEffect(() => { if (stockPick) setFilter('stock', stockPick.v); }, [stockPick]);
+  useEffect(() => { onStock?.(filters.stock || ''); }, [filters.stock]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeFilters = Object.values(filters).filter(Boolean).length;
   const [items, setItems] = useState<Material[]>([]);
   const [total, setTotal] = useState(0);
@@ -40,13 +79,13 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
   const [error, setError] = useState('');
   const [history, setHistory] = useState<Material | null>(null);
   const [reload, setReload] = useState(0);
+  const changed = () => { setReload(n => n + 1); onChanged?.(); };
   const [editing, setEditing] = useState<{ m: Material; originalCode?: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const reqId = useRef(0);
-  // Mikro'dan Excel ile toplu güncelleme (malzeme düzenleme ya da "Malzeme listesini yükler" izni)
-  const me = useAccess();
-  const canImport = can(me, 'materials', 'edit') || allowed(me, 'matImport');
+  // Mikro'dan Excel ile toplu güncelleme (düğme başlıkta: "Excel'den Malzeme Aktar")
   const [importing, setImporting] = useState(false);
+  useEffect(() => { if (importRequest) { setImporting(true); onConsumed?.('import'); } }, [importRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   const [lastImport, setLastImport] = useState<LastImport | null>(null);
   useEffect(() => { fetchLastImport().then(setLastImport, () => undefined); }, [reload]);
 
@@ -54,9 +93,10 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
     const id = ++reqId.current;
     setLoading(true);
     try {
-      // Kod kutusu doluysa sadece kodda, değilse adda ve kodda aranır
+      // Kod kutusu doluysa sadece kodda; değilse (kategori kelimesi + arama) adda ve kodda aranır
       const byCode = codeQuery.trim() !== '';
-      const r = await listMaterials(byCode ? codeQuery.trim() : query.trim(), {
+      const q = byCode ? codeQuery.trim() : [cat, query.trim()].filter(Boolean).join(' ');
+      const r = await listMaterials(q, {
         limit: PAGE, offset, field: byCode ? 'code' : 'all', filters, sortKey: sort.key, sortDir: sort.dir,
       });
       if (id !== reqId.current) return;
@@ -76,57 +116,57 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
     const t = window.setTimeout(() => load(page * PAGE, false), page ? 0 : 250);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, codeQuery, filters, sort, reload, page]);
+  }, [query, codeQuery, cat, filters, sort, reload, page]);
   // Arama / filtre değişince ilk sayfaya dön
-  useEffect(() => setPage(0), [query, codeQuery, filters, sort]);
+  useEffect(() => setPage(0), [query, codeQuery, cat, filters, sort]);
 
   const handleDelete = async (code: string) => {
     try {
       await deleteMaterial(code);
       setConfirmDelete(null);
-      setReload(n => n + 1);
+      changed();
     } catch {
       setError('Silinemedi. İnternet bağlantısını kontrol edin.');
     }
   };
 
-  const priceText = (m: Material) => (m.price > 0 ? `${formatPrice(m.price)} ${CURRENCY_LABEL[m.currency]}` : '—');
+  const priceNum = (m: Material) => (m.price > 0 ? formatPrice(m.price) : '—');
 
   const rowActions = (m: Material) => confirmDelete === m.code ? (
     <span className="inline-flex items-center gap-1">
-      <button onClick={() => handleDelete(m.code)} className="px-2 py-1 rounded-md bg-rose-600 text-white text-[11px] font-bold">Sil</button>
+      <button onClick={() => handleDelete(m.code)} className="px-2 py-1 rounded-md bg-[#173F73] text-white text-[11px] font-bold">Sil</button>
       <button onClick={() => setConfirmDelete(null)} className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[11px] font-bold">Vazgeç</button>
     </span>
   ) : (
-    <span className="inline-flex items-center gap-0.5">
-      <IconBtn title="Satış geçmişi" onClick={() => setHistory(m)}><Eye className="w-4 h-4" /></IconBtn>
+    <span className="inline-flex items-center gap-1">
+      <IconBtn title="Görüntüle (satış geçmişi)" onClick={() => setHistory(m)}><Eye className="w-4 h-4" /></IconBtn>
       <IconBtn title="Düzenle" onClick={() => setEditing({ m, originalCode: m.code })}><Pencil className="w-4 h-4" /></IconBtn>
       <IconBtn danger title="Sil" onClick={() => setConfirmDelete(m.code)}><Trash2 className="w-4 h-4" /></IconBtn>
     </span>
   );
 
+  const chip = (on: boolean) =>
+    `shrink-0 inline-flex items-center h-8 px-3 rounded-lg border text-[13px] font-semibold whitespace-nowrap transition-colors ${on
+      ? 'bg-[#006DBB] border-[#006DBB] text-white shadow-[0_6px_14px_-8px_rgba(0,109,187,0.9)]'
+      : 'bg-white border-[#E2EAF3] text-[#17365D] hover:border-[#9CC8EC] hover:bg-[#F1F6FC]'}`;
+  const anything = activeFilters > 0 || query || codeQuery || cat || sort.key !== 'default';
+
   return (
     <div className="space-y-4">
-    <div className={listCard}>
+    <div className={`${listCard} !rounded-2xl !border-[#E2EAF3]`}>
       <div className="p-3 sm:p-4 space-y-3">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="grid grid-cols-[8.5rem_1fr] sm:grid-cols-[11rem_1fr] gap-2 flex-1 min-w-0">
-            <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" />
-            <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara (ör. kalde vana 1/2)" />
-          </div>
-          {canImport && (
-            <button type="button" onClick={() => setImporting(true)}
-              className="h-10 px-3 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-sm font-extrabold hover:bg-emerald-100 inline-flex items-center justify-center gap-1.5 shrink-0">
-              <FileSpreadsheet className="w-4 h-4" /> Listeyi yükle (Excel)
-            </button>
-          )}
+        {/* Hızlı kategori (adda arar) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+          <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[#7186A3] pr-1"><Tag className="w-3.5 h-3.5" /> Kategori</span>
+          <button type="button" onClick={() => setCat('')} className={chip(!cat && !codeQuery)}>Tümü</button>
+          {CATS.map(([label, w]) => (
+            <button key={w} type="button" aria-pressed={cat === w} onClick={() => { setCat(cat === w ? '' : w); setCodeQuery(''); }} className={chip(cat === w)}>{label}</button>
+          ))}
         </div>
-        {lastImport && (
-          <div className="text-[11px] text-slate-500">
-            Son toplu güncelleme: <b className="text-slate-600">{new Date(lastImport.at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</b>
-            {lastImport.byName && <> · {lastImport.byName}</>} · {lastImport.updated.toLocaleString('tr-TR')} değişti, {lastImport.inserted.toLocaleString('tr-TR')} yeni
-          </div>
-        )}
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_12rem] gap-2">
+          <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı veya kod ara (ör. kalde vana 1/2)" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
+          <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) { setQuery(''); setCat(''); } }} placeholder="Yalnız kodda ara" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
           <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">
             <option value="">Fiyat: Tümü</option>
@@ -165,75 +205,88 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
             ]}
           />
         </div>
-        <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
+        <div className="text-xs text-[#7186A3] flex items-center gap-x-2 gap-y-1 flex-wrap">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          <span>{total.toLocaleString('tr-TR')} malzeme{query.trim() || codeQuery.trim() || activeFilters ? ' bulundu' : ''}</span>
-          {(activeFilters > 0 || query || codeQuery || sort.key !== 'default') && (
+          <span><b className="text-[#17365D]">{total.toLocaleString('tr-TR')}</b> malzeme{query.trim() || codeQuery.trim() || cat || activeFilters ? ' bulundu' : ''}</span>
+          {anything && (
             <button
-              onClick={() => { setFilters({ currency: '', unit: '', price: '', stock: '' }); setQuery(''); setCodeQuery(''); setSort({ key: 'default', dir: 'asc' }); }}
-              className="text-brand-600 font-bold hover:underline"
+              onClick={() => { setFilters({ currency: '', unit: '', price: '', stock: '' }); setQuery(''); setCodeQuery(''); setCat(''); setSort({ key: 'default', dir: 'asc' }); }}
+              className="text-[#006DBB] font-bold hover:underline"
             >
               Filtreleri temizle
             </button>
           )}
+          {lastImport && (
+            <span className="sm:ml-auto">
+              Son toplu güncelleme: <b className="text-[#17365D]">{new Date(lastImport.at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</b>
+              {lastImport.byName && <> · {lastImport.byName}</>} · {lastImport.updated.toLocaleString('tr-TR')} değişti, {lastImport.inserted.toLocaleString('tr-TR')} yeni
+            </span>
+          )}
         </div>
-        {error && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
+        {error && <div className="text-xs text-[#173F73] bg-[#E6F1FB] border border-[#C7DFF5] rounded-lg px-3 py-2">{error}</div>}
       </div>
     </div>
 
-    <div className={`${listCard} overflow-hidden`}>
+    <div className={`${listCard} !rounded-2xl !border-[#E2EAF3] overflow-hidden`}>
 
-      {/* Telefon: kartlar */}
-      <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-slate-100">
+      {/* Telefon / dar tablet: kartlar */}
+      <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-[#E2EAF3]">
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
-              <div className="text-sm font-semibold text-slate-800 leading-snug">{m.name || '-'}</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">
-                <span className="font-mono">{m.code}</span> · {m.unit} · stok <span className={(m.stock ?? 0) < 0 ? 'text-rose-600 font-bold' : ''}>{fmtStock(m.stock)}</span>
+              <div className="text-[11px] font-extrabold text-[#173F73] font-mono">{m.code}</div>
+              <div className="text-sm font-semibold text-[#17365D] leading-snug uppercase">{m.name || '-'}</div>
+              <div className="text-[11px] text-[#7186A3] mt-1 flex items-center gap-1.5 flex-wrap">
+                <span>{m.unit}</span><span>·</span><span>KDV %{m.vatRate}</span><span>·</span><span>Stok</span><StockCell v={m.stock} />
               </div>
             </div>
-            <div className="text-right shrink-0 space-y-1">
-              <div className={`text-sm font-black tabular-nums ${m.price > 0 ? 'text-slate-900' : 'text-slate-500'}`}>{priceText(m)}</div>
+            <div className="text-right shrink-0 space-y-1.5">
+              <div className={`text-sm font-black tabular-nums ${m.price > 0 ? 'text-[#17365D]' : 'text-[#7186A3]'}`}>
+                {priceNum(m)} {m.price > 0 && <span className="text-[11px] font-bold text-[#204D84]">{CURRENCY_LABEL[m.currency]}</span>}
+              </div>
               {rowActions(m)}
             </div>
           </div>
         ))}
-        {!loading && items.length === 0 && <div className="p-6 text-center text-sm text-slate-500">Malzeme bulunamadı.</div>}
+        {!loading && items.length === 0 && <EmptyState />}
       </div></NarrowOnly>
 
-      {/* Tablet / masaüstü: tablo */}
+      {/* Geniş ekran: envanter tablosu */}
       <WideOnly from="lg"><div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead className={`${theadCls} text-left`}>
-            <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
+            <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-[#17365D]">
               <SortHeader className="pl-5" label="Kod" active={sort.key === 'code'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'code', 'asc'))} />
               <SortHeader label="Malzeme Adı" active={sort.key === 'name'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'name', 'asc'))} />
               <th className="py-3 px-3">Birim</th>
               <SortHeader label="Birim Fiyat" align="right" active={sort.key === 'price'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'price', 'desc'))} />
+              <th className="hidden xl:table-cell py-3 px-3">Para Birimi</th>
               <th className="hidden xl:table-cell py-3 px-3">KDV</th>
               <SortHeader label="Stok" align="right" active={sort.key === 'stock'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'stock', 'desc'))} />
               <SortHeader className="hidden xl:table-cell" label="Güncelleme" active={sort.key === 'updated'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'updated', 'desc'))} />
-              <th className="py-3 px-3"></th>
+              <th className="py-3 px-3 pr-5 text-center">İşlemler</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-[#E2EAF3]">
             {items.map(m => (
-              <tr key={m.code} className={rowCls}>
-                <td className="py-3 px-3 pl-5 text-xs font-bold text-[#1a3d6d] whitespace-nowrap">{m.code}</td>
-                <td className="py-3 px-3 text-slate-800 font-semibold uppercase text-[13px]">
-                  <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-brand-700">{m.name || '-'}</button>
+              <tr key={m.code} className="hover:bg-[#F1F8FE] transition-colors">
+                <td className="py-3 px-3 pl-5 text-xs font-extrabold text-[#173F73] whitespace-nowrap">{m.code}</td>
+                <td className="py-3 px-3 text-[#17365D] font-semibold uppercase text-[13px]">
+                  <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-[#006DBB]">{m.name || '-'}</button>
                 </td>
-                <td className="py-3 px-3 text-slate-500">{m.unit}</td>
-                <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-500'}`}>{priceText(m)}</td>
-                <td className="hidden xl:table-cell py-3 px-3 text-slate-500 tabular-nums">%{m.vatRate}</td>
-                <td className={`py-3 px-3 text-right tabular-nums ${(m.stock ?? 0) < 0 ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>{fmtStock(m.stock)}</td>
-                <td className="hidden xl:table-cell py-3 px-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
-                <td className="py-3 px-3 text-right whitespace-nowrap">{rowActions(m)}</td>
+                <td className="py-3 px-3 text-[#7186A3]">{m.unit}</td>
+                <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-[#17365D]' : 'text-[#7186A3]'}`}>
+                  {priceNum(m)}<span className="xl:hidden">{m.price > 0 && <span className="ml-1 text-[11px] font-bold text-[#204D84]">{CURRENCY_LABEL[m.currency]}</span>}</span>
+                </td>
+                <td className="hidden xl:table-cell py-3 px-3"><CurBadge c={m.currency} /></td>
+                <td className="hidden xl:table-cell py-3 px-3 text-[#7186A3] tabular-nums">%{m.vatRate}</td>
+                <td className="py-3 px-3 text-right whitespace-nowrap"><StockCell v={m.stock} right /></td>
+                <td className="hidden xl:table-cell py-3 px-3 text-[#7186A3] text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
+                <td className="py-3 px-3 pr-5 text-center whitespace-nowrap">{rowActions(m)}</td>
               </tr>
             ))}
             {!loading && items.length === 0 && (
-              <tr><td colSpan={8} className="py-8 text-center text-slate-500">Malzeme bulunamadı.</td></tr>
+              <tr><td colSpan={9}><EmptyState /></td></tr>
             )}
           </tbody>
         </table>
@@ -245,18 +298,26 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
 
       {history && <MaterialHistory m={history} quotes={quotes} onClose={() => setHistory(null)}
         onOpenQuote={onOpenQuote ? q => { setHistory(null); onOpenQuote(q); } : undefined} />}
-      {importing && <MaterialImport onClose={() => setImporting(false)} onDone={() => setReload(n => n + 1)} />}
+      {importing && <MaterialImport onClose={() => setImporting(false)} onDone={changed} />}
       {editing && (
         <MaterialForm
           initial={editing.m}
           originalCode={editing.originalCode}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); setReload(n => n + 1); }}
+          onSaved={() => { setEditing(null); changed(); }}
         />
       )}
     </div>
   );
 };
+
+const EmptyState: React.FC = () => (
+  <div className="py-10 flex flex-col items-center gap-2 text-center">
+    <span className="w-12 h-12 rounded-2xl bg-[#F1F6FC] text-[#006DBB] flex items-center justify-center"><PackageSearch className="w-6 h-6" /></span>
+    <div className="text-sm font-bold text-[#17365D]">Malzeme bulunamadı</div>
+    <div className="text-xs text-[#7186A3]">Aramayı kısaltın ya da filtreleri temizleyin.</div>
+  </div>
+);
 
 const money = (v: number, c: string) => `${trNum(v, { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as Currency] || c}`;
 
@@ -279,7 +340,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
             <div className="font-mono text-[11px] text-sky-200/80">{m.code}</div>
             <h3 className="font-black text-lg tracking-tight leading-snug">{m.name}</h3>
             <div className="text-xs text-sky-100/90 mt-1">
-              Satılan <b className="text-emerald-300">{sum(sold).toLocaleString('tr-TR')} {m.unit.toLocaleLowerCase('tr')}</b> ({sold.length} teklif, {firms} firma)
+              Satılan <b className="text-[#5FE0C8]">{sum(sold).toLocaleString('tr-TR')} {m.unit.toLocaleLowerCase('tr')}</b> ({sold.length} teklif, {firms} firma)
               {' · '}teklif edilen <b className="text-white">{sum(rows).toLocaleString('tr-TR')}</b> ({rows.length} teklif)
             </div>
           </div>
@@ -309,6 +370,17 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
     </div>
   );
 };
+
+
+/** Form bölüm başlığı: küçük simge + ad */
+const Group: React.FC<{ icon: React.ElementType; title: string; note?: string; children: React.ReactNode }> = ({ icon: I, title, note, children }) => (
+  <fieldset className="rounded-xl border border-[#E2EAF3] bg-white p-3 sm:p-3.5">
+    <legend className="px-1.5 -ml-1.5 flex items-center gap-1.5 text-[12px] font-extrabold uppercase tracking-wider text-[#204D84]">
+      <I className="w-4 h-4 text-[#006DBB]" /> {title}{note && <span className="normal-case tracking-normal font-semibold text-[#7186A3]">· {note}</span>}
+    </legend>
+    {children}
+  </fieldset>
+);
 
 const MaterialForm: React.FC<{
   initial: Material;
@@ -343,59 +415,75 @@ const MaterialForm: React.FC<{
     }
   };
 
-  const input = 'w-full p-2 border border-slate-200 rounded-lg text-sm';
+  const input = 'w-full h-10 px-3 border border-[#E2EAF3] rounded-lg text-sm text-[#17365D] bg-white focus:outline-none focus:ring-2 focus:ring-[#006DBB]/20 focus:border-[#7DB6E3]';
+  const label = 'block text-xs font-bold text-[#17365D] mb-1';
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-[#0B2447]/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <form
         onSubmit={submit}
         onClick={e => e.stopPropagation()}
-        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
+        className="bg-[#F7FAFD] w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white">
-          <h3 className="font-black text-lg tracking-tight flex items-center gap-2">
-            <Package className="w-5 h-5 text-sky-300" /> {originalCode ? 'Malzemeyi Düzenle' : 'Yeni Malzeme'}
-          </h3>
-          <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
+        <div className="sticky top-0 z-10 relative flex items-center gap-3 px-4 sm:px-5 py-3.5 bg-gradient-to-r from-white to-[#EAF4FC] border-b border-[#E2EAF3]">
+          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#006DBB] to-[#173F73] text-white flex items-center justify-center shrink-0 shadow-[0_8px_18px_-10px_rgba(0,109,187,0.9)]"><Package className="w-5 h-5" /></span>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-black text-lg tracking-tight text-[#173F73] leading-tight">{originalCode ? 'Malzemeyi Düzenle' : 'Yeni Malzeme'}</h3>
+            <p className="text-xs text-[#7186A3] truncate">{originalCode ? <span className="font-mono">{originalCode}</span> : 'Kod ve ad zorunlu; diğer alanlar sonradan da girilebilir.'}</p>
+          </div>
+          <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E2EAF3] text-[#204D84] hover:bg-[#F1F6FC] shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-[#006DBB] to-[#00B49A]" />
         </div>
-        <div className="p-4 space-y-3">
+        <div className="p-4 sm:p-5 space-y-3.5">
           {last?.by && <LastEdit by={last.by} at={last.at} />}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Kod *</label>
-              <input value={m.code} onChange={e => set('code', e.target.value)} className={`${input} font-mono`} required />
+          <Group icon={Package} title="Malzeme Bilgileri">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={label}>Malzeme Kodu *</label>
+                <input value={m.code} onChange={e => set('code', e.target.value)} className={`${input} font-mono`} required />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={label}>Malzeme Adı *</label>
+                <input value={m.name} onChange={e => set('name', e.target.value)} className={input} required />
+              </div>
             </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">Malzeme Adı *</label>
-              <input value={m.name} onChange={e => set('name', e.target.value)} className={input} required />
+          </Group>
+          <Group icon={Wallet} title="Fiyat Bilgileri">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="col-span-2 sm:col-span-1">
+                <label className={label}>Birim Fiyat</label>
+                <input inputMode="decimal" value={priceText} onChange={e => setPriceText(e.target.value)} placeholder="0,00" className={`${input} tabular-nums text-right font-bold`} />
+              </div>
+              <div>
+                <label className={label}>Para Birimi</label>
+                <select value={m.currency} onChange={e => set('currency', e.target.value as Currency)} className={input}>
+                  {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={label}>KDV %</label>
+                <input type="number" min="0" max="100" value={m.vatRate} onChange={e => set('vatRate', parseFloat(e.target.value) || 0)} className={input} />
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="col-span-2 sm:col-span-1">
-              <label className="block text-xs font-bold text-slate-700 mb-1">Birim Fiyat</label>
-              <input inputMode="decimal" value={priceText} onChange={e => setPriceText(e.target.value)} placeholder="0,00" className={`${input} tabular-nums`} />
+          </Group>
+          <Group icon={Warehouse} title="Stok Bilgileri" note="stok Mikro'dan gelir">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={label}>Birim</label>
+                <select value={m.unit} onChange={e => set('unit', e.target.value)} className={input}>
+                  {MATERIAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={label}>Stok Miktarı</label>
+                <div className="h-10 px-3 rounded-lg border border-dashed border-[#E2EAF3] bg-[#F1F6FC] flex items-center"><StockCell v={m.stock} /></div>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Para Birimi</label>
-              <select value={m.currency} onChange={e => set('currency', e.target.value as Currency)} className={input}>
-                {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Birim</label>
-              <select value={m.unit} onChange={e => set('unit', e.target.value)} className={input}>
-                {MATERIAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">KDV %</label>
-              <input type="number" min="0" max="100" value={m.vatRate} onChange={e => set('vatRate', parseFloat(e.target.value) || 0)} className={input} />
-            </div>
-          </div>
-          {error && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
+          </Group>
+          {error && <div className="text-xs text-[#173F73] bg-[#E6F1FB] border border-[#C7DFF5] rounded-lg px-3 py-2">{error}</div>}
         </div>
-        <div className="flex gap-2 px-4 py-3 border-t border-slate-100">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold">Vazgeç</button>
-          <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold disabled:opacity-60">
+        <div className="sticky bottom-0 flex gap-2 px-4 sm:px-5 py-3 border-t border-[#E2EAF3] bg-white">
+          <button type="button" onClick={onClose} className="flex-1 h-11 rounded-xl bg-white border border-[#E2EAF3] text-[#17365D] text-sm font-bold hover:bg-[#F1F6FC]">Vazgeç</button>
+          <button type="submit" disabled={saving} className="flex-1 h-11 rounded-xl bg-[#006DBB] hover:bg-[#173F73] text-white text-sm font-bold disabled:opacity-60 shadow-[0_10px_22px_-12px_rgba(0,109,187,0.9)]">
             {saving ? 'Kaydediliyor…' : 'Kaydet'}
           </button>
         </div>
@@ -404,44 +492,100 @@ const MaterialForm: React.FC<{
   );
 };
 
-/** Malzemeler: bizim kataloğumuz ve firma fiyat listeleri ayrı sekmelerde (birbirine karışmaz) */
-export const MaterialsPanel: React.FC<{ quotes?: Quote[]; onOpenQuote?: (q: Quote) => void; newRequest?: number }> = ({ quotes = [], onOpenQuote, newRequest }) => {
+/** Özet kutuları: 4 sayım (yalnız sayı; satır inmez). 10 dakika bellekte tutulur, kayıt/aktarımdan sonra yenilenir. */
+type Counts = { total: number; inStock: number; zero: number; negative: number };
+let countCache: { at: number; v: Counts } | null = null;
+async function fetchCounts(force = false): Promise<Counts> {
+  if (!force && countCache && Date.now() - countCache.at < 10 * 60_000) return countCache.v;
+  const head = () => supabase.from('materials').select('code', { count: 'exact', head: true });
+  const [a, b, c, d] = await Promise.all([head(), head().gt('stock', 0), head().or('stock.is.null,stock.eq.0'), head().lt('stock', 0)]);
+  if (a.error) throw a.error;
+  const v = { total: a.count ?? 0, inStock: b.count ?? 0, zero: c.count ?? 0, negative: d.count ?? 0 };
+  countCache = { at: Date.now(), v };
+  return v;
+}
+
+/** Malzemeler: başlık bandı + özet kutuları; altta bizim kataloğumuz ve firma fiyat listeleri ayrı sekmelerde */
+export const MaterialsPanel: React.FC<{
+  quotes?: Quote[]; onOpenQuote?: (q: Quote) => void; newRequest?: number;
+  /** Başlık (uygulamada verilir; deneme sayfasında yoksa geri düğmesi boş) */
+  onBack?: () => void; canAdd?: boolean;
+}> = ({ quotes = [], onOpenQuote, newRequest, onBack, canAdd }) => {
   const me = useAccess();
   const showOwn = can(me, 'materials'), showSup = can(me, 'suppliers');
+  const canImport = can(me, 'materials', 'edit') || allowed(me, 'matImport');
   const [tab, setTab] = useState<'own' | 'suppliers'>(() => {
     if (!showOwn) return 'suppliers';
     if (!showSup) return 'own';
     try { return localStorage.getItem('enyap-materials-tab') === 'suppliers' ? 'suppliers' : 'own'; } catch { return 'own'; }
   });
   const choose = (t: 'own' | 'suppliers') => { setTab(t); try { localStorage.setItem('enyap-materials-tab', t); } catch { /* */ } };
-  useEffect(() => { if (newRequest && showOwn) setTab('own'); }, [newRequest]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Sekmelerin altında kalem sayıları
-  const [ownCount, setOwnCount] = useState<number | null>(null);
+  // Başlıktaki düğmeler: yeni malzeme / Excel'den aktar (dışarıdan gelen istek de yeni malzeme açar)
+  const [newLocal, setNewLocal] = useState(0);
+  const [importReq, setImportReq] = useState(0);
+  useEffect(() => { if (newRequest && showOwn) { setTab('own'); setNewLocal(n => n + 1); } }, [newRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [counts, setCounts] = useState<Counts | null>(countCache?.v ?? null);
+  const loadCounts = (force = false) => fetchCounts(force).then(setCounts, () => undefined);
+  useEffect(() => { if (showOwn) loadCounts(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [supInfo, setSupInfo] = useState<{ lists: number; items: number } | null>(null);
   useEffect(() => {
-    supabase.from('materials').select('code', { count: 'exact', head: true })
-      .then(({ count }) => setOwnCount(count ?? null), () => undefined);
-    fetchSupplierLists()
-      .then(l => setSupInfo({ lists: l.length, items: l.reduce((a, x) => a + x.itemCount, 0) }), () => undefined);
-  }, []);
-  const tr = (n: number) => n.toLocaleString('tr-TR');
+    if (showSup) fetchSupplierLists().then(l => setSupInfo({ lists: l.length, items: l.reduce((a, x) => a + x.itemCount, 0) }), () => undefined);
+  }, [showSup]);
+  const [stock, setStock] = useState<StockKey>('');
+  const [stockPick, setStockPick] = useState<{ v: StockKey; n: number }>();
+  const pick = (v: StockKey) => setStockPick(p => ({ v: stock === v ? '' : v, n: (p?.n || 0) + 1 }));
+
+  const tr = (n?: number | null) => (n == null ? '–' : n.toLocaleString('tr-TR'));
+  const pct = (n?: number) => (counts && n != null && counts.total ? `%${Math.round((n / counts.total) * 100)} · ` : '');
+  const ring = (on: boolean) => (on ? 'ring-2 ring-[#006DBB]/50 border-[#9CC8EC]' : '');
+
+  const stats = tab === 'own' && showOwn ? (
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3">
+      <StatBox tone="eBlue" icon={Boxes} label="Toplam Malzeme" value={tr(counts?.total)} sub="katalogdaki tüm kalemler" onClick={() => pick('')} className={ring(false)} />
+      <StatBox tone="eTeal" icon={CircleCheck} label="Stokta Bulunan" value={tr(counts?.inStock)} sub={`${pct(counts?.inStock)}stok > 0`} onClick={() => pick('in')} className={ring(stock === 'in')} />
+      <StatBox tone="eBlue" icon={CircleSlash} label="Stokta Olmayan" value={tr(counts?.zero)} sub={`${pct(counts?.zero)}stok 0 / boş`} onClick={() => pick('zero')} className={ring(stock === 'zero')} />
+      <StatBox tone="eBlue" icon={CircleAlert} label="Kritik Stok" value={tr(counts?.negative)} sub="eksiye düşen (Mikro)" onClick={() => pick('negative')} className={ring(stock === 'negative')} />
+    </div>
+  ) : tab === 'suppliers' ? (
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+      <StatBox tone="eBlue" icon={Warehouse} label="Firma Fiyat Listesi" value={tr(supInfo?.lists)} sub="yüklü firma" />
+      <StatBox tone="eTeal" icon={Boxes} label="Firma Kalemleri" value={tr(supInfo?.items)} sub="tüm listelerde" />
+    </div>
+  ) : null;
+
   const tabCls = (on: boolean) =>
-    `relative whitespace-nowrap px-4 py-2.5 text-sm font-extrabold transition-colors ${on ? 'text-brand-600' : 'text-slate-600 hover:text-slate-900'}`;
-  const cnt = 'ml-1 text-xs font-semibold text-slate-500';
-  const bar = <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-brand-500" />;
+    `relative whitespace-nowrap px-4 py-2.5 text-sm font-extrabold transition-colors ${on ? 'text-[#006DBB]' : 'text-[#7186A3] hover:text-[#17365D]'}`;
+  const cnt = (on: boolean) => `ml-1.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md ${on ? 'bg-[#E6F1FB] text-[#006DBB]' : 'bg-[#F1F6FC] text-[#7186A3]'}`;
+  const bar = <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#006DBB] to-[#00B49A]" />;
   return (
-    <div className="space-y-4">
-      {showOwn && showSup && <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-slate-200/80" role="tablist">
-        <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
-          Bizim Malzemeler{ownCount !== null && <span className={cnt}>({tr(ownCount)} kalem)</span>}
-          {tab === 'own' && bar}
-        </button>
-        <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>
-          Firma Fiyat Listeleri{supInfo && <span className={cnt}>({supInfo.lists} firma · {tr(supInfo.items)} kalem)</span>}
-          {tab === 'suppliers' && bar}
-        </button>
-      </div>}
-      {tab === 'own' ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} newRequest={newRequest} /> : <SupplierListsPanel />}
+    <div>
+      <PageHeader
+        title="Malzemeler"
+        subtitle={SECTION_SUB.materials}
+        icon={Package}
+        onBack={onBack || (() => undefined)}
+        hero={{ art: <PipeArt /> }}
+        action={canAdd && showOwn ? { label: 'Yeni Malzeme', icon: Plus, onClick: () => { choose('own'); setNewLocal(n => n + 1); } } : undefined}
+        secondary={canImport && showOwn ? { label: "Excel'den Malzeme Aktar", icon: FileSpreadsheet, onClick: () => { choose('own'); setImportReq(n => n + 1); } } : undefined}
+        below={stats}
+      />
+      <div className="space-y-4">
+        {showOwn && showSup && <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-[#E2EAF3]" role="tablist">
+          <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
+            Bizim Malzemelerimiz{counts && <span className={cnt(tab === 'own')}>{tr(counts.total)}</span>}
+            {tab === 'own' && bar}
+          </button>
+          <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>
+            Firma Fiyat Listeleri{supInfo && <span className={cnt(tab === 'suppliers')}>{supInfo.lists} firma · {tr(supInfo.items)}</span>}
+            {tab === 'suppliers' && bar}
+          </button>
+        </div>}
+        {tab === 'own'
+          ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} newRequest={newLocal} importRequest={importReq}
+              stockPick={stockPick} onStock={setStock} onChanged={() => loadCounts(true)}
+              onConsumed={k => (k === 'new' ? setNewLocal(0) : setImportReq(0))} />
+          : <SupplierListsPanel />}
+      </div>
     </div>
   );
 };

@@ -86,12 +86,12 @@ export const MaterialImport: React.FC<{ onClose: () => void; onDone: () => void 
           )}
           {result && (
             <div className="space-y-3">
-              <div className="flex items-start gap-2 text-emerald-800 bg-emerald-50 rounded-xl px-3 py-2.5">
+              <div className="flex items-start gap-2 text-[#006B5B] bg-[#E8F8F4] rounded-xl px-3 py-2.5">
                 <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
                 <div>
                   <b>Tamamlandı.</b> {result.updated.toLocaleString('tr-TR')} malzeme değişti, {result.inserted.toLocaleString('tr-TR')} yeni eklendi,
                   {' '}{result.unchanged.toLocaleString('tr-TR')} zaten günceldi.
-                  <div className="text-[11px] text-emerald-700 mt-1">Yöneticiye bildirim gönderildi; hareketlerde de görünür.</div>
+                  <div className="text-[11px] text-[#008F79] mt-1">Yöneticiye bildirim gönderildi; hareketlerde de görünür.</div>
                 </div>
               </div>
               <button type="button" onClick={onClose} className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold">Kapat</button>
