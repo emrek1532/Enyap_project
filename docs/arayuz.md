@@ -80,3 +80,4 @@ Renkler: lacivert `#0B2343`, kurumsal lacivert `#173F73`, ENYAP mavisi `#006DBB`
 - Özet kutuları her sayfada aynı (`cBlue`/`cTeal` sırayla; Rapor dahil).
 - Ana sayfa tablette: arama kutusu tam genişlik, dönem seçimi altında; selam yazısı küçültüldü (taşmasın).
 - v1.23.2: Kod ve teklif no alanlarındaki ayrı yazı tipi (font-mono) kaldırıldı; her yerde Plus Jakarta Sans (rakamlar `tabular-nums`). JetBrains Mono artık yüklenmiyor.
+- v1.23.3: Telefonda teklif formu kalem satırı: sütun adları ayrı başlık satırı yerine her kutunun üstünde (Miktar, Birim, B.Fiyat, Döviz, İsk%); kod kutusu iki sütun genişliğinde (kod tam okunur).

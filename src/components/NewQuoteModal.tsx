@@ -845,15 +845,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 <span data-a="tools" />
               </div>
 
-              {/* Telefonda ikinci satırın sütun adları */}
-              <div className="qrow lg:hidden px-2 pt-1 -mb-1 text-[11px] font-bold text-slate-500 uppercase" aria-hidden>
-                <span data-a="qty" className="text-right">Miktar</span>
-                <span data-a="br">Birim</span>
-                <span data-a="fiyat" className="text-right">B.Fiyat</span>
-                <span data-a="dvz">Dvz</span>
-                <span data-a="isk" className="text-right">İsk%</span>
-              </div>
-
               <div className="divide-y divide-slate-200" onKeyDownCapture={handleItemsKeyDown}>
                 {items.map((item, index) => (
                   <div key={item.id} data-quote-item data-item-id={item.id}
@@ -883,6 +874,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       />
                     </div>
                     <div data-a="qty">
+                      <span className="lg:hidden block text-[11px] font-bold text-slate-500 mb-0.5">Miktar</span>
                       <DecimalInput
                         placeholder="Miktar"
                         data-qty
@@ -894,11 +886,13 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       />
                     </div>
                     <div data-a="br">
+                      <span className="lg:hidden block text-[11px] font-bold text-slate-500 mb-0.5">Birim</span>
                       <select value={item.unit} onChange={(e) => handleItemChange(index, 'unit', e.target.value)} className="qf !px-1" title="Birim">
                         {MATERIAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </div>
                     <div data-a="fiyat">
+                      <span className="lg:hidden block text-[11px] font-bold text-slate-500 mb-0.5">B.Fiyat</span>
                       <DecimalInput
                         placeholder="B.Fiyat"
                         value={item.unitPrice || 0}
@@ -908,6 +902,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       />
                     </div>
                     <div data-a="dvz">
+                      <span className="lg:hidden block text-[11px] font-bold text-slate-500 mb-0.5">Döviz</span>
                       <select value={item.currency || 'TRY'} onChange={(e) => handleItemChange(index, 'currency', e.target.value)} className="qf !px-1" title="Para birimi">
                         <option value="TRY">TL</option>
                         <option value="USD">USD</option>
@@ -915,6 +910,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                       </select>
                     </div>
                     <div data-a="isk">
+                      <span className="lg:hidden block text-[11px] font-bold text-slate-500 mb-0.5">İsk%</span>
                       <DecimalInput
                         placeholder="İsk%"
                         data-disc
