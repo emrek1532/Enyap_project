@@ -556,6 +556,12 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <p className="text-xs text-sky-200/80">
                   {selectedQuote.city}
                 </p>
+                {selectedQuote.updatedAt && (
+                  <p className="text-[11px] text-sky-200/70 mt-0.5">
+                    Son değişiklik: {selectedQuote.updatedBy && <b className="font-semibold text-sky-100">{selectedQuote.updatedBy} · </b>}
+                    {new Date(selectedQuote.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => setSelectedQuote(null)}

@@ -636,8 +636,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             <h3 className="font-black text-base sm:text-lg tracking-tight truncate">
               {isEdit ? `Teklif Düzenle · ${editQuote!.quoteNumber}` : 'Yeni Fiyat Teklifi'}
             </h3>
-            {isEdit && editQuote!.updatedBy && (
-              <div className="text-[11px] text-sky-200/80 truncate">Son değişiklik: <b className="font-semibold text-sky-100">{editQuote!.updatedBy}</b>{editQuote!.updatedAt ? ` · ${new Date(editQuote!.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</div>
+            {isEdit && editQuote!.updatedAt && (
+              <div className="text-[11px] text-sky-200/80 truncate">Son değişiklik: {editQuote!.updatedBy && <b className="font-semibold text-sky-100">{editQuote!.updatedBy}</b>}{editQuote!.updatedBy ? ' · ' : ''}{new Date(editQuote!.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
             )}
           </div>
           <button

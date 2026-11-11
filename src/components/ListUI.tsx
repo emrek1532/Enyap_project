@@ -127,7 +127,7 @@ export const LastEdit: React.FC<{ by?: string | null; at?: string | null; classN
   const when = at ? new Date(at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   return (
     <div className={`text-[11px] text-slate-500 ${className}`}>
-      Son değişiklik: {by ? <b className="font-semibold text-slate-600">{by}</b> : 'bilinmiyor'}{when && ` · ${when}`}
+      Son değişiklik: {by && <b className="font-semibold text-slate-600">{by}</b>}{by && when ? ' · ' : ''}{when}
     </div>
   );
 };
