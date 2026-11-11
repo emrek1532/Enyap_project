@@ -567,8 +567,9 @@ const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean; dar
 
 type BarItem = Month & { label: string; shortLabel: string; from: string; to: string };
 
-/** Verilen / onaylanan sütunları; seçili ay koyu renkte (tutar üstünde yazmaz, dokununca başlıkta görünür) */
+/** Verilen / onaylanan sütunları; seçili ay koyu renkte. Fareyle üzerine gelince (dokunmatikte ilk dokunuşta) değerler kutuda görünür */
 const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) => void }> = ({ bars, hi, onPick }) => {
+  const [tip, setTip] = useState<string | null>(null);
   const many = bars.length > 6;
   const raw = Math.max(1, ...bars.map(x => x.teklif));
   // Yuvarlak ölçek: 2M, 4M, 6M… gibi
@@ -576,30 +577,46 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
   const step = [1, 2, 2.5, 5, 10].map(k => k * mag).find(k => raw / k <= 5) || mag * 10;
   const max = Math.ceil(raw / step) * step;
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
+  const tipIdx = bars.findIndex(b => b.key === tip);
+  const t = tipIdx >= 0 ? bars[tipIdx] : null;
+  const barW = many ? 'max-w-6' : 'max-w-12';
   return (
     <div className="px-3 sm:px-5 pb-4 lg:flex-1 lg:flex lg:flex-col">
-      {/* Bilgisayarda sağ sütun uzunsa grafik boşluğu doldurur (en fazla 28rem) */}
-      <div className="relative h-40 sm:h-48 lg:h-auto lg:flex-1 lg:min-h-48 lg:max-h-[28rem] pl-11 mt-4">
+      {/* Bilgisayarda/tablette boşluğu doldurur ama çok uzamaz (en fazla 20rem) */}
+      <div className="relative h-44 sm:h-56 lg:h-auto lg:flex-1 lg:min-h-56 lg:max-h-80 pl-11 mt-4" onPointerLeave={e => e.pointerType === 'mouse' && setTip(null)}>
         {ticks.map(v => (
           <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-slate-100' : 'border-slate-200'}`} style={{ bottom: `${(v / max) * 100}%` }}>
             <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-slate-500 tabular-nums">{v ? short(v) : '0 TL'}</span>
           </div>
         ))}
-        <div className={`relative h-full flex items-end ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-5'}`}>
+        <div className={`relative h-full flex items-end ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-4'}`}>
           {bars.map(x => {
             const on = x.key === hi;
+            const hov = x.key === tip;
             const hT = Math.max(0.8, (x.teklif / max) * 100);
             return (
-              <button key={x.key} onClick={() => onPick(x)} title={`${x.label}: verilen ${tl(x.teklif)}, onaylanan ${tl(x.onay)} (%${x.teklif ? Math.round((x.onay / x.teklif) * 100) : 0})`}
-                className="relative flex-1 h-full flex items-end justify-center gap-1 sm:gap-1.5 min-w-0 group">
-                <div className={`flex-1 ${many ? 'max-w-5' : 'max-w-9'} rounded-t-lg group-hover:brightness-95 ${on ? 'bg-gradient-to-t from-sky-400 to-brand-400' : 'bg-gradient-to-t from-sky-300 to-sky-300/80'}`} style={{ height: `${hT}%` }} />
-                <div className={`flex-1 ${many ? 'max-w-5' : 'max-w-9'} rounded-t-lg bg-gradient-to-t from-emerald-600 to-emerald-400 group-hover:brightness-95`} style={{ height: `${Math.max(0.8, (x.onay / max) * 100)}%` }} />
+              <button key={x.key} aria-label={`${x.label}: verilen ${tl(x.teklif)}, onaylanan ${tl(x.onay)}`}
+                onPointerEnter={e => e.pointerType === 'mouse' && setTip(x.key)}
+                onPointerDown={e => { if (e.pointerType !== 'mouse' && tip !== x.key) { e.preventDefault(); setTip(x.key); } }}
+                onClick={() => { if (tip === x.key || !matchMedia('(hover: none)').matches) onPick(x); else setTip(x.key); }}
+                className={`relative flex-1 h-full flex items-end justify-center gap-1 sm:gap-1.5 min-w-0 rounded-t-xl ${hov ? 'bg-slate-100/70' : ''}`}>
+                <div className={`flex-1 ${barW} rounded-t-md ${on || hov ? 'bg-gradient-to-t from-sky-400 to-brand-400' : 'bg-gradient-to-t from-sky-300 to-sky-300/80'}`} style={{ height: `${hT}%` }} />
+                <div className={`flex-1 ${barW} rounded-t-md bg-gradient-to-t from-emerald-600 to-emerald-400 ${hov ? 'brightness-95' : ''}`} style={{ height: `${Math.max(0.8, (x.onay / max) * 100)}%` }} />
               </button>
             );
           })}
         </div>
+        {t && (
+          <div className="pointer-events-none absolute top-1 z-10 w-48 rounded-xl bg-[#0b2a4c] text-white shadow-lg px-3 py-2 text-xs"
+            style={{ left: `calc(2.75rem + (100% - 2.75rem) * ${(tipIdx + 0.5) / bars.length})`, transform: `translateX(${tipIdx < bars.length / 3 ? '-15%' : tipIdx >= (bars.length * 2) / 3 ? '-85%' : '-50%'})` }}>
+            <div className="font-black mb-1">{t.label}</div>
+            <div className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-sm bg-sky-300" /><span className="flex-1 text-sky-100/80">Verilen</span><b className="tabular-nums">{lira(t.teklif)}</b></div>
+            <div className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-sm bg-emerald-400" /><span className="flex-1 text-sky-100/80">Onaylanan</span><b className="tabular-nums">{lira(t.onay)}</b></div>
+            <div className="mt-1 text-[11px] text-sky-200/80">Onay oranı %{t.teklif ? Math.round((t.onay / t.teklif) * 100) : 0} · tıkla: teklifleri aç</div>
+          </div>
+        )}
       </div>
-      <div className={`flex ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-5'} pl-11 mt-2.5`}>
+      <div className={`flex ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-4'} pl-11 mt-2.5`}>
         {bars.map(x => (
           <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-xs truncate ${x.key === hi ? 'font-bold text-[#0b2a4c]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
         ))}
