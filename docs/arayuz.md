@@ -20,3 +20,10 @@ Bu dosya `CLAUDE.md`'den taşındı; içerik aynıdır. Yalnız bu konuda çalı
 - Pasif (v1.11.4): "Müşteri düşünüyor" dışında neden seçilen bekleyen teklif `isPassive` → listede "Pasif" rozeti, filtre "Pasif", panoda ayrı sütun; bekleyen sayılarına, takip/süre uyarılarına ve tahmine girmez. Nedeni kaldırmak ya da "Beklemede"ye basmak yeniden bekleyen yapar. Raporlarda nedenler bekleyen + pasif birlikte.
 - Çevrimdışı katalog (cihaza 34 bin malzeme indirme, "Cihaza indir / yenile") kaldırıldı (v1.14.1): kullanılmıyordu, katalog değiştikçe her cihazda tam indirme yapıyordu. Cihazdaki eski kopya `enyap-offline` bir kez silinir.
 - Müşteri sınıfı (ABC, `abcClasses` `lib/customerInsights.ts`): son 12 ayda onaylanan tutara (TL) göre cironun ilk %80'i A, sonraki %15 B, kalanı C; alımı olmayan sınıfsız. Cihazdaki veriden hesaplanır (ek sorgu yok). Müşteriler listesinde ad yanında rozet, "Tüm sınıflar" süzgeci, sekme "Sessizleşen A-B (60+ gün)" (`QUIET_DAYS`: A/B olup 60 gündür teklif istemeyen aktif firmalar, sahada uğranacaklar); cari kartı başlığında "A müşteri". Raporlar → "Bekleyen ve Pasif Teklifler · Neden?" listesinde her teklifin bekleme günü görünür, dokununca Teklifler'de detayı açılır.
+
+## Ana sayfa yenilemesi (v1.16.0)
+- Üst bant aynı; 4 rakamın sağında son 6 ayın (yılda 12 ay) küçük çizgisi (`Spark`).
+- Bandın altında "yapılacaklar" sırası: Size atanan talepler, Kontrol bekleyen teklifler, Takip (`TodayCalls`); yan yana, hiçbiri yoksa sıra görünmez (`empty:hidden`).
+- Bilgisayarda iki bağımsız sütun (`lg:items-start`, biri uzayınca öbüründe boşluk kalmaz): solda Satış Performansı + Son Teklifler (7; teklif no, Pasif rozeti), sağda Aylık Hedef (+ bu ayda "Ay sonu satış tahmini", `lib/forecast.ts` `monthForecast`, raporlardaki `ForecastCard` ile aynı hesap), Para özeti, En Çok İş Yapılan Firmalar.
+- Telefonda sıra: yapılacaklar, Para özeti, Son Teklifler (5), Aylık Hedef, "Grafik ve firmaları göster" (`home-more`); kapalıyken grafik ve firmalar hiç çizilmez (`useWide('lg')`).
+- Eski ana sayfa yedeği: git etiketi `anasayfa-yedek-v1.15.2`.

@@ -1,9 +1,11 @@
 import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Inbox, ClipboardCheck, PauseCircle } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
-import { PENDING_STATUSES } from '../lib/quoteRules';
+import { PENDING_STATUSES, quoteNo, viewStatus } from '../lib/quoteRules';
+import { monthForecast } from '../lib/forecast';
+import { useWide } from './ListUI';
 import { quoteTry, useRates } from '../lib/rates';
 import { estimatedBalance } from '../lib/mikroBalance';
 import type { ActiveTab } from './Sections';
@@ -160,7 +162,7 @@ export const SimpleHome: React.FC<{
   const firstName = userName.split(/\s+/)[0] || userName;
 
   // Son teklifler (en yeni 5) ve yaklaşan ödemeler
-  const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 8), [quotes]);
+  const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 7), [quotes]);
   // Para özeti: en çok alacağımız firmalar (Mikro bakiyesi − sonraki tahsilat), en büyük bekleyen teklifler, dönemin en çok satılan ürünleri
   const money3 = useMemo(() => {
     const debtors = showBalances
@@ -197,7 +199,11 @@ export const SimpleHome: React.FC<{
   // Telefonda grafik / hedef / firmalar kapalı başlar (seçim cihazda hatırlanır)
   const [more, setMore] = useState(() => { try { return localStorage.getItem('home-more') === '1'; } catch { return false; } });
   const toggleMore = () => setMore(v => { try { localStorage.setItem('home-more', v ? '0' : '1'); } catch { /* yok */ } return !v; });
-  const moreCls = more ? '' : 'max-lg:hidden';
+  const wide = useWide('lg');
+  /** Telefonda grafik ve firmalar kapalıyken hiç çizilmez (daha hızlı açılış) */
+  const showMore = wide || more;
+  // Bu ayın satış tahmini (raporlardaki ile aynı hesap; cihazdaki veriden)
+  const forecast = useMemo(() => (isCurrent && !isYear && canQuotes ? monthForecast(quotes, q => quoteTry(q, rates), now) : undefined), [quotes, rates, isCurrent, isYear, canQuotes, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ay / Yıl düğmesi: ay seçiliyken Yıl'a basınca o ayın yılı, Yıl'dayken Ay'a basınca o yılın (bu yılsa bu ayın) Aralık'ı
   const setKind = (k: 'month' | 'year') => {
@@ -220,11 +226,11 @@ export const SimpleHome: React.FC<{
   ].filter(Boolean) as { label: string; icon: React.ElementType; on: () => void; primary?: boolean }[];
 
   const kpis = [
-    canQuotes && { label: 'Verilen teklif', value: s.cur.teklif, sub: `${s.cur.adet} teklif`, prev: s.prevSame.teklif, on: () => openQuotes({ status: 'all', from: monthFrom, to: monthTo }) },
-    canQuotes && { label: 'Satış (onaylanan)', value: s.cur.onay, sub: `${s.cur.onayAdet} teklif`, prev: s.prevSame.onay, on: () => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo }) },
-    canMoney && { label: 'Tahsilat', value: s.cur.tahsilat, prev: s.prevSame.tahsilat, on: () => onOpen('collections') },
-    canExp && { label: 'Harcama', value: s.cur.harcama, prev: s.prevSame.harcama, on: () => onOpen('expenses'), lowerIsBetter: true },
-  ].filter(Boolean) as { label: string; value: number; sub?: string; prev: number; on: () => void; lowerIsBetter?: boolean }[];
+    canQuotes && { label: 'Verilen teklif', spark: s.spark.map(x => x.teklif), value: s.cur.teklif, sub: `${s.cur.adet} teklif`, prev: s.prevSame.teklif, on: () => openQuotes({ status: 'all', from: monthFrom, to: monthTo }) },
+    canQuotes && { label: 'Satış (onaylanan)', spark: s.spark.map(x => x.onay), value: s.cur.onay, sub: `${s.cur.onayAdet} teklif`, prev: s.prevSame.onay, on: () => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo }) },
+    canMoney && { label: 'Tahsilat', spark: s.spark.map(x => x.tahsilat), value: s.cur.tahsilat, prev: s.prevSame.tahsilat, on: () => onOpen('collections') },
+    canExp && { label: 'Harcama', spark: s.spark.map(x => x.harcama), value: s.cur.harcama, prev: s.prevSame.harcama, on: () => onOpen('expenses'), lowerIsBetter: true },
+  ].filter(Boolean) as { label: string; spark: number[]; value: number; sub?: string; prev: number; on: () => void; lowerIsBetter?: boolean }[];
 
   const today = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
   const hello = now.getHours() < 12 ? 'Günaydın' : now.getHours() < 18 ? 'İyi günler' : 'İyi akşamlar';
@@ -296,12 +302,15 @@ export const SimpleHome: React.FC<{
           )}
         </div>
 
-        {/* Dönemin rakamları */}
+        {/* Dönemin rakamları: tutar, geçen döneme göre değişim ve son ayların küçük çizgisi */}
         {kpis.length > 0 && (
           <div className="relative mt-4 sm:mt-6 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden bg-white/10">
             {kpis.map(k => (
-              <button key={k.label} onClick={k.on} className="text-left bg-[#0b2a4c] hover:bg-[#0f335c] px-3 py-3 sm:px-4 sm:py-3.5 min-w-0">
-                <span className="block text-[11px] sm:text-xs text-sky-200/80 font-semibold truncate">{k.label}</span>
+              <button key={k.label} onClick={k.on} className="group text-left bg-[#0b2a4c] hover:bg-[#0f335c] px-3 py-3 sm:px-4 sm:py-3.5 min-w-0">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] sm:text-xs text-sky-200/80 font-semibold truncate">{k.label}</span>
+                  <Spark values={k.spark} color={k.lowerIsBetter ? '#fda4af' : '#7dd3fc'} />
+                </span>
                 <span className="block mt-0.5 text-lg sm:text-2xl font-black tabular-nums truncate">{lira(k.value)}</span>
                 <span className="mt-1 flex items-center gap-1.5 text-[11px] sm:text-xs text-sky-100/70 min-w-0">
                   <Change cur={k.value} prev={k.prev} lowerIsBetter={k.lowerIsBetter} dark />
@@ -313,90 +322,125 @@ export const SimpleHome: React.FC<{
         )}
       </section>
 
-      {/* Telefonda sıra: yapılacaklar, son teklifler, (açılır) grafik + hedef + firmalar; bilgisayarda solda grafik + son teklifler, sağda diğerleri */}
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_side']">
-        {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
-          <div className="lg:[grid-area:todo] min-w-0 flex flex-col gap-4 sm:gap-5 max-lg:order-1">
-            {myRequests.length > 0 && (
-              <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 sm:p-4">
-                <h3 className="text-sm font-black text-emerald-900 mb-2">Size atanan talepler ({myRequests.length})</h3>
-                <div className="space-y-1.5">
-                  {myRequests.slice(0, 5).map(r => (
-                    <button key={r.id} onClick={() => onOpenRequest?.(r.id)}
-                      className="w-full text-left rounded-xl bg-white border border-emerald-100 hover:border-emerald-300 px-3 py-2 flex items-center gap-2">
-                      <span className="flex-1 min-w-0">
-                        <span className="block truncate text-sm font-semibold text-slate-900">{r.customerName}</span>
-                        {r.note && <span className="block truncate text-[11px] text-slate-500">{r.note}</span>}
-                      </span>
-                      <ArrowRight className="w-4 h-4 text-emerald-500 shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-            {reviewQuotes.length > 0 && (
-              <section className="rounded-2xl border border-sky-200 bg-sky-50 p-3 sm:p-4">
-                <h3 className="text-sm font-black text-sky-900 mb-2">Kontrol bekleyen teklifler ({reviewQuotes.length})</h3>
-                <div className="space-y-1.5">
-                  {reviewQuotes.slice(0, 5).map(q => (
-                    <button key={q.id} onClick={() => (onShowQuote || onOpenQuote)(q)}
-                      className="w-full text-left rounded-xl bg-white border border-sky-100 hover:border-sky-300 px-3 py-2 flex items-center gap-2">
-                      <span className="font-black text-sky-800 tabular-nums whitespace-nowrap text-xs">{q.quoteNumber}</span>
-                      <span className="flex-1 min-w-0 truncate text-sm font-semibold text-slate-900">{q.customerName}</span>
-                      <ArrowRight className="w-4 h-4 text-sky-500 shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-            {canQuotes && <TodayCalls quotes={quotes} rates={rates} onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })} />}
-            <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
-              onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />
-          </div>
+      {/* Bugün yapılacaklar: atanan talepler, kontrol bekleyen teklifler, takip (boşsa hiç görünmez) */}
+      <div className="grid gap-4 sm:gap-5 md:grid-cols-[repeat(auto-fit,minmax(300px,1fr))] empty:hidden">
+        {myRequests.length > 0 && (
+          <TodoList tone="emerald" icon={Inbox} title="Size atanan talepler" n={myRequests.length}>
+            {myRequests.slice(0, 4).map(r => (
+              <TodoRow key={r.id} onClick={() => onOpenRequest?.(r.id)} title={r.customerName} sub={r.note} />
+            ))}
+          </TodoList>
         )}
-        {canQuotes && (
-          <Card className={`lg:[grid-area:chart] max-lg:order-4 ${moreCls}`} title="Satış Performansı" icon={BarChart3}
-            right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
-              <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-sky-300" />Verilen teklif</span>
-              <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />Onaylanan</span>
-            </div>
-            <BarsChart bars={bars} hi={hiKey}
-              onPick={b => chart === 'all'
-                ? (setPeriod({ kind: 'year', y: Number(b.key), m: 0 }), setChart('year'))
-                : openQuotes({ status: 'all', from: b.from, to: b.to })} />
-            <StatusSplit st={s.status} conv={conv} title={title} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />
-          </Card>
+        {reviewQuotes.length > 0 && (
+          <TodoList tone="sky" icon={ClipboardCheck} title="Kontrol bekleyen teklifler" n={reviewQuotes.length}>
+            {reviewQuotes.slice(0, 4).map(q => (
+              <TodoRow key={q.id} onClick={() => (onShowQuote || onOpenQuote)(q)} title={q.customerName} sub={`${quoteNo(q)} · ${lira(quoteTry(q, rates))}`} />
+            ))}
+          </TodoList>
         )}
-        {canQuotes && (
-          <Card className="lg:[grid-area:recent] max-lg:order-2" title="Son Teklifler" icon={FileText} right={<SeeAll onClick={() => openQuotes({ status: 'all' })} />}>
-            <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
-          </Card>
-        )}
-        {canQuotes && (
-          <button type="button" onClick={toggleMore} aria-expanded={more}
-            className="lg:hidden max-lg:order-3 h-11 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-[#0b2a4c] flex items-center justify-center gap-2">
-            <BarChart3 className="w-4 h-4 text-brand-500" />{more ? 'Grafik, hedef ve firmaları gizle' : 'Grafik, hedef ve firmaları göster'}
-            <ChevronDown className={`w-4 h-4 transition-transform ${more ? 'rotate-180' : ''}`} />
-          </button>
-        )}
-        <div className={`lg:[grid-area:side] min-w-0 flex flex-col gap-4 sm:gap-5 max-lg:order-5 ${moreCls}`}>
-          {(canQuotes || canMoney) && !isYear && (
-            <Card title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
-              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
+        {canQuotes && <TodayCalls quotes={quotes} rates={rates} onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })} />}
+      </div>
+
+      {/* Bilgisayarda iki bağımsız sütun (biri uzayınca öbüründe boşluk kalmaz); telefonda tek sütun, sıra order ile */}
+      <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:items-start">
+        <div className="max-lg:contents lg:flex lg:flex-col lg:gap-5 min-w-0">
+          {canQuotes && showMore && (
+            <Card className="max-lg:order-6" title="Satış Performansı" icon={BarChart3}
+              right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
+                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-sky-300" />Verilen teklif</span>
+                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />Onaylanan</span>
+              </div>
+              <BarsChart bars={bars} hi={hiKey}
+                onPick={b => chart === 'all'
+                  ? (setPeriod({ kind: 'year', y: Number(b.key), m: 0 }), setChart('year'))
+                  : openQuotes({ status: 'all', from: b.from, to: b.to })} />
+              <StatusSplit st={s.status} conv={conv} title={title} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />
             </Card>
           )}
           {canQuotes && (
-            <Card className="flex-1" title="En Çok İş Yapılan Firmalar" icon={Building2} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
+            <Card className="max-lg:order-3" title="Son Teklifler" icon={FileText} right={<SeeAll onClick={() => openQuotes({ status: 'all' })} />}>
+              <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
+            </Card>
+          )}
+        </div>
+        <div className="max-lg:contents lg:flex lg:flex-col lg:gap-5 min-w-0">
+          {(canQuotes || canMoney) && !isYear && (
+            <Card className="max-lg:order-4" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
+              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} forecast={isCurrent && canQuotes ? forecast : undefined} />
+            </Card>
+          )}
+          {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
+            <div className="max-lg:order-2 min-w-0 flex">
+              <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
+                onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />
+            </div>
+          )}
+          {canQuotes && showMore && (
+            <Card className="max-lg:order-7" title="En Çok İş Yapılan Firmalar" icon={Building2} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
               <FirmsCard firms={s.firms} onOpen={onOpenCustomer} />
             </Card>
           )}
         </div>
+        {canQuotes && (
+          <button type="button" onClick={toggleMore} aria-expanded={more}
+            className="lg:hidden order-5 h-11 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-[#0b2a4c] flex items-center justify-center gap-2">
+            <BarChart3 className="w-4 h-4 text-brand-500" />{more ? 'Grafik ve firmaları gizle' : 'Grafik ve firmaları göster'}
+            <ChevronDown className={`w-4 h-4 transition-transform ${more ? 'rotate-180' : ''}`} />
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
+/** Küçük çizgi grafik (son aylar); hepsi sıfırsa çizilmez */
+const Spark: React.FC<{ values: number[]; color: string }> = ({ values, color }) => {
+  const max = Math.max(...values, 0);
+  if (values.length < 2 || max <= 0) return null;
+  const W = 56, H = 18;
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 2 - (v / max) * (H - 4)]);
+  const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+  const [lx, ly] = pts[pts.length - 1];
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 opacity-80 group-hover:opacity-100" aria-hidden>
+      <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lx} cy={ly} r="2.2" fill={color} />
+    </svg>
+  );
+};
+
+const TONES = {
+  emerald: { icon: 'bg-emerald-50 text-emerald-600', n: 'bg-emerald-500', arrow: 'text-emerald-500' },
+  sky: { icon: 'bg-sky-50 text-sky-600', n: 'bg-sky-500', arrow: 'text-sky-500' },
+};
+const TodoCtx = React.createContext<keyof typeof TONES>('sky');
+
+/** Yapılacaklar kartı (talepler / kontrol): başlık, adet rozeti, en çok 4 satır */
+const TodoList: React.FC<{ tone: keyof typeof TONES; icon: React.ElementType; title: string; n: number; children: React.ReactNode }> = ({ tone, icon: Icon, title, n, children }) => (
+  <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden">
+    <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
+      <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${TONES[tone].icon}`}><Icon className="w-4.5 h-4.5" /></span>
+      <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#0b2a4c]">{title}</h2>
+      <span className={`min-w-6 h-6 px-1.5 rounded-full text-white text-xs font-black flex items-center justify-center tabular-nums ${TONES[tone].n}`}>{n}</span>
+    </header>
+    <TodoCtx.Provider value={tone}><ul className="px-2 sm:px-3 pb-2">{children}</ul></TodoCtx.Provider>
+  </section>
+);
+const TodoRow: React.FC<{ title: string; sub?: string; onClick: () => void }> = ({ title, sub, onClick }) => {
+  const tone = React.useContext(TodoCtx);
+  return (
+    <li>
+      <button onClick={onClick} className="w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-slate-50">
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13px] font-semibold text-slate-800 truncate">{title}</span>
+          {sub && <span className="block text-[11px] text-slate-500 truncate">{sub}</span>}
+        </span>
+        <ArrowRight className={`w-4 h-4 shrink-0 ${TONES[tone].arrow}`} />
+      </button>
+    </li>
+  );
+};
 
 /** Para özeti: sekmeli tek liste — en çok alacağımız firmalar, en büyük bekleyen teklifler, dönemin en çok satılan ürünleri */
 const MoneyCard: React.FC<{
@@ -484,7 +528,7 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
   ];
   const total = rows.reduce((a, r) => a + r.x.value, 0);
   return (
-    <div className="mt-auto mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
+    <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-slate-600">{title} teklifleri</p>
         <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#0b2a4c]">%{conv}</b></p>
@@ -577,9 +621,8 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
   const max = Math.ceil(raw / step) * step;
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   return (
-    <div className="px-3 sm:px-5 pb-4 lg:flex-1 lg:flex lg:flex-col">
-      {/* Bilgisayarda sağ sütun uzunsa grafik boşluğu doldurur (en fazla 28rem) */}
-      <div className="relative h-40 sm:h-48 lg:h-auto lg:flex-1 lg:min-h-48 lg:max-h-[28rem] pl-11 mt-4">
+    <div className="px-3 sm:px-5 pb-4">
+      <div className="relative h-44 sm:h-60 pl-11 mt-4">
         {ticks.map(v => (
           <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-slate-100' : 'border-slate-200'}`} style={{ bottom: `${(v / max) * 100}%` }}>
             <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-slate-500 tabular-nums">{v ? short(v) : '0 TL'}</span>
@@ -611,33 +654,35 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
 const STATUS_BADGE: Record<string, [string, string, React.ElementType]> = {
   onaylandi: ['Onaylandı', 'bg-emerald-50 text-emerald-700', Check],
   gonderildi: ['Beklemede', 'bg-orange-50 text-orange-700', Clock],
+  pasif: ['Pasif', 'bg-slate-100 text-slate-600', PauseCircle],
   iptal: ['İptal', 'bg-rose-50 text-rose-600', X],
 };
 
-/** Son teklifler tablosu: firma, tarih, tutar, durum */
+/** Son teklifler: firma, teklif no · tarih, tutar, durum (pasif ayrı) */
 const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRates>; onOpen: (q: Quote) => void }> = ({ quotes, rates, onOpen }) => {
   if (!quotes.length) return <p className="px-5 pb-5 text-sm text-slate-500">Henüz teklif yok.</p>;
-  const cols = 'grid grid-cols-[minmax(0,1fr)_auto_5.8rem] gap-2 sm:gap-3 items-center';
   return (
-    <div className="px-3 sm:px-4 pb-3">
-      <div className={`${cols} px-2 py-2 rounded-xl bg-slate-50 text-[11px] sm:text-xs font-medium text-slate-500`}>
-        <span>Firma Adı · Tarih</span><span className="text-right">Tutar</span><span className="text-center">Durum</span>
-      </div>
+    <ul className="px-2 sm:px-3 pb-3 divide-y divide-slate-100">
       {quotes.map((q, i) => {
-        const [label, cls, Icon] = STATUS_BADGE[q.status] || [q.status, 'bg-slate-50 text-slate-600', Clock];
+        const [label, cls, Icon] = STATUS_BADGE[viewStatus(q)] || [q.status, 'bg-slate-50 text-slate-600', Clock];
         const d = dayOf(q.createdAt);
         return (
-          <button key={q.id} onClick={() => onOpen(q)} className={`${i >= 5 ? cols.replace('grid ', 'hidden lg:grid ') : cols} w-full px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl`}>
-            <span className="min-w-0">
-              <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
-              <span className="block text-[11px] text-slate-500 tabular-nums">{d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
-            </span>
-            <span className="text-[12px] sm:text-[13px] text-slate-800 tabular-nums text-right whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
-            <span className={`w-full justify-center inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 py-1 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
-          </button>
+          <li key={q.id} className={i >= 5 ? 'hidden lg:block' : ''}>
+            <button onClick={() => onOpen(q)} className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl">
+              <span className="w-9 h-9 rounded-xl bg-slate-100 text-[#0b2a4c] text-xs font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
+                <span className="block text-[11px] text-slate-500 tabular-nums truncate">{quoteNo(q)}{d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
+              </span>
+              <span className="flex flex-col sm:flex-row-reverse items-end sm:items-center gap-1 sm:gap-3 shrink-0">
+                <span className="text-[13px] font-black text-slate-900 tabular-nums whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
+                <span className={`inline-flex items-center sm:justify-center gap-1 sm:w-24 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 sm:py-1 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
+              </span>
+            </button>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 };
 
@@ -658,7 +703,7 @@ const Donut: React.FC<{ pct: number; size: number; stroke: number; children?: Re
 };
 
 /** Aylık hedef: tahsilat (yoksa satış) halkası, toplam, hedef, ilerleme; hedef buradan konur/değiştirilir */
-const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; day: number; dim: number }> = ({ cur, canQuotes, canMoney, day, dim }) => {
+const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; day: number; dim: number; forecast?: { total: number; expected: number; pendN: number } }> = ({ cur, canQuotes, canMoney, day, dim, forecast }) => {
   const [targets, saveTargets] = useSetting<Targets>('targets', { sales: 0, collection: 0 });
   const [edit, setEdit] = React.useState(false);
   const [draft, setDraft] = React.useState({ sales: '', collection: '' });
@@ -699,6 +744,18 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
             <div className={`h-full rounded-full ${salesPct >= pace ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, salesPct)}%` }} />
             <div className="absolute top-0 bottom-0 w-0.5 bg-slate-400" style={{ left: `${pace}%` }} />
           </div>
+        </div>
+      )}
+      {forecast && forecast.total > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl bg-sky-50 px-3 py-2.5">
+          <span className="w-8 h-8 rounded-xl bg-white text-brand-600 flex items-center justify-center shrink-0"><TrendingUp className="w-4.5 h-4.5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[11px] text-slate-600">Ay sonu satış tahmini</span>
+            <span className="block text-[15px] font-black text-[#0b2a4c] tabular-nums truncate">{lira(forecast.total)}</span>
+          </span>
+          {targets.sales > 0 && (() => { const p = Math.round((forecast.total / targets.sales) * 100); return (
+            <span className={`shrink-0 text-[11px] font-black px-2 py-1 rounded-full ${p >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>Hedefin %{p}'i</span>
+          ); })()}
         </div>
       )}
       {edit ? (
