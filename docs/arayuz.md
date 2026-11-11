@@ -79,3 +79,4 @@ Renkler: lacivert `#0B2343`, kurumsal lacivert `#173F73`, ENYAP mavisi `#006DBB`
 - Bantlar (`PageHeader`): fotoğraflı ve fotoğrafsız hepsi aynı yükseklik (`min-h-[112px] sm:[136px] lg:[148px]`), aynı zemin, köşe `rounded-2xl`, alt çizgi mavi→turkuaz. Açıklama yazısı yalnız lg+ (telefon/tablette fotoğrafın üstüne binmesin).
 - Özet kutuları her sayfada aynı (`cBlue`/`cTeal` sırayla; Rapor dahil).
 - Ana sayfa tablette: arama kutusu tam genişlik, dönem seçimi altında; selam yazısı küçültüldü (taşmasın).
+- v1.23.2: Kod ve teklif no alanlarındaki ayrı yazı tipi (font-mono) kaldırıldı; her yerde Plus Jakarta Sans (rakamlar `tabular-nums`). JetBrains Mono artık yüklenmiyor.

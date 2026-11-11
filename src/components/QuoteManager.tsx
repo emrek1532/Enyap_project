@@ -549,7 +549,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             <div className="sticky top-0 z-10 px-4 sm:px-6 py-4 pt-safe-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold bg-white/15 text-white px-2 py-0.5 rounded-md">
+                  <span className="text-xs tabular-nums font-bold bg-white/15 text-white px-2 py-0.5 rounded-md">
                     {quoteNo(selectedQuote)}
                   </span>
                   <span className="text-xs font-bold text-white">
@@ -852,7 +852,7 @@ export const CustomerQuotes: React.FC<{
                   <button onClick={() => onOpenQuote(q)} className="w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-brand-50/60 active:bg-brand-50">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-brand-700 text-sm">{quoteNo(q)}</span>
+                        <span className="tabular-nums font-bold text-brand-700 text-sm">{quoteNo(q)}</span>
                         <span className="text-xs text-slate-500 whitespace-nowrap">{new Date(q.createdAt).toLocaleDateString('tr-TR')}</span>
                       </div>
                       {b && <span className={`inline-block mt-1 text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${b.color}`}>{b.label}</span>}

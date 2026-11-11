@@ -581,7 +581,7 @@ export const SupplierListsPanel: React.FC = () => {
                             )}
                             {it.name}
                           </div>
-                          <div className="text-xs text-slate-500 font-mono mt-0.5">
+                          <div className="text-xs text-slate-500 tabular-nums mt-0.5">
                             {it.code ? `${it.listName} kodu: ${it.code}` : `${it.listName} · kodsuz`}
                           </div>
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
@@ -589,7 +589,7 @@ export const SupplierListsPanel: React.FC = () => {
                             {it.ourCode ? (
                               <>
                                 <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }} title="Değiştir"
-                                  className="font-mono px-2 py-0.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-300">
+                                  className="tabular-nums px-2 py-0.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-300">
                                   {it.ourCode}
                                 </button>
                                 <button type="button" onClick={() => linkItem(it, null)} className="text-slate-300 hover:text-rose-600" title="Bağı kaldır"><X className="w-3.5 h-3.5" /></button>

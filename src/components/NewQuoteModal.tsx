@@ -765,7 +765,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   value={quoteNoInput}
                   onChange={e => setQuoteNoInput(e.target.value)}
                   placeholder={isEdit ? (editQuote!.quoteNumber || '-') : autoNumber}
-                  className={`qf font-mono ${duplicateNo ? '!border-amber-400' : ''}`}
+                  className={`qf tabular-nums ${duplicateNo ? '!border-amber-400' : ''}`}
                   title={typedNo ? 'Elle girildi' : isEdit ? 'Boş bırakılırsa değişmez' : 'Boş bırakılırsa otomatik verilir'}
                 />
               </div>

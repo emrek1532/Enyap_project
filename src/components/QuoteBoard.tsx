@@ -62,7 +62,7 @@ export const QuoteBoard: React.FC<{
         className={`relative rounded-2xl border bg-white p-3 shadow-[0_6px_16px_-12px_rgba(15,60,120,0.6)] ${readOnly ? '' : 'cursor-grab active:cursor-grabbing'} ${dragId === q.id ? 'opacity-50 rotate-1' : ''} border-slate-200 hover:border-brand-300`}>
         <button type="button" onClick={() => onOpen(q)} className="block w-full text-left">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-[11px] font-bold text-brand-700">{quoteNo(q)}</span>
+            <span className="tabular-nums text-[11px] font-bold text-brand-700">{quoteNo(q)}</span>
             <span className="text-[13px] font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(q.id) || 0)}</span>
           </div>
           <div className="mt-0.5 text-[13px] font-bold text-slate-900 leading-snug line-clamp-2">{q.customerName}</div>

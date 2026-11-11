@@ -142,7 +142,7 @@ export const MikroUpload: React.FC<{
                   return (
                     <div key={r.code} className={`p-2.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 ${warn ? 'bg-rose-50/60' : ''}`}>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[11px] text-slate-500 font-mono">{r.code}</div>
+                        <div className="text-[11px] text-slate-500 tabular-nums">{r.code}</div>
                         <div className="text-xs font-semibold text-slate-800 leading-snug">{r.title}</div>
                       </div>
                       <div className={`sm:w-28 text-sm font-black tabular-nums sm:text-right ${r.balance < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{money(r.balance)}</div>
