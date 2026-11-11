@@ -241,7 +241,7 @@ export const SupplierListsPanel: React.FC = () => {
     try {
       if (kind === 'clear') await clearSupplierMatches(active, grp);
       else if (kind === 'rule') {
-        const r = await ruleMatchList(active);
+        const r = await ruleMatchList(active, info => setBulk({ key, info }));
         setNotice(r.linked > 0 ? `Kuralla ${r.linked} kalem bağlandı (fiyat, ad ve ölçü tuttu)` : 'Kuralla bağlanacak yeni kalem bulunamadı (katalogda karşılığı yok ya da birden çok aday var)');
       }
       else await rematchSupplierItems(active, grp, info => setBulk({ key, info }));
