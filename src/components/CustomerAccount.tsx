@@ -298,7 +298,7 @@ export const CustomerAccount: React.FC<{
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono font-black text-sm text-brand-700 underline decoration-brand-200 underline-offset-2">{quoteNo(x) || '—'}</span>
+                        <span className="tabular-nums font-black text-sm text-brand-700 underline decoration-brand-200 underline-offset-2">{quoteNo(x) || '—'}</span>
                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${STATUS_LABEL[viewStatus(x)].cls}`}>{STATUS_LABEL[viewStatus(x)].label}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 truncate">
@@ -340,7 +340,7 @@ export const CustomerAccount: React.FC<{
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold text-slate-900 leading-snug break-words">{l.it.productName}</div>
                         <div className="text-[11px] text-slate-500 truncate">
-                          {l.it.code ? `${l.it.code} · ` : ''}<span className="font-mono">{quoteNo(l.quote)}</span>
+                          {l.it.code ? `${l.it.code} · ` : ''}<span className="tabular-nums">{quoteNo(l.quote)}</span>
                           {!isApproved(l.quote) && ` · ${STATUS_LABEL[viewStatus(l.quote)].label}`}
                         </div>
                       </div>

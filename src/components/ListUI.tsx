@@ -53,7 +53,7 @@ export const SearchBox: React.FC<{ value: string; onChange: (v: string) => void;
   <div className={`relative min-w-0 ${className}`}>
     <svg className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
     <input type="search" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-      className={`${ctrl} w-full pl-9 ${mono ? 'font-mono uppercase placeholder:normal-case placeholder:font-sans' : ''}`} />
+      className={`${ctrl} w-full pl-9 ${mono ? 'uppercase placeholder:normal-case' : ''}`} />
   </div>
 );
 

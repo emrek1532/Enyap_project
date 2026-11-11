@@ -211,7 +211,7 @@ const OwnMaterials: React.FC<{
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
-              <div className="text-[11px] font-extrabold text-[#173F73] font-mono">{m.code}</div>
+              <div className="text-[11px] font-extrabold text-[#173F73] tabular-nums">{m.code}</div>
               <div className="text-sm font-semibold text-[#17365D] leading-snug uppercase">{m.name || '-'}</div>
               <div className="text-[11px] text-[#5E7491] mt-1 flex items-center gap-1.5 flex-wrap">
                 <span>{m.unit}</span><span>·</span><span>KDV %{m.vatRate}</span>
@@ -312,7 +312,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
       <div className="bg-white w-full sm:max-w-2xl max-h-[90vh] flex flex-col rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[11px] text-sky-200/80">{m.code}</div>
+            <div className="tabular-nums text-[11px] text-sky-200/80">{m.code}</div>
             <h3 className="font-black text-lg tracking-tight leading-snug">{m.name}</h3>
             <div className="text-xs text-sky-100/90 mt-1">
               Satılan <b className="text-[#5FE0C8]">{sum(sold).toLocaleString('tr-TR')} {m.unit.toLocaleLowerCase('tr')}</b> ({sold.length} teklif, {firms} firma)
@@ -403,7 +403,7 @@ const MaterialForm: React.FC<{
           <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#006DBB] to-[#173F73] text-white flex items-center justify-center shrink-0 shadow-[0_8px_18px_-10px_rgba(0,109,187,0.9)]"><Package className="w-5 h-5" /></span>
           <div className="min-w-0 flex-1">
             <h3 className="font-black text-lg tracking-tight text-[#173F73] leading-tight">{originalCode ? 'Malzemeyi Düzenle' : 'Yeni Malzeme'}</h3>
-            <p className="text-xs text-[#5E7491] truncate">{originalCode ? <span className="font-mono">{originalCode}</span> : 'Kod ve ad zorunlu; diğer alanlar sonradan da girilebilir.'}</p>
+            <p className="text-xs text-[#5E7491] truncate">{originalCode ? <span className="tabular-nums">{originalCode}</span> : 'Kod ve ad zorunlu; diğer alanlar sonradan da girilebilir.'}</p>
           </div>
           <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E2EAF3] text-[#204D84] hover:bg-[#F1F6FC] shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
           <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-[#006DBB] to-[#00B49A]" />
@@ -414,7 +414,7 @@ const MaterialForm: React.FC<{
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className={label}>Malzeme Kodu *</label>
-                <input value={m.code} onChange={e => set('code', e.target.value)} className={`${input} font-mono`} required />
+                <input value={m.code} onChange={e => set('code', e.target.value)} className={`${input} tabular-nums`} required />
               </div>
               <div className="sm:col-span-2">
                 <label className={label}>Malzeme Adı *</label>

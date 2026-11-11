@@ -160,7 +160,7 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
           <p className="text-slate-500">Talepte marka yazmıyorsa hangi ürün ailesi gelsin. Örnek: <b>genleşme</b> → <b>VTSKGD</b> (Wates), <b>serpantinli boyler</b> → <b>APABTS</b> (APA). Ölçüyle birlikte ürün kesinleşir.</p>
           {prefs.map((p, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="flex-1 min-w-0 truncate">"{p.when}" → <span className="font-mono font-bold">{p.prefix}…</span></span>
+              <span className="flex-1 min-w-0 truncate">"{p.when}" → <span className="tabular-nums font-bold">{p.prefix}…</span></span>
               <button onClick={() => savePrefs(prefs.filter((_, k) => k !== i))} className="p-1 text-slate-500 hover:text-rose-600" aria-label="Kaldır"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           ))}
@@ -168,7 +168,7 @@ export const QuoteBuilder: React.FC<{ quotes: Quote[]; customers: Customer[]; on
             <input value={draftRule.when} onChange={e => setDraftRule({ ...draftRule, when: e.target.value })} placeholder="talepte geçen (ör. genleşme)"
               className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 bg-white" />
             <input value={draftRule.prefix} onChange={e => setDraftRule({ ...draftRule, prefix: e.target.value.toUpperCase() })} placeholder="kod başı (VTSKGD)"
-              className="w-32 px-2 py-1.5 rounded-lg border border-slate-200 bg-white font-mono" />
+              className="w-32 px-2 py-1.5 rounded-lg border border-slate-200 bg-white tabular-nums" />
             <button disabled={!draftRule.when.trim() || !draftRule.prefix.trim()}
               onClick={() => { savePrefs([...prefs, { when: draftRule.when.trim(), prefix: draftRule.prefix.trim() }]); setDraftRule({ when: '', prefix: '' }); }}
               className="px-2.5 rounded-lg bg-brand-600 text-white disabled:opacity-40" aria-label="Ekle"><Plus className="w-4 h-4" /></button>

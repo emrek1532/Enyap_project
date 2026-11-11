@@ -46,7 +46,7 @@ const CatalogSearch: React.FC<{ initial: string; onPick: (m: Material) => void; 
           {items.map(m => (
             <button key={m.code} onClick={() => onPick(m)} className="w-full text-left px-2 py-1.5 text-xs hover:bg-sky-50">
               <span className="font-semibold text-slate-800">{m.name}</span>
-              <span className="text-slate-500"> · <span className="font-mono">{m.code}</span> · {money(m)}</span>
+              <span className="text-slate-500"> · <span className="tabular-nums">{m.code}</span> · {money(m)}</span>
             </button>
           ))}
         </div>
@@ -111,7 +111,7 @@ export const RequestLines: React.FC<{ rows: ReqRow[]; onChange: (rows: ReqRow[])
             const m = r.m.cands.find(c => c.code === r.pick);
             return m && (
               <div className="text-[11px] text-emerald-700 tabular-nums">
-                <span className="font-mono">{m.code}</span> · {money(m)}{r.m.via === 'pref' ? ' · tercihli ürün kuralıyla seçildi' : ''}
+                <span className="tabular-nums">{m.code}</span> · {money(m)}{r.m.via === 'pref' ? ' · tercihli ürün kuralıyla seçildi' : ''}
               </div>
             );
           })()}

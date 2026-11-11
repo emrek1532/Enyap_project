@@ -225,7 +225,7 @@ export const QuickPrice: React.FC<{
       {own.length > 0 && (
         <Group title="Katalog fiyatı">
           {own.map(m => (
-            <Row key={m.code} left={<><b className="font-mono text-[11px] text-slate-500 mr-1">{m.code}</b>{m.name}</>}
+            <Row key={m.code} left={<><b className="tabular-nums text-[11px] text-slate-500 mr-1">{m.code}</b>{m.name}</>}
               right={m.price > 0 ? money(m.price, m.currency) : '—'} />
           ))}
         </Group>

@@ -135,7 +135,7 @@ export const MaterialPicker: React.FC<{
       placeholder={placeholder}
       focusAfterPick={focusAfterPick}
       autoFocus={autoFocus}
-      inputClassName={`${inputClassName || 'w-full p-1.5 border border-slate-300 rounded text-xs bg-white'} ${field === 'code' ? 'font-mono uppercase' : ''}`}
+      inputClassName={`${inputClassName || 'w-full p-1.5 border border-slate-300 rounded text-xs bg-white'} ${field === 'code' ? 'tabular-nums uppercase' : ''}`}
       header={offline ? (
         <div className="px-2.5 py-1.5 text-[11px] text-amber-700 bg-amber-50">
           İnternet yok — sadece son kullanılan malzemeler gösteriliyor
@@ -166,7 +166,7 @@ export const MaterialPicker: React.FC<{
                   )}
                   {m.name || m.code}
                 </span>
-                <span className="block text-[11px] text-slate-500 font-mono">
+                <span className="block text-[11px] text-slate-500 tabular-nums">
                   {m.code}{m.supplier && m.supplierDiscount ? ` · %${m.supplierDiscount} iskonto` : ''}
                 </span>
               </span>
