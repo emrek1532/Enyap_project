@@ -108,8 +108,8 @@ const StatGrid: React.FC<{ stats: Stat[]; brand?: boolean; cust?: boolean }> = (
 /** Fotoğraflı başlık (Teklifler): sağda tesisat fotoğrafı, solda büyük başlık; telefonda küçük fotoğraf */
 export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean; /** Teklifler: fotoğrafı tablet ve telefonda daha görünür konumlandır */ quotes?: boolean };
 export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
-  quotes: { lg: '/hero-teklifler-sabit.png', sm: '/hero-teklifler-sabit.png', quotes: true },
-  requests: { lg: '/hero-talepler.png', sm: '/hero-talepler.png' },
+  quotes: { lg: '/hero-teklifler-2.webp', sm: '/hero-teklifler-2-sm.webp', quotes: true },
+  requests: { lg: '/hero-talepler-2.webp', sm: '/hero-talepler-2-sm.webp' },
   expenses: { lg: '/hero-expenses.svg', sm: '/hero-expenses.svg' },
   collections: { lg: '/hero-collections.svg', sm: '/hero-collections.svg' },
   reports: { lg: '/hero-reports.svg', sm: '/hero-reports.svg' },
