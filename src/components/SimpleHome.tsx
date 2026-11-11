@@ -1,7 +1,7 @@
 import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Inbox, PauseCircle, Phone } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Inbox, PauseCircle, Phone, Zap, History, ArrowDownLeft, CheckCircle2, BellRing } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, QuoteStatus, SyncStatus } from '../types';
 import { PENDING_STATUSES, quoteNo, viewStatus, isPendingQuote, followDue, isExpiring, quoteAgeInDays, daysToExpiry, plusDays } from '../lib/quoteRules';
 import { localDay } from '../lib/dates';
@@ -235,95 +235,145 @@ export const SimpleHome: React.FC<{
       .map(x => x.q);
   }, [quotes, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tiles = [
-    canAdd.quote && { key: 'q', label: 'Yeni Teklif', short: 'Yeni Teklif', sub: 'PDF\'ten ya da elle', icon: FilePlus2, on: onNewQuote, primary: true },
-    canAdd.collection && { key: 'c', label: 'Tahsilat Gir', short: 'Tahsilat', sub: canMoney ? `${title}: ${short(s.cur.tahsilat)} TL` : 'Çek, havale, nakit', icon: Wallet, on: onNewCollection, tone: 'bg-emerald-50 text-emerald-600' },
-    canAdd.expense && { key: 'e', label: 'Harcama Gir', short: 'Harcama', sub: canExp ? `${title}: ${short(s.cur.harcama)} TL` : 'Fiş, fatura', icon: Receipt, on: onNewExpense, tone: 'bg-rose-50 text-rose-500' },
-    { key: 's', label: 'Ara · Sor', short: 'Ara · Sor', wideOnly: true, sub: 'Teklif, müşteri, malzeme', icon: Search, on: () => onOpenTool('search'), tone: 'bg-sky-50 text-sky-600' },
-  ].filter(Boolean) as { key: string; label: string; short: string; wideOnly?: boolean; sub: string; icon: React.ElementType; on: () => void; primary?: boolean; tone?: string }[];
+  const kpis = [
+    canQuotes && { label: 'Verilen Teklifler', tone: 0, icon: FileText, spark: s.spark.map(x => x.teklif), value: s.cur.teklif, sub: `${s.cur.adet} teklif`, prev: s.prevSame.teklif, on: () => openQuotes({ status: 'all', from: s.from, to: s.to }) },
+    canQuotes && { label: 'Satış (Onaylanan)', tone: 1, icon: CheckCircle2, spark: s.spark.map(x => x.onay), value: s.cur.onay, sub: `${s.cur.onayAdet} teklif`, prev: s.prevSame.onay, on: () => openQuotes({ status: 'onaylandi', from: s.from, to: s.to }) },
+    canMoney && { label: 'Tahsilat', tone: 2, icon: Wallet, spark: s.spark.map(x => x.tahsilat), value: s.cur.tahsilat, prev: s.prevSame.tahsilat, on: () => onOpen('collections') },
+    canExp && { label: 'Harcama', tone: 3, icon: Receipt, spark: s.spark.map(x => x.harcama), value: s.cur.harcama, prev: s.prevSame.harcama, on: () => onOpen('expenses'), lowerIsBetter: true },
+  ].filter(Boolean) as { label: string; tone: number; icon: React.ElementType; spark: number[]; value: number; sub?: string; prev: number; on: () => void; lowerIsBetter?: boolean }[];
 
   const now2 = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
   const hello = now.getHours() < 12 ? 'Günaydın' : now.getHours() < 18 ? 'İyi günler' : 'İyi akşamlar';
   const conv = s.cur.teklif ? Math.round((s.cur.onay / s.cur.teklif) * 100) : 0;
+  // Son işlemler: teklif, tahsilat ve harcamalar tek akışta (cihazdaki veriden, en yeni 7)
+  const feed = useMemo(() => {
+    type F = { id: string; kind: 'q' | 'c' | 'e'; day: string; at: string; title: string; sub: string; amount: number; q?: Quote };
+    const out: F[] = [];
+    const cut = plusDays(-45);
+    for (const q of quotes) { const d = dayOf(q.createdAt); if (d >= cut) out.push({ id: 'q' + q.id, kind: 'q', day: d, at: q.createdAt || '', title: q.customerName, sub: `Teklif ${quoteNo(q)}`, amount: quoteTry(q, rates), q }); }
+    if (canMoney) for (const c of collections) if (c.date >= cut) out.push({ id: 'c' + c.id, kind: 'c', day: c.date, at: c.createdAt || '', title: c.customerName || 'Tahsilat', sub: `Tahsilat${c.method ? ` · ${c.method}` : ''}`, amount: (c.amount || 0) * (c.currency === 'USD' ? rates.USD : c.currency === 'EUR' ? rates.EUR : 1) });
+    if (canExp) for (const e of expenses) if (e.date >= cut) out.push({ id: 'e' + e.id, kind: 'e', day: e.date, at: e.createdAt || '', title: e.description || e.category || 'Harcama', sub: `Harcama${e.category ? ` · ${e.category}` : ''}`, amount: (e.amount || 0) * (e.currency === 'USD' ? rates.USD : e.currency === 'EUR' ? rates.EUR : 1) });
+    return out.sort((a, b) => b.day.localeCompare(a.day) || b.at.localeCompare(a.at)).slice(0, 7);
+  }, [quotes, collections, expenses, rates, canMoney, canExp, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const hasInbox = myRequests.length > 0 || reviewQuotes.length > 0;
+  const quick = [
+    canAdd.quote && { key: 'q', label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, tone: 'from-sky-100 to-sky-50 text-sky-600', ring: 'bg-white/80' },
+    canAdd.collection && { key: 'c', label: 'Tahsilat Ekle', icon: Wallet, on: onNewCollection, tone: 'from-emerald-100 to-emerald-50 text-emerald-600', ring: 'bg-white/80' },
+    canAdd.expense && { key: 'e', label: 'Harcama Ekle', icon: Receipt, on: onNewExpense, tone: 'from-orange-100 to-amber-50 text-orange-500', ring: 'bg-white/80' },
+    { key: 's', label: 'Ara · Sor', wideOnly: true, icon: Search, on: () => onOpenTool('search'), tone: 'from-violet-100 to-violet-50 text-violet-600', ring: 'bg-white/80' },
+  ].filter(Boolean) as { key: string; label: string; wideOnly?: boolean; icon: React.ElementType; on: () => void; tone: string; ring: string }[];
 
   return (
-    <div className="pb-6 space-y-4 sm:space-y-5">
-      {/* 1. Başlık: selam + dönem seçimi (açık zemin, sade) */}
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 pt-1">
-        <div className="min-w-0">
-          <p className="text-[13px] text-slate-500"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-slate-400 tabular-nums">v{__APP_VERSION__}</span></p>
-          <h1 className="text-2xl sm:text-[28px] font-black tracking-tight text-[#0b2a4c] leading-tight truncate">{hello}, {firstName}</h1>
-        </div>
-        {(canQuotes || canMoney) && (
-          <div className="flex items-center gap-2">
-            <div className="flex flex-1 sm:flex-none items-center h-11 rounded-2xl bg-white border border-slate-200 shadow-sm">
-              <button onClick={() => stepPeriod(-1)} className="w-11 h-full flex items-center justify-center text-slate-600 hover:text-[#0b2a4c]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
-              <span className="flex-1 sm:w-36 text-center text-sm font-black text-[#0b2a4c] whitespace-nowrap">{title}</span>
-              <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-11 h-full flex items-center justify-center text-slate-600 hover:text-[#0b2a4c] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
-            </div>
-            <div className="flex h-11 p-1 rounded-2xl bg-slate-200/70" role="tablist" aria-label="Dönem türü">
-              {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
-                <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
-                  className={`px-4 rounded-xl text-sm font-bold ${period.kind === k ? 'bg-white text-[#0b2a4c] shadow-sm' : 'text-slate-600'}`}>{l}</button>
-              ))}
-            </div>
+    <div className="relative pb-6 space-y-4 sm:space-y-5">
+      {/* Arka plan: üstte yumuşak mavi ışık */}
+      <div aria-hidden className="pointer-events-none absolute -top-8 -inset-x-6 h-72 bg-[radial-gradient(ellipse_at_top_right,rgba(56,189,248,0.22),transparent_60%),radial-gradient(ellipse_at_top_left,rgba(14,140,240,0.12),transparent_55%)]" />
+
+      {/* 1. Selam + dönem + (bilgisayar/tablet) arama */}
+      <header className="relative space-y-3 sm:space-y-4 pt-1">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[26px] sm:text-[32px] font-black tracking-tight text-[#0b2a4c] leading-tight">{hello}, {firstName} <span className="inline-block origin-bottom-right">👋</span></h1>
+            <p className="text-sm sm:text-[15px] text-slate-500"><span className="capitalize">{now2}</span> · Bugünün özeti burada.<span className="ml-2 text-[11px] text-slate-400 tabular-nums">v{__APP_VERSION__}</span></p>
           </div>
-        )}
+          {(canQuotes || canMoney) && (
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-1 sm:flex-none items-center h-11 rounded-2xl bg-white/90 backdrop-blur border border-white shadow-[0_10px_24px_-16px_rgba(15,60,120,0.6)]">
+                <button onClick={() => stepPeriod(-1)} className="w-10 h-full flex items-center justify-center text-slate-500 hover:text-[#0b2a4c]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
+                <span className="flex-1 sm:w-36 flex items-center justify-center gap-1.5 text-sm font-black text-[#0b2a4c] whitespace-nowrap"><CalendarDays className="w-4 h-4 text-brand-500" />{title}</span>
+                <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-10 h-full flex items-center justify-center text-slate-500 hover:text-[#0b2a4c] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
+              </div>
+              <div className="flex h-11 p-1 rounded-2xl bg-white/70 border border-white" role="tablist" aria-label="Dönem türü">
+                {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
+                  <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
+                    className={`px-3.5 rounded-xl text-sm font-bold ${period.kind === k ? 'bg-[#0b2a4c] text-white shadow-sm' : 'text-slate-600'}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <button onClick={() => onOpenTool('search')} className="hidden md:flex w-full items-center gap-3 h-14 px-5 rounded-2xl bg-white border border-white shadow-[0_14px_34px_-22px_rgba(15,60,120,0.6)] text-left text-slate-500 hover:border-sky-200">
+          <Search className="w-5 h-5 text-brand-600 shrink-0" /><span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
+        </button>
       </header>
 
-      {/* 2. Hızlı işlemler: büyük, parmakla kolay basılan 4 kutu */}
-      {tiles.length > 0 && (
-        <div className="grid grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3">
-          {tiles.map(x => (
-            <button key={x.key} onClick={x.on}
-              className={`${x.wideOnly ? 'max-md:hidden' : ''} group rounded-3xl p-3 xl:p-4 min-h-[84px] flex flex-col items-center xl:items-start justify-center xl:justify-between gap-2 text-center xl:text-left transition active:scale-[0.97] ${x.primary
-                ? 'bg-gradient-to-br from-brand-500 to-[#0b5fb0] text-white shadow-[0_14px_30px_-14px_rgba(14,120,220,0.9)]'
-                : 'bg-white border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] hover:border-sky-200'}`}>
-              <span className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${x.primary ? 'bg-white/20' : x.tone}`}><x.icon className="w-5 h-5" /></span>
-              <span className="min-w-0 w-full">
-                <span className={`block text-[13px] xl:text-[15px] font-black leading-tight truncate ${x.primary ? '' : 'text-[#0b2a4c]'}`}><span className="xl:hidden">{x.short}</span><span className="hidden xl:inline">{x.label}</span></span>
-                <span className={`hidden xl:block text-xs truncate ${x.primary ? 'text-sky-100' : 'text-slate-500'}`}>{x.sub}</span>
-              </span>
-            </button>
-          ))}
+      {/* 2. Dönemin 4 rakamı: pastel kartlar */}
+      {kpis.length > 0 && (
+        <div className="relative grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          {kpis.map(k => <KpiCard key={k.label} k={k} vs={isYear ? 'geçen yıla göre' : 'geçen aya göre'} />)}
         </div>
       )}
 
-      {/* 3. Gövde: geniş ekranda iki sütun (bağımsız), tablette/telefonda tek sütun */}
-      <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] lg:items-start">
+      {/* 3. Hızlı işlemler */}
+      {quick.length > 0 && (
+        <section className="relative">
+          <h2 className="mb-2.5 flex items-center gap-1.5 text-[15px] font-black text-[#0b2a4c]"><Zap className="w-4.5 h-4.5 text-amber-500 fill-amber-400" />Hızlı İşlemler</h2>
+          <div className={`grid gap-2.5 sm:gap-3 ${quick.filter(x => !x.wideOnly).length >= 3 ? 'grid-cols-3' : 'grid-cols-2'} ${quick.length >= 4 ? 'md:grid-cols-4' : ''}`}>
+            {quick.map(x => (
+              <button key={x.key} onClick={x.on}
+                className={`${x.wideOnly ? 'max-md:hidden ' : ''}min-w-0 rounded-3xl bg-gradient-to-br ${x.tone} border border-white shadow-[0_12px_28px_-22px_rgba(15,60,120,0.7)] px-2 py-3 sm:py-4 flex flex-col xl:flex-row items-center justify-center gap-2 xl:gap-3 transition hover:-translate-y-0.5 active:scale-[0.97]`}>
+                <span className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl ${x.ring} flex items-center justify-center shrink-0 shadow-sm`}><x.icon className="w-5.5 h-5.5" /></span>
+                <span className="text-[12px] sm:text-sm font-black text-[#0b2a4c] text-center leading-tight">{x.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 4. Gövde: bilgisayarda iki bağımsız sütun; tablette iki sütunlu ızgara; telefonda tek sütun */}
+      <div className="relative flex flex-col gap-4 sm:gap-5 md:grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <div className="max-lg:contents lg:flex lg:flex-col lg:gap-5 min-w-0">
-          {(canQuotes || canMoney) && (
-            <PeriodCard className="max-lg:order-1" title={title} isYear={isYear} cur={s.cur} prev={s.prevSame} spark={s.spark} conv={conv}
-              canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} forecast={isCurrent && !isYear ? forecast : undefined}
-              onOpenSales={() => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo })}
-              onOpenQuotes={() => openQuotes({ status: 'all', from: monthFrom, to: monthTo })}
-              onOpenCollections={() => onOpen('collections')} onOpenExpenses={() => onOpen('expenses')} />
-          )}
           {canQuotes && (
-            <DecisionList className="max-lg:order-3" pending={pending} rates={rates}
-              onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })}
-              onApprove={onSetStatus ? q => onSetStatus(q.id, 'onaylandi') : undefined}
-              onTomorrow={onPatchQuote ? q => onPatchQuote(q.id, { followUpAt: plusDays(1) }) : undefined} />
-          )}
-          {canQuotes && showMore && (
-            <Card className="max-lg:order-7" title="Satış Grafiği" icon={BarChart3}
+            <Card className="order-2 md:col-span-2" title="Satış Performansı" icon={BarChart3}
               right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
               <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
-                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-sky-300" />Verilen teklif</span>
-                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />Onaylanan</span>
+                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-sky-300" />Verilen teklif</span>
+                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-emerald-500" />Onaylanan</span>
+                {forecast && forecast.total > 0 && <span className="flex items-center gap-1.5 text-sky-800 font-semibold"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
               </div>
               <BarsChart bars={bars} hi={hiKey}
                 onPick={b => chart === 'all'
                   ? (setPeriod({ kind: 'year', y: Number(b.key), m: 0 }), setChart('year'))
                   : openQuotes({ status: 'all', from: b.from, to: b.to })} />
-              <StatusSplit st={s.status} conv={conv} title={title} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />
+              {showMore && <StatusSplit st={s.status} conv={conv} title={title} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />}
+            </Card>
+          )}
+          {canQuotes && (
+            <DecisionList className="order-3 md:col-span-2" pending={pending} rates={rates}
+              onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })}
+              onApprove={onSetStatus ? q => onSetStatus(q.id, 'onaylandi') : undefined}
+              onTomorrow={onPatchQuote ? q => onPatchQuote(q.id, { followUpAt: plusDays(1) }) : undefined} />
+          )}
+          {feed.length > 0 && (
+            <Card className="order-6 md:col-span-2" title="Son İşlemler" icon={History} right={canQuotes ? <SeeAll onClick={() => openQuotes({ status: 'all' })} /> : undefined}>
+              <ul className="px-2 sm:px-3 pb-3 divide-y divide-slate-100">
+                {feed.map(f => {
+                  const [Icon, tone, label] = f.kind === 'q' ? [FileText, 'bg-sky-50 text-sky-600', ''] : f.kind === 'c' ? [ArrowDownLeft, 'bg-emerald-50 text-emerald-600', ''] : [Receipt, 'bg-orange-50 text-orange-500', ''];
+                  const st = f.q ? STATUS_BADGE[viewStatus(f.q)] : null;
+                  return (
+                    <li key={f.id}>
+                      <button onClick={() => (f.q ? onOpenQuote(f.q) : onOpen(f.kind === 'c' ? 'collections' : 'expenses'))} className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-xl hover:bg-slate-50">
+                        <span className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-5 h-5" />{label}</span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[14px] font-bold text-slate-900 truncate">{f.title}</span>
+                          <span className="block text-[12px] text-slate-500 truncate">{f.sub} · <b className={f.kind === 'c' ? 'text-emerald-700' : f.kind === 'e' ? 'text-orange-600' : 'text-slate-700'}>{f.kind === 'e' ? '−' : ''}{lira(f.amount)}</b></span>
+                        </span>
+                        <span className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-[12px] text-slate-500 tabular-nums">{f.day.slice(8, 10)}.{f.day.slice(5, 7)}.{f.day.slice(0, 4)}</span>
+                          {st && <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${st[1]}`}>{st[0]}</span>}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </Card>
           )}
         </div>
         <div className="max-lg:contents lg:flex lg:flex-col lg:gap-5 min-w-0">
           {hasInbox && (
-            <TodoList className="max-lg:order-2" tone="sky" icon={Inbox} title="Gelen işler" n={myRequests.length + reviewQuotes.length}>
+            <TodoList className="order-1 md:col-span-2 lg:col-span-1" tone="sky" icon={Inbox} title="Gelen işler" n={myRequests.length + reviewQuotes.length}>
               {myRequests.slice(0, 4).map(r => (
                 <TodoRow key={r.id} onClick={() => onOpenRequest?.(r.id)} tag="Talep" title={r.customerName} sub={r.note} />
               ))}
@@ -332,84 +382,50 @@ export const SimpleHome: React.FC<{
               ))}
             </TodoList>
           )}
+          {(canQuotes || canMoney) && !isYear && (
+            <Card className="order-4" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-brand-600">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
+              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} forecast={isCurrent && canQuotes ? forecast : undefined} />
+            </Card>
+          )}
           {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
-            <div className="max-lg:order-4 min-w-0 flex">
+            <div className={`order-5 min-w-0 flex ${isYear ? 'md:col-span-2 lg:col-span-1' : ''}`}>
               <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
                 onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />
             </div>
           )}
-          {canQuotes && (
-            <Card className="max-lg:order-5" title="Son Teklifler" icon={FileText} right={<SeeAll onClick={() => openQuotes({ status: 'all' })} />}>
-              <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
-            </Card>
-          )}
-          {(canQuotes || canMoney) && !isYear && showMore && (
-            <Card className="max-lg:order-8" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
-              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
-            </Card>
-          )}
         </div>
-        {(canQuotes || canMoney) && (
-          <button type="button" onClick={toggleMore} aria-expanded={more}
-            className="lg:hidden order-6 h-12 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-[#0b2a4c] flex items-center justify-center gap-2">
-            <BarChart3 className="w-4 h-4 text-brand-500" />{more ? 'Grafik ve hedefi gizle' : 'Grafik ve hedefi göster'}
-            <ChevronDown className={`w-4 h-4 transition-transform ${more ? 'rotate-180' : ''}`} />
-          </button>
-        )}
       </div>
     </div>
   );
 };
 
-/** Dönem kartı: büyük satış rakamı + değişim, altında teklif / tahsilat / harcama (küçük çizgili), dönüşüm ve ay sonu tahmini */
-const PeriodCard: React.FC<{
-  className?: string; title: string; isYear: boolean; cur: Month; prev: Month; spark: Month[]; conv: number;
-  canQuotes: boolean; canMoney: boolean; canExp: boolean; forecast?: { total: number };
-  onOpenSales: () => void; onOpenQuotes: () => void; onOpenCollections: () => void; onOpenExpenses: () => void;
-}> = ({ className = '', title, isYear, cur, prev, spark, conv, canQuotes, canMoney, canExp, forecast, onOpenSales, onOpenQuotes, onOpenCollections, onOpenExpenses }) => {
-  const [targets] = useSetting<Targets>('targets', { sales: 0, collection: 0 });
-  const vs = isYear ? 'geçen yıla göre' : 'geçen aya göre';
-  const big = canQuotes
-    ? { label: 'Satış (onaylanan)', value: cur.onay, prev: prev.onay, sub: `${cur.onayAdet} teklif`, on: onOpenSales, spark: spark.map(x => x.onay) }
-    : { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, sub: '', on: onOpenCollections, spark: spark.map(x => x.tahsilat) };
-  const minis = [
-    canQuotes && { label: 'Verilen teklif', value: cur.teklif, prev: prev.teklif, sub: `${cur.adet} adet`, on: onOpenQuotes, spark: spark.map(x => x.teklif), color: '#38bdf8' },
-    canQuotes && canMoney && { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, on: onOpenCollections, spark: spark.map(x => x.tahsilat), color: '#10b981' },
-    canExp && { label: 'Harcama', value: cur.harcama, prev: prev.harcama, on: onOpenExpenses, spark: spark.map(x => x.harcama), color: '#fb7185', lower: true },
-  ].filter(Boolean) as { label: string; value: number; prev: number; sub?: string; on: () => void; spark: number[]; color: string; lower?: boolean }[];
-  const tPct = targets.sales && canQuotes ? Math.round((cur.onay / targets.sales) * 100) : 0;
+const KPI_TONES = [
+  { card: 'from-sky-100/80 via-white to-white', icon: 'bg-sky-500 text-white', soft: 'bg-sky-100 text-sky-600', line: '#38bdf8' },
+  { card: 'from-emerald-100/80 via-white to-white', icon: 'bg-emerald-500 text-white', soft: 'bg-emerald-100 text-emerald-600', line: '#10b981' },
+  { card: 'from-violet-100/80 via-white to-white', icon: 'bg-violet-500 text-white', soft: 'bg-violet-100 text-violet-600', line: '#8b5cf6' },
+  { card: 'from-orange-100/80 via-white to-white', icon: 'bg-orange-500 text-white', soft: 'bg-orange-100 text-orange-500', line: '#f97316' },
+];
+
+/** Pastel rakam kartı: simge, başlık, büyük tutar, değişim rozeti; sağ üstte son ayların çizgisi */
+const KpiCard: React.FC<{ k: { label: string; spark: number[]; value: number; sub?: string; prev: number; on: () => void; lowerIsBetter?: boolean; tone: number; icon: React.ElementType }; vs: string }> = ({ k, vs }) => {
+  const T = KPI_TONES[k.tone];
   return (
-    <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden ${className}`}>
-      <button onClick={big.on} className="w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-slate-50/60">
-        <span className="min-w-0">
-          <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
-          <span className="block mt-1 text-[30px] sm:text-[40px] leading-none font-black tracking-tight text-[#0b2a4c] tabular-nums truncate">{lira(big.value)}</span>
-          <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
+    <button onClick={k.on} className={`group text-left rounded-3xl bg-gradient-to-br ${T.card} border border-white shadow-[0_16px_34px_-24px_rgba(15,60,120,0.7)] p-3.5 sm:p-5 min-w-0 transition hover:-translate-y-0.5`}>
+      <span className="flex items-start justify-between gap-2">
+        <span className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <span className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${T.icon}`}><k.icon className="w-4 h-4 sm:w-5 sm:h-5" /></span>
+          <span className="text-[12px] sm:text-sm font-semibold text-slate-600 leading-tight">{k.label}</span>
         </span>
-        <span className="hidden sm:block"><Spark values={big.spark} color="#10b981" w={120} h={44} /></span>
-      </button>
-      {(canQuotes && (conv > 0 || forecast || tPct > 0)) && (
-        <div className="mx-4 sm:mx-6 mb-3 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 text-xs font-bold text-slate-700">Dönüşüm <b className="text-[#0b2a4c]">%{conv}</b></span>
-          {tPct > 0 && <span className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-bold ${tPct >= 100 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}><Target className="w-3.5 h-3.5" />Hedefin %{tPct}'i</span>}
-          {forecast && forecast.total > 0 && <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-sky-50 text-xs font-bold text-sky-800"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
-        </div>
-      )}
-      {minis.length > 0 && (
-        <div className={`grid border-t border-slate-100 divide-x divide-slate-100 ${minis.length === 3 ? 'grid-cols-3' : minis.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {minis.map(m => (
-            <button key={m.label} onClick={m.on} className="text-left px-3 sm:px-5 py-3 hover:bg-slate-50 min-w-0">
-              <span className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{m.label}</span>
-                <span className="hidden sm:block"><Spark values={m.spark} color={m.color} /></span>
-              </span>
-              <span className="block mt-0.5 text-[15px] sm:text-xl font-black text-[#0b2a4c] tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-slate-400"> TL</span></span>
-              <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </section>
+        <span className={`hidden sm:flex w-11 h-11 rounded-full items-center justify-center shrink-0 ${T.soft}`}>
+          <Spark values={k.spark} color={T.line} w={26} h={16} fallback={<ChevronRight className="w-4 h-4" />} />
+        </span>
+      </span>
+      <span className="block mt-2.5 sm:mt-3 text-[19px] sm:text-[28px] font-black tracking-tight text-[#0b2a4c] tabular-nums truncate">{lira(k.value)}</span>
+      <span className="mt-1.5 flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 min-w-0">
+        <Change cur={k.value} prev={k.prev} lowerIsBetter={k.lowerIsBetter} pill />
+        <span className="truncate">{k.sub || vs}</span>
+      </span>
+    </button>
   );
 };
 
@@ -423,7 +439,7 @@ const DecisionList: React.FC<{
   type K = 'all' | 'calls' | 'expiring';
   const calls = pending.filter(q => followDue(q, today));
   const exp = pending.filter(q => isExpiring(q, today));
-  const tabs = ([['all', 'Hepsi', pending.length], ['calls', 'Bugün ara', calls.length], ['expiring', 'Süresi doluyor', exp.length]] as [K, string, number][]).filter(x => x[0] === 'all' || x[2] > 0);
+  const tabs = ([['all', 'Bekleyen', pending.length], ['calls', 'Bugün ara', calls.length], ['expiring', 'Süresi dolan', exp.length]] as [K, string, number][]).filter(x => x[0] === 'all' || x[2] > 0);
   const [tab, setTab] = useState<K>('all');
   const [ask, setAsk] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, string>>({});
@@ -432,10 +448,10 @@ const DecisionList: React.FC<{
   return (
     <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden ${className}`}>
       <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
-        <span className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><Clock className="w-5 h-5" /></span>
+        <span className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><BellRing className="w-5 h-5" /></span>
         <span className="flex-1 min-w-0">
-          <h2 className="text-base font-black text-[#0b2a4c] truncate">Karar bekleyen teklifler</h2>
-          <p className="text-[11px] text-slate-500 truncate">Onayla ya da takip gününü ver</p>
+          <h2 className="text-base font-black text-[#0b2a4c] truncate">Takip · karar bekleyenler</h2>
+          <p className="text-[11px] text-slate-500 truncate">Onayla ya da yarın aramak üzere ertele</p>
         </span>
         <button onClick={() => onAll(SHOW_ALL[tab])} className="text-[13px] font-bold text-brand-600 shrink-0">Tümü ({tab === 'calls' ? calls.length : tab === 'expiring' ? exp.length : pending.length})</button>
       </header>
@@ -495,9 +511,9 @@ const DecisionList: React.FC<{
 };
 
 /** Küçük çizgi grafik (son aylar); hepsi sıfırsa çizilmez */
-const Spark: React.FC<{ values: number[]; color: string; w?: number; h?: number }> = ({ values, color, w = 56, h = 18 }) => {
+const Spark: React.FC<{ values: number[]; color: string; w?: number; h?: number; fallback?: React.ReactNode }> = ({ values, color, w = 56, h = 18, fallback = null }) => {
   const max = Math.max(...values, 0);
-  if (values.length < 2 || max <= 0) return null;
+  if (values.length < 2 || max <= 0) return <>{fallback}</>;
   const W = w, H = h;
   const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 2 - (v / max) * (H - 4)]);
   const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
@@ -674,12 +690,13 @@ const Tabs: React.FC<{ value: string; items: [string, string][]; onChange: (k: s
 );
 
 /** Önceki döneme (bu dönemse aynı günlerine kadar) göre değişim: %34 ↑ */
-const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean; dark?: boolean }> = ({ cur, prev, lowerIsBetter, dark }) => {
+const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean; dark?: boolean; pill?: boolean }> = ({ cur, prev, lowerIsBetter, dark, pill }) => {
   if (!prev) return <span className={`font-bold ${dark ? 'text-sky-200/60' : 'text-slate-500'}`}>–</span>;
   const pct = Math.round(((cur - prev) / prev) * 100);
   const up = pct >= 0;
   const Icon = up ? TrendingUp : TrendingDown;
   const good = lowerIsBetter ? !up : up;
+  if (pill) return <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-black shrink-0 ${good ? 'bg-emerald-100/80 text-emerald-700' : 'bg-rose-100/80 text-rose-600'}`}>%{Math.abs(pct)} <Icon className="w-3.5 h-3.5" /></span>;
   return <span className={`inline-flex items-center gap-0.5 font-bold shrink-0 ${dark ? (good ? 'text-emerald-300' : 'text-rose-300') : good ? 'text-emerald-600' : 'text-rose-500'}`}>%{Math.abs(pct)} <Icon className="w-3.5 h-3.5" /></span>;
 };
 
