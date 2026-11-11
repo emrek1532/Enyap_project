@@ -4,7 +4,7 @@ import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager, Filte
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
-import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
+import { ABC_STYLE, AbcClass, CUSTOMER_STATUS, QUIET_DAYS, abcClasses, evaluate, foldName, statusOf } from '../lib/customerInsights';
 import { CustomerAccount } from './CustomerAccount';
 import { RouteView } from './RouteView';
 import { addToRoute, useRoute } from '../lib/route';
@@ -58,7 +58,7 @@ const normalize = (s: string) => s.toLocaleLowerCase('tr');
 const isApproved = (q: Quote) => q.status === 'onaylandi';
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const visitTxt = (d: string) => d.split('-').reverse().join('.');
-type VisitFilter = 'all' | 'visited' | 'not' | 'stale';
+type VisitFilter = 'all' | 'visited' | 'not' | 'stale' | 'quiet';
 /** 3 ay önceki gün (YYYY-MM-DD): bundan eski ya da hiç uğranmamış = "3 aydır uğranmadı" */
 const staleSince = () => { const d = new Date(); d.setMonth(d.getMonth() - 3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const isStale = (c: Customer, since: string) => !c.lastVisit || c.lastVisit < since;
@@ -93,6 +93,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const [mode, setMode] = useState<'list' | 'balance' | 'route'>('list');
   const [routeIds] = useRoute();
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
+  const [abcFilter, setAbcFilter] = useState<'all' | AbcClass | 'none'>('all');
+  // Müşteri sınıfı (A/B/C): son 12 ay onaylanan tutara göre, cihazdaki veriden
+  const abc = useMemo(() => abcClasses(quotes, rates), [quotes, rates]);
+  const abcOf = (c: Customer) => abc.get(foldName(c.name));
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
   const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
@@ -186,6 +190,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     return customers
       .filter(c => cityFilter === 'all' || (c.city || '—') === cityFilter)
       .filter(c => statusFilter === 'all' || statusOf(c) === statusFilter)
+      .filter(c => abcFilter === 'all' || (abcFilter === 'none' ? !abcOf(c) : abcOf(c) === abcFilter))
       .filter(c => !q || fold(c.name).includes(q) || fold(c.city || '').includes(q))
       .map(c => ({ c, st: statsOf(c) }))
       .filter(({ st }) =>
@@ -196,19 +201,22 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         (quoteFilter === 'none' && st.total === 0)
       )
       // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customers, statsCache, deferredSearch, cityFilter, quoteFilter, statusFilter]);
+  }, [customers, statsCache, deferredSearch, cityFilter, quoteFilter, statusFilter, abcFilter, abc]);
   // Ziyaret sekmelerinde yalnız aktif firmalar (pasif / kara liste uğrama planına girmez; durum filtresinden açıkça seçilirse görünür)
   const inPlan = (c: Customer) => statusFilter !== 'all' || statusOf(c) === 'aktif';
+  // Sessizleşen: A/B sınıfı ama QUIET_DAYS gündür teklif istemedi (sahada uğranacaklar)
+  const quietSince = new Date(Date.now() - QUIET_DAYS * 864e5).toISOString();
+  const isQuiet = (c: Customer, last: string) => { const k = abcOf(c); return (k === 'A' || k === 'B') && (!last || last < quietSince); };
   const visitCounts = useMemo(() => {
     const plan = base.filter(({ c }) => inPlan(c));
     const visited = plan.filter(({ c }) => !!c.lastVisit).length;
     const since = staleSince();
-    return { all: base.length, visited, not: plan.length - visited, stale: plan.filter(({ c }) => isStale(c, since)).length };
+    return { all: base.length, visited, not: plan.length - visited, stale: plan.filter(({ c }) => isStale(c, since)).length, quiet: plan.filter(({ c, st }) => isQuiet(c, st.lastDate)).length };
   }, [base, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const filtered = useMemo(() => {
     const since = staleSince();
     return base
-      .filter(({ c }) => visitFilter === 'all' || (inPlan(c) && (visitFilter === 'visited' ? !!c.lastVisit : visitFilter === 'stale' ? isStale(c, since) : !c.lastVisit)))
+      .filter(({ c, st }) => visitFilter === 'all' || (inPlan(c) && (visitFilter === 'visited' ? !!c.lastVisit : visitFilter === 'stale' ? isStale(c, since) : visitFilter === 'quiet' ? isQuiet(c, st.lastDate) : !c.lastVisit)))
       .sort((a, b) => {
         let r = 0;
         switch (sort.key) {
@@ -226,9 +234,9 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, visitFilter, statusFilter, sort, rates, collections]);
 
-  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || visitFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
+  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || abcFilter !== 'all' || visitFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
   const resetFilters = () => {
-    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setVisitFilter('all'); setSort(DEFAULT_SORT); setPage(0);
+    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setAbcFilter('all'); setVisitFilter('all'); setSort(DEFAULT_SORT); setPage(0);
   };
 
   const openNew = () => {
@@ -318,7 +326,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       {mode === 'list' && (
       <div className={listCard}>
         <div className="p-3 sm:p-4 space-y-3">
-          <FilterBar active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
+          <FilterBar active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (abcFilter !== 'all' ? 1 : 0)}
             search={<SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma adı veya şehir ara (ör. Isparta)..." className="flex-1" />}>
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
               <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Şehir">
@@ -337,6 +345,13 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 <option value="aktif">Aktif</option>
                 <option value="pasif">Pasif</option>
                 <option value="kara_liste">Kara liste</option>
+              </select>
+              <select value={abcFilter} onChange={e => { setAbcFilter(e.target.value as typeof abcFilter); setPage(0); }} className={ctrl} aria-label="Müşteri sınıfı" title="Son 12 ayda onaylanan tutara göre">
+                <option value="all">Tüm sınıflar</option>
+                <option value="A">A · cironun %80'i</option>
+                <option value="B">B · sonraki %15</option>
+                <option value="C">C · küçük alımlar</option>
+                <option value="none">Son 12 ayda alım yok</option>
               </select>
               <MobileSortSelect always className={`${ctrl} md:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
                 { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
@@ -359,10 +374,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             </div>
           </FilterBar>
           <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1" role="tablist" aria-label="Ziyaret durumu">
-            {([['all', 'Tümü'], ['visited', 'Uğradıklarım'], ['not', 'Uğramadıklarım'], ['stale', 'Son 3 ayda uğramadıklarım']] as [VisitFilter, string][]).map(([k, label]) => (
+            {([['all', 'Tümü'], ['quiet', `Sessizleşen A-B (${QUIET_DAYS}+ gün)`], ['visited', 'Uğradıklarım'], ['not', 'Uğramadıklarım'], ['stale', 'Son 3 ayda uğramadıklarım']] as [VisitFilter, string][]).map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={visitFilter === k} onClick={() => { setVisitFilter(k); setPage(0); }}
                 className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border whitespace-nowrap ${visitFilter === k
-                  ? (k === 'visited' ? 'bg-emerald-600 border-emerald-600 text-white' : k === 'not' ? 'bg-amber-500 border-amber-500 text-white' : k === 'stale' ? 'bg-rose-600 border-rose-600 text-white' : 'bg-brand-600 border-brand-600 text-white')
+                  ? (k === 'visited' ? 'bg-emerald-600 border-emerald-600 text-white' : k === 'not' ? 'bg-amber-500 border-amber-500 text-white' : k === 'stale' ? 'bg-rose-600 border-rose-600 text-white' : k === 'quiet' ? 'bg-amber-600 border-amber-600 text-white' : 'bg-brand-600 border-brand-600 text-white')
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                 {label} <span className="tabular-nums opacity-80">{visitCounts[k]}</span>
               </button>
@@ -392,7 +407,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}<StatusBadge c={c} /></div>
+                    <div className="font-bold text-slate-900 text-sm leading-snug">{c.name}<AbcBadge k={abcOf(c)} /><StatusBadge c={c} /></div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
                       {c.city || '—'}{st.lastDate ? ` · son teklif ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}{c.lastVisit ? ` · uğrandı ${visitTxt(c.lastVisit)}` : ''}
                     </div>
@@ -438,7 +453,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 {pageRows.map(({ c, st }) => (
                   <tr key={c.id} onClick={() => setViewing(c)} className={`${rowCls} cursor-pointer`}>
                     <td className="py-3 px-3">
-                      <div className="font-bold text-brand-800 min-w-[10rem] leading-snug">{c.name}<StatusBadge c={c} /></div>
+                      <div className="font-bold text-brand-800 min-w-[10rem] leading-snug">{c.name}<AbcBadge k={abcOf(c)} /><StatusBadge c={c} /></div>
                       <div className="xl:hidden text-xs text-slate-500 whitespace-nowrap">{c.city || '—'}{st.lastDate ? ` · ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</div>
                       {st.followUp && <FollowPill />}
                     </td>
@@ -471,6 +486,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       {viewing && (
         <CustomerAccount
           customer={viewing}
+          abc={abcOf(viewing)}
           quotes={quotesOf(viewing)}
           collections={collections
             .filter(c => fold(c.customerName.trim()) === fold(viewing.name.trim()))
@@ -530,6 +546,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 const FollowPill: React.FC = () => (
   <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-amber-50 text-amber-700 border border-amber-200">⏱ Tekrar görüş</span>
 );
+
+const AbcBadge: React.FC<{ k?: AbcClass }> = ({ k }) => (k
+  ? <span title={ABC_STYLE[k].hint} className={`ml-1.5 align-middle text-[10px] px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[k].cls}`}>{k}</span>
+  : null);
 
 const StatusBadge: React.FC<{ c: Customer }> = ({ c }) => {
   const st = statusOf(c);
