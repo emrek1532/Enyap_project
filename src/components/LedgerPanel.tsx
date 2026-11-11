@@ -486,7 +486,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       {/* Liste */}
       <div className={`${listCard} overflow-hidden`}>
         {/* Telefon: kart görünümü */}
-        <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
+        <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-slate-100">
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-slate-500">
               {records.length === 0 ? `Henüz ${t.one.toLocaleLowerCase('tr')} kaydı yok.` : 'Filtrelere uygun kayıt bulunamadı.'}
@@ -494,7 +494,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           )}
           {groups.map(g => (g.items.length === 1 || !merge ? g.items.map(mobileItem) : mobileGroup(g)))}
         </div></NarrowOnly>
-        <WideOnly from="md"><div className="overflow-x-auto hidden md:block">
+        <WideOnly from="lg"><div className="overflow-x-auto hidden lg:block">
           <table className="w-full text-left text-sm">
             <thead className={`${theadCls} text-[12px] font-bold text-slate-500`}>
               <tr>

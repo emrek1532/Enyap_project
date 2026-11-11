@@ -437,7 +437,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
         {view === 'list' && (<>
         {/* Telefon: kartlar (sola kaydırınca hızlı işlem) */}
-        <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
+        <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-slate-100">
           {pageRows.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Arama kriterine uygun teklif bulunamadı.</p>}
           {pageRows.map(quote => (
             <SwipeRow key={quote.id} actions={swipeActions(quote)}>
@@ -473,15 +473,15 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div></NarrowOnly>
 
         {/* Tablet / bilgisayar: tablo (teklif no üstte büyük, firma altında) */}
-        <WideOnly from="md"><div className="hidden md:block overflow-x-auto">
+        <WideOnly from="lg"><div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className={theadCls}>
               <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
-                <th className="hidden lg:table-cell py-3 pl-5 pr-1 w-8"><input type="checkbox" checked={allOnPage} onChange={toggleAll} aria-label="Sayfadakilerin hepsini seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></th>
-                <SortHeader className="max-lg:pl-4" label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
+                <th className="hidden xl:table-cell py-3 pl-5 pr-1 w-8"><input type="checkbox" checked={allOnPage} onChange={toggleAll} aria-label="Sayfadakilerin hepsini seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></th>
+                <SortHeader className="max-xl:pl-4" label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
                 <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
                 <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
-                <SortHeader className="hidden lg:table-cell" label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
+                <SortHeader className="hidden xl:table-cell" label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
                 <SortHeader label="Tutar (KDV Dahil)" align="right" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
                 <th className="py-3 px-3 text-center">İşlemler</th>
               </tr>
@@ -492,10 +492,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               )}
               {pageRows.map(quote => (
                 <tr key={quote.id} className={`transition-colors duration-150 hover:bg-[#EAF4FC]/70 ${selected.has(quote.id) ? 'bg-[#EAF4FC]' : 'bg-white'}`}>
-                  <td className="hidden lg:table-cell py-3 pl-5 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
-                  <td className="py-3 px-3 max-lg:pl-4 align-middle">
+                  <td className="hidden xl:table-cell py-3 pl-5 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
+                  <td className="py-3 px-3 max-xl:pl-4 align-middle">
                     <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-black text-[15px] text-[#123B68] hover:text-[#0072CE] whitespace-nowrap tabular-nums leading-tight transition-colors">{quoteNo(quote)}</button>
-                    <div className="lg:hidden text-[11px] text-slate-500 tabular-nums">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</div>
+                    <div className="xl:hidden text-[11px] text-slate-500 tabular-nums">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</div>
                   </td>
                   <td className="py-3 px-3">
                     <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="block font-bold text-[#173B63] text-left hover:text-[#0072CE] leading-snug transition-colors">{quote.customerName}</button>
@@ -508,7 +508,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     {needsFollowUp(quote) && !quote.followUpAt && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold border bg-[#E8F8F4] text-[#007F6B] border-[#00B89C]/30 whitespace-nowrap">⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)</span>}
                     {isPendingQuote(quote) && <span className="mt-1 flex flex-wrap gap-1">{extraBadges(quote)}</span>}
                   </td>
-                  <td className="hidden lg:table-cell py-3 px-3 text-slate-600 whitespace-nowrap tabular-nums"><span className="inline-flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-slate-400" />{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</span></td>
+                  <td className="hidden xl:table-cell py-3 px-3 text-slate-600 whitespace-nowrap tabular-nums"><span className="inline-flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-slate-400" />{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</span></td>
                   <td className="py-3 px-3 text-right font-black text-[#173B63] tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</td>
                   <td className="py-3 px-3">
                     <div className="relative flex items-center justify-center gap-0.5">

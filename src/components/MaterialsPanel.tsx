@@ -184,7 +184,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
     <div className={`${listCard} overflow-hidden`}>
 
       {/* Telefon: kartlar */}
-      <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
+      <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-slate-100">
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
@@ -203,7 +203,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div></NarrowOnly>
 
       {/* Tablet / masaüstü: tablo */}
-      <WideOnly from="md"><div className="hidden md:block overflow-x-auto">
+      <WideOnly from="lg"><div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead className={`${theadCls} text-left`}>
             <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
