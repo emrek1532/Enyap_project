@@ -98,9 +98,9 @@ html, body {
 .qrow {
   display: grid;
   gap: 0.25rem 0.375rem;
-  grid-template-columns: 5.4rem 3.7rem minmax(0, 1fr) 3.6rem 3.1rem;
+  grid-template-columns: 4.6rem 3.6rem minmax(0, 1fr) 3.6rem 3.1rem;
   grid-template-areas:
-    "kod ad ad ad ad"
+    "kod kod ad ad ad"
     "qty br fiyat dvz isk"
     "no tut tut tools tools";
   align-items: center;
