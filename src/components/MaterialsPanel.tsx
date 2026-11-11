@@ -138,9 +138,9 @@ const OwnMaterials: React.FC<{
     <div className={`${listCard} !rounded-2xl !border-[#E2EAF3]`}>
       <div className="p-3 sm:p-4 space-y-3">
         <div className="flex flex-col xl:flex-row xl:items-center gap-2">
-          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_12rem] gap-2 min-w-0 flex-1">
-          <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı veya kod ara (ör. kalde vana 1/2)" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
-          <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Yalnız kodda ara" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(11rem,0.7fr)_minmax(0,1.3fr)] gap-2 min-w-0 flex-1">
+          <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
+          <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara (ör. kalde vana 1/2)" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
           </div>
           {actions && <div className="flex flex-wrap gap-2 shrink-0">{actions}</div>}
         </div>
