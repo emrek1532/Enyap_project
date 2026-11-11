@@ -7,7 +7,7 @@ export type NavSection = { id: string; title: string; icon: React.ElementType; t
 
 /** Kırmızı sayı rozeti (bekleyen iş) */
 const Dot: React.FC<{ n?: number; className?: string }> = ({ n, className = '' }) => (n && n > 0
-  ? <span className={`absolute min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center tabular-nums ring-2 ring-white ${className}`}>{n > 99 ? '99+' : n}</span>
+  ? <span className={`absolute min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[11px] font-black flex items-center justify-center tabular-nums ring-2 ring-white ${className}`}>{n > 99 ? '99+' : n}</span>
   : null);
 
 /**

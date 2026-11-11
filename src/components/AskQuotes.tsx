@@ -94,7 +94,7 @@ export const AskAnswer: React.FC<{ ans: Answer; onOpenQuote?: (q: Quote) => void
   );
   return (
     <div className="text-sm text-slate-800 bg-violet-50 rounded-xl px-3 py-2 space-y-1.5">
-      <div className="text-[10px] font-black uppercase tracking-wide text-violet-700">Eski tekliflerden cevap</div>
+      <div className="text-[11px] font-black uppercase tracking-wide text-violet-700">Eski tekliflerden cevap</div>
       {ans.chips.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {ans.chips.map(c => <span key={c} className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white border border-violet-200 text-violet-700">{c}</span>)}

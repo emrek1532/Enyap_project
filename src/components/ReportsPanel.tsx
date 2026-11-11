@@ -25,7 +25,7 @@ interface ReportsPanelProps {
 type Period = 'month' | '3m' | 'year' | '12m' | 'all' | 'custom';
 
 // Grafik renkleri (kurumsal mavi / yeşil, harcama turuncu) — renk körlüğü testinden geçirildi
-const C_QUOTE = '#006ec6';
+const C_QUOTE = '#006DBB';
 const C_APPROVED = '#019a82';
 
 const MONTHS_TR = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -192,7 +192,7 @@ const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, emp
 );
 
 // ---------- Halka grafik ----------
-const PALETTE = ['#006EC6', '#00B293', '#17477D', '#5DA9D6', '#008F7C', '#90BBD8', '#7186A3'];
+const PALETTE = ['#006DBB', '#00B49A', '#173F73', '#5DA9D6', '#008F79', '#90BBD8', '#5E7491'];
 const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string; value: number; color?: string; note?: string }[]; center?: React.ReactNode; centerSub?: string }> = ({ title, subtitle, parts, center, centerSub = 'toplam' }) => {
   const [hover, setHover] = useState<number | null>(null);
   const items = parts.filter(p => p.value > 0);
@@ -257,7 +257,7 @@ const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; 
               <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: color }} />
               </div>
-              {r.sub && <div className="text-[10px] text-slate-500 mt-0.5">{r.sub}</div>}
+              {r.sub && <div className="text-[11px] text-slate-500 mt-0.5">{r.sub}</div>}
             </div>
           ))}
         </div>
@@ -723,7 +723,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
           parts={[
             { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
             { label: 'Bekleyen', value: stats.pendingAmt, color: '#5DA9D6' },
-            { label: 'Pasif', value: stats.passiveAmt, color: '#7186A3' },
+            { label: 'Pasif', value: stats.passiveAmt, color: '#5E7491' },
             { label: 'İptal', value: stats.cancelledAmt, color: '#e11d48' },
           ]} />
         <Donut title="Tahsilat · Ödeme Şekli" subtitle="Seçilen dönemdeki TL tahsilatlar"

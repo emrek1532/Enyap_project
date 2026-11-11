@@ -121,7 +121,7 @@ const AddUserModal: React.FC<{ onClose: () => void; onDone: () => void }> = ({ o
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
-        <div className="sticky top-0 z-10 px-4 sm:px-6 py-4 pt-safe-4 sm:pt-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between">
+        <div className="sticky top-0 z-10 px-4 sm:px-6 py-4 pt-safe-4 sm:pt-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-center justify-between">
           <div>
             <h3 className="font-black text-lg tracking-tight">Kişi Ekle</h3>
             <p className="text-xs text-sky-200/80">Hesap hemen açılır, onay beklemez.</p>

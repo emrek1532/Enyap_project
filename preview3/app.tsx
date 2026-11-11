@@ -96,7 +96,7 @@ const App = () => {
   const rates = useRates(quotes);
   const user = { userName: 'Emre Karakaya', userEmail: 'e@x.com', roleLabel: 'Yönetici' };
   const action = p === 'quotes' ? 'Yeni Teklif Oluştur' : p === 'customers' ? 'Yeni Müşteri' : p === 'materials' ? 'Yeni Malzeme' : p === 'collections' ? 'Yeni Tahsilat' : p === 'expenses' ? 'Yeni Harcama' : p === 'admin' ? 'Kişi Ekle' : p === 'requests' ? 'Talep gir' : '';
-  return h('div', { className: 'min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#f4f8fc] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60' },
+  return h('div', { className: 'min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#F1F6FC] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60' },
     h(Sidebar, { sections: secs, active: p, onOpen: setP, onHome: () => setP('home'), tools: h(BandTools, { syncStatus: sync, onSync: noop, onSignOut: noop, userEmail: 'e@x.com' }), ...user }),
     h('div', { className: 'sticky top-0 z-30 md:hidden' }, h(Header, { syncStatus: sync, onTriggerSync: noop, onHome: () => setP('home'), ...user, onSearch: () => setTool('search') })),
     h('main', { className: 'max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1 min-w-0' },

@@ -150,7 +150,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           {rows.map(r => (
             <div key={r.name} className="py-1.5 flex items-center gap-2 text-xs">
               {r.status === 'run' ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-600 shrink-0" />
-                : r.status === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00A08A] shrink-0" />
+                : r.status === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#008F79] shrink-0" />
                 : r.status === 'err' || r.status === 'skip' ? <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                 : <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0" />}
               <span className="min-w-0 flex-1 truncate text-slate-700">{r.name}</span>
@@ -160,7 +160,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
         </div>
       )}
       {!busy && total > 0 && done === total && (
-        <div className="text-xs font-semibold text-[#008F79] bg-[#E8F8F4] rounded-md px-2 py-1.5">
+        <div className="text-xs font-semibold text-[#008F79] bg-[#E6F7F4] rounded-md px-2 py-1.5">
           {done} liste eklendi. Firmaların adını, tarihini ve iskontosunu listeye girip kontrol edebilirsiniz.
         </div>
       )}
@@ -365,7 +365,7 @@ export const SupplierListsPanel: React.FC = () => {
     if (age === null) return null;
     return age >= 6
       ? <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#F1F6FC] text-[#173F73] border border-[#C7DFF5] whitespace-nowrap">{age} ay önce</span>
-      : <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#E8F8F4] text-[#008F79] border border-[#BFE9DF] whitespace-nowrap">Güncel</span>;
+      : <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#E6F7F4] text-[#008F79] border border-[#BFE9DF] whitespace-nowrap">Güncel</span>;
   };
   const showUploader = uploadOpen || !lists.length;
 
@@ -542,7 +542,7 @@ export const SupplierListsPanel: React.FC = () => {
 
           {error && <div className="text-sm text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
           {notice && (
-            <button onClick={() => setNotice('')} className="w-full text-left text-sm text-[#006B5B] bg-[#E8F8F4] rounded-lg px-3 py-2">{notice}</button>
+            <button onClick={() => setNotice('')} className="w-full text-left text-sm text-[#006B5B] bg-[#E6F7F4] rounded-lg px-3 py-2">{notice}</button>
           )}
 
           {(active || query.trim()) && (
@@ -575,7 +575,7 @@ export const SupplierListsPanel: React.FC = () => {
                         <div className="min-w-0">
                           <div className="text-sm font-extrabold text-slate-900 leading-snug break-words">
                             {!active && (
-                              <span className="text-[10px] font-black text-white rounded px-1.5 py-0.5 mr-1.5 align-[1px]" style={{ background: supplierColor(it.listName) }}>
+                              <span className="text-[11px] font-black text-white rounded px-1.5 py-0.5 mr-1.5 align-[1px]" style={{ background: supplierColor(it.listName) }}>
                                 {it.listName.toLocaleUpperCase('tr')}
                               </span>
                             )}

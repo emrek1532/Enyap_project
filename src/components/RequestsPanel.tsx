@@ -23,7 +23,7 @@ const ago = (iso: string) => {
 };
 
 export const RequestPill: React.FC<{ status: RequestStatus }> = ({ status }) => (
-  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${REQUEST_STATUS[status].cls}`}>{REQUEST_STATUS[status].label}</span>
+  <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${REQUEST_STATUS[status].cls}`}>{REQUEST_STATUS[status].label}</span>
 );
 
 /** Paylaş menüsünden (WhatsApp) gelen yazı / dosya: Talep gir formu dolu açılır */
@@ -103,7 +103,7 @@ export const RequestsPanel: React.FC<{
           const ready = r.lines?.length ? r.lines.filter(x => !x.skip && x.pick).length : 0;
           return (
             <button key={r.id} onClick={() => setDetailId(r.id)} className="w-full text-left py-3 px-1 sm:px-2 flex items-start gap-3 hover:bg-brand-50/40 rounded-xl">
-              <span className="w-10 h-10 rounded-2xl bg-[#EAF4FC] text-[#006DBB] flex items-center justify-center shrink-0">
+              <span className="w-10 h-10 rounded-2xl bg-[#EAF5FC] text-[#006DBB] flex items-center justify-center shrink-0">
                 {r.files.some(f => f.type.startsWith('image/')) ? <ImageIcon className="w-5 h-5" /> : r.files.length ? <FileSpreadsheet className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
               </span>
               <span className="flex-1 min-w-0">
@@ -246,7 +246,7 @@ const RequestForm: React.FC<{
           <ul className="mt-2 space-y-1">
             {files.map((f, i) => (
               <li key={i} className="flex items-center gap-2 text-xs bg-slate-50 rounded-lg px-2.5 py-1.5">
-                {f.type.startsWith('image/') ? <ImageIcon className="w-3.5 h-3.5 text-sky-600" /> : <FileSpreadsheet className="w-3.5 h-3.5 text-[#008F7C]" />}
+                {f.type.startsWith('image/') ? <ImageIcon className="w-3.5 h-3.5 text-sky-600" /> : <FileSpreadsheet className="w-3.5 h-3.5 text-[#008F79]" />}
                 <span className="flex-1 min-w-0 truncate">{f.name}</span>
                 <span className="text-slate-500 tabular-nums">{Math.max(1, Math.round(f.size / 1024))} KB</span>
                 <button onClick={() => setFiles(files.filter((_, k) => k !== i))} aria-label="Kaldır" className="p-0.5 text-slate-500 hover:text-rose-600"><X className="w-3.5 h-3.5" /></button>
@@ -358,7 +358,7 @@ const RequestDetail: React.FC<{
                 className="block rounded-xl border border-slate-200 overflow-hidden hover:border-brand-300">
                 {f.type.startsWith('image/')
                   ? (urls[f.path] ? <img src={urls[f.path]} alt={f.name} className="w-full h-32 object-cover" /> : <div className="h-32 flex items-center justify-center"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>)
-                  : <div className="h-32 flex flex-col items-center justify-center gap-1 text-slate-600"><FileSpreadsheet className="w-7 h-7 text-[#008F7C]" /><span className="text-[11px] px-2 truncate max-w-full">{f.name}</span></div>}
+                  : <div className="h-32 flex flex-col items-center justify-center gap-1 text-slate-600"><FileSpreadsheet className="w-7 h-7 text-[#008F79]" /><span className="text-[11px] px-2 truncate max-w-full">{f.name}</span></div>}
               </a>
             ))}
           </div>
@@ -367,7 +367,7 @@ const RequestDetail: React.FC<{
 
       {canAi && <div className="rounded-2xl border border-slate-200 p-3 space-y-2">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#008F7C]" />
+          <Sparkles className="w-4 h-4 text-[#008F79]" />
           <span className="font-bold text-slate-900 flex-1">Okunan ürünler</span>
           {rows && <span className="text-[11px] text-slate-500">{rows.filter(r => !r.skip && r.pick).length}/{rows.filter(r => !r.skip).length} hazır</span>}
         </div>
@@ -375,7 +375,7 @@ const RequestDetail: React.FC<{
         {!reading && !rows && (
           <div className="text-xs text-slate-600 flex items-center gap-2 flex-wrap">
             Talep henüz okunmadı.
-            {canEdit && <button onClick={onRead} className="px-3 py-1.5 rounded-lg bg-[#008F7C] text-white font-bold">Talebi oku</button>}
+            {canEdit && <button onClick={onRead} className="px-3 py-1.5 rounded-lg bg-[#008F79] text-white font-bold">Talebi oku</button>}
           </div>
         )}
         {rows && <RequestLines rows={rows} readOnly={!canEdit || closed} onChange={r => { dirty.current = true; setRows(r); }} />}

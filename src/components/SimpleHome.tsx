@@ -258,10 +258,10 @@ export const SimpleHome: React.FC<{
 
   const hasInbox = myRequests.length > 0 || reviewQuotes.length > 0;
   const quick = [
-    canAdd.quote && { key: 'q', label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, tone: 'from-[#D9ECFB] to-[#F1F7FC] text-[#0072CE]', ring: 'bg-white/80' },
+    canAdd.quote && { key: 'q', label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, tone: 'from-[#D9ECFB] to-[#F1F6FC] text-[#006DBB]', ring: 'bg-white/80' },
     sections.includes('materials') && { key: 'm', label: 'Malzemeler', icon: Package, on: () => onOpen('materials'), tone: 'from-[#D3F2EC] to-[#EEFAF7] text-[#00B49A]', ring: 'bg-white/80' },
     canAdd.collection && { key: 'c', label: 'Tahsilat', icon: Wallet, on: onNewCollection, tone: 'from-[#D3EEFB] to-[#EFF9FE] text-[#009FE3]', ring: 'bg-white/80' },
-    canAdd.expense && { key: 'e', label: 'Harcama', icon: Receipt, on: onNewExpense, tone: 'from-[#D8F1F0] to-[#F0F9FA] text-[#00A08A]', ring: 'bg-white/80' },
+    canAdd.expense && { key: 'e', label: 'Harcama', icon: Receipt, on: onNewExpense, tone: 'from-[#D8F1F0] to-[#F0F9FA] text-[#008F79]', ring: 'bg-white/80' },
   ].filter(Boolean) as { key: string; label: string; icon: React.ElementType; on: () => void; tone: string; ring: string }[];
   const glass = 'bg-white/10 hover:bg-white/15 border border-white/15 text-white';
 
@@ -272,24 +272,24 @@ export const SimpleHome: React.FC<{
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0a3168] via-[#0c3f7d] to-[#0f4f96] text-white min-h-[118px] sm:min-h-[150px] px-5 py-4 sm:px-7 sm:py-6 flex items-center shadow-[0_20px_44px_-28px_rgba(10,49,104,0.9)]">
         <div aria-hidden className="absolute inset-y-0 right-0 w-[58%] md:w-[50%] bg-no-repeat bg-[url(/hero-enyap-sm.webp)] md:bg-[url(/hero-enyap.webp)] bg-[length:auto_230%] bg-[position:96%_30%] md:bg-[length:auto_400%] md:bg-[position:100%_26%] [mask-image:linear-gradient(to_right,transparent,black_28%)]" />
         <div aria-hidden className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[#0a3168]/70 to-transparent" />
-        <div className="relative min-w-0 max-w-[68%] md:max-w-[55%]">
+        <div className="relative min-w-0 max-w-[68%] md:max-w-[62%] lg:max-w-[55%]">
           <p className="text-[11px] sm:text-sm text-sky-100/85"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-sky-100/55 tabular-nums">v{__APP_VERSION__}</span></p>
-          <h1 className="text-[20px] sm:text-[30px] font-black tracking-tight leading-tight drop-shadow whitespace-nowrap">{hello}, {firstName} <span className="inline-block">👋</span></h1>
+          <h1 className="text-[20px] sm:text-[26px] xl:text-[30px] font-black tracking-tight leading-tight drop-shadow whitespace-nowrap">{hello}, {firstName} <span className="inline-block">👋</span></h1>
           <p className="text-[13px] sm:text-[15px] text-sky-100/90">Bugünün özeti burada.</p>
         </div>
       </section>
 
       {/* 2. Arama (tablet/bilgisayar) + dönem seçimi */}
       {(canQuotes || canMoney) && (
-        <div className="flex flex-col md:flex-row md:items-center gap-2.5 sm:gap-3">
-          <button onClick={() => onOpenTool('search')} className="hidden md:flex flex-1 min-w-0 items-center gap-3 h-12 px-4 rounded-2xl bg-white border border-white text-left text-slate-500 shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)] hover:border-sky-200">
+        <div className="flex flex-col xl:flex-row xl:items-center gap-2.5 sm:gap-3">
+          <button onClick={() => onOpenTool('search')} className="hidden md:flex xl:flex-1 w-full min-w-0 shrink-0 items-center gap-3 h-12 px-4 rounded-2xl bg-white border border-white text-left text-slate-500 shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)] hover:border-sky-200">
             <Search className="w-5 h-5 text-brand-600 shrink-0" /><span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
           </button>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex flex-1 md:flex-none items-center h-12 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]">
-              <button onClick={() => stepPeriod(-1)} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#1a3d6d]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
-              <span className="flex-1 md:w-36 flex items-center justify-center gap-1.5 text-sm font-black text-[#1a3d6d] whitespace-nowrap"><CalendarDays className="w-4 h-4 text-brand-500" />{title}</span>
-              <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#1a3d6d] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
+          <div className="flex items-center gap-2 xl:shrink-0">
+            <div className="flex flex-1 xl:flex-none items-center h-12 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]">
+              <button onClick={() => stepPeriod(-1)} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#173F73]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
+              <span className="flex-1 xl:w-36 flex items-center justify-center gap-1.5 text-sm font-black text-[#173F73] whitespace-nowrap"><CalendarDays className="w-4 h-4 text-brand-500" />{title}</span>
+              <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#173F73] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
             </div>
             <div className="flex h-12 p-1 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]" role="tablist" aria-label="Dönem türü">
               {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
@@ -313,13 +313,13 @@ export const SimpleHome: React.FC<{
       {/* 2. Hızlı işlemler: her ekranda 4 kutu */}
       {quick.length > 0 && (
         <section className="relative">
-          <h2 className="mb-2.5 flex items-center gap-1.5 text-[15px] font-black text-[#173F70]"><Zap className="w-4.5 h-4.5 text-[#009FE3] fill-[#009FE3]" />Hızlı İşlemler</h2>
+          <h2 className="mb-2.5 flex items-center gap-1.5 text-[15px] font-black text-[#173F73]"><Zap className="w-4.5 h-4.5 text-[#009FE3] fill-[#009FE3]" />Hızlı İşlemler</h2>
           <div className={`grid gap-2 sm:gap-3 ${quick.length >= 4 ? 'grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {quick.map(x => (
               <button key={x.key} onClick={x.on}
                 className={`min-w-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${x.tone} border border-white shadow-[0_12px_28px_-22px_rgba(15,60,120,0.7)] px-1 py-2.5 sm:py-4 flex flex-col xl:flex-row items-center justify-center gap-1.5 sm:gap-2 xl:gap-3 transition hover:-translate-y-0.5 active:scale-[0.97]`}>
                 <span className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${x.ring} flex items-center justify-center shrink-0 shadow-sm`}><x.icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" /></span>
-                <span className="max-w-full truncate text-[11.5px] sm:text-sm font-black text-[#173F70] text-center leading-tight">{x.label}</span>
+                <span className="max-w-full truncate text-xs sm:text-sm font-black text-[#173F73] text-center leading-tight">{x.label}</span>
               </button>
             ))}
           </div>
@@ -335,7 +335,7 @@ export const SimpleHome: React.FC<{
               <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
                 <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-[#8CC8EE]" />Verilen teklif</span>
                 <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-[#00B49A]" />Onaylanan</span>
-                {forecast && forecast.total > 0 && <span className="flex items-center gap-1.5 text-[#0072CE] font-semibold"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
+                {forecast && forecast.total > 0 && <span className="flex items-center gap-1.5 text-[#006DBB] font-semibold"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
               </div>
               <BarsChart bars={bars} hi={hiKey}
                 onPick={b => chart === 'all'
@@ -352,21 +352,21 @@ export const SimpleHome: React.FC<{
           )}
           {feed.length > 0 && (
             <Card className="order-6 md:col-span-2" title="Son İşlemler" icon={History} right={canQuotes ? <SeeAll onClick={() => openQuotes({ status: 'all' })} /> : undefined}>
-              <ul className="px-2 sm:px-3 pb-3 divide-y divide-[#E1EAF3]">
+              <ul className="px-2 sm:px-3 pb-3 divide-y divide-[#E2EAF3]">
                 {feed.map(f => {
-                  const [Icon, tone, label] = f.kind === 'q' ? [FileText, 'bg-[#F1F7FC] text-[#0072CE]', ''] : f.kind === 'c' ? [ArrowDownLeft, 'bg-[#E6F7F4] text-[#00A08A]', ''] : [Receipt, 'bg-[#EEF3F8] text-[#173F70]', ''];
+                  const [Icon, tone, label] = f.kind === 'q' ? [FileText, 'bg-[#F1F6FC] text-[#006DBB]', ''] : f.kind === 'c' ? [ArrowDownLeft, 'bg-[#E6F7F4] text-[#008F79]', ''] : [Receipt, 'bg-[#EEF3F8] text-[#173F73]', ''];
                   const st = f.q ? STATUS_BADGE[viewStatus(f.q)] : null;
                   return (
                     <li key={f.id}>
-                      <button onClick={() => (f.q ? onOpenQuote(f.q) : onOpen(f.kind === 'c' ? 'collections' : 'expenses'))} className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-xl hover:bg-[#F1F7FC]">
+                      <button onClick={() => (f.q ? onOpenQuote(f.q) : onOpen(f.kind === 'c' ? 'collections' : 'expenses'))} className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-xl hover:bg-[#F1F6FC]">
                         <span className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-5 h-5" />{label}</span>
                         <span className="flex-1 min-w-0">
                           <span className="block text-[14px] font-bold text-[#17365D] truncate">{f.title}</span>
-                          <span className="block text-[12px] text-[#7187A3] truncate">{f.sub} · <b className={f.kind === 'c' ? 'text-[#00866F]' : f.kind === 'e' ? 'text-[#173F70]' : 'text-[#17365D]'}>{f.kind === 'e' ? '−' : ''}{lira(f.amount)}</b></span>
+                          <span className="block text-[12px] text-[#5E7491] truncate">{f.sub} · <b className={f.kind === 'c' ? 'text-[#008F79]' : f.kind === 'e' ? 'text-[#173F73]' : 'text-[#17365D]'}>{f.kind === 'e' ? '−' : ''}{lira(f.amount)}</b></span>
                         </span>
                         <span className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-[12px] text-[#7187A3] tabular-nums">{f.day.slice(8, 10)}.{f.day.slice(5, 7)}.{f.day.slice(0, 4)}</span>
-                          {st && <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${st[1]}`}>{st[0]}</span>}
+                          <span className="text-[12px] text-[#5E7491] tabular-nums">{f.day.slice(8, 10)}.{f.day.slice(5, 7)}.{f.day.slice(0, 4)}</span>
+                          {st && <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${st[1]}`}>{st[0]}</span>}
                         </span>
                         <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
                       </button>
@@ -389,7 +389,7 @@ export const SimpleHome: React.FC<{
             </TodoList>
           )}
           {(canQuotes || canMoney) && !isYear && (
-            <Card className="order-4" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-[#0072CE]">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
+            <Card className="order-4" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-[#006DBB]">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
               <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} forecast={isCurrent && canQuotes ? forecast : undefined} />
             </Card>
           )}
@@ -427,14 +427,14 @@ const PeriodCard: React.FC<{
       <button onClick={big.on} className="w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-slate-50/60">
         <span className="min-w-0">
           <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
-          <span className="block mt-1 text-[30px] sm:text-[40px] leading-none font-black tracking-tight text-[#1a3d6d] tabular-nums truncate">{lira(big.value)}</span>
+          <span className="block mt-1 text-[30px] sm:text-[40px] leading-none font-black tracking-tight text-[#173F73] tabular-nums truncate">{lira(big.value)}</span>
           <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
         </span>
         <span className="hidden sm:block"><Spark values={big.spark} color="#10b981" w={120} h={44} /></span>
       </button>
       {(canQuotes && (conv > 0 || forecast || tPct > 0)) && (
         <div className="mx-4 sm:mx-6 mb-3 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 text-xs font-bold text-slate-700">Dönüşüm <b className="text-[#1a3d6d]">%{conv}</b></span>
+          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 text-xs font-bold text-slate-700">Dönüşüm <b className="text-[#173F73]">%{conv}</b></span>
           {tPct > 0 && <span className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-bold ${tPct >= 100 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}><Target className="w-3.5 h-3.5" />Hedefin %{tPct}'i</span>}
           {forecast && forecast.total > 0 && <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-sky-50 text-xs font-bold text-sky-800"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
         </div>
@@ -445,9 +445,9 @@ const PeriodCard: React.FC<{
             <button key={m.label} onClick={m.on} className="text-left px-3 sm:px-5 py-3 hover:bg-slate-50 min-w-0">
               <span className="flex items-center justify-between gap-1">
                 <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{m.label}</span>
-                <span className="hidden sm:block"><Spark values={m.spark} color={m.color} /></span>
+                <span className="hidden xl:block"><Spark values={m.spark} color={m.color} /></span>
               </span>
-              <span className="block mt-0.5 text-[15px] sm:text-xl font-black text-[#1a3d6d] tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-slate-400"> TL</span></span>
+              <span className="block mt-0.5 text-[15px] sm:text-xl font-black text-[#173F73] tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-slate-400"> TL</span></span>
               <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
             </button>
           ))}
@@ -474,27 +474,27 @@ const DecisionList: React.FC<{
   const list = (tab === 'calls' ? calls : tab === 'expiring' ? exp : pending).slice(0, 6);
   const SHOW_ALL: Record<K, string> = { all: 'aktif', calls: 'takip', expiring: 'expiring' };
   return (
-    <section className={`bg-white rounded-3xl border border-[#E1EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden ${className}`}>
+    <section className={`bg-white rounded-3xl border border-[#E2EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden ${className}`}>
       <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
-        <span className="w-9 h-9 rounded-2xl bg-[#F1F7FC] text-[#0072CE] flex items-center justify-center shrink-0"><BellRing className="w-5 h-5" /></span>
+        <span className="w-9 h-9 rounded-2xl bg-[#F1F6FC] text-[#006DBB] flex items-center justify-center shrink-0"><BellRing className="w-5 h-5" /></span>
         <span className="flex-1 min-w-0">
-          <h2 className="text-base font-black text-[#173F70] truncate">Takip · karar bekleyenler</h2>
-          <p className="text-[11px] text-[#7187A3] truncate">Onayla ya da yarın aramak üzere ertele</p>
+          <h2 className="text-base font-black text-[#173F73] truncate">Takip · karar bekleyenler</h2>
+          <p className="text-[11px] text-[#5E7491] truncate">Onayla ya da yarın aramak üzere ertele</p>
         </span>
-        <button onClick={() => onAll(SHOW_ALL[tab])} className="text-[13px] font-bold text-[#0072CE] shrink-0">Tümü ({tab === 'calls' ? calls.length : tab === 'expiring' ? exp.length : pending.length})</button>
+        <button onClick={() => onAll(SHOW_ALL[tab])} className="text-[13px] font-bold text-[#006DBB] shrink-0">Tümü ({tab === 'calls' ? calls.length : tab === 'expiring' ? exp.length : pending.length})</button>
       </header>
       {tabs.length > 1 && (
         <div className="px-4 sm:px-5 pb-2 flex gap-1.5 overflow-x-auto" role="tablist">
           {tabs.map(([k, l, n]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-              className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-bold border ${tab === k ? 'bg-[#173F70] border-[#173F70] text-white' : 'bg-white border-[#E1EAF3] text-slate-600'}`}>
+              className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-bold border ${tab === k ? 'bg-[#173F73] border-[#173F73] text-white' : 'bg-white border-[#E2EAF3] text-slate-600'}`}>
               {l} <span className={tab === k ? 'text-sky-200' : 'text-slate-400'}>{n}</span>
             </button>
           ))}
         </div>
       )}
-      {list.length === 0 && <p className="px-5 pb-5 text-sm text-[#7187A3]">Karar bekleyen teklif yok.</p>}
-      <ul className="px-2 sm:px-3 pb-2 divide-y divide-[#E1EAF3]">
+      {list.length === 0 && <p className="px-5 pb-5 text-sm text-[#5E7491]">Karar bekleyen teklif yok.</p>}
+      <ul className="px-2 sm:px-3 pb-2 divide-y divide-[#E2EAF3]">
         {list.map((q, i) => {
           const age = quoteAgeInDays(q);
           const due = followDue(q, today);
@@ -503,30 +503,30 @@ const DecisionList: React.FC<{
           return (
             <li key={q.id} className={`${i >= 4 ? 'max-sm:hidden ' : ''}flex flex-col sm:flex-row sm:items-center gap-2 px-2 py-3`}>
               <button onClick={() => onOpen(q)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
-                <span className="w-10 h-10 rounded-2xl bg-slate-100 text-[#173F70] text-sm font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+                <span className="w-10 h-10 rounded-2xl bg-slate-100 text-[#173F73] text-sm font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
                 <span className="flex-1 min-w-0">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="text-[14px] font-bold text-[#17365D] truncate">{q.customerName}</span>
-                    {due && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#E6F7F4] text-[#00866F]">Bugün ara</span>}
-                    {!due && d2e !== null && d2e <= 3 && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#EEF3F8] text-[#173F70]">{d2e < 0 ? 'Süre doldu' : `Süre ${d2e} gün`}</span>}
+                    {due && <span className="shrink-0 text-[11px] font-black px-1.5 py-0.5 rounded-md bg-[#E6F7F4] text-[#008F79]">Bugün ara</span>}
+                    {!due && d2e !== null && d2e <= 3 && <span className="shrink-0 text-[11px] font-black px-1.5 py-0.5 rounded-md bg-[#EEF3F8] text-[#173F73]">{d2e < 0 ? 'Süre doldu' : `Süre ${d2e} gün`}</span>}
                   </span>
-                  <span className="block text-[12px] text-[#7187A3] tabular-nums truncate">{quoteNo(q)} · {age === 0 ? 'bugün' : `${age} gün önce`} · <b className="text-slate-700">{lira(quoteTry(q, rates))}</b></span>
+                  <span className="block text-[12px] text-[#5E7491] tabular-nums truncate">{quoteNo(q)} · {age === 0 ? 'bugün' : `${age} gün önce`} · <b className="text-slate-700">{lira(quoteTry(q, rates))}</b></span>
                 </span>
               </button>
               {st ? (
-                <span className="sm:w-[208px] h-10 flex items-center justify-center rounded-xl bg-[#E6F7F4] text-[#00866F] text-xs font-bold"><Check className="w-4 h-4 mr-1" />{st}</span>
+                <span className="sm:w-[208px] h-10 flex items-center justify-center rounded-xl bg-[#E6F7F4] text-[#008F79] text-xs font-bold"><Check className="w-4 h-4 mr-1" />{st}</span>
               ) : (onApprove || onTomorrow) && (
                 <span className="flex gap-2 sm:w-[208px] shrink-0">
                   {onTomorrow && (
                     <button onClick={() => { onTomorrow(q); setDone(x => ({ ...x, [q.id]: 'Yarın aranacak' })); }}
-                      className="flex-1 h-10 rounded-xl border border-[#E1EAF3] text-xs font-bold text-slate-700 hover:bg-[#F1F7FC] flex items-center justify-center gap-1"><Phone className="w-3.5 h-3.5" />Yarın ara</button>
+                      className="flex-1 h-10 rounded-xl border border-[#E2EAF3] text-xs font-bold text-slate-700 hover:bg-[#F1F6FC] flex items-center justify-center gap-1"><Phone className="w-3.5 h-3.5" />Yarın ara</button>
                   )}
                   {onApprove && (ask === q.id ? (
                     <button onClick={() => { onApprove(q); setAsk(null); setDone(x => ({ ...x, [q.id]: 'Onaylandı' })); }}
-                      className="flex-1 h-10 rounded-xl bg-[#00B49A] hover:bg-[#00A08A] text-white text-xs font-black">Evet, onayla</button>
+                      className="flex-1 h-10 rounded-xl bg-[#00B49A] hover:bg-[#008F79] text-white text-xs font-black">Evet, onayla</button>
                   ) : (
                     <button onClick={() => setAsk(q.id)}
-                      className="flex-1 h-10 rounded-xl bg-[#E6F7F4] text-[#00866F] hover:bg-[#D2F1EB] text-xs font-bold flex items-center justify-center gap-1"><Check className="w-3.5 h-3.5" />Onayla</button>
+                      className="flex-1 h-10 rounded-xl bg-[#E6F7F4] text-[#008F79] hover:bg-[#D2F1EB] text-xs font-bold flex items-center justify-center gap-1"><Check className="w-3.5 h-3.5" />Onayla</button>
                   ))}
                 </span>
               )}
@@ -556,16 +556,16 @@ const Spark: React.FC<{ values: number[]; color: string; w?: number; h?: number;
 
 const TONES = {
   emerald: { icon: 'bg-[#E6F7F4] text-[#00B49A]', n: 'bg-[#00B49A]', arrow: 'text-[#00B49A]' },
-  sky: { icon: 'bg-[#F1F7FC] text-[#0072CE]', n: 'bg-[#0072CE]', arrow: 'text-[#0072CE]' },
+  sky: { icon: 'bg-[#F1F6FC] text-[#006DBB]', n: 'bg-[#006DBB]', arrow: 'text-[#006DBB]' },
 };
 const TodoCtx = React.createContext<keyof typeof TONES>('sky');
 
 /** Yapılacaklar kartı (talepler / kontrol): başlık, adet rozeti, en çok 4 satır */
 const TodoList: React.FC<{ className?: string; tone: keyof typeof TONES; icon: React.ElementType; title: string; n: number; children: React.ReactNode }> = ({ className = '', tone, icon: Icon, title, n, children }) => (
-  <section className={`${className} bg-white rounded-3xl border border-[#E1EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden`}>
+  <section className={`${className} bg-white rounded-3xl border border-[#E2EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden`}>
     <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
       <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${TONES[tone].icon}`}><Icon className="w-4.5 h-4.5" /></span>
-      <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#173F70]">{title}</h2>
+      <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#173F73]">{title}</h2>
       <span className={`min-w-6 h-6 px-1.5 rounded-full text-white text-xs font-black flex items-center justify-center tabular-nums ${TONES[tone].n}`}>{n}</span>
     </header>
     <TodoCtx.Provider value={tone}><ul className="px-2 sm:px-3 pb-2">{children}</ul></TodoCtx.Provider>
@@ -575,11 +575,11 @@ const TodoRow: React.FC<{ title: string; sub?: string; tag?: string; onClick: ()
   const tone = React.useContext(TodoCtx);
   return (
     <li>
-      <button onClick={onClick} className="w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-[#F1F7FC]">
-        {tag && <span className="shrink-0 w-16 text-center text-[10px] font-black px-1.5 py-1 rounded-md bg-slate-100 text-slate-600">{tag}</span>}
+      <button onClick={onClick} className="w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-[#F1F6FC]">
+        {tag && <span className="shrink-0 w-16 text-center text-[11px] font-black px-1.5 py-1 rounded-md bg-slate-100 text-slate-600">{tag}</span>}
         <span className="flex-1 min-w-0">
           <span className="block text-[13px] font-semibold text-[#17365D] truncate">{title}</span>
-          {sub && <span className="block text-[11px] text-[#7187A3] truncate">{sub}</span>}
+          {sub && <span className="block text-[11px] text-[#5E7491] truncate">{sub}</span>}
         </span>
         <ArrowRight className={`w-4 h-4 shrink-0 ${TONES[tone].arrow}`} />
       </button>
@@ -600,28 +600,28 @@ const MoneyCard: React.FC<{
   const tab: K | undefined = tabs.find(x => x[0] === pick)?.[0] || tabs[0]?.[0];
   const SHOW = 5;
   const sum = (l: { v: number }[]) => l.reduce((t, x) => t + x.v, 0);
-  const rowCls = 'w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-[#F1F7FC]';
+  const rowCls = 'w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-[#F1F6FC]';
   const rank = (i: number) => <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 text-xs font-black flex items-center justify-center shrink-0">{i + 1}</span>;
   const val = (v: number) => <span className="text-[13px] font-black text-[#17365D] tabular-nums shrink-0">{lira(v)}</span>;
-  const sub = 'block text-[11px] text-[#7187A3] truncate';
+  const sub = 'block text-[11px] text-[#5E7491] truncate';
   const name = 'block text-[13px] font-semibold text-[#17365D] truncate';
   const head = (label: string, total: number, all?: () => void, n?: number) => (
     <div className="flex items-center justify-between gap-2 px-2 pt-1 pb-0.5">
-      <p className="text-[11px] text-[#7187A3]">{label} <b className="text-[#17365D] tabular-nums">{lira(total)}</b></p>
-      {all && n != null && n > SHOW && <button onClick={all} className="text-xs font-bold text-[#0072CE] shrink-0">Tümü ({n})</button>}
+      <p className="text-[11px] text-[#5E7491]">{label} <b className="text-[#17365D] tabular-nums">{lira(total)}</b></p>
+      {all && n != null && n > SHOW && <button onClick={all} className="text-xs font-bold text-[#006DBB] shrink-0">Tümü ({n})</button>}
     </div>
   );
   return (
-    <section className="flex-1 bg-white rounded-3xl border border-[#E1EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden">
+    <section className="flex-1 bg-white rounded-3xl border border-[#E2EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden">
       <header className="px-4 sm:px-5 pt-4 pb-2">
-        <h2 className="text-base font-black text-[#173F70] flex items-center gap-2"><Wallet className="w-5 h-5 text-[#0072CE]" />Para özeti</h2>
+        <h2 className="text-base font-black text-[#173F73] flex items-center gap-2"><Wallet className="w-5 h-5 text-[#006DBB]" />Para özeti</h2>
       </header>
       {tabs.length > 0 && (
         <div className="px-4 sm:px-5 pb-1 flex gap-1.5" role="tablist" aria-label="Para özeti">
           {tabs.map(([k, label, n]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPick(k)}
-              className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#173F70] border-[#173F70] text-white' : 'bg-white border-[#E1EAF3] text-slate-600'}`}>
-              {label} <span className={`tabular-nums ${tab === k ? 'text-sky-200' : 'text-[#7187A3]'}`}>{n}</span>
+              className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#173F73] border-[#173F73] text-white' : 'bg-white border-[#E2EAF3] text-slate-600'}`}>
+              {label} <span className={`tabular-nums ${tab === k ? 'text-sky-200' : 'text-[#5E7491]'}`}>{n}</span>
             </button>
           ))}
         </div>
@@ -639,7 +639,7 @@ const MoneyCard: React.FC<{
         </>)}
         {tab === 'paid' && (<>
           {head(`${periodTitle} tahsilat`, sum(data.paid), onAllPaid, data.paid.length)}
-          {data.paid.length === 0 && <p className="px-2 py-3 text-sm text-[#7187A3]">Bu dönemde tahsilat yok.</p>}
+          {data.paid.length === 0 && <p className="px-2 py-3 text-sm text-[#5E7491]">Bu dönemde tahsilat yok.</p>}
           {data.paid.slice(0, SHOW).map((p, i) => (
             <button key={p.name} onClick={() => onOpenCustomer?.(p.name)} className={rowCls}>
               {rank(i)}
@@ -650,9 +650,9 @@ const MoneyCard: React.FC<{
         </>)}
         {tab === 'products' && (<>
           {head(`${periodTitle} onaylanan ürünler`, sum(data.products))}
-          {data.products.length === 0 && <p className="px-2 py-3 text-sm text-[#7187A3]">Bu dönemde onaylanan ürün yok.</p>}
+          {data.products.length === 0 && <p className="px-2 py-3 text-sm text-[#5E7491]">Bu dönemde onaylanan ürün yok.</p>}
           {data.products.slice(0, SHOW).map((p, i) => (
-            <div key={p.name} className={rowCls.replace('hover:bg-[#F1F7FC]', '')}>
+            <div key={p.name} className={rowCls.replace('hover:bg-[#F1F6FC]', '')}>
               {rank(i)}
               <span className="flex-1 min-w-0"><span className={name}>{p.name}</span><span className={sub}>{p.n} teklif satırında</span></span>
               {val(p.v)}
@@ -673,10 +673,10 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
   ];
   const total = rows.reduce((a, r) => a + r.x.value, 0);
   return (
-    <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-[#F1F7FC]">
+    <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-[#F1F6FC]">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-slate-600">{title} teklifleri</p>
-        <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#173F70]">%{conv}</b></p>
+        <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#173F73]">%{conv}</b></p>
       </div>
       <div className="mt-2 h-2.5 rounded-full bg-slate-200 overflow-hidden flex">
         {rows.map(r => total > 0 && <span key={r.key} className={r.c} style={{ width: `${(r.x.value / total) * 100}%` }} />)}
@@ -684,8 +684,8 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
       <div className="mt-2.5 grid grid-cols-3 gap-2">
         {rows.map(r => (
           <button key={r.key} onClick={() => onPick(r.key)} className="text-left min-w-0 rounded-lg hover:bg-white px-1 py-0.5">
-            <span className="flex items-center gap-1.5 text-[11px] text-[#7187A3]"><i className={`w-2 h-2 rounded-full ${r.c}`} />{r.label} · {r.x.count}</span>
-            <span className="block text-[13px] sm:text-sm font-black text-[#173F70] tabular-nums truncate">{lira(r.x.value)}</span>
+            <span className="flex items-center gap-1.5 text-[11px] text-[#5E7491]"><i className={`w-2 h-2 rounded-full ${r.c}`} />{r.label} · {r.x.count}</span>
+            <span className="block text-[13px] sm:text-sm font-black text-[#173F73] tabular-nums truncate">{lira(r.x.value)}</span>
           </button>
         ))}
       </div>
@@ -695,9 +695,9 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
 
 /** Beyaz kart: simge + başlık, sağda isteğe bağlı bağlantı/sekme */
 const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, icon: Icon, right, className = '', children }) => (
-  <section className={`bg-white rounded-3xl border border-[#E1EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 flex flex-col ${className}`}>
+  <section className={`bg-white rounded-3xl border border-[#E2EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 flex flex-col ${className}`}>
     <header className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 pt-4 pb-2.5">
-      <h2 className="text-[15px] sm:text-base font-black text-[#173F70] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#0072CE] shrink-0" />}<span className="truncate">{title}</span></h2>
+      <h2 className="text-[15px] sm:text-base font-black text-[#173F73] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#006DBB] shrink-0" />}<span className="truncate">{title}</span></h2>
       {right}
     </header>
     {children}
@@ -705,14 +705,14 @@ const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?:
 );
 
 const SeeAll: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <button onClick={onClick} className="flex items-center gap-1 text-[13px] font-bold text-[#0072CE] hover:text-[#173F70] shrink-0"><span className="xl:hidden 2xl:inline">Tümünü Gör</span><span className="hidden xl:inline 2xl:hidden">Tümü</span> <ArrowRight className="w-4 h-4" /></button>
+  <button onClick={onClick} className="flex items-center gap-1 text-[13px] font-bold text-[#006DBB] hover:text-[#173F73] shrink-0"><span className="xl:hidden 2xl:inline">Tümünü Gör</span><span className="hidden xl:inline 2xl:hidden">Tümü</span> <ArrowRight className="w-4 h-4" /></button>
 );
 
 const Tabs: React.FC<{ value: string; items: [string, string][]; onChange: (k: string) => void }> = ({ value, items, onChange }) => (
   <div className="flex gap-1 sm:gap-1.5 shrink-0" role="tablist">
     {items.map(([k, l]) => (
       <button key={k} role="tab" aria-selected={value === k} onClick={() => onChange(k)}
-        className={`px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition ${value === k ? 'bg-[#0072CE] text-white shadow-[0_6px_14px_-6px_rgba(0,114,206,0.8)]' : 'bg-[#F1F7FC] text-[#17365D] hover:bg-[#E3EFFA]'}`}>{l}</button>
+        className={`px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition ${value === k ? 'bg-[#006DBB] text-white shadow-[0_6px_14px_-6px_rgba(0,114,206,0.8)]' : 'bg-[#F1F6FC] text-[#17365D] hover:bg-[#E3EFFA]'}`}>{l}</button>
     ))}
   </div>
 );
@@ -747,8 +747,8 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
     <div className="px-3 sm:px-5 pb-4">
       <div className="relative h-44 sm:h-60 pl-11 mt-4" onPointerLeave={e => e.pointerType === 'mouse' && setTip(null)}>
         {ticks.map(v => (
-          <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-[#E1EAF3]' : 'border-[#E1EAF3]'}`} style={{ bottom: `${(v / max) * 100}%` }}>
-            <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-[#7187A3] tabular-nums">{v ? short(v) : '0 TL'}</span>
+          <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-[#E2EAF3]' : 'border-[#E2EAF3]'}`} style={{ bottom: `${(v / max) * 100}%` }}>
+            <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-[#5E7491] tabular-nums">{v ? short(v) : '0 TL'}</span>
           </div>
         ))}
         <div className={`relative h-full flex items-end ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-4'}`}>
@@ -761,15 +761,15 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
                 onPointerEnter={e => e.pointerType === 'mouse' && setTip(x.key)}
                 onPointerDown={e => { if (e.pointerType !== 'mouse' && tip !== x.key) { e.preventDefault(); setTip(x.key); } }}
                 onClick={() => { if (tip === x.key || !matchMedia('(hover: none)').matches) onPick(x); else setTip(x.key); }}
-                className={`relative flex-1 h-full flex items-end justify-center gap-1 sm:gap-1.5 min-w-0 rounded-t-xl ${hov ? 'bg-[#F1F7FC]' : ''}`}>
-                <div className={`flex-1 ${barW} rounded-t-md ${on || hov ? 'bg-gradient-to-t from-[#0072CE] to-[#009FE3]' : 'bg-gradient-to-t from-[#8CC8EE] to-[#B9DDF5]'}`} style={{ height: `${hT}%` }} />
-                <div className={`flex-1 ${barW} rounded-t-md bg-gradient-to-t from-[#00A08A] to-[#2BCDB4] ${hov ? 'brightness-95' : ''}`} style={{ height: `${Math.max(0.8, (x.onay / max) * 100)}%` }} />
+                className={`relative flex-1 h-full flex items-end justify-center gap-1 sm:gap-1.5 min-w-0 rounded-t-xl ${hov ? 'bg-[#F1F6FC]' : ''}`}>
+                <div className={`flex-1 ${barW} rounded-t-md ${on || hov ? 'bg-gradient-to-t from-[#006DBB] to-[#009FE3]' : 'bg-gradient-to-t from-[#8CC8EE] to-[#B9DDF5]'}`} style={{ height: `${hT}%` }} />
+                <div className={`flex-1 ${barW} rounded-t-md bg-gradient-to-t from-[#008F79] to-[#2BCDB4] ${hov ? 'brightness-95' : ''}`} style={{ height: `${Math.max(0.8, (x.onay / max) * 100)}%` }} />
               </button>
             );
           })}
         </div>
         {t && (
-          <div className="pointer-events-none absolute top-1 z-10 w-48 rounded-xl bg-[#173F70] text-white shadow-lg px-3 py-2 text-xs"
+          <div className="pointer-events-none absolute top-1 z-10 w-48 rounded-xl bg-[#173F73] text-white shadow-lg px-3 py-2 text-xs"
             style={{ left: `calc(2.75rem + (100% - 2.75rem) * ${(tipIdx + 0.5) / bars.length})`, transform: `translateX(${tipIdx < bars.length / 3 ? '-15%' : tipIdx >= (bars.length * 2) / 3 ? '-85%' : '-50%'})` }}>
             <div className="font-black mb-1">{t.label}</div>
             <div className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-sm bg-[#8CC8EE]" /><span className="flex-1 text-sky-100/80">Verilen</span><b className="tabular-nums">{lira(t.teklif)}</b></div>
@@ -780,7 +780,7 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
       </div>
       <div className={`flex ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-4'} pl-11 mt-2.5`}>
         {bars.map(x => (
-          <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-xs truncate ${x.key === hi ? 'font-bold text-[#173F70]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
+          <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-xs truncate ${x.key === hi ? 'font-bold text-[#173F73]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
         ))}
       </div>
     </div>
@@ -788,31 +788,31 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
 };
 
 const STATUS_BADGE: Record<string, [string, string, React.ElementType]> = {
-  onaylandi: ['Onaylandı', 'bg-[#E6F7F4] text-[#00866F]', Check],
-  gonderildi: ['Beklemede', 'bg-[#EAF4FC] text-[#0072CE]', Clock],
-  pasif: ['Pasif', 'bg-[#EEF3F8] text-[#173F70]', PauseCircle],
+  onaylandi: ['Onaylandı', 'bg-[#E6F7F4] text-[#008F79]', Check],
+  gonderildi: ['Beklemede', 'bg-[#EAF5FC] text-[#006DBB]', Clock],
+  pasif: ['Pasif', 'bg-[#EEF3F8] text-[#173F73]', PauseCircle],
   iptal: ['İptal', 'bg-slate-100 text-slate-600', X],
 };
 
 /** Son teklifler: firma, teklif no · tarih, tutar, durum (pasif ayrı) */
 const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRates>; onOpen: (q: Quote) => void }> = ({ quotes, rates, onOpen }) => {
-  if (!quotes.length) return <p className="px-5 pb-5 text-sm text-[#7187A3]">Henüz teklif yok.</p>;
+  if (!quotes.length) return <p className="px-5 pb-5 text-sm text-[#5E7491]">Henüz teklif yok.</p>;
   return (
-    <ul className="px-2 sm:px-3 pb-3 divide-y divide-[#E1EAF3]">
+    <ul className="px-2 sm:px-3 pb-3 divide-y divide-[#E2EAF3]">
       {quotes.map((q, i) => {
         const [label, cls, Icon] = STATUS_BADGE[viewStatus(q)] || [q.status, 'bg-slate-50 text-slate-600', Clock];
         const d = dayOf(q.createdAt);
         return (
           <li key={q.id} className={i >= 5 ? 'hidden lg:block' : ''}>
-            <button onClick={() => onOpen(q)} className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-[#F1F7FC] rounded-xl">
-              <span className="w-9 h-9 rounded-xl bg-slate-100 text-[#173F70] text-xs font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+            <button onClick={() => onOpen(q)} className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-[#F1F6FC] rounded-xl">
+              <span className="w-9 h-9 rounded-xl bg-slate-100 text-[#173F73] text-xs font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
               <span className="flex-1 min-w-0">
                 <span className="block text-[13px] font-semibold text-[#17365D] truncate">{q.customerName}</span>
-                <span className="block text-[11px] text-[#7187A3] tabular-nums truncate">{quoteNo(q)}{d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
+                <span className="block text-[11px] text-[#5E7491] tabular-nums truncate">{quoteNo(q)}{d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
               </span>
               <span className="flex flex-col 2xl:flex-row-reverse items-end 2xl:items-center gap-1 2xl:gap-3 shrink-0">
                 <span className="text-[13px] font-black text-[#17365D] tabular-nums whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
-                <span className={`inline-flex items-center 2xl:justify-center gap-1 2xl:w-24 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
+                <span className={`inline-flex items-center 2xl:justify-center gap-1 2xl:w-24 text-[11px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
               </span>
             </button>
           </li>
@@ -829,7 +829,7 @@ const Donut: React.FC<{ pct: number; size: number; stroke: number; children?: Re
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E1EAF3" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E2EAF3" strokeWidth={stroke} />
         {len > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="url(#donut-g)" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${len} ${c - len}`} />}
         <defs><linearGradient id="donut-g" x1="0" x2="1"><stop offset="0" stopColor="#00B49A" /><stop offset="1" stopColor="#009FE3" /></linearGradient></defs>
       </svg>
@@ -858,12 +858,12 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
     <div className="px-4 sm:px-6 pb-5 space-y-3">
       <div className="flex items-center gap-4 sm:gap-5">
         <Donut pct={pct} size={96} stroke={13}>
-          <span className="text-xl font-black text-[#173F70] tabular-nums">{main.target ? `%${pct}` : '–'}</span>
+          <span className="text-xl font-black text-[#173F73] tabular-nums">{main.target ? `%${pct}` : '–'}</span>
         </Donut>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-[#7187A3]">{main.label}</p>
-          <p className="text-lg font-black text-[#173F70] tabular-nums break-all leading-tight">{lira(main.value)}</p>
-          <p className="text-xs text-[#7187A3] mt-1.5">{main.target ? <>Hedef: {lira(main.target)}</> : 'Hedef konmamış'}</p>
+          <p className="text-xs text-[#5E7491]">{main.label}</p>
+          <p className="text-lg font-black text-[#173F73] tabular-nums break-all leading-tight">{lira(main.value)}</p>
+          <p className="text-xs text-[#5E7491] mt-1.5">{main.target ? <>Hedef: {lira(main.target)}</> : 'Hedef konmamış'}</p>
           <div className="relative h-3 rounded-full bg-slate-100 overflow-hidden mt-2">
             <div className="h-full rounded-full bg-gradient-to-r from-[#00B49A] to-[#009FE3]" style={{ width: `${Math.min(100, pct)}%` }} />
             {main.target > 0 && <div className="absolute top-0 bottom-0 w-0.5 bg-slate-400" style={{ left: `${pace}%` }} title={`Ayın %${pace}'i geçti`} />}
@@ -873,7 +873,7 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
       {canMoney && canQuotes && targets.sales > 0 && (
         <div className="text-xs">
           <div className="flex justify-between font-semibold text-slate-600">
-            <span>Satış hedefi · <b className={salesPct >= pace ? 'text-[#00866F]' : 'text-[#0072CE]'}>%{salesPct}</b></span>
+            <span>Satış hedefi · <b className={salesPct >= pace ? 'text-[#008F79]' : 'text-[#006DBB]'}>%{salesPct}</b></span>
             <span className="tabular-nums">{short(cur.onay)} / {short(targets.sales)} TL</span>
           </div>
           <div className="relative h-2 rounded-full bg-slate-100 overflow-hidden mt-1">
@@ -883,33 +883,33 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
         </div>
       )}
       {forecast && forecast.total > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl bg-[#F1F7FC] px-3 py-2.5">
-          <span className="w-8 h-8 rounded-xl bg-white text-[#0072CE] flex items-center justify-center shrink-0"><TrendingUp className="w-4.5 h-4.5" /></span>
+        <div className="flex items-center gap-3 rounded-2xl bg-[#F1F6FC] px-3 py-2.5">
+          <span className="w-8 h-8 rounded-xl bg-white text-[#006DBB] flex items-center justify-center shrink-0"><TrendingUp className="w-4.5 h-4.5" /></span>
           <span className="flex-1 min-w-0">
             <span className="block text-[11px] text-slate-600">Ay sonu satış tahmini</span>
-            <span className="block text-[15px] font-black text-[#173F70] tabular-nums truncate">{lira(forecast.total)}</span>
+            <span className="block text-[15px] font-black text-[#173F73] tabular-nums truncate">{lira(forecast.total)}</span>
           </span>
           {targets.sales > 0 && (() => { const p = Math.round((forecast.total / targets.sales) * 100); return (
-            <span className={`shrink-0 text-[11px] font-black px-2 py-1 rounded-full ${p >= 100 ? 'bg-[#E6F7F4] text-[#00866F]' : 'bg-[#EAF4FC] text-[#0072CE]'}`}>Hedefin %{p}'i</span>
+            <span className={`shrink-0 text-[11px] font-black px-2 py-1 rounded-full ${p >= 100 ? 'bg-[#E6F7F4] text-[#008F79]' : 'bg-[#EAF5FC] text-[#006DBB]'}`}>Hedefin %{p}'i</span>
           ); })()}
         </div>
       )}
       {edit ? (
-        <div className="rounded-2xl border border-[#E1EAF3] p-3 space-y-2 text-xs">
+        <div className="rounded-2xl border border-[#E2EAF3] p-3 space-y-2 text-xs">
           <div className="grid grid-cols-2 gap-2">
             {canQuotes && <label className="space-y-1"><span className="block text-slate-600 font-semibold">Aylık satış (TL)</span>
-              <input inputMode="numeric" value={draft.sales} onChange={e => setDraft(d => ({ ...d, sales: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg border border-[#E1EAF3] text-sm" placeholder="ör. 2000000" /></label>}
+              <input inputMode="numeric" value={draft.sales} onChange={e => setDraft(d => ({ ...d, sales: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg border border-[#E2EAF3] text-sm" placeholder="ör. 2000000" /></label>}
             {canMoney && <label className="space-y-1"><span className="block text-slate-600 font-semibold">Aylık tahsilat (TL)</span>
-              <input inputMode="numeric" value={draft.collection} onChange={e => setDraft(d => ({ ...d, collection: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg border border-[#E1EAF3] text-sm" placeholder="ör. 1500000" /></label>}
+              <input inputMode="numeric" value={draft.collection} onChange={e => setDraft(d => ({ ...d, collection: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg border border-[#E2EAF3] text-sm" placeholder="ör. 1500000" /></label>}
           </div>
           {err && <p className="text-red-600 font-semibold">{err}</p>}
           <div className="flex justify-end gap-2">
             <button onClick={() => setEdit(false)} className="px-3 py-1.5 rounded-lg font-bold text-slate-600">Vazgeç</button>
-            <button onClick={save} className="px-3 py-1.5 rounded-lg font-bold bg-[#0072CE] text-white">Kaydet</button>
+            <button onClick={save} className="px-3 py-1.5 rounded-lg font-bold bg-[#006DBB] text-white">Kaydet</button>
           </div>
         </div>
       ) : (
-        <button onClick={open} className="text-xs font-bold text-[#0072CE] hover:text-[#173F70]">{targets.sales || targets.collection ? 'Hedefi değiştir' : '+ Aylık hedef koy'}</button>
+        <button onClick={open} className="text-xs font-bold text-[#006DBB] hover:text-[#173F73]">{targets.sales || targets.collection ? 'Hedefi değiştir' : '+ Aylık hedef koy'}</button>
       )}
     </div>
   );

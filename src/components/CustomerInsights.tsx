@@ -94,7 +94,7 @@ export const CustomerInsights: React.FC<{
 
 const Fact: React.FC<{ label: string; value: string; warn?: boolean }> = ({ label, value, warn }) => (
   <div className="min-w-0">
-    <div className="text-[10px] text-slate-500">{label}</div>
+    <div className="text-[11px] text-slate-500">{label}</div>
     <div className={`font-bold truncate ${warn ? 'text-rose-600' : 'text-slate-800'}`}>{value}</div>
   </div>
 );

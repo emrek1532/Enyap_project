@@ -71,11 +71,11 @@ const amt = (n: number, cur = 'TRY') => `${Math.round(n).toLocaleString('tr-TR')
 const daysSince = (d: string) => Math.floor((Date.parse(todayIso()) - Date.parse(d)) / 864e5);
 /** Ziyaret durumu (customers.last_visit): bugün / yakın zamanda (≤30 gün) / uzun süredir (>90 gün ya da hiç) */
 export const visitState = (d?: string) => {
-  if (!d) return { k: 'none' as const, label: 'Hiç uğranmadı', cls: 'text-[#7186A3]' };
+  if (!d) return { k: 'none' as const, label: 'Hiç uğranmadı', cls: 'text-[#5E7491]' };
   const n = daysSince(d);
-  if (n <= 0) return { k: 'today' as const, label: 'Bugün uğrandı', cls: 'text-[#00897A]' };
+  if (n <= 0) return { k: 'today' as const, label: 'Bugün uğrandı', cls: 'text-[#008F79]' };
   if (n <= 30) return { k: 'recent' as const, label: `Uğrandı ${visitTxt(d)}`, cls: 'text-[#006DBB]' };
-  if (n > 90) return { k: 'old' as const, label: `Uzun süredir uğranmadı · ${visitTxt(d)}`, cls: 'text-[#7186A3]' };
+  if (n > 90) return { k: 'old' as const, label: `Uzun süredir uğranmadı · ${visitTxt(d)}`, cls: 'text-[#5E7491]' };
   return { k: 'mid' as const, label: `Son ziyaret ${visitTxt(d)}`, cls: 'text-[#173F73]' };
 };
 
@@ -306,7 +306,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
       <div className="absolute right-0 top-10 z-40 w-48 rounded-xl border border-[#E2EAF3] bg-white shadow-lg py-1 text-left text-sm" onClick={e => e.stopPropagation()}>
         <button onClick={() => { setMenuFor(null); onCreateQuoteForCustomer(c); }} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#EAF5FC] text-[#006DBB] font-semibold"><FilePlus2 className="w-4 h-4" /> Teklif aç</button>
-        <button onClick={() => { setMenuFor(null); addToRoute(c.id); }} disabled={routeIds.includes(c.id)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#F1F6FC] text-[#173F73] disabled:text-[#7186A3]"><MapPin className="w-4 h-4" /> {routeIds.includes(c.id) ? 'Rotada' : 'Bugünün rotasına ekle'}</button>
+        <button onClick={() => { setMenuFor(null); addToRoute(c.id); }} disabled={routeIds.includes(c.id)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#F1F6FC] text-[#173F73] disabled:text-[#5E7491]"><MapPin className="w-4 h-4" /> {routeIds.includes(c.id) ? 'Rotada' : 'Bugünün rotasına ekle'}</button>
         {canEdit && <button onClick={() => { setMenuFor(null); openEdit(c); }} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#F1F6FC] text-[#173F73]"><Pencil className="w-4 h-4" /> Düzenle</button>}
         {canEdit && canRemove && <button onClick={() => { setMenuFor(null); if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id); }} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /> Sil</button>}
       </div>
@@ -316,7 +316,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const visitBtn = (c: Customer) => canEdit && (
     <button type="button" onClick={e => { e.stopPropagation(); toggleVisit(c); }}
       title={c.lastVisit ? `Uğrandı: ${visitTxt(c.lastVisit)} (kaldırmak için dokun)` : 'Ziyaret kaydı: uğradım olarak işaretle'}
-      className={`h-10 lg:h-8 px-2.5 lg:px-2 inline-flex items-center gap-1 rounded-lg text-[11px] font-bold whitespace-nowrap border transition-colors ${c.lastVisit ? 'bg-[#E6F7F4] border-[#00B49A]/30 text-[#00897A] hover:bg-[#d5f1ec]' : 'bg-white border-[#E2EAF3] text-[#173F73] hover:bg-[#EAF5FC] hover:text-[#006DBB]'}`}>
+      className={`h-10 lg:h-8 px-2.5 lg:px-2 inline-flex items-center gap-1 rounded-lg text-[11px] font-bold whitespace-nowrap border transition-colors ${c.lastVisit ? 'bg-[#E6F7F4] border-[#00B49A]/30 text-[#008F79] hover:bg-[#d5f1ec]' : 'bg-white border-[#E2EAF3] text-[#173F73] hover:bg-[#EAF5FC] hover:text-[#006DBB]'}`}>
       {c.lastVisit ? <MapPinCheck className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
       <span className="max-xl:max-lg:inline max-xl:hidden">{c.lastVisit ? visitTxt(c.lastVisit).slice(0, 5) : 'Uğradım'}</span>
     </button>
@@ -403,7 +403,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             </div>
           </FilterBar>
           {hasFilters && (
-            <div className="flex items-center justify-between gap-2 text-xs text-[#7186A3]">
+            <div className="flex items-center justify-between gap-2 text-xs text-[#5E7491]">
               <span>Liste filtreleniyor</span>
               <button type="button" onClick={resetFilters} className="font-bold text-[#006DBB] hover:text-[#173F73] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006DBB]">Filtreleri temizle</button>
             </div>
@@ -418,7 +418,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               </button>
             ))}
           </div>
-          <div className="flex items-center justify-between gap-2 text-xs text-[#7186A3]">
+          <div className="flex items-center justify-between gap-2 text-xs text-[#5E7491]">
             <span>
               {filtered.length === customers.length ? `${customers.length} kayıtlı müşteri` : `${filtered.length} / ${customers.length} müşteri`}
             </span>
@@ -435,7 +435,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <div className={`${ccard} overflow-hidden`}>
 
         {filtered.length === 0 ? (
-          <p className="p-8 text-center text-sm text-[#7186A3]">
+          <p className="p-8 text-center text-sm text-[#5E7491]">
             {customers.length === 0 ? 'Henüz müşteri kaydı yok.' : 'Filtrelere uygun müşteri bulunamadı.'}
           </p>
         ) : (<>
@@ -447,18 +447,18 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-bold text-[#0B2343] text-sm leading-snug break-words">{c.name}<AbcBadge k={abcOf(c)} /><StatusBadge c={c} /></div>
-                    <div className="text-[11px] text-[#7186A3] mt-0.5">{c.city || '—'}{st.lastDate ? ` · son teklif ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</div>
+                    <div className="text-[11px] text-[#5E7491] mt-0.5">{c.city || '—'}{st.lastDate ? ` · son teklif ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</div>
                     <VisitLine d={c.lastVisit} />
                   </div>
                   <div className="text-right shrink-0">
                     <div className="font-black text-[#0B2343] text-sm tabular-nums">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</div>
-                    <div className="text-[10px] text-[#7186A3]">onaylı toplam</div>
+                    <div className="text-[11px] text-[#5E7491]">onaylı toplam</div>
                   </div>
                 </button>
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1 flex-wrap text-[10px] font-bold tabular-nums">
+                  <div className="flex items-center gap-1 flex-wrap text-[11px] font-bold tabular-nums">
                     <span className="px-2 py-0.5 rounded-full bg-[#F1F6FC] text-[#173F73]">{st.total} teklif</span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#E6F7F4] text-[#00897A]">{st.approved} onaylı</span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#E6F7F4] text-[#008F79]">{st.approved} onaylı</span>
                     <span className="px-2 py-0.5 rounded-full bg-[#EAF5FC] text-[#006DBB]">{st.pending} bekleyen</span>
                     {st.followUp && <FollowPill />}
                   </div>
@@ -490,22 +490,22 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     <td className="py-2.5 px-3 pl-5">
                       <div className="font-extrabold text-[#0B2343] min-w-[13rem] leading-snug">{c.name}<AbcBadge k={abcOf(c)} /><StatusBadge c={c} /></div>
                       <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap [&>span]:mt-0">
-                        <span className="xl:hidden text-xs text-[#7186A3] whitespace-nowrap">{c.city || '—'}{st.lastDate ? ` · ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</span>
+                        <span className="xl:hidden text-xs text-[#5E7491] whitespace-nowrap">{c.city || '—'}{st.lastDate ? ` · ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</span>
                         <VisitLine d={c.lastVisit} compact />
                         {st.followUp && <FollowPill />}
                       </div>
                     </td>
-                    <td className="hidden xl:table-cell py-2.5 px-3 text-[13px] text-[#7186A3] whitespace-nowrap">{c.city || '—'}</td>
+                    <td className="hidden xl:table-cell py-2.5 px-3 text-[13px] text-[#5E7491] whitespace-nowrap">{c.city || '—'}</td>
                     <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-[#173F73]">{st.total || '-'}</td>
-                    <td className="py-2.5 px-3 text-center tabular-nums font-bold text-[#00A08A]">{st.approved || '-'}</td>
+                    <td className="py-2.5 px-3 text-center tabular-nums font-bold text-[#008F79]">{st.approved || '-'}</td>
                     <td className="py-2.5 px-3 text-center tabular-nums font-bold text-[#006DBB]">{st.pending || '-'}</td>
                     <td className="py-2.5 px-3 text-right tabular-nums font-extrabold text-[#0B2343] whitespace-nowrap">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</td>
                     {showCollections && (
                       <td className="hidden xl:table-cell py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
-                        {b ? <span className={`font-bold ${b.estimate < 0 ? 'inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-700' : 'text-[#0B2343]'}`}>{money(b.estimate)}</span> : <span className="text-[#7186A3]">-</span>}
+                        {b ? <span className={`font-bold ${b.estimate < 0 ? 'inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-700' : 'text-[#0B2343]'}`}>{money(b.estimate)}</span> : <span className="text-[#5E7491]">-</span>}
                       </td>
                     )}
-                    <td className="hidden xl:table-cell py-2.5 px-3 text-[13px] text-[#7186A3] whitespace-nowrap">
+                    <td className="hidden xl:table-cell py-2.5 px-3 text-[13px] text-[#5E7491] whitespace-nowrap">
                       {st.lastDate ? <>{new Date(st.lastDate).toLocaleDateString('tr-TR')} <ChevronRight className="w-3.5 h-3.5 inline -mt-0.5" /></> : '-'}
                     </td>
                     <td className="py-2.5 px-3" onClick={e => e.stopPropagation()}>{rowActions(c)}</td>
@@ -582,7 +582,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 };
 
 const FollowPill: React.FC = () => (
-  <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-[#E6F7F4] text-[#00897A] border border-[#00B49A]/30">⏱ Tekrar görüş</span>
+  <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-bold bg-[#E6F7F4] text-[#008F79] border border-[#00B49A]/30">⏱ Tekrar görüş</span>
 );
 
 /** Ziyaret durumu satırı: konum simgesi + bugün / yakın / uzun süredir */
@@ -594,13 +594,13 @@ const VisitLine: React.FC<{ d?: string; compact?: boolean }> = ({ d, compact }) 
 };
 
 const AbcBadge: React.FC<{ k?: AbcClass }> = ({ k }) => (k
-  ? <span title={ABC_STYLE[k].hint} className={`ml-1.5 align-middle text-[10px] px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[k].cls}`}>{k}</span>
+  ? <span title={ABC_STYLE[k].hint} className={`ml-1.5 align-middle text-[11px] px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[k].cls}`}>{k}</span>
   : null);
 
 const StatusBadge: React.FC<{ c: Customer }> = ({ c }) => {
   const st = statusOf(c);
   if (st === 'aktif') return null;
-  return <span className={`ml-1.5 align-middle text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[st].cls}`}>{CUSTOMER_STATUS[st].label}</span>;
+  return <span className={`ml-1.5 align-middle text-[11px] px-1.5 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[st].cls}`}>{CUSTOMER_STATUS[st].label}</span>;
 };
 
 /** Cari bakiyeler: Mikro bakiyesi − sonradan girilen tahsilatlar (tahmini güncel bakiye) */
@@ -654,9 +654,9 @@ const BalanceView: React.FC<{
         className={`${className} relative text-left flex items-center gap-3 rounded-2xl border px-3 py-3 sm:px-4 min-w-0 transition-colors bg-gradient-to-br from-white ${on ? 'to-[#EAF5FC] border-[#006DBB] ring-1 ring-[#006DBB]/30' : 'to-[#F1F6FC] border-[#E2EAF3] hover:border-[#006DBB]/40'}`}>
         <span className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${neg ? 'bg-rose-50 text-rose-600' : k === 'all' ? 'bg-[#E6F7F4] text-[#00B49A]' : 'bg-[#EAF5FC] text-[#006DBB]'}`}><I className="w-5 h-5" /></span>
         <span className="min-w-0">
-          <span className="block text-[11px] sm:text-xs font-bold text-[#7186A3]">{label}</span>
+          <span className="block text-[11px] sm:text-xs font-bold text-[#5E7491]">{label}</span>
           <span className={`block text-base sm:text-xl font-black tabular-nums leading-tight break-words ${value < 0 ? 'text-rose-600' : 'text-[#0B2343]'}`}>{tl(Math.round(value))}</span>
-          <span className="block text-[11px] text-[#7186A3]">{sub}</span>
+          <span className="block text-[11px] text-[#5E7491]">{sub}</span>
         </span>
       </button>
     );
@@ -685,12 +685,12 @@ const BalanceView: React.FC<{
             </button>
           ))}
         </div>
-        <p className={`text-[11px] ${old ? 'text-rose-600 font-bold' : 'text-[#7186A3]'}`}>
+        <p className={`text-[11px] ${old ? 'text-rose-600 font-bold' : 'text-[#5E7491]'}`}>
           {lastMikro ? `Mikro bakiyeleri ${lastMikro.split('-').reverse().join('.')} tarihli.` : 'Henüz Mikro bakiyesi yüklenmedi.'} Tutar = Mikro bakiyesi − o tarihten sonra girilen TL tahsilatlar.
         </p>
       </div>
       <div className={`${ccard} overflow-hidden`}>
-        {shown.length === 0 && <p className="p-6 text-center text-sm text-[#7186A3]">{amount !== 'all' || q ? 'Bu süzgece uyan bakiyeli müşteri yok.' : 'Bakiyesi olan müşteri yok.'}</p>}
+        {shown.length === 0 && <p className="p-6 text-center text-sm text-[#5E7491]">{amount !== 'all' || q ? 'Bu süzgece uyan bakiyeli müşteri yok.' : 'Bakiyesi olan müşteri yok.'}</p>}
         {shown.length > 0 && (<>
           <NarrowOnly from="lg"><div className="divide-y divide-[#E2EAF3]">
             {shown.map(({ c, b }) => {
@@ -700,7 +700,7 @@ const BalanceView: React.FC<{
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="font-bold text-[#0B2343] text-sm leading-snug break-words">{c.name}</div>
-                      <div className="text-[11px] text-[#7186A3] mt-0.5 tabular-nums">
+                      <div className="text-[11px] text-[#5E7491] mt-0.5 tabular-nums">
                         {c.city || '—'} · Mikro {tl(Math.round(b.balance))}{b.collectedAfter > 0 ? ` − sonradan ${tl(Math.round(b.collectedAfter))}` : ''}
                       </div>
                       <div className="text-[11px] text-[#173F73] mt-0.5 tabular-nums">
@@ -730,16 +730,16 @@ const BalanceView: React.FC<{
                   <tr key={c.id} onClick={() => onOpen(c)} className="cursor-pointer hover:bg-[#EAF5FC]/60 transition-colors">
                     <td className="py-2.5 px-3 pl-5">
                       <div className="font-extrabold text-[#0B2343] leading-snug">{c.name}</div>
-                      <div className="text-[11px] text-[#7186A3] tabular-nums">Mikro {tl(Math.round(b.balance))} · {day(b.date)}{b.collectedAfter > 0 ? ` − sonradan ${tl(Math.round(b.collectedAfter))}` : ''}</div>
+                      <div className="text-[11px] text-[#5E7491] tabular-nums">Mikro {tl(Math.round(b.balance))} · {day(b.date)}{b.collectedAfter > 0 ? ` − sonradan ${tl(Math.round(b.collectedAfter))}` : ''}</div>
                     </td>
-                    <td className="py-2.5 px-3 text-[13px] text-[#7186A3] whitespace-nowrap">{c.city || '—'}</td>
+                    <td className="py-2.5 px-3 text-[13px] text-[#5E7491] whitespace-nowrap">{c.city || '—'}</td>
                     <td className="py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
                       <span className={`font-black ${b.estimate < 0 ? 'inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-700' : 'text-[#0B2343]'}`}>{tl(Math.round(b.estimate))}</span>
                     </td>
                     <td className="py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
-                      {lc ? <><div className="font-bold text-[#00897A]">{amt(lc.amount, lc.currency)}</div><div className="text-[11px] text-[#7186A3]">{day(lc.date)}</div></> : <span className="text-[#7186A3]">-</span>}
+                      {lc ? <><div className="font-bold text-[#008F79]">{amt(lc.amount, lc.currency)}</div><div className="text-[11px] text-[#5E7491]">{day(lc.date)}</div></> : <span className="text-[#5E7491]">-</span>}
                     </td>
-                    <td className="py-2.5 px-3 pr-5 text-[13px] text-[#173F73] tabular-nums whitespace-nowrap">{day(lastTx(c))}<ChevronRight className="w-3.5 h-3.5 inline -mt-0.5 ml-1 text-[#7186A3]" /></td>
+                    <td className="py-2.5 px-3 pr-5 text-[13px] text-[#173F73] tabular-nums whitespace-nowrap">{day(lastTx(c))}<ChevronRight className="w-3.5 h-3.5 inline -mt-0.5 ml-1 text-[#5E7491]" /></td>
                   </tr>
                 );
               })}

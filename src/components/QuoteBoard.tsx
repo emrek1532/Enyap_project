@@ -13,9 +13,9 @@ export const colOf = (q: Quote): BoardCol =>
   q.status === 'onaylandi' ? 'onaylandi' : q.status === 'iptal' ? 'iptal' : isPassive(q) ? 'pasif' : q.followUpAt ? 'takip' : 'bekliyor';
 
 const COLS: { key: BoardCol; label: string; hint: string; dot: string; over: string }[] = [
-  { key: 'bekliyor', label: 'Beklemede', hint: 'Takip tarihi verilmemiş', dot: 'bg-[#0072CE]', over: 'ring-[#0072CE]/40 bg-[#EAF4FC]/70' },
-  { key: 'takip', label: 'Takipte', hint: 'Arama günü belli', dot: 'bg-[#00B89C]', over: 'ring-[#00B89C]/40 bg-[#E8F8F4]/70' },
-  { key: 'pasif', label: 'Pasif', hint: 'Neden seçilmiş, beklenmiyor', dot: 'bg-[#17477D]', over: 'ring-[#17477D]/30 bg-[#EEF2F7]/70' },
+  { key: 'bekliyor', label: 'Beklemede', hint: 'Takip tarihi verilmemiş', dot: 'bg-[#006DBB]', over: 'ring-[#006DBB]/40 bg-[#EAF5FC]/70' },
+  { key: 'takip', label: 'Takipte', hint: 'Arama günü belli', dot: 'bg-[#00B49A]', over: 'ring-[#00B49A]/40 bg-[#E6F7F4]/70' },
+  { key: 'pasif', label: 'Pasif', hint: 'Neden seçilmiş, beklenmiyor', dot: 'bg-[#173F73]', over: 'ring-[#173F73]/30 bg-[#EEF2F7]/70' },
   { key: 'onaylandi', label: 'Onaylandı', hint: 'Sipariş oldu', dot: 'bg-emerald-500', over: 'ring-emerald-300 bg-emerald-50/60' },
   { key: 'iptal', label: 'İptal', hint: 'Sipariş olup iptal', dot: 'bg-slate-400', over: 'ring-slate-300 bg-slate-100' },
 ];
@@ -68,17 +68,17 @@ export const QuoteBoard: React.FC<{
           <div className="mt-0.5 text-[13px] font-bold text-slate-900 leading-snug line-clamp-2">{q.customerName}</div>
           <div className="text-[11px] text-slate-500">{q.city || '—'} · {new Date(q.createdAt).toLocaleDateString('tr-TR')}</div>
         </button>
-        {isPassive(q) && <div className="mt-2"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold border bg-[#EAF4FC] text-[#0072CE] border-[#0072CE]/25">{(q.lostReason || '').split(' · ')[0]}</span></div>}
+        {isPassive(q) && <div className="mt-2"><span className="text-[11px] px-2 py-0.5 rounded-full font-bold border bg-[#EAF5FC] text-[#006DBB] border-[#006DBB]/25">{(q.lostReason || '').split(' · ')[0]}</span></div>}
         {(pending || exp !== null) && (
           <div className="mt-2 flex flex-wrap gap-1">
             {pending && q.followUpAt && (
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${q.followUpAt <= today ? 'bg-red-50 text-red-700 border-red-200' : 'bg-[#E8F8F4] text-[#007F6B] border-[#00B89C]/30'}`}>{followLabel(q.followUpAt, today)}</span>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${q.followUpAt <= today ? 'bg-red-50 text-red-700 border-red-200' : 'bg-[#E6F7F4] text-[#008F79] border-[#00B49A]/30'}`}>{followLabel(q.followUpAt, today)}</span>
             )}
             {pending && !q.followUpAt && quoteAgeInDays(q) >= 3 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border bg-slate-50 text-slate-600 border-slate-200">{quoteAgeInDays(q)} gündür bekliyor</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-bold border bg-slate-50 text-slate-600 border-slate-200">{quoteAgeInDays(q)} gündür bekliyor</span>
             )}
             {exp !== null && isExpiring(q, today) && (
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${exp < 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-[#EEF2F7] text-[#17477D] border-[#17477D]/15'}`}>{expiryLabel(exp)}</span>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${exp < 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-[#EEF2F7] text-[#173F73] border-[#173F73]/15'}`}>{expiryLabel(exp)}</span>
             )}
           </div>
         )}

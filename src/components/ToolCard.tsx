@@ -82,7 +82,7 @@ export const PastList: React.FC<{
                 <span className="block text-sm text-slate-900 truncate">{h.q}</span>
                 <span className="block text-[11px] text-slate-500">{ago(h.at)}</span>
               </span>
-              {h.tag && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${tagClass?.(h.tag) || 'bg-slate-100 text-slate-600'}`}>{h.tag}</span>}
+              {h.tag && <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${tagClass?.(h.tag) || 'bg-slate-100 text-slate-600'}`}>{h.tag}</span>}
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
             </button>
             <button type="button" onClick={() => set(items.filter(x => x.q !== h.q))} className="p-2 text-slate-300 hover:text-slate-600" aria-label="Kaldır"><X className="w-3.5 h-3.5" /></button>

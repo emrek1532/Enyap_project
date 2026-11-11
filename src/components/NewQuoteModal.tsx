@@ -630,7 +630,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       <div className="bg-white w-full sm:max-w-6xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[94vh]">
 
         {/* Başlık çubuğu */}
-        <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center gap-2 pt-safe-3 sm:pt-3.5">
+        <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-center gap-2 pt-safe-3 sm:pt-3.5">
           <div className="flex-1 min-w-0">
             <h3 className="font-black text-base sm:text-lg tracking-tight truncate">
               {isEdit ? `Teklif Düzenle · ${editQuote!.quoteNumber}` : 'Yeni Fiyat Teklifi'}
@@ -654,7 +654,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="overflow-y-auto flex-1 bg-[#f4f8fc]">
+        <div className="overflow-y-auto flex-1 bg-[#F1F6FC]">
           <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-3 sm:p-4 space-y-3">
 
             {pdfNotice && !pdfMsg && (
@@ -822,7 +822,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 <span className="text-[11px] font-black text-slate-700 uppercase tracking-wide">
                   Kalemler ({items.filter(it => it.productName.trim()).length})
                 </span>
-                <span className="hidden md:inline text-[10px] text-slate-500 flex-1 text-right">
+                <span className="hidden md:inline text-[11px] text-slate-500 flex-1 text-right">
                   Son kutuda Tab → yeni kalem · Alt+↑↓ → taşı · Ctrl+Enter → Not / Kaydet
                 </span>
                 <button type="button" onClick={handleAddItem}
@@ -832,7 +832,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
 
               {/* Sütun başlıkları (geniş ekran) */}
-              <div className="qrow hidden lg:grid px-2 py-1 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+              <div className="qrow hidden lg:grid px-2 py-1 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200">
                 <span data-a="no" className="text-right">#</span>
                 <span data-a="kod">Kod</span>
                 <span data-a="ad">Malzeme Adı</span>
@@ -846,7 +846,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
 
               {/* Telefonda ikinci satırın sütun adları */}
-              <div className="qrow lg:hidden px-2 pt-1 -mb-1 text-[9px] font-bold text-slate-500 uppercase" aria-hidden>
+              <div className="qrow lg:hidden px-2 pt-1 -mb-1 text-[11px] font-bold text-slate-500 uppercase" aria-hidden>
                 <span data-a="qty" className="text-right">Miktar</span>
                 <span data-a="br">Birim</span>
                 <span data-a="fiyat" className="text-right">B.Fiyat</span>
@@ -950,7 +950,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm overflow-x-auto">
                   <table className="text-xs tabular-nums w-full">
                     <thead>
-                      <tr className="bg-slate-50 text-[10px] uppercase text-slate-500">
+                      <tr className="bg-slate-50 text-[11px] uppercase text-slate-500">
                         <th className="px-2.5 py-1 text-left font-bold" />
                         {summary.map(r => <th key={r.c} className="px-2.5 py-1 text-right font-bold">{CURRENCY_LABEL[r.c]}</th>)}
                       </tr>

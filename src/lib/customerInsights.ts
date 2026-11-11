@@ -70,7 +70,7 @@ export function evaluate(quotes: Quote[], collections: Collection[], rates: Rate
 export type AbcClass = 'A' | 'B' | 'C';
 export const ABC_STYLE: Record<AbcClass, { cls: string; hint: string }> = {
   A: { cls: 'bg-[#EAF5FC] text-[#006DBB] border-[#006DBB]/25', hint: 'A: son 12 ayda cironun ilk %80\'ini yapan firmalar' },
-  B: { cls: 'bg-[#E6F7F4] text-[#00897A] border-[#00B49A]/25', hint: 'B: cironun sonraki %15\'i' },
+  B: { cls: 'bg-[#E6F7F4] text-[#008F79] border-[#00B49A]/25', hint: 'B: cironun sonraki %15\'i' },
   C: { cls: 'bg-slate-50 text-slate-600 border-slate-200', hint: 'C: kalan küçük alımlar' },
 };
 /** Firma adı (foldName) → sınıf; son 12 ayda onayı olmayan firma sınıfsız */

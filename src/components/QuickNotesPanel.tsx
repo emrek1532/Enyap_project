@@ -108,7 +108,7 @@ export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({ notes, activit
               <div key={a.id} className="px-4 py-2.5 text-xs">
                 <div className="font-bold text-slate-800">{a.action}</div>
                 <div className="text-slate-500 break-words">{a.description}</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">{new Date(a.timestamp).toLocaleString('tr-TR')}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">{new Date(a.timestamp).toLocaleString('tr-TR')}</div>
               </div>
             ))}
           </div>

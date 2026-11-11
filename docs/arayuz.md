@@ -72,3 +72,10 @@ Renkler: lacivert `#0B2343`, kurumsal lacivert `#173F73`, ENYAP mavisi `#006DBB`
 ## Bant düğmeleri ve fotoğraflar (v1.22.8)
 - Fotoğraflı bantlarda (`PageHeader` `hero`) "Yeni …" düğmesi artık bandın içinde değil, hemen altında sağda (telefonda tam genişlik); fotoğrafın önünü kapatmaz.
 - Talepler, Tahsilat, Harcama, Yönetim fotoğrafları (`hero.center`) ortada değil, Teklifler gibi sağda; solu maskeyle zemine karışır. Açıklama yazısı tablet/telefonda daraltıldı (fotoğrafa taşmasın).
+
+## Tek tasarım dili (v1.23.0)
+- Renkler tüm sistemde tek palet (yakın tonlar birleştirildi): ENYAP mavisi `#006DBB` (brand-500), canlı mavi `#009FE3`, lacivert `#173F73`, ikinci lacivert `#204D84`, koyu lacivert/başlık `#0B2343`, metin `#17365D`, ikincil metin `#5E7491` (eski `#7186A3` okunurluk için koyulaştırıldı), kenar `#E2EAF3`, zemin `#F1F6FC`, açık mavi `#EAF5FC`, turkuaz `#00B49A` (accent-500), koyu turkuaz yazı `#008F79`, açık turkuaz `#E6F7F4`. Yeni ekranda bu tonların dışına çıkma.
+- Yazı: en küçük boy 11px (`text-[9px]`/`[10px]` kaldırıldı). Sayfa başlığı her bantta `text-2xl sm:text-[30px]` `#0B2343`.
+- Bantlar (`PageHeader`): fotoğraflı ve fotoğrafsız hepsi aynı yükseklik (`min-h-[112px] sm:[136px] lg:[148px]`), aynı zemin, köşe `rounded-2xl`, alt çizgi mavi→turkuaz. Açıklama yazısı yalnız lg+ (telefon/tablette fotoğrafın üstüne binmesin).
+- Özet kutuları her sayfada aynı (`cBlue`/`cTeal` sırayla; Rapor dahil).
+- Ana sayfa tablette: arama kutusu tam genişlik, dönem seçimi altında; selam yazısı küçültüldü (taşmasın).

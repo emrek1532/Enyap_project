@@ -9,7 +9,7 @@ import { Rates, quoteTry } from '../lib/rates';
 import { DateInput } from './DateInput';
 
 const trDate = (d: string) => d.slice(0, 10).split('-').reverse().join('.');
-const chipCls = (on: boolean) => `px-2.5 py-1 rounded-full border text-[11px] font-bold ${on ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`;
+const chipCls = (on: boolean) => `px-2.5 py-1 rounded-full border text-[11px] font-bold ${on ? 'bg-[#173F73] border-[#173F73] text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`;
 
 /** Takip tarihi: "ne zaman arayayım?" — o sabah telefona bildirim gider, ana sayfada "Bugün aranacaklar"da çıkar */
 export const FollowUpBox: React.FC<{ quote: Quote; onChange: (day: string | undefined) => void }> = ({ quote, onChange }) => {
@@ -20,7 +20,7 @@ export const FollowUpBox: React.FC<{ quote: Quote; onChange: (day: string | unde
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5"><BellRing className="w-3.5 h-3.5 text-amber-500" />Ne zaman arayayım?</div>
-        {cur && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${cur <= today ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>{followLabel(cur, today)} · {trDate(cur)}</span>}
+        {cur && <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${cur <= today ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>{followLabel(cur, today)} · {trDate(cur)}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {presets.map(([label, day]) => (
@@ -32,7 +32,7 @@ export const FollowUpBox: React.FC<{ quote: Quote; onChange: (day: string | unde
         </span>
         {cur && <button type="button" onClick={() => onChange(undefined)} className="text-[11px] font-bold text-rose-600 hover:underline px-1">Kaldır</button>}
       </div>
-      <p className="text-[10px] text-slate-500">O gün sabah 09:00'da bildirim gelir; teklif ana sayfada "Bugün aranacaklar" listesine düşer.</p>
+      <p className="text-[11px] text-slate-500">O gün sabah 09:00'da bildirim gelir; teklif ana sayfada "Bugün aranacaklar" listesine düşer.</p>
     </div>
   );
 };
@@ -56,7 +56,7 @@ export const ValidityBox: React.FC<{ quote: Quote; priceChanged?: number; onExte
         <button type="button" onClick={onRevise} className="h-8 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold">Güncel fiyatla revize et</button>
       )}
       <button type="button" onClick={() => onExtend(plusDays(15, base))}
-        className={`h-8 px-3 rounded-lg text-[11px] font-bold ${warn ? 'bg-[#1a3d6d] text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}>
+        className={`h-8 px-3 rounded-lg text-[11px] font-bold ${warn ? 'bg-[#173F73] text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}>
         Süreyi 15 gün uzat
       </button>
     </div>
@@ -176,30 +176,30 @@ export const RevisionsBox: React.FC<{ quote: Quote; rates: Rates; older?: Quote[
                       const same = !!(r.old && r.now && r.old.code === r.now.code);
                       const d = same ? r.now!.total - r.old.total : (r.now?.tl ?? 0) - (r.old?.tl ?? 0);
                       const dCur = same ? r.now!.cur : 'TL';
-                      const amt = (v: number, c: string) => <>{num(v)}<span className="block text-[10px] font-normal text-slate-500">{c}</span></>;
+                      const amt = (v: number, c: string) => <>{num(v)}<span className="block text-[11px] font-normal text-slate-500">{c}</span></>;
                       return (
                         <tr key={i} className="align-top">
-                          <td className="p-2 text-slate-800 break-words">{r.name}{r.old && r.now && r.old.qty !== r.now.qty && <span className="block text-[10px] text-slate-500">miktar {num(r.old.qty)} → {num(r.now.qty)} {r.now.unit}</span>}</td>
+                          <td className="p-2 text-slate-800 break-words">{r.name}{r.old && r.now && r.old.qty !== r.now.qty && <span className="block text-[11px] text-slate-500">miktar {num(r.old.qty)} → {num(r.now.qty)} {r.now.unit}</span>}</td>
                           <td className="p-2 text-right text-slate-600 whitespace-nowrap">{r.old ? amt(r.old.total, r.old.cur) : '—'}</td>
                           <td className="p-2 text-right text-slate-900 whitespace-nowrap">{r.now ? amt(r.now.total, r.now.cur) : '—'}</td>
                           <td className={`p-2 text-right font-bold whitespace-nowrap ${!r.old ? 'text-amber-700' : !r.now ? 'text-slate-500' : d > 0 ? 'text-rose-600' : d < 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                            {!r.old ? 'yeni' : !r.now ? 'çıktı' : Math.abs(d) < 0.005 ? '—' : <>{d > 0 ? '+' : '−'}{num(Math.abs(d))}<span className="block text-[10px] font-normal text-slate-500">{dCur}</span></>}
+                            {!r.old ? 'yeni' : !r.now ? 'çıktı' : Math.abs(d) < 0.005 ? '—' : <>{d > 0 ? '+' : '−'}{num(Math.abs(d))}<span className="block text-[11px] font-normal text-slate-500">{dCur}</span></>}
                           </td>
                         </tr>
                       );
                     })}
                     {cmp.rows.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-slate-500">Bu sürümlerde kalem yok; yalnız toplamlar karşılaştırılıyor.</td></tr>}
                     <tr className="bg-slate-50 font-black align-top">
-                      <td className="p-2">Toplam<span className="block text-[10px] font-normal text-slate-500">TL, KDV dahil</span></td>
-                      <td className="p-2 text-right whitespace-nowrap">{num(Math.round(cmp.oldTl))}<span className="block text-[10px] font-normal text-slate-500">TL</span></td>
-                      <td className="p-2 text-right whitespace-nowrap">{num(Math.round(cmp.nowTl))}<span className="block text-[10px] font-normal text-slate-500">TL</span></td>
+                      <td className="p-2">Toplam<span className="block text-[11px] font-normal text-slate-500">TL, KDV dahil</span></td>
+                      <td className="p-2 text-right whitespace-nowrap">{num(Math.round(cmp.oldTl))}<span className="block text-[11px] font-normal text-slate-500">TL</span></td>
+                      <td className="p-2 text-right whitespace-nowrap">{num(Math.round(cmp.nowTl))}<span className="block text-[11px] font-normal text-slate-500">TL</span></td>
                       <td className={`p-2 text-right whitespace-nowrap ${cmp.nowTl - cmp.oldTl > 0.5 ? 'text-rose-600' : cmp.nowTl - cmp.oldTl < -0.5 ? 'text-emerald-600' : ''}`}>
-                        {Math.abs(cmp.nowTl - cmp.oldTl) < 0.5 ? '—' : <>{cmp.nowTl > cmp.oldTl ? '+' : '−'}{num(Math.round(Math.abs(cmp.nowTl - cmp.oldTl)))}<span className="block text-[10px] font-normal text-slate-500">TL</span></>}
+                        {Math.abs(cmp.nowTl - cmp.oldTl) < 0.5 ? '—' : <>{cmp.nowTl > cmp.oldTl ? '+' : '−'}{num(Math.round(Math.abs(cmp.nowTl - cmp.oldTl)))}<span className="block text-[11px] font-normal text-slate-500">TL</span></>}
                       </td>
                     </tr>
                   </tbody>
                 </table>
-                {cmp.mixed && rates.date && <p className="px-2 py-1.5 text-[10px] text-slate-500 border-t border-slate-100">USD/EUR kalemler TCMB kuruyla çevrildi ({rates.date}: 1 USD = {num(rates.USD)} TL · 1 EUR = {num(rates.EUR)} TL).</p>}
+                {cmp.mixed && rates.date && <p className="px-2 py-1.5 text-[11px] text-slate-500 border-t border-slate-100">USD/EUR kalemler TCMB kuruyla çevrildi ({rates.date}: 1 USD = {num(rates.USD)} TL · 1 EUR = {num(rates.EUR)} TL).</p>}
               </div>
             )}
           </>)}

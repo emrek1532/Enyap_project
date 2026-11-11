@@ -98,7 +98,7 @@ export const MikroUpload: React.FC<{
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-3xl shadow-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center gap-3 pt-safe-4">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-center gap-3 pt-safe-4">
           <div className="flex-1 min-w-0">
             <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Mikro</div>
             <h3 className="font-black">Cari bakiye listesi yükle</h3>
@@ -153,7 +153,7 @@ export const MikroUpload: React.FC<{
                           <option value="skip">— Atla</option>
                           {sorted.map(x => <option key={x.id} value={x.id}>{x.name}{x.city ? ` (${x.city})` : ''}</option>)}
                         </select>
-                        {warn && <div className="text-[10px] text-rose-600 font-bold mt-0.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Eşleşmeyi kontrol edin</div>}
+                        {warn && <div className="text-[11px] text-rose-600 font-bold mt-0.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Eşleşmeyi kontrol edin</div>}
                       </div>
                     </div>
                   );

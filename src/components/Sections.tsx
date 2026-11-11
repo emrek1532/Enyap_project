@@ -6,12 +6,12 @@ export type ActiveTab = 'home' | 'quotes' | 'requests' | 'customers' | 'notes' |
 
 export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; icon: React.ElementType; tone: string }> = {
   quotes: { title: 'Teklifler', icon: FileText, tone: 'bg-brand-50 text-brand-600' },
-  requests: { title: 'Talepler', icon: Inbox, tone: 'bg-[#EAF4FC] text-[#006DBB]' },
+  requests: { title: 'Talepler', icon: Inbox, tone: 'bg-[#EAF5FC] text-[#006DBB]' },
   customers: { title: 'Müşteriler', icon: Users, tone: 'bg-sky-50 text-sky-600' },
-  collections: { title: 'Tahsilatlar', icon: Wallet, tone: 'bg-[#E8F8F4] text-[#007C70]' },
-  expenses: { title: 'Harcamalar', icon: Receipt, tone: 'bg-[#EAF4FC] text-[#006DBB]' },
+  collections: { title: 'Tahsilatlar', icon: Wallet, tone: 'bg-[#E6F7F4] text-[#008F79]' },
+  expenses: { title: 'Harcamalar', icon: Receipt, tone: 'bg-[#EAF5FC] text-[#006DBB]' },
   materials: { title: 'Malzemeler', icon: Package, tone: 'bg-violet-50 text-violet-600' },
-  reports: { title: 'Rapor', icon: BarChart3, tone: 'bg-[#EAF4FC] text-[#006DBB]' },
+  reports: { title: 'Rapor', icon: BarChart3, tone: 'bg-[#EAF5FC] text-[#006DBB]' },
   notes: { title: 'Notlar', icon: StickyNote, tone: 'bg-cyan-50 text-cyan-600' },
   admin: { title: 'Yönetim', icon: ShieldCheck, tone: 'bg-slate-100 text-slate-700' },
 };
@@ -33,17 +33,18 @@ export type StatTone = 'green' | 'blue' | 'violet' | 'orange' | 'eBlue' | 'eTeal
 type ToneCls = { box: string; icon: string; wave: string; label?: string; value?: string; dot?: string };
 const STAT_TONES: Record<StatTone, ToneCls> = {
   /* ENYAP kurumsal (yalnız Teklifler): beyaz → çok açık mavi yüzey, açık zeminli mavi/turkuaz simge */
-  eBlue: { box: 'bg-gradient-to-br from-white to-[#F3F8FD] border-[#DCE8F5]', icon: 'bg-[#EAF4FC] text-[#0072CE] ring-1 ring-[#0072CE]/10', wave: 'text-[#0072CE]/25', label: 'text-[#17477D]', value: 'text-[#173B63]', dot: 'bg-[#0072CE]' },
-  eTeal: { box: 'bg-gradient-to-br from-white to-[#F2FBF9] border-[#D5EFE9]', icon: 'bg-[#E8F8F4] text-[#00B89C] ring-1 ring-[#00B89C]/10', wave: 'text-[#00B89C]/25', label: 'text-[#17477D]', value: 'text-[#173B63]', dot: 'bg-[#00B89C]' },
+  eBlue: { box: 'bg-gradient-to-br from-white to-[#F1F6FC] border-[#E2EAF3]', icon: 'bg-[#EAF5FC] text-[#006DBB] ring-1 ring-[#006DBB]/10', wave: 'text-[#006DBB]/25', label: 'text-[#173F73]', value: 'text-[#17365D]', dot: 'bg-[#006DBB]' },
+  eTeal: { box: 'bg-gradient-to-br from-white to-[#F2FBF9] border-[#D5EFE9]', icon: 'bg-[#E6F7F4] text-[#00B49A] ring-1 ring-[#00B49A]/10', wave: 'text-[#00B49A]/25', label: 'text-[#173F73]', value: 'text-[#17365D]', dot: 'bg-[#00B49A]' },
   /* Müşteriler (ENYAP: lacivert #0B2343, mavi #006DBB, turkuaz #00B49A, kenar #E2EAF3) */
-  cBlue: { box: 'bg-gradient-to-br from-white to-[#F1F6FC] border-[#E2EAF3]', icon: 'bg-[#EAF5FC] text-[#006DBB] ring-1 ring-[#006DBB]/10', wave: 'text-[#009FE3]/20', label: 'text-[#7186A3]', value: 'text-[#0B2343]', dot: 'bg-[#006DBB]' },
-  cTeal: { box: 'bg-gradient-to-br from-white to-[#EFF9F7] border-[#E2EAF3]', icon: 'bg-[#E6F7F4] text-[#00B49A] ring-1 ring-[#00B49A]/10', wave: 'text-[#00B49A]/20', label: 'text-[#7186A3]', value: 'text-[#0B2343]', dot: 'bg-[#00B49A]' },
-  green: { box: 'bg-[#EFF9F7] border-[#D5EFE9]', icon: 'bg-[#00A68C] text-white', wave: 'text-[#00B49A]/25' },
-  blue: { box: 'bg-[#F1F6FC] border-[#DCE8F5]', icon: 'bg-[#0072CE] text-white', wave: 'text-[#0072CE]/25' },
-  violet: { box: 'bg-[#F1F6FC] border-[#DCE8F5]', icon: 'bg-[#5DA9D6] text-white', wave: 'text-[#5DA9D6]/25' },
-  orange: { box: 'bg-[#EFF9F7] border-[#D5EFE9]', icon: 'bg-[#008F7C] text-white', wave: 'text-[#00B49A]/25' },
+  cBlue: { box: 'bg-gradient-to-br from-white to-[#F1F6FC] border-[#E2EAF3]', icon: 'bg-[#EAF5FC] text-[#006DBB] ring-1 ring-[#006DBB]/10', wave: 'text-[#009FE3]/20', label: 'text-[#5E7491]', value: 'text-[#0B2343]', dot: 'bg-[#006DBB]' },
+  cTeal: { box: 'bg-gradient-to-br from-white to-[#EFF9F7] border-[#E2EAF3]', icon: 'bg-[#E6F7F4] text-[#00B49A] ring-1 ring-[#00B49A]/10', wave: 'text-[#00B49A]/20', label: 'text-[#5E7491]', value: 'text-[#0B2343]', dot: 'bg-[#00B49A]' },
+  green: { box: 'bg-[#EFF9F7] border-[#D5EFE9]', icon: 'bg-[#00B49A] text-white', wave: 'text-[#00B49A]/25' },
+  blue: { box: 'bg-[#F1F6FC] border-[#E2EAF3]', icon: 'bg-[#006DBB] text-white', wave: 'text-[#006DBB]/25' },
+  violet: { box: 'bg-[#F1F6FC] border-[#E2EAF3]', icon: 'bg-[#5DA9D6] text-white', wave: 'text-[#5DA9D6]/25' },
+  orange: { box: 'bg-[#EFF9F7] border-[#D5EFE9]', icon: 'bg-[#008F79] text-white', wave: 'text-[#00B49A]/25' },
 };
-const TONE_ORDER: StatTone[] = ['green', 'blue', 'violet', 'orange'];
+/* Tüm sayfalarda aynı kutu görünümü: mavi / turkuaz sırayla */
+const TONE_ORDER: StatTone[] = ['cBlue', 'cTeal'];
 const statIcon = (label: string): React.ElementType =>
   /bekle|pasif/i.test(label) ? Hourglass
     : /takip|vade|gecik/i.test(label) ? AlarmClock
@@ -78,10 +79,10 @@ export const StatBox: React.FC<{
       <span className={`flex items-center gap-1.5 text-[11px] sm:text-[13px] font-bold truncate ${t.label || 'text-slate-600'}`}>
         <span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.dot || t.icon}`} />{label}
       </span>
-      <span className={`block mt-0.5 text-base sm:text-xl font-black tabular-nums break-words leading-tight ${t.value ? `sm:text-[22px] tracking-tight ${t.value}` : 'text-[#1a3d6d]'}`}>{value}</span>
+      <span className={`block mt-0.5 text-base sm:text-xl font-black tabular-nums break-words leading-tight ${t.value ? `sm:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
       {trend != null ? (
         <span className="flex items-center gap-1 text-[11px] sm:text-xs truncate">
-          <b className={`tabular-nums ${trend >= 0 ? 'text-[#00A68C]' : 'text-red-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
+          <b className={`tabular-nums ${trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
           <span className="text-slate-500 truncate">geçen aya göre</span>
         </span>
       ) : sub && <span className="block text-[11px] sm:text-xs text-slate-500 truncate">{sub}</span>}
@@ -96,10 +97,10 @@ export const StatBox: React.FC<{
 export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 type Stat = { label: string; value: string; sub?: string; trend?: number | null };
-const StatGrid: React.FC<{ stats: Stat[]; brand?: boolean; cust?: boolean }> = ({ stats, brand, cust }) => (
+const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
   <div className={`grid grid-cols-2 ${stats.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5 sm:gap-3`}>
     {stats.map((s, i) => (
-      <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={cust ? (i % 2 ? 'cTeal' : 'cBlue') : brand ? (i % 2 ? 'eTeal' : 'eBlue') : toneAt(i)}
+      <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)}
         className={stats.length % 2 && i === stats.length - 1 ? 'col-span-2 lg:col-span-1' : ''} />
     ))}
   </div>
@@ -144,7 +145,7 @@ export const PageHeader: React.FC<{
     {hero ? (
       <>
       {/* ENYAP Teklifler bandı: ~130px, solda simge + başlık, sağda fotoğraf (solu açık zemine karışır) */}
-      <section className={`relative overflow-hidden rounded-2xl border shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)] ${hero.materials ? 'border-[#DCE8F5] bg-white' : hero.cust ? 'border-[#E2EAF3] bg-gradient-to-r from-[#F7FBFE] via-[#EAF5FC] to-[#EAF5FC]' : 'border-[#DCE8F5] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF4FC]'}`}>
+      <section className={`relative overflow-hidden rounded-2xl border shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)] border-[#E2EAF3] ${hero.materials ? 'bg-white' : 'bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC]'}`}>
         {hero.art
           ? <div aria-hidden className="pointer-events-none select-none absolute inset-y-0 right-0 w-[64%] sm:w-[58%] lg:w-[54%] [&>svg]:w-full [&>svg]:h-full">{hero.art}</div>
           : <picture aria-hidden>
@@ -156,26 +157,26 @@ export const PageHeader: React.FC<{
           : hero.quotes
           ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[26%] via-white/75 via-[42%] to-transparent to-[69%] sm:from-[32%] sm:via-[47%] sm:to-[70%] md:from-[35%] md:via-[49%] md:to-[72%] lg:from-[41%] lg:via-[53%] lg:to-[75%]" />
           : hero.cust
-          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#EAF5FC]/75 from-[30%] via-[#EAF5FC]/20 via-[53%] to-transparent to-[76%]" />
+          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/80 from-[30%] via-white/20 via-[53%] to-transparent to-[76%]" />
           : <div aria-hidden className={`pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]`} />}
-        <div aria-hidden className={`pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r ${hero.cust ? 'from-[#006DBB] via-[#009FE3] to-[#00B49A]' : 'from-[#0072CE] via-[#0072CE] to-[#00B89C]'}`} />
-        <div className={`relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 py-4 ${hero.cust ? 'min-h-[108px] sm:min-h-[145px] lg:min-h-[155px]' : 'min-h-[104px] sm:min-h-[124px] lg:min-h-[132px]'}`}>
+        <div aria-hidden className={`pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#006DBB] via-[#009FE3] to-[#00B49A]`} />
+        <div className={`relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 py-4 min-h-[112px] sm:min-h-[136px] lg:min-h-[148px]`}>
           <button onClick={onBack} aria-label="Geri"
-            className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#DCE8F5] text-[#17477D] shrink-0">
+            className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E2EAF3] text-[#173F73] shrink-0">
             <ChevronRight className="w-4 h-4 rotate-180" />
           </button>
-          <span className={`hidden sm:flex w-14 h-14 rounded-2xl bg-gradient-to-br ${hero.cust ? 'from-[#006DBB] to-[#173F73]' : 'from-[#0072CE] to-[#17477D]'} text-white items-center justify-center shrink-0 shadow-[0_12px_24px_-12px_rgba(0,114,206,0.9)]`}>
+          <span className={`hidden sm:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-[#006DBB] to-[#173F73] text-white items-center justify-center shrink-0 shadow-[0_12px_24px_-12px_rgba(0,114,206,0.9)]`}>
             <Icon className="w-7 h-7" />
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className={`font-black text-2xl sm:text-[30px] tracking-tight leading-tight ${hero.materials ? 'text-[#0B2343]' : hero.cust ? 'text-[#0B2343]' : 'text-[#123B68]'}`}>{title}</h1>
-            {subtitle && <p className={`mt-0.5 text-xs sm:text-[15px] line-clamp-2 max-w-[62%] ${hero.materials ? 'text-[#17477D]/80 max-w-[80%] sm:max-w-[65%] lg:max-w-[62%]' : hero.cust ? 'text-[#7186A3] sm:max-w-[52%] lg:max-w-[46%]' : 'text-[#17477D]/80 max-w-[56%] md:max-w-[50%] xl:max-w-none'}`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
+            <h1 className={`font-black text-2xl sm:text-[30px] tracking-tight leading-tight text-[#0B2343]`}>{title}</h1>
+            {subtitle && <p className={`hidden lg:block mt-0.5 text-[15px] line-clamp-2 text-[#5E7491] ${hero.materials ? 'max-w-[62%]' : 'max-w-[50%]'}`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
           </div>
           {tools}
           {secondary && (
             <button onClick={secondary.onClick} title={secondary.label}
               className="flex items-center gap-2 h-11 sm:h-12 px-3 sm:px-4 rounded-xl bg-white/95 hover:bg-white border border-[#C9DDF1] text-[#173F73] text-sm sm:text-[15px] font-bold shadow-[0_10px_24px_-16px_rgba(18,59,104,0.7)] backdrop-blur-sm transition-colors shrink-0">
-              <secondary.icon className="w-5 h-5 text-[#00A08A]" /> <span className="hidden xl:inline">{secondary.label}</span>
+              <secondary.icon className="w-5 h-5 text-[#008F79]" /> <span className="hidden xl:inline">{secondary.label}</span>
             </button>
           )}
         </div>
@@ -184,14 +185,14 @@ export const PageHeader: React.FC<{
         /* "Yeni …" düğmesi bandın üstünde değil, altında sağda (telefonda tam genişlik): fotoğrafın önünü kapatmaz */
         <div className="flex justify-end">
           <button onClick={action.onClick}
-            className={`group w-full sm:w-auto flex items-center justify-center gap-2 h-11 px-4 sm:pl-5 sm:pr-4 rounded-xl ${hero.cust ? 'bg-[#006DBB] hover:bg-[#173F73]' : 'bg-[#0072CE] hover:bg-[#17477D]'} text-white text-sm sm:text-[15px] font-bold shadow-[0_12px_26px_-14px_rgba(0,114,206,0.95)] transition-colors duration-200`}>
+            className={`group w-full sm:w-auto flex items-center justify-center gap-2 h-11 px-4 sm:pl-5 sm:pr-4 rounded-xl bg-[#006DBB] hover:bg-[#173F73] text-white text-sm sm:text-[15px] font-bold shadow-[0_12px_26px_-14px_rgba(0,114,206,0.95)] transition-colors duration-200`}>
             <action.icon className="w-5 h-5" /> {action.label}<ChevronRight className="hidden sm:block w-4 h-4 opacity-80 transition-transform duration-200 group-hover:translate-x-0.5" />
           </button>
         </div>
       )}
       </>
     ) : (
-    <section className="relative overflow-hidden rounded-3xl border border-white bg-gradient-to-br from-white via-[#f1f6fd] to-[#dde9fa] px-4 py-4 sm:px-6 sm:py-5 shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]">
+    <section className="relative overflow-hidden rounded-2xl border border-[#E2EAF3] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC] px-4 py-4 sm:px-6 sm:py-5 shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]">
       <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 w-80 h-80 rounded-full bg-brand-200/40 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute right-40 -bottom-28 w-64 h-64 rounded-full bg-sky-100/70 blur-3xl" />
       <div className="relative flex items-center gap-3">
@@ -203,8 +204,8 @@ export const PageHeader: React.FC<{
           <Icon className="w-6 h-6" />
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="font-black text-xl sm:text-[26px] tracking-tight leading-tight truncate text-[#1a3d6d]">{title}</h1>
-          {subtitle && <p className="text-xs sm:text-sm text-slate-500 truncate">{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
+          <h1 className="font-black text-2xl sm:text-[30px] tracking-tight leading-tight truncate text-[#0B2343]">{title}</h1>
+          {subtitle && <p className="mt-0.5 text-xs sm:text-[15px] text-[#5E7491] truncate">{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
         </div>
         {tools}
         {action && (
@@ -217,6 +218,6 @@ export const PageHeader: React.FC<{
     </section>
     )}
     {below}
-    {!below && stats && stats.length > 0 && <StatGrid stats={stats} brand={!!hero} cust={!!hero?.cust} />}
+    {!below && stats && stats.length > 0 && <StatGrid stats={stats} />}
   </div>
 );

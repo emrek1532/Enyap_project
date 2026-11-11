@@ -26,7 +26,7 @@ export const listCard = 'bg-white rounded-3xl border border-white shadow-[0_14px
 export const ctrl = 'h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400';
 export const thCls = 'py-3 px-3 text-[12px] font-bold text-slate-500';
 /** Tablo başlık satırı: açık mavi zemin (örnek tasarım) */
-export const theadCls = 'bg-[#f2f6fc] border-b border-slate-100 [&_th]:text-[#1a3d6d]';
+export const theadCls = 'bg-[#f2f6fc] border-b border-slate-100 [&_th]:text-[#173F73]';
 export const rowCls = 'hover:bg-brand-50/40 transition-colors';
 
 /** Hızlı seçim yuvarlak düğmeleri (Bugün, Bu Hafta, Geçen Hafta …) */
@@ -39,7 +39,7 @@ export function ChipRow<K extends string>({ items, value, onChange }: {
         const on = it.key === value;
         return (
           <button key={it.key} type="button" onClick={() => onChange(it.key)} aria-pressed={on}
-            className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${on ? 'bg-[#0072CE] border-[#0072CE] text-white shadow-sm' : 'bg-white border-[#DCE8F5] text-[#17477D] hover:border-[#0072CE]/50 hover:bg-[#EAF4FC]'}`}>
+            className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${on ? 'bg-[#006DBB] border-[#006DBB] text-white shadow-sm' : 'bg-white border-[#E2EAF3] text-[#173F73] hover:border-[#006DBB]/50 hover:bg-[#EAF5FC]'}`}>
             {it.label}
           </button>
         );
@@ -82,12 +82,12 @@ export function UnderlineTabs<K extends string>({ items, value, onChange, small,
 /** Durum rozeti (ENYAP renkleri): Onaylandı turkuaz / Beklemede mavi / İptal gri / Pasif lacivert-gri */
 export const StatusPill: React.FC<{ status: string }> = ({ status }) => {
   const m = status === 'onaylandi'
-    ? { l: 'Onaylandı', c: 'bg-[#E8F8F4] text-[#008F79] border-[#00B89C]/30', I: CheckCircle2, ic: 'text-white fill-[#00B89C]' }
+    ? { l: 'Onaylandı', c: 'bg-[#E6F7F4] text-[#008F79] border-[#00B49A]/30', I: CheckCircle2, ic: 'text-white fill-[#00B49A]' }
     : status === 'iptal'
       ? { l: 'İptal', c: 'bg-slate-100 text-slate-700 border-slate-200', I: XCircle, ic: 'text-slate-500' }
       : status === 'pasif'
-        ? { l: 'Pasif', c: 'bg-[#EEF2F7] text-[#17477D] border-[#17477D]/15', I: PauseCircle, ic: 'text-[#17477D]/70' }
-        : { l: 'Beklemede', c: 'bg-[#EAF4FC] text-[#0072CE] border-[#0072CE]/25', I: Clock, ic: 'text-[#0072CE]' };
+        ? { l: 'Pasif', c: 'bg-[#EEF2F7] text-[#173F73] border-[#173F73]/15', I: PauseCircle, ic: 'text-[#173F73]/70' }
+        : { l: 'Beklemede', c: 'bg-[#EAF5FC] text-[#006DBB] border-[#006DBB]/25', I: Clock, ic: 'text-[#006DBB]' };
   return <span className={`inline-flex items-center gap-1 text-[11px] sm:text-xs pl-1.5 pr-2.5 py-0.5 sm:py-1 rounded-full font-bold border whitespace-nowrap ${m.c}`}><m.I aria-hidden className={`w-3.5 h-3.5 shrink-0 ${m.ic}`} />{m.l}</span>;
 };
 

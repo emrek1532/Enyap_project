@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({ syncStatus, onTriggerSync, onHom
         ) : <span className="flex-1" />}
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 md:ml-auto">
-          <span className="hidden sm:inline text-[10px] font-medium text-slate-500 tabular-nums select-none" title={`Sürüm ${__APP_VERSION__} · ${__APP_BUILD__}`}>
+          <span className="hidden sm:inline text-[11px] font-medium text-slate-500 tabular-nums select-none" title={`Sürüm ${__APP_VERSION__} · ${__APP_BUILD__}`}>
             v{__APP_VERSION__}
           </span>
           <button onClick={onTriggerSync} disabled={syncStatus.isSyncing} className={`${iconBtn} relative`}
