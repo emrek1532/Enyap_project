@@ -11,6 +11,7 @@ import { PrintDoc, PrintSection, useReportSender } from './ReportPrint';
 import { DateInput } from './DateInput';
 import { ForecastCard } from './ForecastCard';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
+import { StatBox } from './Sections';
 
 interface ReportsPanelProps {
   quotes: Quote[];
@@ -320,21 +321,6 @@ const WaitingReasons: React.FC<{ rows: [string, { n: number; amt: number; list: 
     </div>
   );
 };
-
-const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; value: React.ReactNode; sub?: React.ReactNode; onClick?: () => void }> = ({ icon: Icon, tone, label, value, sub, onClick }) => (
-  <button type="button" onClick={onClick}
-    className="group text-left bg-gradient-to-br from-white to-slate-50 p-3 sm:p-4 rounded-2xl border border-white shadow-[0_10px_26px_-18px_rgba(15,60,120,0.6)] min-w-0 transition-all hover:-translate-y-0.5 active:scale-[0.99]">
-    <div className="flex items-center justify-between gap-2">
-      <span className="flex items-center gap-2 text-[11px] sm:text-[13px] font-semibold text-slate-600 min-w-0">
-        <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></span>
-        <span className="truncate">{label}</span>
-      </span>
-      <ChevronRight className="hidden sm:block w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0" />
-    </div>
-    <div className="mt-1.5 font-black text-[#1a3d6d] tabular-nums break-words text-[15px] sm:text-xl leading-tight">{value}</div>
-    {sub && <div className="text-[10.5px] sm:text-xs text-slate-500 mt-0.5 tabular-nums leading-snug">{sub}</div>}
-  </button>
-);
 
 /** Kutucuğa tıklayınca açılan liste (aynı tablo PDF'e de basılır) */
 const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: boolean; onPrint: () => void; onClose: () => void }> = ({ section, period, busy, onPrint, onClose }) => (
@@ -707,17 +693,17 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
       {/* Özet kutuları — dokununca ilgili liste açılır */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
-        <Tile icon={FileText} tone="text-brand-600 bg-brand-50" label="Verilen Teklif" value={tl(stats.totalAmt)}
+        <StatBox icon={FileText} tone="blue" label="Verilen Teklif" value={tl(stats.totalAmt)}
           sub={`${stats.total.toLocaleString('tr-TR')} teklif · ${stats.firms} firma`} onClick={() => setDetail('quotes')} />
-        <Tile icon={CheckCircle2} tone="text-emerald-600 bg-emerald-50" label="Onaylanan" value={tl(stats.approvedAmt)}
+        <StatBox icon={CheckCircle2} tone="green" label="Onaylanan" value={tl(stats.approvedAmt)}
           sub={`${stats.approved.toLocaleString('tr-TR')} teklif · satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`} onClick={() => setDetail('approved')} />
-        <Tile icon={Clock} tone="text-purple-600 bg-purple-50" label="Bekleyen" value={tl(stats.pendingAmt)}
+        <StatBox icon={Clock} tone="violet" label="Bekleyen" value={tl(stats.pendingAmt)}
           sub={`${stats.pending.toLocaleString('tr-TR')} teklif karar bekliyor`} onClick={() => setDetail('pending')} />
-        <Tile icon={Wallet} tone="text-accent-700 bg-accent-50" label="Yapılan Tahsilat"
-          value={multiCurrency(colTotals).map(x => <div key={x}>{x}</div>)} sub={`${pCollections.length} kayıt`} onClick={() => setDetail('collections')} />
-        <Tile icon={Receipt} tone="text-orange-600 bg-orange-50" label="Yapılan Harcama"
-          value={multiCurrency(expTotals).map(x => <div key={x}>{x}</div>)} sub={`${pExpenses.length} kayıt`} onClick={() => setDetail('expenses')} />
-        <Tile icon={BarChart3} tone="text-brand-700 bg-brand-50" label="Ortalama Teklif"
+        <StatBox icon={Wallet} tone="green" label="Yapılan Tahsilat"
+          value={multiCurrency(colTotals).map(x => <span key={x} className="block">{x}</span>)} sub={`${pCollections.length} kayıt`} onClick={() => setDetail('collections')} />
+        <StatBox icon={Receipt} tone="orange" label="Yapılan Harcama"
+          value={multiCurrency(expTotals).map(x => <span key={x} className="block">{x}</span>)} sub={`${pExpenses.length} kayıt`} onClick={() => setDetail('expenses')} />
+        <StatBox icon={BarChart3} tone="blue" label="Ortalama Teklif"
           value={tl(stats.total ? stats.totalAmt / stats.total : 0)} sub={`onaylananlarda ort. ${tl(stats.approved ? stats.approvedAmt / stats.approved : 0)}`} onClick={() => setDetail('quotes')} />
       </div>
 
