@@ -48,9 +48,10 @@ const CurBadge: React.FC<{ c: Currency }> = ({ c }) => (
 const OwnMaterials: React.FC<{
   quotes: Quote[]; onOpenQuote?: (q: Quote) => void; newRequest?: number; importRequest?: number;
   onChanged?: () => void;
+  actions?: React.ReactNode;
   /** istek karşılandı (sayaç sıfırlanır; sekme değişip geri gelince form yeniden açılmaz) */
   onConsumed?: (k: 'new' | 'import') => void;
-}> = ({ quotes, onOpenQuote, newRequest, importRequest, onChanged, onConsumed }) => {
+}> = ({ quotes, onOpenQuote, newRequest, importRequest, onChanged, onConsumed, actions }) => {
   const [page, setPage] = useState(0);
   useEffect(() => { if (newRequest) { setEditing({ m: { ...EMPTY } }); onConsumed?.('new'); } }, [newRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   const [query, setQuery] = useState('');
@@ -137,9 +138,12 @@ const OwnMaterials: React.FC<{
     <div className="space-y-4">
     <div className={`${listCard} !rounded-2xl !border-[#E2EAF3]`}>
       <div className="p-3 sm:p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_12rem] gap-2">
+        <div className="flex flex-col xl:flex-row xl:items-center gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_12rem] gap-2 min-w-0 flex-1">
           <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı veya kod ara (ör. kalde vana 1/2)" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
           <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Yalnız kodda ara" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
+          </div>
+          {actions && <div className="flex flex-wrap gap-2 shrink-0">{actions}</div>}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
           <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">
@@ -518,8 +522,6 @@ export const MaterialsPanel: React.FC<{
         icon={Package}
         onBack={onBack || (() => undefined)}
         hero={{ art: <PipeArt /> }}
-        action={canAdd && showOwn ? { label: 'Yeni Malzeme', icon: Plus, onClick: () => { choose('own'); setNewLocal(n => n + 1); } } : undefined}
-        secondary={canImport && showOwn ? { label: "Excel'den Malzeme Aktar", icon: FileSpreadsheet, onClick: () => { choose('own'); setImportReq(n => n + 1); } } : undefined}
       />
       <div className="space-y-4">
         {showOwn && showSup && <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-[#E2EAF3]" role="tablist">
@@ -534,6 +536,10 @@ export const MaterialsPanel: React.FC<{
         </div>}
         {tab === 'own'
           ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} newRequest={newLocal} importRequest={importReq}
+              actions={<>
+                {canImport && <button type="button" onClick={() => setImportReq(n => n + 1)} className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#C9DDF1] bg-white px-3 text-xs sm:text-sm font-bold text-[#173F73] hover:bg-[#F1F6FC]"><FileSpreadsheet className="h-4 w-4 text-[#00A08A]" />Excel'den Malzeme Aktar</button>}
+                {canAdd && <button type="button" onClick={() => setNewLocal(n => n + 1)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#006DBB] px-3 text-xs sm:text-sm font-bold text-white hover:bg-[#173F73]"><Plus className="h-4 w-4" />Yeni Malzeme</button>}
+              </>}
               onChanged={() => loadCounts(true)}
               onConsumed={k => (k === 'new' ? setNewLocal(0) : setImportReq(0))} />
           : <SupplierListsPanel />}
