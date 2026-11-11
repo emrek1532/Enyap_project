@@ -417,43 +417,65 @@ const PeriodCard: React.FC<{
     ? { label: 'Satış (onaylanan)', value: cur.onay, prev: prev.onay, sub: `${cur.onayAdet} teklif`, on: onOpenSales, spark: spark.map(x => x.onay) }
     : { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, sub: '', on: onOpenCollections, spark: spark.map(x => x.tahsilat) };
   const minis = [
-    canQuotes && { label: 'Verilen teklif', value: cur.teklif, prev: prev.teklif, sub: `${cur.adet} adet`, on: onOpenQuotes, spark: spark.map(x => x.teklif), color: '#38bdf8' },
-    canQuotes && canMoney && { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, on: onOpenCollections, spark: spark.map(x => x.tahsilat), color: '#10b981' },
-    canExp && { label: 'Harcama', value: cur.harcama, prev: prev.harcama, on: onOpenExpenses, spark: spark.map(x => x.harcama), color: '#fb7185', lower: true },
-  ].filter(Boolean) as { label: string; value: number; prev: number; sub?: string; on: () => void; spark: number[]; color: string; lower?: boolean }[];
+    canQuotes && { label: 'Verilen teklif', value: cur.teklif, prev: prev.teklif, sub: `${cur.adet} adet`, on: onOpenQuotes, spark: spark.map(x => x.teklif), color: '#38bdf8', light: '#bae6fd' },
+    canQuotes && canMoney && { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, on: onOpenCollections, spark: spark.map(x => x.tahsilat), color: '#10b981', light: '#99f6e4' },
+    canExp && { label: 'Harcama', value: cur.harcama, prev: prev.harcama, on: onOpenExpenses, spark: spark.map(x => x.harcama), color: '#fb7185', light: '#fecdd3', lower: true },
+  ].filter(Boolean) as { label: string; value: number; prev: number; sub?: string; on: () => void; spark: number[]; color: string; light: string; lower?: boolean }[];
   const tPct = targets.sales && canQuotes ? Math.round((cur.onay / targets.sales) * 100) : 0;
   return (
-    <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden text-slate-900 ${className}`}>
-      <button onClick={big.on} className="w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-slate-50/60">
-        <span className="min-w-0">
-          <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
-          <span className="block mt-1 text-[30px] sm:text-[40px] leading-none font-black tracking-tight text-[#0b2a4c] tabular-nums truncate">{lira(big.value)}</span>
-          <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
+    <section className={`relative bg-gradient-to-br from-[#0a2f63] via-[#0059a8] to-[#00968a] text-white rounded-3xl min-w-0 overflow-hidden shadow-[0_20px_44px_-26px_rgba(0,70,140,0.85)] ${className}`}>
+      {/* yumuşak ışık lekeleri */}
+      <div aria-hidden className="pointer-events-none absolute -top-24 right-10 w-80 h-80 rounded-full bg-sky-300/20 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-10 w-72 h-72 rounded-full bg-[#00b293]/25 blur-3xl" />
+      <button onClick={big.on} className="relative w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-white/5">
+        <span className="min-w-0 sm:max-w-[60%]">
+          <span className="block text-xs font-bold text-sky-100/85">{title} · {big.label}</span>
+          <span className="block mt-1 text-[30px] sm:text-[40px] leading-none font-black tracking-tight tabular-nums truncate drop-shadow-sm">{lira(big.value)}</span>
+          <span className="mt-2 flex items-center gap-1.5 text-xs text-sky-100/80"><Change cur={big.value} prev={big.prev} dark />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
         </span>
-        <span className="hidden sm:block"><Spark values={big.spark} color="#10b981" w={120} h={44} /></span>
+        <BigArea values={big.spark} className="hidden sm:block absolute right-0 bottom-0 w-[42%] h-[88%] [mask-image:linear-gradient(to_right,transparent,black_30%)]" />
       </button>
       {(canQuotes && (conv > 0 || forecast || tPct > 0)) && (
-        <div className="mx-4 sm:mx-6 mb-3 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 text-xs font-bold text-slate-700">Dönüşüm <b className="text-[#0b2a4c]">%{conv}</b></span>
-          {tPct > 0 && <span className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-bold ${tPct >= 100 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}><Target className="w-3.5 h-3.5" />Hedefin %{tPct}'i</span>}
-          {forecast && forecast.total > 0 && <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-sky-50 text-xs font-bold text-sky-800"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
+        <div className="relative mx-4 sm:mx-6 mb-3 flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/12 border border-white/15 backdrop-blur text-xs font-bold text-sky-50">Dönüşüm <b className="text-white">%{conv}</b></span>
+          {tPct > 0 && <span className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full border backdrop-blur text-xs font-bold ${tPct >= 100 ? 'bg-emerald-400/20 border-emerald-300/30 text-emerald-100' : 'bg-amber-400/20 border-amber-300/30 text-amber-100'}`}><Target className="w-3.5 h-3.5" />Hedefin %{tPct}'i</span>}
+          {forecast && forecast.total > 0 && <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/12 border border-white/15 backdrop-blur text-xs font-bold text-sky-50"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
         </div>
       )}
       {minis.length > 0 && (
-        <div className={`grid border-t border-slate-100 divide-x divide-slate-100 ${minis.length === 3 ? 'grid-cols-3' : minis.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <div className={`relative grid border-t border-white/15 divide-x divide-white/15 bg-white/[0.06] backdrop-blur-sm ${minis.length === 3 ? 'grid-cols-3' : minis.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {minis.map(m => (
-            <button key={m.label} onClick={m.on} className="text-left px-3 sm:px-5 py-3 hover:bg-slate-50 min-w-0">
+            <button key={m.label} onClick={m.on} className="text-left px-3 sm:px-5 py-3 hover:bg-white/10 min-w-0">
               <span className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{m.label}</span>
-                <span className="hidden sm:block"><Spark values={m.spark} color={m.color} /></span>
+                <span className="text-[11px] sm:text-xs font-semibold text-sky-100/80 truncate">{m.label}</span>
+                <span className="hidden sm:block"><Spark values={m.spark} color={m.light} /></span>
               </span>
-              <span className="block mt-0.5 text-[15px] sm:text-xl font-black text-[#0b2a4c] tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-slate-400"> TL</span></span>
-              <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
+              <span className="block mt-0.5 text-[15px] sm:text-xl font-black tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-sky-100/60"> TL</span></span>
+              <span className="mt-0.5 flex items-center gap-1 text-[11px] text-sky-100/75"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} dark />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
             </button>
           ))}
         </div>
       )}
     </section>
+  );
+};
+
+/** Dönem kartının sağındaki büyük alan grafiği (son aylar; beyaz çizgi, saydam dolgu) */
+const BigArea: React.FC<{ values: number[]; className?: string }> = ({ values, className = '' }) => {
+  const max = Math.max(...values, 0);
+  if (values.length < 2 || max <= 0) return null;
+  const W = 300, H = 120;
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 10 - (v / max) * (H - 30)]);
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; const mx = (x0 + x1) / 2; d += ` C${mx} ${y0} ${mx} ${y1} ${x1} ${y1}`; }
+  const [lx, ly] = pts[pts.length - 1];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`pointer-events-none ${className}`} aria-hidden>
+      <defs><linearGradient id="pc-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" stopOpacity="0.28" /><stop offset="1" stopColor="#ffffff" stopOpacity="0" /></linearGradient></defs>
+      <path d={`${d} L${W} ${H} L0 ${H} Z`} fill="url(#pc-area)" />
+      <path d={d} fill="none" stroke="#ffffff" strokeOpacity="0.85" strokeWidth="2.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={lx - 4} cy={ly} r="4" fill="#5eead4" stroke="#ffffff" strokeWidth="2" />
+    </svg>
   );
 };
 
