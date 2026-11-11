@@ -26,4 +26,4 @@ Bu dosya `CLAUDE.md`'den taşındı; içerik aynıdır. Yalnız bu konuda çalı
 - Bandın altında "yapılacaklar" sırası: Size atanan talepler, Kontrol bekleyen teklifler, Takip (`TodayCalls`); yan yana, hiçbiri yoksa sıra görünmez (`empty:hidden`).
 - Bilgisayarda iki bağımsız sütun (`lg:items-start`, biri uzayınca öbüründe boşluk kalmaz): solda Satış Performansı + Son Teklifler (7; teklif no, Pasif rozeti), sağda Aylık Hedef (+ bu ayda "Ay sonu satış tahmini", `lib/forecast.ts` `monthForecast`, raporlardaki `ForecastCard` ile aynı hesap), Para özeti, En Çok İş Yapılan Firmalar.
 - Telefonda sıra: yapılacaklar, Para özeti, Son Teklifler (5), Aylık Hedef, "Grafik ve firmaları göster" (`home-more`); kapalıyken grafik ve firmalar hiç çizilmez (`useWide('lg')`).
-- Eski ana sayfa yedeği: git etiketi `anasayfa-yedek-v1.15.2`.
+- Eski ana sayfa yedeği: commit `e405729` (v1.15.2), `git show e405729:src/components/SimpleHome.tsx`.
