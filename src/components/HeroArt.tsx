@@ -84,6 +84,9 @@ export const PipeArt: React.FC<{ className?: string }> = ({ className = '' }) =>
       <PipeV x={600} y1={0} y2={150} d={11} rings={[70]} />
     </g>
     <rect width="640" height="150" fill="url(#pa-glow)" />
+    {/* Enyap mavi tonlarında yumuşak akış: başlık alanını kalabalıklaştırmadan mekanik parçaları çerçeveler */}
+    <path d="M0 105 C120 62 190 128 300 91 S500 60 640 96 L640 150 L0 150 Z" fill="#C5E6FB" opacity="0.42" />
+    <path d="M0 130 C135 92 210 151 340 114 S540 95 640 120 L640 150 L0 150 Z" fill="#80C7EF" opacity="0.25" />
     {/* orta plan */}
     <g opacity={0.8}>
       <PipeH y={66} x1={120} x2={640} d={16} rings={[300, 560]} />
