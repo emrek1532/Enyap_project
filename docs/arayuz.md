@@ -23,7 +23,7 @@ Bu dosya `CLAUDE.md`'den taşındı; içerik aynıdır. Yalnız bu konuda çalı
 
 ## Ana sayfa yenilemesi (v1.16.0)
 Kullanıcının beğendiği örnek görseller ile kullanım verisi birleştirildi (son 30 gün: 123 teklif çoğu PDF'ten, 171 durum değişikliği, 39 tahsilat, 20 harcama).
-- Üstte koyu lacivert bant: sağ üstte bina/vinç silüeti (`Buildings`, kendi SVG çizimimiz; telefonda soluk), tarih + sürüm, "İyi akşamlar, Emre 👋 / Bugünün özeti burada.", dönem (‹ Kasım 2026 ›, Ay | Yıl), md+ arama kutusu, altta dönemin 4 rakamı (son ayların çizgisi + geçen aya göre %).
+- Üst bant (v1.16.1): arka planda ENYAP binası fotoğrafı (`public/hero-enyap.webp` md+, yakınlaştırılmış, yalnız bina tarafı; telefonda `hero-enyap-sm.webp`; soldan lacivert geçiş), tarih + sürüm, "İyi akşamlar, Emre 👋 / Isı sistemlerinde güvenilir çözüm ortağınız.", dönem (‹ Kasım 2026 ›, Ay | Yıl), md+ arama kutusu; içinde beyaz dönem kartı (`PeriodCard`): büyük satış (onaylanan) + değişim + çizgi, Dönüşüm / Hedefin %'si / Ay sonu tahmini etiketleri, altta Verilen teklif / Tahsilat / Harcama.
 - Hızlı İşlemler: her ekranda 4 pastel kutu — Yeni Teklif, Malzemeler (`onOpen('materials')`, yetki varsa), Tahsilat, Harcama.
 - Gövde: lg+ iki bağımsız sütun (solda Satış Performansı + ay sonu tahmini, Takip · karar bekleyenler, Son İşlemler; sağda Gelen işler, Aylık Hedef, Para özeti). md (tablet dik) iki sütunlu ızgara: Aylık Hedef ile Para özeti yan yana. Telefonda tek sütun.
 - Takip · karar bekleyenler (`DecisionList`): Bekleyen / Bugün ara / Süresi dolan; satırda "Yarın ara" (`followUpAt` yarın) ve "Onayla" (iki dokunuş). App: `onSetStatus`, `onPatchQuote` (teklif düzenleme yetkisiyle). En çok 6 satır (telefonda 4).
