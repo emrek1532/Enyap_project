@@ -110,7 +110,7 @@ export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malz
 export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   quotes: { lg: '/hero-teklifler-2.webp', sm: '/hero-teklifler-2-sm.webp', quotes: true },
   requests: { lg: '/hero-talepler-2.webp', sm: '/hero-talepler-2-sm.webp', center: true },
-  expenses: { lg: '/hero-expenses.svg', sm: '/hero-expenses.svg' },
+  expenses: { lg: '/hero-harcama.webp', sm: '/hero-harcama-sm.webp', center: true },
   collections: { lg: '/hero-tahsilat.webp', sm: '/hero-tahsilat-sm.webp', center: true },
   reports: { lg: '/hero-rapor.webp', sm: '/hero-rapor-sm.webp' },
   customers: { lg: '/hero-musteri.webp', sm: '/hero-musteri-sm.webp', cust: true },
