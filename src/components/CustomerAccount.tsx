@@ -172,7 +172,7 @@ export const CustomerAccount: React.FC<{
       <div onClick={e => e.stopPropagation()}
         className="bg-[#f4f8fc] w-full sm:max-w-4xl sm:rounded-3xl shadow-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
         {/* Başlık */}
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center gap-3 pt-safe-4">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center gap-3 pt-safe-4">
           <div className="min-w-0 flex-1">
             <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Cari hesap</div>
             <h3 className="font-black text-lg sm:text-[22px] tracking-tight leading-tight break-words">

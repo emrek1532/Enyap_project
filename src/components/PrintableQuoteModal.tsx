@@ -408,7 +408,7 @@ export const PrintableQuoteModal: React.FC<PrintableQuoteModalProps> = ({ quote,
     <div className="fixed inset-0 bg-slate-900/70 z-50 flex flex-col">
       <style>{PAGE_CSS}</style>
 
-      <div className="no-print px-4 py-3 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between gap-2 shrink-0">
+      <div className="no-print px-4 py-3 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between gap-2 shrink-0">
         <span className="font-black text-base sm:text-lg tracking-tight truncate">Fiyat Teklifi · {quote.quoteNumber}</span>
         <div className="flex items-center gap-2 shrink-0">
           <button

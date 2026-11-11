@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Eye, FileSpreadsheet, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { MaterialImport } from './MaterialImport';
 import { LastImport, fetchLastImport } from '../lib/materialImport';
-import { listCard, ctrl, rowCls, SearchBox, IconBtn, Pager, WideOnly, NarrowOnly, LastEdit } from './ListUI';
+import { listCard, ctrl, rowCls, theadCls, SearchBox, IconBtn, Pager, WideOnly, NarrowOnly, LastEdit } from './ListUI';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
@@ -106,6 +106,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
   );
 
   return (
+    <div className="space-y-4">
     <div className={listCard}>
       <div className="p-3 sm:p-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-2">
@@ -178,9 +179,12 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
         </div>
         {error && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
       </div>
+    </div>
+
+    <div className={`${listCard} overflow-hidden`}>
 
       {/* Telefon: kartlar */}
-      <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
+      <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
         {items.map(m => (
           <div key={m.code} className="p-3 flex items-start gap-3">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
@@ -199,11 +203,11 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div></NarrowOnly>
 
       {/* Tablet / masaüstü: tablo */}
-      <WideOnly from="md"><div className="hidden md:block overflow-x-auto border-t border-slate-100">
+      <WideOnly from="md"><div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b border-slate-100 text-left">
+          <thead className={`${theadCls} text-left`}>
             <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
-              <SortHeader label="Kod" active={sort.key === 'code'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'code', 'asc'))} />
+              <SortHeader className="pl-5" label="Kod" active={sort.key === 'code'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'code', 'asc'))} />
               <SortHeader label="Malzeme Adı" active={sort.key === 'name'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'name', 'asc'))} />
               <th className="py-3 px-3">Birim</th>
               <SortHeader label="Birim Fiyat" align="right" active={sort.key === 'price'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'price', 'desc'))} />
@@ -216,7 +220,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
           <tbody className="divide-y divide-slate-100">
             {items.map(m => (
               <tr key={m.code} className={rowCls}>
-                <td className="py-3 px-3 text-xs font-semibold text-slate-600 whitespace-nowrap">{m.code}</td>
+                <td className="py-3 px-3 pl-5 text-xs font-bold text-[#1a3d6d] whitespace-nowrap">{m.code}</td>
                 <td className="py-3 px-3 text-slate-800 font-semibold uppercase text-[13px]">
                   <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-brand-700">{m.name || '-'}</button>
                 </td>
@@ -236,7 +240,8 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
       </div></WideOnly>
 
       <Pager page={page} total={total} size={PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-        label={<>{total.toLocaleString('tr-TR')} malzeme</>} />
+        label={<>Toplam {total.toLocaleString('tr-TR')} kayıt</>} />
+    </div>
 
       {history && <MaterialHistory m={history} quotes={quotes} onClose={() => setHistory(null)}
         onOpenQuote={onOpenQuote ? q => { setHistory(null); onOpenQuote(q); } : undefined} />}
@@ -269,7 +274,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="bg-white w-full sm:max-w-2xl max-h-[90vh] flex flex-col rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-start gap-3">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="font-mono text-[11px] text-sky-200/80">{m.code}</div>
             <h3 className="font-black text-lg tracking-tight leading-snug">{m.name}</h3>
@@ -346,7 +351,7 @@ const MaterialForm: React.FC<{
         onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white">
           <h3 className="font-black text-lg tracking-tight flex items-center gap-2">
             <Package className="w-5 h-5 text-sky-300" /> {originalCode ? 'Malzemeyi Düzenle' : 'Yeni Malzeme'}
           </h3>
@@ -421,20 +426,18 @@ export const MaterialsPanel: React.FC<{ quotes?: Quote[]; onOpenQuote?: (q: Quot
   }, []);
   const tr = (n: number) => n.toLocaleString('tr-TR');
   const tabCls = (on: boolean) =>
-    `relative flex-1 px-3 py-2.5 rounded-xl text-sm font-extrabold leading-tight transition-colors ${on ? 'bg-white text-brand-700 shadow-sm' : 'text-brand-800/80 hover:text-brand-900'}`;
-  const sub = 'block text-[11px] font-semibold text-slate-500 mt-0.5';
-  const bar = <span className="absolute left-4 right-4 bottom-0 h-0.5 rounded-full bg-brand-500" />;
+    `relative whitespace-nowrap px-4 py-2.5 text-sm font-extrabold transition-colors ${on ? 'text-brand-600' : 'text-slate-600 hover:text-slate-900'}`;
+  const cnt = 'ml-1 text-xs font-semibold text-slate-500';
+  const bar = <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-brand-500" />;
   return (
-    <div className="space-y-3">
-      {showOwn && showSup && <div className="flex gap-1 p-1 rounded-2xl bg-brand-100/60 border border-brand-100" role="tablist">
+    <div className="space-y-4">
+      {showOwn && showSup && <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-slate-200/80" role="tablist">
         <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
-          Bizim Malzemeler
-          <span className={sub}>{ownCount !== null ? `${tr(ownCount)} kalem` : '\u00a0'}</span>
+          Bizim Malzemeler{ownCount !== null && <span className={cnt}>({tr(ownCount)} kalem)</span>}
           {tab === 'own' && bar}
         </button>
         <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>
-          Firma Fiyat Listeleri
-          <span className={sub}>{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '\u00a0'}</span>
+          Firma Fiyat Listeleri{supInfo && <span className={cnt}>({supInfo.lists} firma · {tr(supInfo.items)} kalem)</span>}
           {tab === 'suppliers' && bar}
         </button>
       </div>}

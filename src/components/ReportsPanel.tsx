@@ -331,7 +331,7 @@ const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; val
       </span>
       <ChevronRight className="hidden sm:block w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0" />
     </div>
-    <div className="mt-1.5 font-black text-[#0b2a4c] tabular-nums break-words text-[15px] sm:text-xl leading-tight">{value}</div>
+    <div className="mt-1.5 font-black text-[#1a3d6d] tabular-nums break-words text-[15px] sm:text-xl leading-tight">{value}</div>
     {sub && <div className="text-[10.5px] sm:text-xs text-slate-500 mt-0.5 tabular-nums leading-snug">{sub}</div>}
   </button>
 );
@@ -340,7 +340,7 @@ const Tile: React.FC<{ icon: React.ElementType; tone: string; label: string; val
 const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: boolean; onPrint: () => void; onClose: () => void }> = ({ section, period, busy, onPrint, onClose }) => (
   <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
     <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-5xl rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white">
+      <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white">
         <div className="min-w-0">
           <h3 className="font-black text-lg tracking-tight truncate">{section.heading}</h3>
           <p className="text-xs text-sky-200/80">{period} · {section.rows.length.toLocaleString('tr-TR')} kayıt</p>

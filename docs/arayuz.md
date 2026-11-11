@@ -31,3 +31,8 @@ Kullanıcının beğendiği örnek görseller ile kullanım verisi birleştirild
 - Sol menü tablette (md–lg) dar: ikon + alt yazı (`Sidebar.tsx`, `md:pl-[88px] lg:pl-60`); lg+ geniş menü.
 - Kaldırılan: Son Teklifler kartı (Son İşlemler'e girdi), Takip kartı (`TodayCalls`, karar listesine girdi), En Çok İş Yapılan Firmalar.
 - Eski ana sayfa yedeği "EMRE GÜNCEL": dal `EMRE-GUNCEL` (commit `b715e76`, v1.15.3); geri yükleme adımı `CLAUDE.md`'de.
+
+## Liste sayfaları yeni görünüm (v1.17.0)
+- Sayfa başlığı (`PageHeader`, `Sections.tsx`) artık açık renkli kart: mavi simge kutusu, koyu lacivert başlık, gri açıklama, sağda mavi "Yeni …" düğmesi. Özet rakamlar başlığın altında 4 pastel kutuda (yeşil, mavi, mor, turuncu; simge etikete göre `statIcon`).
+- Teklifler, Müşteriler, Malzemeler, Tahsilat/Harcama: filtreler bir kartta, tablo ayrı kartta. Tablo başlığı açık mavi zemin (`theadCls`), satır düğmeleri açık mavi kutu (`IconBtn`), sayfa numaraları çerçeveli (`Pager`), tarih kısayolları yuvarlak düğme (`ChipRow`). Teklif tablosu: Teklif No | Müşteri & Şehir | Durum | Tarih | Tutar | İşlemler. Malzeme sekmeleri altı çizili, adetli.
+- Renk: eski boğucu lacivert `#0b2a4c` → `#1a3d6d`, `#15457a` → `#2b5f9e`; sol menü `from-[#21508c] via-[#1d4680] to-[#193c70]` (yukarıdaki "koyu lacivert" anlatımları bu tonları kasteder).

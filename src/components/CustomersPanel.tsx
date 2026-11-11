@@ -1,6 +1,6 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight, MapPin, MapPinCheck } from 'lucide-react';
-import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
+import { listCard, ctrl, rowCls, theadCls, SearchBox, UnderlineTabs, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
@@ -323,12 +323,12 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           onOpen={c => { setViewing(c); }} onMikro={onSaveCollection && canEdit ? () => setMikroOpen(true) : undefined} />
       )}
 
-      {mode === 'list' && (
+      {mode === 'list' && (<>
       <div className={listCard}>
         <div className="p-3 sm:p-4 space-y-3">
-          <FilterBar active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (abcFilter !== 'all' ? 1 : 0)}
+          <FilterBar className="flex flex-col 2xl:flex-row gap-2" active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (abcFilter !== 'all' ? 1 : 0)}
             search={<SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma adı veya şehir ara (ör. Isparta)..." className="flex-1" />}>
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap 2xl:flex-nowrap gap-2">
               <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Şehir">
                 <option value="all">Tüm Şehirler</option>
                 {cityCounts.map(([city, count]) => <option key={city} value={city}>{city} ({count})</option>)}
@@ -395,14 +395,17 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             {hasFilters && <button onClick={resetFilters} className="font-bold text-brand-600 hover:underline">Filtreleri temizle</button>}
           </div>
         </div>
+      </div>
+
+      <div className={`${listCard} overflow-hidden`}>
 
         {filtered.length === 0 ? (
-          <p className="p-8 border-t border-slate-100 text-center text-sm text-slate-500">
+          <p className="p-8 text-center text-sm text-slate-500">
             {customers.length === 0 ? 'Henüz müşteri kaydı yok.' : 'Filtrelere uygun müşteri bulunamadı.'}
           </p>
         ) : (<>
           {/* Telefon: kartlar */}
-          <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
+          <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
             {pageRows.map(({ c, st }) => (
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
@@ -426,7 +429,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   <div className="flex items-center gap-1 flex-wrap text-[10px] font-bold tabular-nums">
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{st.total} teklif</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{st.approved} onaylı</span>
-                    <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-600">{st.pending} bekleyen</span>
+                    <span className="px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">{st.pending} bekleyen</span>
                     {st.followUp && <FollowPill />}
                   </div>
                   {rowActions(c)}
@@ -434,15 +437,15 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               </div>
             ))}
           </div></NarrowOnly>
-          <WideOnly from="md"><div className="overflow-x-auto hidden md:block border-t border-slate-100">
+          <WideOnly from="md"><div className="overflow-x-auto hidden md:block">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-100">
+              <thead className={theadCls}>
                 <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
-                  <SortHeader label="Firma" active={sort.key === 'name'} dir={sort.dir} onClick={() => sortBy('name', 'asc')} />
+                  <SortHeader className="pl-5" label="Firma" active={sort.key === 'name'} dir={sort.dir} onClick={() => sortBy('name', 'asc')} />
                   <SortHeader className="hidden xl:table-cell" label="Şehir" active={sort.key === 'city'} dir={sort.dir} onClick={() => sortBy('city', 'asc')} />
                   <SortHeader label="Teklif" align="right" active={sort.key === 'quotes'} dir={sort.dir} onClick={() => sortBy('quotes', 'desc')} />
                   <SortHeader label="Onaylı" align="right" active={sort.key === 'approved'} dir={sort.dir} onClick={() => sortBy('approved', 'desc')} />
-                  <SortHeader label="Bekleyen" align="right" active={sort.key === 'pending'} dir={sort.dir} onClick={() => sortBy('pending', 'desc')} />
+                  <SortHeader label="Beklemede" align="right" active={sort.key === 'pending'} dir={sort.dir} onClick={() => sortBy('pending', 'desc')} />
                   <SortHeader label="Onaylı Toplam" align="right" active={sort.key === 'total'} dir={sort.dir} onClick={() => sortBy('total', 'desc')} />
                   {showCollections && <SortHeader className="hidden xl:table-cell" label="Bakiye" align="right" active={sort.key === 'balance'} dir={sort.dir} onClick={() => sortBy('balance', 'desc')} />}
                   <SortHeader className="hidden xl:table-cell" label="Son Teklif" active={sort.key === 'last'} dir={sort.dir} onClick={() => sortBy('last', 'desc')} />
@@ -452,15 +455,15 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {pageRows.map(({ c, st }) => (
                   <tr key={c.id} onClick={() => setViewing(c)} className={`${rowCls} cursor-pointer`}>
-                    <td className="py-3 px-3">
-                      <div className="font-bold text-brand-800 min-w-[10rem] leading-snug">{c.name}<AbcBadge k={abcOf(c)} /><StatusBadge c={c} /></div>
+                    <td className="py-3 px-3 pl-5">
+                      <div className="font-black text-[#1a3d6d] min-w-[10rem] leading-snug">{c.name}<AbcBadge k={abcOf(c)} /><StatusBadge c={c} /></div>
                       <div className="xl:hidden text-xs text-slate-500 whitespace-nowrap">{c.city || '—'}{st.lastDate ? ` · ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</div>
                       {st.followUp && <FollowPill />}
                     </td>
                     <td className="hidden xl:table-cell py-3 px-3 text-slate-600 whitespace-nowrap">{c.city || '—'}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold text-slate-800">{st.total || '-'}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-bold text-emerald-600">{st.approved || '-'}</td>
-                    <td className="py-3 px-3 text-right tabular-nums font-bold text-rose-500">{st.pending || '-'}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-bold text-violet-600">{st.pending || '-'}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-black text-slate-900 whitespace-nowrap">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</td>
                     {showCollections && (
                       <td className={`hidden xl:table-cell py-3 px-3 text-right tabular-nums font-bold whitespace-nowrap ${(balanceOf(c)?.estimate ?? 0) < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
@@ -480,7 +483,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         <Pager page={page} total={filtered.length} size={PAGE} onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           label={<>Toplam {filtered.length.toLocaleString('tr-TR')} müşteri</>} />
       </div>
-      )}
+      </>)}
 
       {/* Cari hesap: firmaya ait her şey */}
       {viewing && (
@@ -518,7 +521,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             onClick={e => e.stopPropagation()}
             className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 sm:p-5 pt-0 sm:pt-0 space-y-3 max-h-[90vh] overflow-y-auto"
           >
-            <div className="sticky top-0 z-10 -mx-4 sm:-mx-5 mb-1 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between">
+            <div className="sticky top-0 z-10 -mx-4 sm:-mx-5 mb-1 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between">
               <h3 className="font-black text-lg tracking-tight">{editing ? 'Müşteriyi Düzenle' : 'Yeni Müşteri'}</h3>
               <button type="button" onClick={() => setIsFormOpen(false)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat">
                 <X className="w-5 h-5" />

@@ -288,7 +288,7 @@ export function useReportSender() {
   const modal = preview && createPortal(
     <div className="fixed inset-0 z-[60] bg-slate-900/70 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setPreview(null)}>
       <div onClick={e => e.stopPropagation()} className="bg-[#f4f8fc] w-full sm:max-w-3xl sm:rounded-3xl shadow-2xl flex flex-col h-full sm:h-[92vh] overflow-hidden">
-        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white pt-safe-4">
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white pt-safe-4">
           <div className="min-w-0 flex-1">
             <h3 className="font-black text-lg tracking-tight truncate">{preview.title}</h3>
             <p className="text-xs text-sky-200/80">{preview.pages.length} sayfa · göndermeden önce kontrol edin</p>

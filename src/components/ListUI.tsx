@@ -25,7 +25,28 @@ export const NarrowOnly: React.FC<{ children: React.ReactNode; from?: Bp }> = ({
 export const listCard = 'bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]';
 export const ctrl = 'h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400';
 export const thCls = 'py-3 px-3 text-[12px] font-bold text-slate-500';
+/** Tablo başlık satırı: açık mavi zemin (örnek tasarım) */
+export const theadCls = 'bg-[#f2f6fc] border-b border-slate-100';
 export const rowCls = 'hover:bg-brand-50/40 transition-colors';
+
+/** Hızlı seçim yuvarlak düğmeleri (Bugün, Bu Hafta, Geçen Hafta …) */
+export function ChipRow<K extends string>({ items, value, onChange }: {
+  items: { key: K; label: React.ReactNode }[]; value: K | null; onChange: (k: K) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+      {items.map(it => {
+        const on = it.key === value;
+        return (
+          <button key={it.key} type="button" onClick={() => onChange(it.key)} aria-pressed={on}
+            className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${on ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'}`}>
+            {it.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /** Arama kutusu (simgeli) */
 export const SearchBox: React.FC<{ value: string; onChange: (v: string) => void; placeholder: string; className?: string; mono?: boolean }> = ({ value, onChange, placeholder, className = '', mono }) => (
@@ -65,13 +86,13 @@ export const StatusPill: React.FC<{ status: string }> = ({ status }) => {
       : status === 'pasif'
         ? { l: 'Pasif', c: 'bg-amber-50 text-amber-800 border-amber-200', i: '‖' }
         : { l: 'Beklemede', c: 'bg-violet-50 text-violet-700 border-violet-200', i: '◷' };
-  return <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${m.c}`}><span aria-hidden>{m.i}</span>{m.l}</span>;
+  return <span className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg font-bold border whitespace-nowrap ${m.c}`}><span aria-hidden className="sm:hidden">{m.i}</span>{m.l}</span>;
 };
 
 /** Satır simge düğmesi */
 export const IconBtn: React.FC<{ title: string; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode; danger?: boolean }> = ({ title, onClick, children, danger }) => (
   <button type="button" title={title} aria-label={title} onClick={e => { e.stopPropagation(); onClick(e); }}
-    className={`w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${danger ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50' : 'text-brand-600 hover:bg-brand-50'}`}>
+    className={`w-9 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${danger ? 'bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50' : 'bg-brand-50 text-brand-600 hover:bg-brand-100'}`}>
     {children}
   </button>
 );
@@ -83,17 +104,17 @@ export const Pager: React.FC<{ page: number; total: number; size: number; onPage
   const from = Math.max(0, Math.min(page - 1, pages - 3));
   for (let i = from; i < Math.min(pages, from + 3); i++) nums.push(i);
   if (from + 3 < pages) nums.push('…');
-  const btn = 'min-w-7 h-7 px-1.5 inline-flex items-center justify-center rounded-lg text-xs font-bold';
+  const btn = 'min-w-8 h-8 px-2 inline-flex items-center justify-center rounded-lg text-xs font-bold border';
   return (
-    <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-3 border-t border-slate-100">
-      <span className="text-xs text-slate-500 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100">{label}</span>
+    <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-3 border-t border-slate-100">
+      <span className="text-[13px] font-bold text-slate-700">{label}</span>
       {pages > 1 && (
         <div className="flex items-center gap-1">
-          <button type="button" disabled={page === 0} onClick={() => onPage(page - 1)} className={`${btn} text-slate-500 hover:bg-slate-100 disabled:opacity-30`} aria-label="Önceki"><ChevronLeft className="w-4 h-4" /></button>
+          <button type="button" disabled={page === 0} onClick={() => onPage(page - 1)} className={`${btn} border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-30`} aria-label="Önceki"><ChevronLeft className="w-4 h-4" /></button>
           {nums.map((n, i) => n === '…'
             ? <span key={`d${i}`} className="text-xs text-slate-500 px-1">…</span>
-            : <button key={n} type="button" onClick={() => onPage(n)} className={`${btn} ${n === page ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>{n + 1}</button>)}
-          <button type="button" disabled={page >= pages - 1} onClick={() => onPage(pages - 1)} className={`${btn} text-slate-600 hover:bg-slate-100 disabled:opacity-30 gap-0.5`}>Son <ChevronRight className="w-3.5 h-3.5" /></button>
+            : <button key={n} type="button" onClick={() => onPage(n)} className={`${btn} ${n === page ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>{n + 1}</button>)}
+          <button type="button" disabled={page >= pages - 1} onClick={() => onPage(pages - 1)} className={`${btn} border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 gap-0.5`}>Son <ChevronRight className="w-3.5 h-3.5" /></button>
         </div>
       )}
     </div>

@@ -42,7 +42,7 @@ export const MaterialImport: React.FC<{ onClose: () => void; onDone: () => void 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={busy ? undefined : onClose}>
       <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white">
           <h3 className="font-black text-lg tracking-tight flex items-center gap-2"><FileSpreadsheet className="w-5 h-5 text-sky-300" /> Malzeme listesini yükle (Excel)</h3>
           <button type="button" disabled={busy} onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0 disabled:opacity-50" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>

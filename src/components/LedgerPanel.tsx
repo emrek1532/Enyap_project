@@ -1,4 +1,4 @@
-import { listCard, SearchBox, FilterBar, WideOnly, NarrowOnly, LastEdit } from './ListUI';
+import { listCard, ctrl, theadCls, SearchBox, FilterBar, WideOnly, NarrowOnly, LastEdit } from './ListUI';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, Send, Loader2, Camera } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
@@ -320,9 +320,9 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                 const overdue = !!c?.dueDate && c.dueDate < todayStr;
                 return (
                   <tr key={r.id} className="hover:bg-slate-50 align-top">
-                    <td className="hidden xl:table-cell py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(r.date)}</td>
+                    <td className="hidden xl:table-cell py-3 px-3 pl-5 whitespace-nowrap font-semibold text-[#1a3d6d] tabular-nums">{fmtDate(r.date)}</td>
                     <td className="py-2.5 px-3 min-w-[140px]">
-                      <div className="font-semibold text-slate-900">{partyOf(r) || '-'}</div>
+                      <div className="font-bold text-slate-900">{partyOf(r) || '-'}</div>
                       <div className="text-xs text-slate-500"><span className="xl:hidden tabular-nums">{fmtDate(r.date)}{c?.city ? ' · ' : ''}</span>{c?.city}</div>
                       {r.description && <div className="xl:hidden text-xs text-slate-500 line-clamp-1 max-w-[16rem]" title={r.description}>{r.description}</div>}
                     </td>
@@ -350,13 +350,13 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                       <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{r.method || '-'}</td>
                     )}
                     <td className="hidden xl:table-cell py-2.5 px-3 text-slate-600 max-w-[260px] truncate" title={r.description || ''}>{r.description || '-'}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">{money(r.amount, r.currency)}</td>
+                    <td className="py-2.5 px-3 text-right font-black text-slate-900 whitespace-nowrap tabular-nums">{money(r.amount, r.currency)}</td>
                     <td className="py-2.5 px-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setEditing(r)} title="Düzenle" className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50">
+                        <button onClick={() => setEditing(r)} title="Düzenle" className="w-9 h-8 inline-flex items-center justify-center rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(r)} title="Sil" className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50">
+                        <button onClick={() => handleDelete(r)} title="Sil" className="w-9 h-8 inline-flex items-center justify-center rounded-lg bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -392,7 +392,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
     return (
       <React.Fragment key={g.key}>
         <tr onClick={() => toggleGroup(g.key)} className="hover:bg-slate-50 cursor-pointer align-top bg-white">
-          <td className="hidden xl:table-cell py-2.5 px-3 whitespace-nowrap text-slate-600 tabular-nums">{fmtDate(first.date)}</td>
+          <td className="hidden xl:table-cell py-2.5 px-3 pl-5 whitespace-nowrap font-semibold text-[#1a3d6d] tabular-nums">{fmtDate(first.date)}</td>
           <td className="py-2.5 px-3 min-w-[140px]">
             <div className="font-semibold text-slate-900">{partyOf(first) || '-'}</div>
             <div className="text-xs text-slate-500"><span className="xl:hidden tabular-nums">{fmtDate(first.date)}{first.city ? ' · ' : ''}</span>{first.city}</div>
@@ -419,45 +419,45 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
         search={<SearchBox value={search} onChange={v => changed(setSearch)(v)} placeholder={isCollection ? 'Müşteri, banka, çek no ara...' : 'Kategori, şehir, açıklama ara...'} className="flex-1" />}>
         <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap [&>select]:w-full sm:[&>select]:w-auto [&>select]:min-w-0 [&>select]:h-10 [&>select]:rounded-xl">
           {isCollection && (
-            <select value={methodFilter} onChange={e => changed(setMethodFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
+            <select value={methodFilter} onChange={e => changed(setMethodFilter)(e.target.value)} className={ctrl}>
               <option value="all">Tüm Ödeme Şekilleri</option>
               {methods.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           )}
           {isCollection && (
-            <select value={dueFilter} onChange={e => changed(setDueFilter)(e.target.value as typeof dueFilter)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
+            <select value={dueFilter} onChange={e => changed(setDueFilter)(e.target.value as typeof dueFilter)} className={ctrl}>
               <option value="all">Tüm Vadeler</option>
               <option value="upcoming">Vadesi Gelmemiş</option>
               <option value="past">Vadesi Geçmiş</option>
             </select>
           )}
-          <select value={sortMode} onChange={e => setSortMode(e.target.value as 'added' | 'date')} className={`${isCollection ? '' : 'col-span-2 '}p-2 border border-slate-200 rounded-lg text-sm bg-white`} aria-label="Sıralama">
+          <select value={sortMode} onChange={e => setSortMode(e.target.value as 'added' | 'date')} className={`${isCollection ? '' : 'col-span-2 '}${ctrl}`} aria-label="Sıralama">
             <option value="added">Son eklenen en üstte</option>
             <option value="date">{isCollection ? 'Alım tarihi: yeni → eski' : 'Tarih: yeniden eskiye'}</option>
           </select>
           {isCollection && (
-            <select value={currencyFilter} onChange={e => changed(setCurrencyFilter)(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm bg-white">
+            <select value={currencyFilter} onChange={e => changed(setCurrencyFilter)(e.target.value)} className={ctrl}>
               <option value="all">Tüm Para Birimleri</option>
               {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
             </select>
           )}
           <div className="col-span-2 flex items-center gap-1 text-xs text-slate-500 [&>div]:flex-1 [&>div]:min-w-0 sm:[&>div]:flex-none sm:[&>div]:w-40">
-            <DateInput value={dateFrom} onChange={v => changed(setDateFrom)(v)} className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
+            <DateInput value={dateFrom} onChange={v => changed(setDateFrom)(v)} className={`${ctrl} w-full`} />
             <span>-</span>
-            <DateInput value={dateTo} onChange={v => changed(setDateTo)(v)} className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
+            <DateInput value={dateTo} onChange={v => changed(setDateTo)(v)} className={`${ctrl} w-full`} />
           </div>
           <div className="col-span-2 sm:col-span-1 flex flex-wrap items-center gap-1">
             {presets.map(([label, f, t]) => (
-              <button key={label} type="button" onClick={() => setRange(f, t)} className="px-2.5 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700">{label}</button>
+              <button key={label} type="button" onClick={() => setRange(f, t)} className="h-8 px-3.5 rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:border-brand-300 hover:text-brand-700">{label}</button>
             ))}
           </div>
           {!isCollection && (
             <input value={spender} onChange={e => setSpender(e.target.value)} placeholder="Harcamayı yapan (PDF'te yazar)"
-              title="PDF'te 'Harcamayı Yapan' olarak yazılır" className="p-2 border border-slate-200 rounded-lg text-sm" />
+              title="PDF'te 'Harcamayı Yapan' olarak yazılır" className={ctrl} />
           )}
           <button type="button" onClick={() => report.open(printDoc)} disabled={!filtered.length || report.busy}
             title="Listelenen kayıtların PDF'ini gör, sonra gönder / indir"
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand-200 bg-white text-brand-700 text-xs sm:text-sm font-bold hover:bg-brand-50 disabled:opacity-40">
+            className="h-10 flex items-center justify-center gap-1.5 px-4 rounded-xl border border-brand-200 bg-white text-brand-700 text-xs sm:text-sm font-bold hover:bg-brand-50 disabled:opacity-40">
             {report.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {report.busy ? 'Hazırlanıyor…' : `PDF Gönder (${filtered.length})`}
           </button>
           {report.msg && <p className="w-full text-xs text-slate-600">{report.msg}</p>}
@@ -484,7 +484,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       </div>
 
       {/* Liste */}
-      <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
+      <div className={`${listCard} overflow-hidden`}>
         {/* Telefon: kart görünümü */}
         <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
           {filtered.length === 0 && (
@@ -496,9 +496,9 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
         </div></NarrowOnly>
         <WideOnly from="md"><div className="overflow-x-auto hidden md:block">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-100 text-[12px] font-bold text-slate-500">
+            <thead className={`${theadCls} text-[12px] font-bold text-slate-500`}>
               <tr>
-                <th className="hidden xl:table-cell py-3 px-3 whitespace-nowrap">Tarih</th>
+                <th className="hidden xl:table-cell py-3 px-3 pl-5 whitespace-nowrap">Tarih</th>
                 <th className="py-3 px-3">{t.party}</th>
                 <th className="py-3 px-3 whitespace-nowrap">{isCollection ? 'Ödeme Şekli / Banka' : 'Şehir'}</th>
                 {isCollection ? <th className="py-3 px-3 whitespace-nowrap">Vade</th> : <th className="py-3 px-3 whitespace-nowrap">Ödeme Şekli</th>}
@@ -619,7 +619,7 @@ const LedgerForm: React.FC<{
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between">
           <h3 className="font-black text-lg tracking-tight">{title}</h3>
           <button type="button" onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white"><X className="w-5 h-5" /></button>
         </div>
@@ -845,7 +845,7 @@ const MultiCollectionForm: React.FC<{
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-5xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between">
           <h3 className="font-black text-lg tracking-tight">Yeni Tahsilat</h3>
           <button type="button" onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white"><X className="w-5 h-5" /></button>
         </div>
@@ -1024,7 +1024,7 @@ const MultiExpenseForm: React.FC<{
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-6xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between">
           <h3 className="font-black text-lg tracking-tight flex-1">Yeni Harcama</h3>
           <label className="mr-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold cursor-pointer" title="Fişin fotoğrafını çekin: tutar, tarih ve tür kendiliğinden dolar">
             <Camera className="w-4 h-4" /> Fişten oku

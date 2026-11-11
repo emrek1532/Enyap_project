@@ -287,9 +287,9 @@ export const SimpleHome: React.FC<{
           </button>
           <div className="flex items-center gap-2 shrink-0">
             <div className="flex flex-1 md:flex-none items-center h-12 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]">
-              <button onClick={() => stepPeriod(-1)} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#0b2a4c]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
-              <span className="flex-1 md:w-36 flex items-center justify-center gap-1.5 text-sm font-black text-[#0b2a4c] whitespace-nowrap"><CalendarDays className="w-4 h-4 text-brand-500" />{title}</span>
-              <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#0b2a4c] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
+              <button onClick={() => stepPeriod(-1)} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#1a3d6d]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
+              <span className="flex-1 md:w-36 flex items-center justify-center gap-1.5 text-sm font-black text-[#1a3d6d] whitespace-nowrap"><CalendarDays className="w-4 h-4 text-brand-500" />{title}</span>
+              <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#1a3d6d] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
             </div>
             <div className="flex h-12 p-1 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]" role="tablist" aria-label="Dönem türü">
               {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
@@ -313,13 +313,13 @@ export const SimpleHome: React.FC<{
       {/* 2. Hızlı işlemler: her ekranda 4 kutu */}
       {quick.length > 0 && (
         <section className="relative">
-          <h2 className="mb-2.5 flex items-center gap-1.5 text-[15px] font-black text-[#0b2a4c]"><Zap className="w-4.5 h-4.5 text-amber-500 fill-amber-400" />Hızlı İşlemler</h2>
+          <h2 className="mb-2.5 flex items-center gap-1.5 text-[15px] font-black text-[#1a3d6d]"><Zap className="w-4.5 h-4.5 text-amber-500 fill-amber-400" />Hızlı İşlemler</h2>
           <div className={`grid gap-2 sm:gap-3 ${quick.length >= 4 ? 'grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {quick.map(x => (
               <button key={x.key} onClick={x.on}
                 className={`min-w-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${x.tone} border border-white shadow-[0_12px_28px_-22px_rgba(15,60,120,0.7)] px-1 py-2.5 sm:py-4 flex flex-col xl:flex-row items-center justify-center gap-1.5 sm:gap-2 xl:gap-3 transition hover:-translate-y-0.5 active:scale-[0.97]`}>
                 <span className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${x.ring} flex items-center justify-center shrink-0 shadow-sm`}><x.icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" /></span>
-                <span className="max-w-full truncate text-[11.5px] sm:text-sm font-black text-[#0b2a4c] text-center leading-tight">{x.label}</span>
+                <span className="max-w-full truncate text-[11.5px] sm:text-sm font-black text-[#1a3d6d] text-center leading-tight">{x.label}</span>
               </button>
             ))}
           </div>
@@ -427,14 +427,14 @@ const PeriodCard: React.FC<{
       <button onClick={big.on} className="w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-slate-50/60">
         <span className="min-w-0">
           <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
-          <span className="block mt-1 text-[30px] sm:text-[40px] leading-none font-black tracking-tight text-[#0b2a4c] tabular-nums truncate">{lira(big.value)}</span>
+          <span className="block mt-1 text-[30px] sm:text-[40px] leading-none font-black tracking-tight text-[#1a3d6d] tabular-nums truncate">{lira(big.value)}</span>
           <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
         </span>
         <span className="hidden sm:block"><Spark values={big.spark} color="#10b981" w={120} h={44} /></span>
       </button>
       {(canQuotes && (conv > 0 || forecast || tPct > 0)) && (
         <div className="mx-4 sm:mx-6 mb-3 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 text-xs font-bold text-slate-700">Dönüşüm <b className="text-[#0b2a4c]">%{conv}</b></span>
+          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 text-xs font-bold text-slate-700">Dönüşüm <b className="text-[#1a3d6d]">%{conv}</b></span>
           {tPct > 0 && <span className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-bold ${tPct >= 100 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}><Target className="w-3.5 h-3.5" />Hedefin %{tPct}'i</span>}
           {forecast && forecast.total > 0 && <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-sky-50 text-xs font-bold text-sky-800"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
         </div>
@@ -447,7 +447,7 @@ const PeriodCard: React.FC<{
                 <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{m.label}</span>
                 <span className="hidden sm:block"><Spark values={m.spark} color={m.color} /></span>
               </span>
-              <span className="block mt-0.5 text-[15px] sm:text-xl font-black text-[#0b2a4c] tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-slate-400"> TL</span></span>
+              <span className="block mt-0.5 text-[15px] sm:text-xl font-black text-[#1a3d6d] tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-slate-400"> TL</span></span>
               <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
             </button>
           ))}
@@ -478,7 +478,7 @@ const DecisionList: React.FC<{
       <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
         <span className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><BellRing className="w-5 h-5" /></span>
         <span className="flex-1 min-w-0">
-          <h2 className="text-base font-black text-[#0b2a4c] truncate">Takip · karar bekleyenler</h2>
+          <h2 className="text-base font-black text-[#1a3d6d] truncate">Takip · karar bekleyenler</h2>
           <p className="text-[11px] text-slate-500 truncate">Onayla ya da yarın aramak üzere ertele</p>
         </span>
         <button onClick={() => onAll(SHOW_ALL[tab])} className="text-[13px] font-bold text-brand-600 shrink-0">Tümü ({tab === 'calls' ? calls.length : tab === 'expiring' ? exp.length : pending.length})</button>
@@ -487,7 +487,7 @@ const DecisionList: React.FC<{
         <div className="px-4 sm:px-5 pb-2 flex gap-1.5 overflow-x-auto" role="tablist">
           {tabs.map(([k, l, n]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-              className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-bold border ${tab === k ? 'bg-[#0b2a4c] border-[#0b2a4c] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+              className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-bold border ${tab === k ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
               {l} <span className={tab === k ? 'text-sky-200' : 'text-slate-400'}>{n}</span>
             </button>
           ))}
@@ -503,7 +503,7 @@ const DecisionList: React.FC<{
           return (
             <li key={q.id} className={`${i >= 4 ? 'max-sm:hidden ' : ''}flex flex-col sm:flex-row sm:items-center gap-2 px-2 py-3`}>
               <button onClick={() => onOpen(q)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
-                <span className="w-10 h-10 rounded-2xl bg-slate-100 text-[#0b2a4c] text-sm font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+                <span className="w-10 h-10 rounded-2xl bg-slate-100 text-[#1a3d6d] text-sm font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
                 <span className="flex-1 min-w-0">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="text-[14px] font-bold text-slate-900 truncate">{q.customerName}</span>
@@ -565,7 +565,7 @@ const TodoList: React.FC<{ className?: string; tone: keyof typeof TONES; icon: R
   <section className={`${className} bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden`}>
     <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
       <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${TONES[tone].icon}`}><Icon className="w-4.5 h-4.5" /></span>
-      <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#0b2a4c]">{title}</h2>
+      <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#1a3d6d]">{title}</h2>
       <span className={`min-w-6 h-6 px-1.5 rounded-full text-white text-xs font-black flex items-center justify-center tabular-nums ${TONES[tone].n}`}>{n}</span>
     </header>
     <TodoCtx.Provider value={tone}><ul className="px-2 sm:px-3 pb-2">{children}</ul></TodoCtx.Provider>
@@ -614,13 +614,13 @@ const MoneyCard: React.FC<{
   return (
     <section className="flex-1 bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden">
       <header className="px-4 sm:px-5 pt-4 pb-2">
-        <h2 className="text-base font-black text-[#0b2a4c] flex items-center gap-2"><Wallet className="w-5 h-5 text-brand-500" />Para özeti</h2>
+        <h2 className="text-base font-black text-[#1a3d6d] flex items-center gap-2"><Wallet className="w-5 h-5 text-brand-500" />Para özeti</h2>
       </header>
       {tabs.length > 0 && (
         <div className="px-4 sm:px-5 pb-1 flex gap-1.5" role="tablist" aria-label="Para özeti">
           {tabs.map(([k, label, n]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPick(k)}
-              className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#0b2a4c] border-[#0b2a4c] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+              className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
               {label} <span className={`tabular-nums ${tab === k ? 'text-sky-200' : 'text-slate-500'}`}>{n}</span>
             </button>
           ))}
@@ -676,7 +676,7 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
     <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-slate-600">{title} teklifleri</p>
-        <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#0b2a4c]">%{conv}</b></p>
+        <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#1a3d6d]">%{conv}</b></p>
       </div>
       <div className="mt-2 h-2.5 rounded-full bg-slate-200 overflow-hidden flex">
         {rows.map(r => total > 0 && <span key={r.key} className={r.c} style={{ width: `${(r.x.value / total) * 100}%` }} />)}
@@ -685,7 +685,7 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
         {rows.map(r => (
           <button key={r.key} onClick={() => onPick(r.key)} className="text-left min-w-0 rounded-lg hover:bg-white px-1 py-0.5">
             <span className="flex items-center gap-1.5 text-[11px] text-slate-500"><i className={`w-2 h-2 rounded-full ${r.c}`} />{r.label} · {r.x.count}</span>
-            <span className="block text-[13px] sm:text-sm font-black text-[#0b2a4c] tabular-nums truncate">{lira(r.x.value)}</span>
+            <span className="block text-[13px] sm:text-sm font-black text-[#1a3d6d] tabular-nums truncate">{lira(r.x.value)}</span>
           </button>
         ))}
       </div>
@@ -697,7 +697,7 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
 const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, icon: Icon, right, className = '', children }) => (
   <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 flex flex-col ${className}`}>
     <header className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 pt-4 pb-2.5">
-      <h2 className="text-[15px] sm:text-base font-black text-[#0b2a4c] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-brand-500 shrink-0" />}<span className="truncate">{title}</span></h2>
+      <h2 className="text-[15px] sm:text-base font-black text-[#1a3d6d] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-brand-500 shrink-0" />}<span className="truncate">{title}</span></h2>
       {right}
     </header>
     {children}
@@ -769,7 +769,7 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
           })}
         </div>
         {t && (
-          <div className="pointer-events-none absolute top-1 z-10 w-48 rounded-xl bg-[#0b2a4c] text-white shadow-lg px-3 py-2 text-xs"
+          <div className="pointer-events-none absolute top-1 z-10 w-48 rounded-xl bg-[#1a3d6d] text-white shadow-lg px-3 py-2 text-xs"
             style={{ left: `calc(2.75rem + (100% - 2.75rem) * ${(tipIdx + 0.5) / bars.length})`, transform: `translateX(${tipIdx < bars.length / 3 ? '-15%' : tipIdx >= (bars.length * 2) / 3 ? '-85%' : '-50%'})` }}>
             <div className="font-black mb-1">{t.label}</div>
             <div className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-sm bg-sky-300" /><span className="flex-1 text-sky-100/80">Verilen</span><b className="tabular-nums">{lira(t.teklif)}</b></div>
@@ -780,7 +780,7 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
       </div>
       <div className={`flex ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-4'} pl-11 mt-2.5`}>
         {bars.map(x => (
-          <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-xs truncate ${x.key === hi ? 'font-bold text-[#0b2a4c]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
+          <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-xs truncate ${x.key === hi ? 'font-bold text-[#1a3d6d]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
         ))}
       </div>
     </div>
@@ -805,7 +805,7 @@ const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRate
         return (
           <li key={q.id} className={i >= 5 ? 'hidden lg:block' : ''}>
             <button onClick={() => onOpen(q)} className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl">
-              <span className="w-9 h-9 rounded-xl bg-slate-100 text-[#0b2a4c] text-xs font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+              <span className="w-9 h-9 rounded-xl bg-slate-100 text-[#1a3d6d] text-xs font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
               <span className="flex-1 min-w-0">
                 <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
                 <span className="block text-[11px] text-slate-500 tabular-nums truncate">{quoteNo(q)}{d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
@@ -858,11 +858,11 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
     <div className="px-4 sm:px-6 pb-5 space-y-3">
       <div className="flex items-center gap-4 sm:gap-5">
         <Donut pct={pct} size={96} stroke={13}>
-          <span className="text-xl font-black text-[#0b2a4c] tabular-nums">{main.target ? `%${pct}` : '–'}</span>
+          <span className="text-xl font-black text-[#1a3d6d] tabular-nums">{main.target ? `%${pct}` : '–'}</span>
         </Donut>
         <div className="min-w-0 flex-1">
           <p className="text-xs text-slate-500">{main.label}</p>
-          <p className="text-lg font-black text-[#0b2a4c] tabular-nums break-all leading-tight">{lira(main.value)}</p>
+          <p className="text-lg font-black text-[#1a3d6d] tabular-nums break-all leading-tight">{lira(main.value)}</p>
           <p className="text-xs text-slate-500 mt-1.5">{main.target ? <>Hedef: {lira(main.target)}</> : 'Hedef konmamış'}</p>
           <div className="relative h-3 rounded-full bg-slate-100 overflow-hidden mt-2">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" style={{ width: `${Math.min(100, pct)}%` }} />
@@ -887,7 +887,7 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
           <span className="w-8 h-8 rounded-xl bg-white text-brand-600 flex items-center justify-center shrink-0"><TrendingUp className="w-4.5 h-4.5" /></span>
           <span className="flex-1 min-w-0">
             <span className="block text-[11px] text-slate-600">Ay sonu satış tahmini</span>
-            <span className="block text-[15px] font-black text-[#0b2a4c] tabular-nums truncate">{lira(forecast.total)}</span>
+            <span className="block text-[15px] font-black text-[#1a3d6d] tabular-nums truncate">{lira(forecast.total)}</span>
           </span>
           {targets.sales > 0 && (() => { const p = Math.round((forecast.total / targets.sales) * 100); return (
             <span className={`shrink-0 text-[11px] font-black px-2 py-1 rounded-full ${p >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>Hedefin %{p}'i</span>

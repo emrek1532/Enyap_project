@@ -1,8 +1,8 @@
 import { createPortal } from 'react-dom';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X } from 'lucide-react';
-import { listCard, ctrl, rowCls, SearchBox, UnderlineTabs, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
+import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X, MapPin } from 'lucide-react';
+import { listCard, ctrl, rowCls, theadCls, SearchBox, ChipRow, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, isPendingQuote, isExpiring, daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
 import { localDay } from '../lib/dates';
@@ -360,14 +360,14 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <DateInput value={dateTo} onChange={v => { setDateTo(v); setPage(0); }} className="w-full sm:w-24 bg-transparent text-xs text-slate-700 focus:outline-none" />
             </div>
             <button type="button" onClick={() => setShowMore(v => !v)}
-              className={`${ctrl} col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 font-bold ${showMore ? 'border-brand-300 text-brand-700 bg-brand-50' : ''}`}>
-              <Filter className="w-4 h-4" /> Sırala
+              title="Sırala" className={`${ctrl} col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 font-bold ${showMore ? 'border-brand-300 text-brand-700 bg-brand-50' : ''}`}>
+              <Filter className="w-4 h-4" /> <span className="xl:hidden 2xl:inline">Sırala</span>
             </button>
             <div className="col-span-2 sm:col-span-1 flex h-10 p-1 rounded-xl bg-slate-100" role="tablist" aria-label="Görünüm">
               {([['list', 'Liste', LayoutList], ['board', 'Pano', Columns3]] as const).map(([k, label, Icon]) => (
-                <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}
+                <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} title={label}
                   className={`flex-1 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold ${view === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
-                  <Icon className="w-4 h-4" />{label}
+                  <Icon className="w-4 h-4" /><span className="xl:hidden 2xl:inline">{label}</span>
                 </button>
               ))}
             </div>
@@ -392,8 +392,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           </div>
         )}
         {/* Hızlı tarih */}
-        <div className="px-3 sm:px-4">
-          <UnderlineTabs small value={activePreset} onChange={k => {
+        <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+          <ChipRow value={activePreset} onChange={k => {
             const p = datePresets.find(x => x[0] === k)!;
             if (activePreset === k) { setDateFrom(''); setDateTo(''); } else { setDateFrom(p[1]); setDateTo(p[2]); }
             setPage(0);
@@ -401,12 +401,12 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div>
         {/* Kayıtlı filtreler: tek dokunuşla uygula */}
         {(saved.length > 0 || filtering) && (
-          <div className="px-3 sm:px-4 pt-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="px-3 sm:px-4 pb-3 sm:pb-4 -mt-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <Bookmark className="w-4 h-4 text-slate-400 shrink-0" />
             {saved.map(f => {
               const on = savedActive(f);
               return (
-                <span key={f.name} className={`shrink-0 inline-flex items-center rounded-full border text-xs font-bold ${on ? 'bg-[#0b2a4c] border-[#0b2a4c] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+                <span key={f.name} className={`shrink-0 inline-flex items-center rounded-full border text-xs font-bold ${on ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
                   <button type="button" onClick={() => (on ? resetFilters() : applySaved(f))} className="pl-3 pr-1.5 py-1.5 whitespace-nowrap">{f.name}</button>
                   <button type="button" onClick={() => confirm(`"${f.name}" kayıtlı filtresi kaldırılsın mı?`) && setSaved(saved.filter(x => x.name !== f.name))}
                     aria-label={`${f.name} filtresini kaldır`} className={`pr-2 py-1.5 ${on ? 'text-sky-200' : 'text-slate-400 hover:text-rose-600'}`}><X className="w-3.5 h-3.5" /></button>
@@ -418,9 +418,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             )}
           </div>
         )}
+      </div>
 
+      <div className={`${listCard} overflow-hidden`}>
         {selected.size > 0 && (
-          <div className="mx-3 sm:mx-4 mt-3 flex items-center gap-2 rounded-xl bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-brand-800">
+          <div className="mx-3 sm:mx-4 my-3 flex items-center gap-2 rounded-xl bg-brand-50 border border-brand-100 px-3 py-2 text-xs text-brand-800">
             <b>{selected.size} teklif seçili</b>
             <span className="text-brand-600/80 tabular-nums">· {formatTl(quotes.filter(q => selected.has(q.id)).reduce((t, q) => t + (netTry.get(q.id) || 0), 0))}</span>
             <span className="flex-1" />
@@ -435,7 +437,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
         {view === 'list' && (<>
         {/* Telefon: kartlar (sola kaydırınca hızlı işlem) */}
-        <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100 mt-1">
+        <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
           {pageRows.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Arama kriterine uygun teklif bulunamadı.</p>}
           {pageRows.map(quote => (
             <SwipeRow key={quote.id} actions={swipeActions(quote)}>
@@ -471,28 +473,33 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         </div></NarrowOnly>
 
         {/* Tablet / bilgisayar: tablo (teklif no üstte büyük, firma altında) */}
-        <WideOnly from="md"><div className="hidden md:block overflow-x-auto mt-1">
+        <WideOnly from="md"><div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-100">
+            <thead className={theadCls}>
               <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
-                <th className="py-3 pl-4 pr-1 w-8"><input type="checkbox" checked={allOnPage} onChange={toggleAll} aria-label="Sayfadakilerin hepsini seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></th>
-                <SortHeader label="Teklif No / Müşteri" active={sort.key === 'number' || sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
+                <th className="py-3 pl-5 pr-1 w-8"><input type="checkbox" checked={allOnPage} onChange={toggleAll} aria-label="Sayfadakilerin hepsini seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></th>
+                <SortHeader label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
+                <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
                 <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
-                <SortHeader label="Tarih · Şehir" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
+                <SortHeader className="hidden lg:table-cell" label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
                 <SortHeader label="Tutar (KDV Dahil)" align="right" active={sort.key === 'amount'} dir={sort.dir} onClick={() => sortBy('amount', 'desc')} />
                 <th className="py-3 px-3 text-center">İşlemler</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {pageRows.length === 0 && (
-                <tr><td colSpan={6} className="py-8 text-center text-slate-500">Arama kriterine uygun teklif bulunamadı.</td></tr>
+                <tr><td colSpan={7} className="py-8 text-center text-slate-500">Arama kriterine uygun teklif bulunamadı.</td></tr>
               )}
               {pageRows.map(quote => (
                 <tr key={quote.id} className={`${rowCls} ${selected.has(quote.id) ? 'bg-brand-50/50' : ''}`}>
-                  <td className="py-2.5 pl-4 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
-                  <td className="py-2.5 px-3">
-                    <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-black text-[15px] text-brand-700 hover:text-brand-900 whitespace-nowrap tabular-nums leading-tight">{quoteNo(quote)}</button>
-                    <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="block font-semibold text-slate-900 text-left hover:text-brand-700 leading-snug">{quote.customerName}</button>
+                  <td className="py-3 pl-5 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
+                  <td className="py-3 px-3 align-middle">
+                    <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-black text-[15px] text-[#1a3d6d] hover:text-brand-600 whitespace-nowrap tabular-nums leading-tight">{quoteNo(quote)}</button>
+                    <div className="lg:hidden text-[11px] text-slate-500 tabular-nums">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</div>
+                  </td>
+                  <td className="py-3 px-3">
+                    <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="block font-bold text-slate-900 text-left hover:text-brand-700 leading-snug">{quote.customerName}</button>
+                    <span className="mt-0.5 flex items-center gap-1 text-xs text-slate-500"><MapPin className="w-3 h-3 shrink-0" />{quote.city || '-'}</span>
                   </td>
                   <td className="py-3 px-3">
                     <StatusPill status={viewStatus(quote)} />
@@ -501,7 +508,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     {needsFollowUp(quote) && !quote.followUpAt && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)</span>}
                     {isPendingQuote(quote) && <span className="mt-1 flex flex-wrap gap-1">{extraBadges(quote)}</span>}
                   </td>
-                  <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}<div className="text-xs">{quote.city || '-'}</div></td>
+                  <td className="hidden lg:table-cell py-3 px-3 text-slate-600 whitespace-nowrap tabular-nums"><span className="inline-flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-slate-400" />{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</span></td>
                   <td className="py-3 px-3 text-right font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</td>
                   <td className="py-3 px-3">
                     <div className="relative flex items-center justify-center gap-0.5">
@@ -539,7 +546,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl sm:rounded-3xl h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto shadow-2xl">
             
             {/* Modal Header */}
-            <div className="sticky top-0 z-10 px-4 sm:px-6 py-4 pt-safe-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-start justify-between gap-3">
+            <div className="sticky top-0 z-10 px-4 sm:px-6 py-4 pt-safe-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono font-bold bg-white/15 text-white px-2 py-0.5 rounded-md">
@@ -803,7 +810,7 @@ export const CustomerQuotes: React.FC<{
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-3xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden">
-        <div className="px-4 sm:px-6 pb-4 pt-safe bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white">
+        <div className="px-4 sm:px-6 pb-4 pt-safe bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white">
           <div className="pt-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="text-lg sm:text-[22px] font-black tracking-tight leading-tight truncate">{name}</h3>

@@ -35,13 +35,13 @@ export const TodayCalls: React.FC<{
   return (
     <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden">
       <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center justify-between gap-2">
-        <h2 className="text-base font-black text-[#0b2a4c] flex items-center gap-2"><BellRing className="w-5 h-5 text-amber-500" />Takip</h2>
+        <h2 className="text-base font-black text-[#1a3d6d] flex items-center gap-2"><BellRing className="w-5 h-5 text-amber-500" />Takip</h2>
         {list.length > SHOW && <button onClick={() => onAll(tab === 'calls' ? 'takip' : 'expiring')} className="text-xs font-bold text-brand-600">Tümü ({list.length})</button>}
       </header>
       <div className="px-4 sm:px-5 pb-1 flex gap-1.5" role="tablist" aria-label="Takip">
         {tabs.map(([k, label, n]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPick(k)}
-            className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#0b2a4c] border-[#0b2a4c] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+            className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
             {label} <span className={`tabular-nums ${tab === k ? 'text-sky-200' : 'text-slate-500'}`}>{n}</span>
           </button>
         ))}
