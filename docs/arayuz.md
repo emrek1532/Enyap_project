@@ -22,8 +22,11 @@ Bu dosya `CLAUDE.md`'den taşındı; içerik aynıdır. Yalnız bu konuda çalı
 - Müşteri sınıfı (ABC, `abcClasses` `lib/customerInsights.ts`): son 12 ayda onaylanan tutara (TL) göre cironun ilk %80'i A, sonraki %15 B, kalanı C; alımı olmayan sınıfsız. Cihazdaki veriden hesaplanır (ek sorgu yok). Müşteriler listesinde ad yanında rozet, "Tüm sınıflar" süzgeci, sekme "Sessizleşen A-B (60+ gün)" (`QUIET_DAYS`: A/B olup 60 gündür teklif istemeyen aktif firmalar, sahada uğranacaklar); cari kartı başlığında "A müşteri". Raporlar → "Bekleyen ve Pasif Teklifler · Neden?" listesinde her teklifin bekleme günü görünür, dokununca Teklifler'de detayı açılır.
 
 ## Ana sayfa yenilemesi (v1.16.0)
-- Üst bant aynı; 4 rakamın sağında son 6 ayın (yılda 12 ay) küçük çizgisi (`Spark`).
-- Bandın altında "yapılacaklar" sırası: Size atanan talepler, Kontrol bekleyen teklifler, Takip (`TodayCalls`); yan yana, hiçbiri yoksa sıra görünmez (`empty:hidden`).
-- Bilgisayarda iki bağımsız sütun (`lg:items-start`, biri uzayınca öbüründe boşluk kalmaz): solda Satış Performansı + Son Teklifler (7; teklif no, Pasif rozeti), sağda Aylık Hedef (+ bu ayda "Ay sonu satış tahmini", `lib/forecast.ts` `monthForecast`, raporlardaki `ForecastCard` ile aynı hesap), Para özeti, En Çok İş Yapılan Firmalar.
-- Telefonda sıra: yapılacaklar, Para özeti, Son Teklifler (5), Aylık Hedef, "Grafik ve firmaları göster" (`home-more`); kapalıyken grafik ve firmalar hiç çizilmez (`useWide('lg')`).
-- Eski ana sayfa yedeği: commit `e405729` (v1.15.2), `git show e405729:src/components/SimpleHome.tsx`.
+Kullanıma göre kuruldu (son 30 gün: 123 teklif çoğu PDF'ten, 171 durum değişikliği, 39 tahsilat, 20 harcama). Koyu üst bant kaldırıldı; açık zemin.
+- Başlık: tarih + sürüm, selam; sağda (tablette altta) dönem: ‹ Kasım 2026 › + Ay | Yıl.
+- Hızlı işlemler: Yeni Teklif (dolu mavi), Tahsilat, Harcama, Ara · Sor (telefonda yok, üst çubukta arama var). Telefonda 3, tablet/bilgisayarda 4 kutu; açıklama yazısı yalnız xl+.
+- Dönem kartı (`PeriodCard`): büyük satış rakamı + değişim + çizgi; Dönüşüm, Hedefin %'si, Ay sonu tahmini (`lib/forecast.ts`) etiketleri; altta Verilen teklif / Tahsilat / Harcama (küçük çizgili).
+- Karar bekleyen teklifler (`DecisionList`, `isPendingQuote`): önce bugün aranacak, sonra süresi dolan, sonra en yeni; sekmeler Hepsi / Bugün ara / Süresi doluyor; satırda "Yarın ara" (`followUpAt` = yarın) ve "Onayla" (iki dokunuş: Onayla → Evet, onayla). App: `onSetStatus` = `handleUpdateQuoteStatus`, `onPatchQuote` = `handlePatchQuote` (teklif düzenleme yetkisi varsa). En çok 6 satır (telefonda 4).
+- Gelen işler: atanan talepler + kontrol bekleyen teklifler tek kartta (etiketli); yoksa görünmez. Takip kartı (`TodayCalls`) ana sayfadan kalktı (karar listesine girdi). En Çok İş Yapılan Firmalar kaldırıldı.
+- Bilgisayarda iki bağımsız sütun (solda dönem, karar listesi, grafik; sağda gelen işler, para özeti, son teklifler, aylık hedef). Telefon/tablet dik sırası: dönem, gelen işler, karar listesi, para özeti, son teklifler, "Grafik ve hedefi göster" (`home-more`; kapalıyken çizilmez).
+- Eski ana sayfa yedeği: commit `e405729` (v1.15.2).

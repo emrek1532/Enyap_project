@@ -954,6 +954,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
               reviewQuotes={profile.isAdmin ? liveQuotes.filter(q => q.reviewPending) : []}
               myRequests={requests.filter(r => r.assignedTo === profile.id && (r.status === 'yeni' || r.status === 'hazirlaniyor'))}
               onOpenRequest={id => setOpenRequestId(id)}
+              onSetStatus={can(profile, 'quotes', 'edit') ? handleUpdateQuoteStatus : undefined}
+              onPatchQuote={can(profile, 'quotes', 'edit') ? handlePatchQuote : undefined}
               syncStatus={syncStatus}
               onSync={() => performSync(true)}
               onSignOut={handleSignOut}

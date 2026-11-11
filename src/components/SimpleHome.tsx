@@ -1,9 +1,10 @@
 import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Inbox, ClipboardCheck, PauseCircle } from 'lucide-react';
-import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
-import { PENDING_STATUSES, quoteNo, viewStatus } from '../lib/quoteRules';
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Inbox, PauseCircle, Phone } from 'lucide-react';
+import { Collection, Customer, Expense, Quote, QuoteStatus, SyncStatus } from '../types';
+import { PENDING_STATUSES, quoteNo, viewStatus, isPendingQuote, followDue, isExpiring, quoteAgeInDays, daysToExpiry, plusDays } from '../lib/quoteRules';
+import { localDay } from '../lib/dates';
 import { monthForecast } from '../lib/forecast';
 import { useWide } from './ListUI';
 import { quoteTry, useRates } from '../lib/rates';
@@ -11,7 +12,6 @@ import { estimatedBalance } from '../lib/mikroBalance';
 import type { ActiveTab } from './Sections';
 import type { ToolInfo, ToolMode } from './QuickTools';
 import { Targets, useSetting } from '../lib/settings';
-import { TodayCalls } from './TodayCalls';
 
 type Tab = Exclude<ActiveTab, 'home'>;
 /** Teklifler sayfasını süzülmüş açar: durum (all, aktif, takip, onaylandi, iptal) ve tarih aralığı */
@@ -84,7 +84,11 @@ export const SimpleHome: React.FC<{
   /** Bana atanan açık talepler */
   myRequests?: { id: string; customerName: string; note?: string; createdAt: string }[];
   onOpenRequest?: (id: string) => void;
-}> = ({ reviewQuotes = [], myRequests = [], onOpenRequest, quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
+  /** Ana sayfadan teklif durumu (Onayla) */
+  onSetStatus?: (id: string, status: QuoteStatus) => void;
+  /** Ana sayfadan takip günü (Yarın ara) */
+  onPatchQuote?: (id: string, patch: { followUpAt?: string }) => void;
+}> = ({ onSetStatus, onPatchQuote, reviewQuotes = [], myRequests = [], onOpenRequest, quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -219,133 +223,91 @@ export const SimpleHome: React.FC<{
     return { kind: 'month', y: x.getFullYear(), m: x.getMonth() };
   });
 
-  const actions = [
-    canAdd.quote && { label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, primary: true },
-    canAdd.collection && { label: 'Tahsilat', icon: Wallet, on: onNewCollection },
-    canAdd.expense && { label: 'Harcama', icon: Receipt, on: onNewExpense },
-  ].filter(Boolean) as { label: string; icon: React.ElementType; on: () => void; primary?: boolean }[];
+  // ---------- Yeni ana sayfa (v1.16): işe göre düzen ----------
+  // Kullanım: en sık iş teklif girme (PDF) ve bekleyen teklife karar vermek; sonra tahsilat/harcama girmek.
+  const pending = useMemo(() => {
+    const today = localDay();
+    const list = quotes.filter(isPendingQuote);
+    const rank = (q: Quote) => (followDue(q, today) ? 0 : isExpiring(q, today) ? 1 : 2);
+    return list
+      .map(q => ({ q, r: rank(q) }))
+      .sort((a, b) => a.r - b.r || (b.q.createdAt || '').localeCompare(a.q.createdAt || ''))
+      .map(x => x.q);
+  }, [quotes, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const kpis = [
-    canQuotes && { label: 'Verilen teklif', spark: s.spark.map(x => x.teklif), value: s.cur.teklif, sub: `${s.cur.adet} teklif`, prev: s.prevSame.teklif, on: () => openQuotes({ status: 'all', from: monthFrom, to: monthTo }) },
-    canQuotes && { label: 'Satış (onaylanan)', spark: s.spark.map(x => x.onay), value: s.cur.onay, sub: `${s.cur.onayAdet} teklif`, prev: s.prevSame.onay, on: () => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo }) },
-    canMoney && { label: 'Tahsilat', spark: s.spark.map(x => x.tahsilat), value: s.cur.tahsilat, prev: s.prevSame.tahsilat, on: () => onOpen('collections') },
-    canExp && { label: 'Harcama', spark: s.spark.map(x => x.harcama), value: s.cur.harcama, prev: s.prevSame.harcama, on: () => onOpen('expenses'), lowerIsBetter: true },
-  ].filter(Boolean) as { label: string; spark: number[]; value: number; sub?: string; prev: number; on: () => void; lowerIsBetter?: boolean }[];
+  const tiles = [
+    canAdd.quote && { key: 'q', label: 'Yeni Teklif', short: 'Yeni Teklif', sub: 'PDF\'ten ya da elle', icon: FilePlus2, on: onNewQuote, primary: true },
+    canAdd.collection && { key: 'c', label: 'Tahsilat Gir', short: 'Tahsilat', sub: canMoney ? `${title}: ${short(s.cur.tahsilat)} TL` : 'Çek, havale, nakit', icon: Wallet, on: onNewCollection, tone: 'bg-emerald-50 text-emerald-600' },
+    canAdd.expense && { key: 'e', label: 'Harcama Gir', short: 'Harcama', sub: canExp ? `${title}: ${short(s.cur.harcama)} TL` : 'Fiş, fatura', icon: Receipt, on: onNewExpense, tone: 'bg-rose-50 text-rose-500' },
+    { key: 's', label: 'Ara · Sor', short: 'Ara · Sor', wideOnly: true, sub: 'Teklif, müşteri, malzeme', icon: Search, on: () => onOpenTool('search'), tone: 'bg-sky-50 text-sky-600' },
+  ].filter(Boolean) as { key: string; label: string; short: string; wideOnly?: boolean; sub: string; icon: React.ElementType; on: () => void; primary?: boolean; tone?: string }[];
 
-  const today = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
+  const now2 = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
   const hello = now.getHours() < 12 ? 'Günaydın' : now.getHours() < 18 ? 'İyi günler' : 'İyi akşamlar';
   const conv = s.cur.teklif ? Math.round((s.cur.onay / s.cur.teklif) * 100) : 0;
-  const glass = 'bg-white/10 hover:bg-white/15 border border-white/15 text-white';
+  const hasInbox = myRequests.length > 0 || reviewQuotes.length > 0;
 
   return (
-    <div className="pb-4 space-y-4 sm:space-y-5">
-      {/* Üst bant: selam, dönem, tek arama çubuğu, hızlı işlemler ve dönemin rakamları */}
-      <section className="relative overflow-hidden rounded-3xl bg-[#0b2a4c] text-white px-4 pt-4 pb-3 sm:px-7 sm:pt-6 sm:pb-5">
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-32 w-96 h-96 rounded-full bg-brand-500/25 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-sky-400/10 blur-3xl" />
-        <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm text-sky-200/80"><span className="capitalize">{today}</span><span className="ml-2 text-[11px] text-sky-200/50 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>
-            <h1 className="text-xl sm:text-[26px] font-black tracking-tight leading-tight truncate">{hello}, {firstName}</h1>
-          </div>
-          <div className="flex items-center gap-2 lg:shrink-0">
-            {(canQuotes || canMoney) && (
-              <div className="flex flex-1 sm:flex-none items-center gap-1">
-                <button onClick={() => stepPeriod(-1)} className={`w-9 h-9 rounded-xl flex items-center justify-center ${glass}`} aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'} title={isYear ? 'Önceki yıl' : 'Önceki ay'}>
-                  <ChevronLeft className="w-4.5 h-4.5" />
-                </button>
-                <span className={`flex flex-1 sm:flex-none items-center justify-center gap-1.5 h-9 px-3 rounded-xl text-sm font-bold ${glass} hover:bg-white/10`}>
-                  <CalendarDays className="hidden sm:block w-4 h-4 text-sky-300" />
-                  <span className="whitespace-nowrap">{title}</span>
-                </span>
-                <button onClick={() => stepPeriod(1)} disabled={isCurrent} className={`w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none ${glass}`} aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'} title={isYear ? 'Sonraki yıl' : 'Sonraki ay'}>
-                  <ChevronRight className="w-4.5 h-4.5" />
-                </button>
-                <div className="flex h-9 p-0.5 rounded-xl bg-white/10 border border-white/15 ml-1" role="tablist" aria-label="Dönem türü">
-                  {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
-                    <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
-                      className={`px-3 rounded-[10px] text-[13px] font-bold transition ${period.kind === k ? 'bg-white text-[#0b2a4c]' : 'text-sky-100 hover:text-white'}`}>{l}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+    <div className="pb-6 space-y-4 sm:space-y-5">
+      {/* 1. Başlık: selam + dönem seçimi (açık zemin, sade) */}
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 pt-1">
+        <div className="min-w-0">
+          <p className="text-[13px] text-slate-500"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-slate-400 tabular-nums">v{__APP_VERSION__}</span></p>
+          <h1 className="text-2xl sm:text-[28px] font-black tracking-tight text-[#0b2a4c] leading-tight truncate">{hello}, {firstName}</h1>
         </div>
-
-        {/* Bilgisayarda: tek arama kutusu (içinde diğer kısayollar) + hızlı işlemler */}
-        <div className="relative mt-5 hidden md:flex gap-2.5 items-center">
-          <div className="flex-1 min-w-0 flex items-center h-12 px-4 rounded-2xl bg-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
-            <button onClick={() => onOpenTool('search')} className="flex-1 min-w-0 h-full flex items-center gap-3 text-left text-slate-500">
-              <Search className="w-5 h-5 text-brand-600 shrink-0" />
-              <span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
-            </button>
+        {(canQuotes || canMoney) && (
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 sm:flex-none items-center h-11 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <button onClick={() => stepPeriod(-1)} className="w-11 h-full flex items-center justify-center text-slate-600 hover:text-[#0b2a4c]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
+              <span className="flex-1 sm:w-36 text-center text-sm font-black text-[#0b2a4c] whitespace-nowrap">{title}</span>
+              <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-11 h-full flex items-center justify-center text-slate-600 hover:text-[#0b2a4c] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
+            </div>
+            <div className="flex h-11 p-1 rounded-2xl bg-slate-200/70" role="tablist" aria-label="Dönem türü">
+              {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
+                <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
+                  className={`px-4 rounded-xl text-sm font-bold ${period.kind === k ? 'bg-white text-[#0b2a4c] shadow-sm' : 'text-slate-600'}`}>{l}</button>
+              ))}
+            </div>
           </div>
-          {actions.map(a => (
-            <button key={a.label} onClick={a.on}
-              className={`flex items-center gap-2 h-12 px-4 rounded-2xl text-sm font-bold whitespace-nowrap shrink-0 ${a.primary ? 'bg-brand-500 hover:bg-brand-400 text-white shadow-[0_10px_24px_-10px_rgba(14,140,240,0.9)]' : glass}`}>
-              <a.icon className="w-4.5 h-4.5" /><span className={a.primary ? '' : 'hidden lg:inline'}>{a.label}</span>
+        )}
+      </header>
+
+      {/* 2. Hızlı işlemler: büyük, parmakla kolay basılan 4 kutu */}
+      {tiles.length > 0 && (
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3">
+          {tiles.map(x => (
+            <button key={x.key} onClick={x.on}
+              className={`${x.wideOnly ? 'max-md:hidden' : ''} group rounded-3xl p-3 xl:p-4 min-h-[84px] flex flex-col items-center xl:items-start justify-center xl:justify-between gap-2 text-center xl:text-left transition active:scale-[0.97] ${x.primary
+                ? 'bg-gradient-to-br from-brand-500 to-[#0b5fb0] text-white shadow-[0_14px_30px_-14px_rgba(14,120,220,0.9)]'
+                : 'bg-white border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] hover:border-sky-200'}`}>
+              <span className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${x.primary ? 'bg-white/20' : x.tone}`}><x.icon className="w-5 h-5" /></span>
+              <span className="min-w-0 w-full">
+                <span className={`block text-[13px] xl:text-[15px] font-black leading-tight truncate ${x.primary ? '' : 'text-[#0b2a4c]'}`}><span className="xl:hidden">{x.short}</span><span className="hidden xl:inline">{x.label}</span></span>
+                <span className={`hidden xl:block text-xs truncate ${x.primary ? 'text-sky-100' : 'text-slate-500'}`}>{x.sub}</span>
+              </span>
             </button>
           ))}
         </div>
+      )}
 
-        {/* Telefonda: işlemler 3'lü (arama, sor, hazırla, sesle üst çubuktaki arama kutusundan açılır) */}
-        <div className="relative mt-4 md:hidden space-y-2">
-          {actions.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {actions.map(a => (
-                <button key={a.label} onClick={a.on}
-                  className={`flex items-center justify-center gap-1.5 h-11 rounded-2xl text-[13px] font-bold ${a.primary ? 'bg-brand-500 text-white' : 'bg-white text-[#0b2a4c]'}`}>
-                  <a.icon className="w-4 h-4" />{a.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Dönemin rakamları: tutar, geçen döneme göre değişim ve son ayların küçük çizgisi */}
-        {kpis.length > 0 && (
-          <div className="relative mt-4 sm:mt-6 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden bg-white/10">
-            {kpis.map(k => (
-              <button key={k.label} onClick={k.on} className="group text-left bg-[#0b2a4c] hover:bg-[#0f335c] px-3 py-3 sm:px-4 sm:py-3.5 min-w-0">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] sm:text-xs text-sky-200/80 font-semibold truncate">{k.label}</span>
-                  <Spark values={k.spark} color={k.lowerIsBetter ? '#fda4af' : '#7dd3fc'} />
-                </span>
-                <span className="block mt-0.5 text-lg sm:text-2xl font-black tabular-nums truncate">{lira(k.value)}</span>
-                <span className="mt-1 flex items-center gap-1.5 text-[11px] sm:text-xs text-sky-100/70 min-w-0">
-                  <Change cur={k.value} prev={k.prev} lowerIsBetter={k.lowerIsBetter} dark />
-                  <span className="truncate">{k.sub && <span className="hidden sm:inline">{k.sub} · </span>}{isYear ? 'geçen yıla göre' : 'geçen aya göre'}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Bugün yapılacaklar: atanan talepler, kontrol bekleyen teklifler, takip (boşsa hiç görünmez) */}
-      <div className="grid gap-4 sm:gap-5 md:grid-cols-[repeat(auto-fit,minmax(300px,1fr))] empty:hidden">
-        {myRequests.length > 0 && (
-          <TodoList tone="emerald" icon={Inbox} title="Size atanan talepler" n={myRequests.length}>
-            {myRequests.slice(0, 4).map(r => (
-              <TodoRow key={r.id} onClick={() => onOpenRequest?.(r.id)} title={r.customerName} sub={r.note} />
-            ))}
-          </TodoList>
-        )}
-        {reviewQuotes.length > 0 && (
-          <TodoList tone="sky" icon={ClipboardCheck} title="Kontrol bekleyen teklifler" n={reviewQuotes.length}>
-            {reviewQuotes.slice(0, 4).map(q => (
-              <TodoRow key={q.id} onClick={() => (onShowQuote || onOpenQuote)(q)} title={q.customerName} sub={`${quoteNo(q)} · ${lira(quoteTry(q, rates))}`} />
-            ))}
-          </TodoList>
-        )}
-        {canQuotes && <TodayCalls quotes={quotes} rates={rates} onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })} />}
-      </div>
-
-      {/* Bilgisayarda iki bağımsız sütun (biri uzayınca öbüründe boşluk kalmaz); telefonda tek sütun, sıra order ile */}
-      <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:items-start">
+      {/* 3. Gövde: geniş ekranda iki sütun (bağımsız), tablette/telefonda tek sütun */}
+      <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] lg:items-start">
         <div className="max-lg:contents lg:flex lg:flex-col lg:gap-5 min-w-0">
+          {(canQuotes || canMoney) && (
+            <PeriodCard className="max-lg:order-1" title={title} isYear={isYear} cur={s.cur} prev={s.prevSame} spark={s.spark} conv={conv}
+              canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} forecast={isCurrent && !isYear ? forecast : undefined}
+              onOpenSales={() => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo })}
+              onOpenQuotes={() => openQuotes({ status: 'all', from: monthFrom, to: monthTo })}
+              onOpenCollections={() => onOpen('collections')} onOpenExpenses={() => onOpen('expenses')} />
+          )}
+          {canQuotes && (
+            <DecisionList className="max-lg:order-3" pending={pending} rates={rates}
+              onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })}
+              onApprove={onSetStatus ? q => onSetStatus(q.id, 'onaylandi') : undefined}
+              onTomorrow={onPatchQuote ? q => onPatchQuote(q.id, { followUpAt: plusDays(1) }) : undefined} />
+          )}
           {canQuotes && showMore && (
-            <Card className="max-lg:order-6" title="Satış Performansı" icon={BarChart3}
+            <Card className="max-lg:order-7" title="Satış Grafiği" icon={BarChart3}
               right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
               <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
                 <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-sky-300" />Verilen teklif</span>
@@ -358,34 +320,39 @@ export const SimpleHome: React.FC<{
               <StatusSplit st={s.status} conv={conv} title={title} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />
             </Card>
           )}
-          {canQuotes && (
-            <Card className="max-lg:order-3" title="Son Teklifler" icon={FileText} right={<SeeAll onClick={() => openQuotes({ status: 'all' })} />}>
-              <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
-            </Card>
-          )}
         </div>
         <div className="max-lg:contents lg:flex lg:flex-col lg:gap-5 min-w-0">
-          {(canQuotes || canMoney) && !isYear && (
-            <Card className="max-lg:order-4" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
-              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} forecast={isCurrent && canQuotes ? forecast : undefined} />
-            </Card>
+          {hasInbox && (
+            <TodoList className="max-lg:order-2" tone="sky" icon={Inbox} title="Gelen işler" n={myRequests.length + reviewQuotes.length}>
+              {myRequests.slice(0, 4).map(r => (
+                <TodoRow key={r.id} onClick={() => onOpenRequest?.(r.id)} tag="Talep" title={r.customerName} sub={r.note} />
+              ))}
+              {reviewQuotes.slice(0, 4).map(q => (
+                <TodoRow key={q.id} onClick={() => (onShowQuote || onOpenQuote)(q)} tag="Kontrol" title={q.customerName} sub={`${quoteNo(q)} · ${lira(quoteTry(q, rates))}`} />
+              ))}
+            </TodoList>
           )}
           {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
-            <div className="max-lg:order-2 min-w-0 flex">
+            <div className="max-lg:order-4 min-w-0 flex">
               <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
                 onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />
             </div>
           )}
-          {canQuotes && showMore && (
-            <Card className="max-lg:order-7" title="En Çok İş Yapılan Firmalar" icon={Building2} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
-              <FirmsCard firms={s.firms} onOpen={onOpenCustomer} />
+          {canQuotes && (
+            <Card className="max-lg:order-5" title="Son Teklifler" icon={FileText} right={<SeeAll onClick={() => openQuotes({ status: 'all' })} />}>
+              <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
+            </Card>
+          )}
+          {(canQuotes || canMoney) && !isYear && showMore && (
+            <Card className="max-lg:order-8" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
+              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
             </Card>
           )}
         </div>
-        {canQuotes && (
+        {(canQuotes || canMoney) && (
           <button type="button" onClick={toggleMore} aria-expanded={more}
-            className="lg:hidden order-5 h-11 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-[#0b2a4c] flex items-center justify-center gap-2">
-            <BarChart3 className="w-4 h-4 text-brand-500" />{more ? 'Grafik ve firmaları gizle' : 'Grafik ve firmaları göster'}
+            className="lg:hidden order-6 h-12 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-[#0b2a4c] flex items-center justify-center gap-2">
+            <BarChart3 className="w-4 h-4 text-brand-500" />{more ? 'Grafik ve hedefi gizle' : 'Grafik ve hedefi göster'}
             <ChevronDown className={`w-4 h-4 transition-transform ${more ? 'rotate-180' : ''}`} />
           </button>
         )}
@@ -394,11 +361,144 @@ export const SimpleHome: React.FC<{
   );
 };
 
+/** Dönem kartı: büyük satış rakamı + değişim, altında teklif / tahsilat / harcama (küçük çizgili), dönüşüm ve ay sonu tahmini */
+const PeriodCard: React.FC<{
+  className?: string; title: string; isYear: boolean; cur: Month; prev: Month; spark: Month[]; conv: number;
+  canQuotes: boolean; canMoney: boolean; canExp: boolean; forecast?: { total: number };
+  onOpenSales: () => void; onOpenQuotes: () => void; onOpenCollections: () => void; onOpenExpenses: () => void;
+}> = ({ className = '', title, isYear, cur, prev, spark, conv, canQuotes, canMoney, canExp, forecast, onOpenSales, onOpenQuotes, onOpenCollections, onOpenExpenses }) => {
+  const [targets] = useSetting<Targets>('targets', { sales: 0, collection: 0 });
+  const vs = isYear ? 'geçen yıla göre' : 'geçen aya göre';
+  const big = canQuotes
+    ? { label: 'Satış (onaylanan)', value: cur.onay, prev: prev.onay, sub: `${cur.onayAdet} teklif`, on: onOpenSales, spark: spark.map(x => x.onay) }
+    : { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, sub: '', on: onOpenCollections, spark: spark.map(x => x.tahsilat) };
+  const minis = [
+    canQuotes && { label: 'Verilen teklif', value: cur.teklif, prev: prev.teklif, sub: `${cur.adet} adet`, on: onOpenQuotes, spark: spark.map(x => x.teklif), color: '#38bdf8' },
+    canQuotes && canMoney && { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, on: onOpenCollections, spark: spark.map(x => x.tahsilat), color: '#10b981' },
+    canExp && { label: 'Harcama', value: cur.harcama, prev: prev.harcama, on: onOpenExpenses, spark: spark.map(x => x.harcama), color: '#fb7185', lower: true },
+  ].filter(Boolean) as { label: string; value: number; prev: number; sub?: string; on: () => void; spark: number[]; color: string; lower?: boolean }[];
+  const tPct = targets.sales && canQuotes ? Math.round((cur.onay / targets.sales) * 100) : 0;
+  return (
+    <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden ${className}`}>
+      <button onClick={big.on} className="w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-slate-50/60">
+        <span className="min-w-0">
+          <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
+          <span className="block mt-1 text-[30px] sm:text-[40px] leading-none font-black tracking-tight text-[#0b2a4c] tabular-nums truncate">{lira(big.value)}</span>
+          <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
+        </span>
+        <span className="hidden sm:block"><Spark values={big.spark} color="#10b981" w={120} h={44} /></span>
+      </button>
+      {(canQuotes && (conv > 0 || forecast || tPct > 0)) && (
+        <div className="mx-4 sm:mx-6 mb-3 flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 text-xs font-bold text-slate-700">Dönüşüm <b className="text-[#0b2a4c]">%{conv}</b></span>
+          {tPct > 0 && <span className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-bold ${tPct >= 100 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}><Target className="w-3.5 h-3.5" />Hedefin %{tPct}'i</span>}
+          {forecast && forecast.total > 0 && <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-sky-50 text-xs font-bold text-sky-800"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
+        </div>
+      )}
+      {minis.length > 0 && (
+        <div className={`grid border-t border-slate-100 divide-x divide-slate-100 ${minis.length === 3 ? 'grid-cols-3' : minis.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {minis.map(m => (
+            <button key={m.label} onClick={m.on} className="text-left px-3 sm:px-5 py-3 hover:bg-slate-50 min-w-0">
+              <span className="flex items-center justify-between gap-1">
+                <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{m.label}</span>
+                <span className="hidden sm:block"><Spark values={m.spark} color={m.color} /></span>
+              </span>
+              <span className="block mt-0.5 text-[15px] sm:text-xl font-black text-[#0b2a4c] tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-slate-400"> TL</span></span>
+              <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
+
+/** Karar bekleyen teklifler: önce bugün aranacaklar, sonra süresi dolanlar, sonra en yeniler; satırdan Onayla / Yarın ara */
+const DecisionList: React.FC<{
+  className?: string; pending: Quote[]; rates: ReturnType<typeof useRates>;
+  onOpen: (q: Quote) => void; onAll: (status: string) => void;
+  onApprove?: (q: Quote) => void; onTomorrow?: (q: Quote) => void;
+}> = ({ className = '', pending, rates, onOpen, onAll, onApprove, onTomorrow }) => {
+  const today = localDay();
+  type K = 'all' | 'calls' | 'expiring';
+  const calls = pending.filter(q => followDue(q, today));
+  const exp = pending.filter(q => isExpiring(q, today));
+  const tabs = ([['all', 'Hepsi', pending.length], ['calls', 'Bugün ara', calls.length], ['expiring', 'Süresi doluyor', exp.length]] as [K, string, number][]).filter(x => x[0] === 'all' || x[2] > 0);
+  const [tab, setTab] = useState<K>('all');
+  const [ask, setAsk] = useState<string | null>(null);
+  const [done, setDone] = useState<Record<string, string>>({});
+  const list = (tab === 'calls' ? calls : tab === 'expiring' ? exp : pending).slice(0, 6);
+  const SHOW_ALL: Record<K, string> = { all: 'aktif', calls: 'takip', expiring: 'expiring' };
+  return (
+    <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden ${className}`}>
+      <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
+        <span className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><Clock className="w-5 h-5" /></span>
+        <span className="flex-1 min-w-0">
+          <h2 className="text-base font-black text-[#0b2a4c] truncate">Karar bekleyen teklifler</h2>
+          <p className="text-[11px] text-slate-500 truncate">Onayla ya da takip gününü ver</p>
+        </span>
+        <button onClick={() => onAll(SHOW_ALL[tab])} className="text-[13px] font-bold text-brand-600 shrink-0">Tümü ({tab === 'calls' ? calls.length : tab === 'expiring' ? exp.length : pending.length})</button>
+      </header>
+      {tabs.length > 1 && (
+        <div className="px-4 sm:px-5 pb-2 flex gap-1.5 overflow-x-auto" role="tablist">
+          {tabs.map(([k, l, n]) => (
+            <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+              className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-bold border ${tab === k ? 'bg-[#0b2a4c] border-[#0b2a4c] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+              {l} <span className={tab === k ? 'text-sky-200' : 'text-slate-400'}>{n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {list.length === 0 && <p className="px-5 pb-5 text-sm text-slate-500">Karar bekleyen teklif yok.</p>}
+      <ul className="px-2 sm:px-3 pb-2 divide-y divide-slate-100">
+        {list.map((q, i) => {
+          const age = quoteAgeInDays(q);
+          const due = followDue(q, today);
+          const d2e = daysToExpiry(q, today);
+          const st = done[q.id];
+          return (
+            <li key={q.id} className={`${i >= 4 ? 'max-sm:hidden ' : ''}flex flex-col sm:flex-row sm:items-center gap-2 px-2 py-3`}>
+              <button onClick={() => onOpen(q)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+                <span className="w-10 h-10 rounded-2xl bg-slate-100 text-[#0b2a4c] text-sm font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="text-[14px] font-bold text-slate-900 truncate">{q.customerName}</span>
+                    {due && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">Bugün ara</span>}
+                    {!due && d2e !== null && d2e <= 3 && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600">{d2e < 0 ? 'Süre doldu' : `Süre ${d2e} gün`}</span>}
+                  </span>
+                  <span className="block text-[12px] text-slate-500 tabular-nums truncate">{quoteNo(q)} · {age === 0 ? 'bugün' : `${age} gün önce`} · <b className="text-slate-700">{lira(quoteTry(q, rates))}</b></span>
+                </span>
+              </button>
+              {st ? (
+                <span className="sm:w-[208px] h-10 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold"><Check className="w-4 h-4 mr-1" />{st}</span>
+              ) : (onApprove || onTomorrow) && (
+                <span className="flex gap-2 sm:w-[208px] shrink-0">
+                  {onTomorrow && (
+                    <button onClick={() => { onTomorrow(q); setDone(x => ({ ...x, [q.id]: 'Yarın aranacak' })); }}
+                      className="flex-1 h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1"><Phone className="w-3.5 h-3.5" />Yarın ara</button>
+                  )}
+                  {onApprove && (ask === q.id ? (
+                    <button onClick={() => { onApprove(q); setAsk(null); setDone(x => ({ ...x, [q.id]: 'Onaylandı' })); }}
+                      className="flex-1 h-10 rounded-xl bg-emerald-600 text-white text-xs font-black">Evet, onayla</button>
+                  ) : (
+                    <button onClick={() => setAsk(q.id)}
+                      className="flex-1 h-10 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold flex items-center justify-center gap-1"><Check className="w-3.5 h-3.5" />Onayla</button>
+                  ))}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+};
+
 /** Küçük çizgi grafik (son aylar); hepsi sıfırsa çizilmez */
-const Spark: React.FC<{ values: number[]; color: string }> = ({ values, color }) => {
+const Spark: React.FC<{ values: number[]; color: string; w?: number; h?: number }> = ({ values, color, w = 56, h = 18 }) => {
   const max = Math.max(...values, 0);
   if (values.length < 2 || max <= 0) return null;
-  const W = 56, H = 18;
+  const W = w, H = h;
   const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 2 - (v / max) * (H - 4)]);
   const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
   const [lx, ly] = pts[pts.length - 1];
@@ -417,8 +517,8 @@ const TONES = {
 const TodoCtx = React.createContext<keyof typeof TONES>('sky');
 
 /** Yapılacaklar kartı (talepler / kontrol): başlık, adet rozeti, en çok 4 satır */
-const TodoList: React.FC<{ tone: keyof typeof TONES; icon: React.ElementType; title: string; n: number; children: React.ReactNode }> = ({ tone, icon: Icon, title, n, children }) => (
-  <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden">
+const TodoList: React.FC<{ className?: string; tone: keyof typeof TONES; icon: React.ElementType; title: string; n: number; children: React.ReactNode }> = ({ className = '', tone, icon: Icon, title, n, children }) => (
+  <section className={`${className} bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden`}>
     <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
       <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${TONES[tone].icon}`}><Icon className="w-4.5 h-4.5" /></span>
       <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#0b2a4c]">{title}</h2>
@@ -427,11 +527,12 @@ const TodoList: React.FC<{ tone: keyof typeof TONES; icon: React.ElementType; ti
     <TodoCtx.Provider value={tone}><ul className="px-2 sm:px-3 pb-2">{children}</ul></TodoCtx.Provider>
   </section>
 );
-const TodoRow: React.FC<{ title: string; sub?: string; onClick: () => void }> = ({ title, sub, onClick }) => {
+const TodoRow: React.FC<{ title: string; sub?: string; tag?: string; onClick: () => void }> = ({ title, sub, tag, onClick }) => {
   const tone = React.useContext(TodoCtx);
   return (
     <li>
       <button onClick={onClick} className="w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-slate-50">
+        {tag && <span className="shrink-0 w-16 text-center text-[10px] font-black px-1.5 py-1 rounded-md bg-slate-100 text-slate-600">{tag}</span>}
         <span className="flex-1 min-w-0">
           <span className="block text-[13px] font-semibold text-slate-800 truncate">{title}</span>
           {sub && <span className="block text-[11px] text-slate-500 truncate">{sub}</span>}
@@ -548,33 +649,6 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
   );
 };
 
-/** Dönemin en çok iş yapılan 5 firması: onaylanan tutar (çubuk), teklif adedi ve dönüşüm; dokununca firma kartı açılır */
-const FirmsCard: React.FC<{ firms: { name: string; onay: number; teklif: number; adet: number }[]; onOpen?: (name: string) => void }> = ({ firms, onOpen }) => {
-  if (!firms.length) return <p className="px-5 pb-5 text-sm text-slate-500">Bu dönemde teklif yok.</p>;
-  const max = Math.max(1, ...firms.map(f => f.teklif));
-  return (
-    <div className="px-2 sm:px-3 pb-3">
-      {firms.map((f, i) => (
-        <button key={f.name} onClick={() => onOpen?.(f.name)} disabled={!onOpen}
-          className="w-full flex items-center gap-3 px-2 py-2 rounded-xl text-left hover:bg-slate-50 disabled:hover:bg-transparent">
-          <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
-          <span className="flex-1 min-w-0">
-            <span className="flex items-baseline justify-between gap-2">
-              <span className="text-[13px] font-semibold text-slate-800 truncate">{f.name}</span>
-              <span className="text-[13px] font-black text-[#0b2a4c] tabular-nums shrink-0">{lira(f.onay)}</span>
-            </span>
-            <span className="relative block mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-              <span className="absolute inset-y-0 left-0 rounded-full bg-sky-200" style={{ width: `${(f.teklif / max) * 100}%` }} />
-              <span className="absolute inset-y-0 left-0 rounded-full bg-emerald-500" style={{ width: `${(f.onay / max) * 100}%` }} />
-            </span>
-            <span className="block mt-0.5 text-[11px] text-slate-500 truncate">{f.adet} teklif · {f.teklif >= 1e6 ? `${(f.teklif / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} milyon` : `${Math.round(f.teklif / 1e3).toLocaleString('tr-TR')} bin`} TL verildi · %{f.teklif ? Math.round((f.onay / f.teklif) * 100) : 0} onay</span>
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-};
-
 /** Beyaz kart: simge + başlık, sağda isteğe bağlı bağlantı/sekme */
 const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, icon: Icon, right, className = '', children }) => (
   <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 flex flex-col ${className}`}>
@@ -674,9 +748,9 @@ const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRate
                 <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
                 <span className="block text-[11px] text-slate-500 tabular-nums truncate">{quoteNo(q)}{d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
               </span>
-              <span className="flex flex-col sm:flex-row-reverse items-end sm:items-center gap-1 sm:gap-3 shrink-0">
+              <span className="flex flex-col 2xl:flex-row-reverse items-end 2xl:items-center gap-1 2xl:gap-3 shrink-0">
                 <span className="text-[13px] font-black text-slate-900 tabular-nums whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
-                <span className={`inline-flex items-center sm:justify-center gap-1 sm:w-24 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 sm:py-1 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
+                <span className={`inline-flex items-center 2xl:justify-center gap-1 2xl:w-24 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
               </span>
             </button>
           </li>
