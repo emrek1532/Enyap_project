@@ -137,15 +137,15 @@ export const PageHeader: React.FC<{
   <div className="mb-4 sm:mb-5 space-y-3 sm:space-y-4">
     {hero ? (
       /* ENYAP Teklifler bandı: ~130px, solda simge + başlık, sağda fotoğraf (solu açık zemine karışır) */
-      <section className={`relative overflow-hidden rounded-2xl border shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)] ${hero.materials ? 'border-[#006DBB] bg-[#075A9C]' : hero.cust ? 'border-[#E2EAF3] bg-gradient-to-r from-[#F7FBFE] via-[#EAF5FC] to-[#EAF5FC]' : 'border-[#DCE8F5] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF4FC]'}`}>
+      <section className={`relative overflow-hidden rounded-2xl border shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)] ${hero.materials ? 'border-[#DCE8F5] bg-white' : hero.cust ? 'border-[#E2EAF3] bg-gradient-to-r from-[#F7FBFE] via-[#EAF5FC] to-[#EAF5FC]' : 'border-[#DCE8F5] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF4FC]'}`}>
         {hero.art
           ? <div aria-hidden className="pointer-events-none select-none absolute inset-y-0 right-0 w-[64%] sm:w-[58%] lg:w-[54%] [&>svg]:w-full [&>svg]:h-full">{hero.art}</div>
           : <picture aria-hidden>
             <source media="(min-width: 768px)" srcSet={hero.lg} />
-            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'inset-x-0 w-full object-[70%_center] sm:object-center' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
+            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'w-[76%] sm:w-[68%] lg:w-[62%] object-[70%_center] sm:object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_52%)]' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
           </picture>}
         {hero.materials
-          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#062F60]/70 via-[#064B8D]/35 to-transparent" />
+          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[34%] via-white/70 via-[49%] to-transparent to-[75%] sm:from-[38%] sm:via-[54%] lg:from-[42%] lg:via-[57%]" />
           : hero.cust
           ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#EAF5FC]/75 from-[30%] via-[#EAF5FC]/20 via-[53%] to-transparent to-[76%]" />
           : <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]" />}
@@ -159,8 +159,8 @@ export const PageHeader: React.FC<{
             <Icon className="w-7 h-7" />
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className={`font-black text-2xl sm:text-[30px] tracking-tight leading-tight ${hero.materials ? 'text-white' : hero.cust ? 'text-[#0B2343]' : 'text-[#123B68]'}`}>{title}</h1>
-            {subtitle && <p className={`mt-0.5 text-xs sm:text-[15px] line-clamp-2 max-w-[62%] ${hero.materials ? 'text-white/90 max-w-[75%] sm:max-w-[58%]' : hero.cust ? 'text-[#7186A3] sm:max-w-[52%] lg:max-w-[46%]' : 'text-[#17477D]/80 sm:max-w-none'}`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
+            <h1 className={`font-black text-2xl sm:text-[30px] tracking-tight leading-tight ${hero.materials ? 'text-[#0B2343]' : hero.cust ? 'text-[#0B2343]' : 'text-[#123B68]'}`}>{title}</h1>
+            {subtitle && <p className={`mt-0.5 text-xs sm:text-[15px] line-clamp-2 max-w-[62%] ${hero.materials ? 'text-[#17477D]/80 max-w-[80%] sm:max-w-[65%] lg:max-w-[62%]' : hero.cust ? 'text-[#7186A3] sm:max-w-[52%] lg:max-w-[46%]' : 'text-[#17477D]/80 sm:max-w-none'}`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
           </div>
           {tools}
           {secondary && (
