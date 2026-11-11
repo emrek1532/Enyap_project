@@ -361,13 +361,13 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             </div>
             <button type="button" onClick={() => setShowMore(v => !v)}
               title="Sırala" className={`${ctrl} col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 font-bold ${showMore ? 'border-brand-300 text-brand-700 bg-brand-50' : ''}`}>
-              <Filter className="w-4 h-4" /> <span className="xl:hidden 2xl:inline">Sırala</span>
+              <Filter className="w-4 h-4" /> <span className="xl:hidden min-[1440px]:inline">Sırala</span>
             </button>
             <div className="col-span-2 sm:col-span-1 flex h-10 p-1 rounded-xl bg-slate-100" role="tablist" aria-label="Görünüm">
               {([['list', 'Liste', LayoutList], ['board', 'Pano', Columns3]] as const).map(([k, label, Icon]) => (
                 <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} title={label}
-                  className={`flex-1 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold ${view === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>
-                  <Icon className="w-4 h-4" /><span className="xl:hidden 2xl:inline">{label}</span>
+                  className={`flex-1 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold ${view === k ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                  <Icon className="w-4 h-4" /><span className="xl:hidden min-[1440px]:inline">{label}</span>
                 </button>
               ))}
             </div>
@@ -477,8 +477,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
           <table className="w-full text-left text-sm">
             <thead className={theadCls}>
               <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">
-                <th className="py-3 pl-5 pr-1 w-8"><input type="checkbox" checked={allOnPage} onChange={toggleAll} aria-label="Sayfadakilerin hepsini seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></th>
-                <SortHeader label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
+                <th className="hidden lg:table-cell py-3 pl-5 pr-1 w-8"><input type="checkbox" checked={allOnPage} onChange={toggleAll} aria-label="Sayfadakilerin hepsini seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></th>
+                <SortHeader className="max-lg:pl-4" label="Teklif No" active={sort.key === 'number'} dir={sort.dir} onClick={() => sortBy('number', 'desc')} />
                 <SortHeader label="Müşteri & Şehir" active={sort.key === 'customer'} dir={sort.dir} onClick={() => sortBy('customer', 'asc')} />
                 <SortHeader label="Durum" active={sort.key === 'status'} dir={sort.dir} onClick={() => sortBy('status', 'asc')} />
                 <SortHeader className="hidden lg:table-cell" label="Tarih" active={sort.key === 'date'} dir={sort.dir} onClick={() => sortBy('date', 'desc')} />
@@ -492,8 +492,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               )}
               {pageRows.map(quote => (
                 <tr key={quote.id} className={`${rowCls} ${selected.has(quote.id) ? 'bg-brand-50/50' : ''}`}>
-                  <td className="py-3 pl-5 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
-                  <td className="py-3 px-3 align-middle">
+                  <td className="hidden lg:table-cell py-3 pl-5 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
+                  <td className="py-3 px-3 max-lg:pl-4 align-middle">
                     <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-black text-[15px] text-[#1a3d6d] hover:text-brand-600 whitespace-nowrap tabular-nums leading-tight">{quoteNo(quote)}</button>
                     <div className="lg:hidden text-[11px] text-slate-500 tabular-nums">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</div>
                   </td>

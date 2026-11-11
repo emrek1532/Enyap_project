@@ -36,7 +36,7 @@ import { findCustomer } from './lib/customers';
 import { AuthScreen } from './components/AuthScreen';
 import { Header, BandTools } from './components/Header';
 import type { ActiveTab } from './components/Sections';
-import { PageHeader, SECTION_META, SECTION_SUB } from './components/Sections';
+import { HERO_IMG, PageHeader, SECTION_META, SECTION_SUB } from './components/Sections';
 import { Sidebar } from './components/Sidebar';
 import { needsFollowUp, nextRev, quoteNo, supersededMap } from './lib/quoteRules';
 import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
@@ -975,6 +975,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onBack={goBack}
             onHome={goHome}
             stats={headStats}
+            hero={HERO_IMG[activeTab]}
           />
         )}
         
