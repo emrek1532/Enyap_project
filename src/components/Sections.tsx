@@ -112,7 +112,7 @@ export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   requests: { lg: '/hero-talepler-2.webp', sm: '/hero-talepler-2-sm.webp', center: true },
   expenses: { lg: '/hero-expenses.svg', sm: '/hero-expenses.svg' },
   collections: { lg: '/hero-collections.svg', sm: '/hero-collections.svg' },
-  reports: { lg: '/hero-reports.svg', sm: '/hero-reports.svg' },
+  reports: { lg: '/hero-rapor.webp', sm: '/hero-rapor-sm.webp' },
   customers: { lg: '/hero-musteri.webp', sm: '/hero-musteri-sm.webp', cust: true },
 };
 
