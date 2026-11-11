@@ -60,3 +60,11 @@ Renkler: koyu lacivert `#173F73`, lacivert `#204D84`, ana mavi `#006DBB`, canlı
 - Tablo: kod koyu lacivert, fiyat sağa yaslı kalın, Para Birimi rozeti (xl+; altında fiyat yanında), stok eksi → lacivert + "Eksi", 0/boş → gri + "Yok" (kırmızı yok); satır üstünde açık mavi. Form: Malzeme / Fiyat / Stok Bilgileri grupları (stok yalnız gösterilir, Mikro'dan gelir).
 - Firma Fiyat Listeleri sekmesi aynı; firma renkleri (`supplierColor`) ve rozetler ENYAP mavi/turkuaz tonlarına çevrildi.
 - v1.21.1: Kullanıcı isteğiyle Malzemeler'den 4 özet kutusu (ve Firma sekmesindeki 2 kutu), kategori düğmeleri ve tablodaki/karttaki Stok sütunu kaldırıldı. Stok filtresi ve sıralaması duruyor; sekmedeki kalem sayısı tek `count head` isteğiyle (önceki 4 yerine).
+
+## Müşteriler sayfası ENYAP tasarımı (v1.22.0)
+Renkler: lacivert `#0B2343`, kurumsal lacivert `#173F73`, ENYAP mavisi `#006DBB`, canlı mavi `#009FE3`, turkuaz `#00B49A`, açık mavi `#EAF5FC`, zemin `#F1F6FC`, ikincil metin `#7186A3`, kenar `#E2EAF3`; mor/turuncu/sarı yok (negatif bakiye sade kırmızı).
+- Bant (`HERO_IMG.customers`, `Hero.cust`): ~155px, açık mavi zemin, sağda tokalaşma fotoğrafı (`public/hero-musteri.webp`, telefonda `-sm`; yerel, üzerinde yazı yok), solu açık maviye karışır; "Yeni Müşteri" `#006DBB`. Özet kutuları `cBlue`/`cTeal` (Toplam Müşteri, Bu Ay Teklif Verilen, Bekleyen Teklifi Olan, Son 6 Ayda Satış; `pageStats`, hesap aynı).
+- Sekmeler `UnderlineTabs enyap`. Arama cari kodu (`mikroCode`/`mikroTitle`) da arar (vergi no alanı yok). Seçili filtre mavi çerçeve; hızlı ziyaret filtreleri mavi/lacivert/turkuaz.
+- Tablo: Teklif/Onaylı/Beklemede ortalı (onaylı turkuaz, bekleyen mavi), negatif bakiye açık kırmızı kutu; firma altında ziyaret durumu (`visitState`: bugün turkuaz, ≤30 gün mavi, >90 gün/hiç gri). İşlemler: Uğradım, görüntüle, düzenle (lg+), ⋯. ABC rozeti A açık mavi, B açık turkuaz (`ABC_STYLE`, cari kartta da).
+- Cari Bakiyeler: Toplam Alacak / Toplam Borç / Net Bakiye kutuları (dokununca süzer), lg+ tablo Firma | Şehir | Cari Bakiye | Son Tahsilat (para birimiyle) | Son İşlem (son tahsilat ya da son teklifin yenisi); hesap `estimatedBalance` aynı.
+- Bugünün Rotası: kart duraklar, ziyaret durumu etiketi, son ziyaret, "Planlı · n. durak", büyük "Ziyaret kaydı" düğmesi.

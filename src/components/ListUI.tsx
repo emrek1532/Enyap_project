@@ -58,18 +58,20 @@ export const SearchBox: React.FC<{ value: string; onChange: (v: string) => void;
 );
 
 /** Altı çizili sekmeler (Müşteri Listesi | Cari Bakiyeler …, Bugün | Bu Hafta …) */
-export function UnderlineTabs<K extends string>({ items, value, onChange, small }: {
+export function UnderlineTabs<K extends string>({ items, value, onChange, small, enyap }: {
   items: { key: K; label: React.ReactNode }[]; value: K | null; onChange: (k: K) => void; small?: boolean;
+  /** ENYAP renkleri (Müşteriler): etkin #006DBB, diğerleri lacivert-gri */
+  enyap?: boolean;
 }) {
   return (
-    <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-slate-200/80">
+    <div className={`flex overflow-x-auto no-scrollbar border-b ${enyap ? 'gap-2 sm:gap-4 border-[#E2EAF3]' : 'gap-1 border-slate-200/80'}`}>
       {items.map(it => {
         const on = it.key === value;
         return (
           <button key={it.key} type="button" onClick={() => onChange(it.key)}
-            className={`relative whitespace-nowrap ${small ? 'px-3 py-2 text-[13px]' : 'px-4 py-2.5 text-sm'} font-bold transition-colors ${on ? 'text-brand-600' : 'text-slate-600 hover:text-slate-900'}`}>
+            className={`relative whitespace-nowrap ${small ? 'px-3 py-2 text-[13px]' : 'px-4 py-2.5 text-sm'} font-bold transition-colors ${enyap ? (on ? 'text-[#006DBB]' : 'text-[#173F73]/70 hover:text-[#0B2343]') : on ? 'text-brand-600' : 'text-slate-600 hover:text-slate-900'}`}>
             {it.label}
-            {on && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-brand-500" />}
+            {on && <span className={`absolute left-2 right-2 -bottom-px h-0.5 rounded-full ${enyap ? 'bg-[#006DBB]' : 'bg-brand-500'}`} />}
           </button>
         );
       })}
