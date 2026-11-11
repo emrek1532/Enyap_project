@@ -178,6 +178,7 @@ export const CustomerAccount: React.FC<{
               {cStatus !== 'aktif' && <span className={`ml-2 align-middle text-[10px] px-2 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>}
             </h3>
             <p className="text-xs text-sky-200/80 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
+            {customer.updatedBy && <p className="text-[11px] text-sky-200/70 mt-0.5">Son değişiklik: <b className="font-semibold text-sky-100">{customer.updatedBy}</b>{customer.updatedAt ? ` · ${new Date(customer.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</p>}
           </div>
           {onSaveCollection && (
             <button onClick={() => setAddingCol(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold">

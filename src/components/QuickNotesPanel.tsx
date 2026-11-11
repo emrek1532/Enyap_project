@@ -78,6 +78,7 @@ export const QuickNotesPanel: React.FC<QuickNotesPanelProps> = ({ notes, activit
                   )}
                   <span>{new Date(n.createdAt).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                   <span>{n.author === 'istanbul' ? 'İstanbul' : n.author === 'isparta' ? 'Isparta' : n.author}</span>
+                  {n.updatedBy && n.updatedAt && n.updatedAt !== n.createdAt && <span title={new Date(n.updatedAt).toLocaleString('tr-TR')}>· değiştiren: {n.updatedBy}</span>}
                 </div>
               </button>
               <div className="flex items-center shrink-0">

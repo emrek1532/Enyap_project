@@ -39,6 +39,8 @@ export interface Quote {
   validUntil: string;
   createdAt: string;
   updatedAt: string;
+  /** Son değiştiren (ad soyad; veritabanı yazar) */
+  updatedBy?: string;
   createdBy: UserRole;
   assignedTo: UserRole;
   /** Teklifi açan kullanıcı (sunucu doldurur; yalnız okunur) */
@@ -73,6 +75,8 @@ export interface QuickNote {
   pinned: boolean;
   createdAt: string;
   updatedAt?: string;
+  /** Son değiştiren (ad soyad; veritabanı yazar) */
+  updatedBy?: string;
   /** Hatırlatma zamanı (ISO); bu saatte telefona bildirim gider */
   remindAt?: string | null;
   /** Bildirim gönderildi mi (zaman değişince sıfırlanır) */
@@ -110,6 +114,8 @@ export interface Customer {
   lastVisit?: string;
   createdAt: string;
   updatedAt: string;
+  /** Son değiştiren (ad soyad; veritabanı yazar) */
+  updatedBy?: string;
 }
 
 export type CustomerStatus = 'aktif' | 'pasif' | 'kara_liste';
@@ -131,6 +137,8 @@ export interface Collection {
   createdBy: UserRole;
   createdAt: string;
   updatedAt: string;
+  /** Son değiştiren (ad soyad; veritabanı yazar) */
+  updatedBy?: string;
 }
 
 /** Yapılan harcama (gider) */
@@ -146,6 +154,8 @@ export interface Expense {
   createdBy: UserRole;
   createdAt: string;
   updatedAt: string;
+  /** Son değiştiren (ad soyad; veritabanı yazar) */
+  updatedBy?: string;
 }
 
 export interface AppData {

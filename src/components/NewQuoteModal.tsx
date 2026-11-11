@@ -632,9 +632,14 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
         {/* Başlık çubuğu */}
         <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-center gap-2 pt-safe-3 sm:pt-3.5">
-          <h3 className="font-black text-base sm:text-lg tracking-tight flex-1 min-w-0 truncate">
-            {isEdit ? `Teklif Düzenle · ${editQuote!.quoteNumber}` : 'Yeni Fiyat Teklifi'}
-          </h3>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-black text-base sm:text-lg tracking-tight truncate">
+              {isEdit ? `Teklif Düzenle · ${editQuote!.quoteNumber}` : 'Yeni Fiyat Teklifi'}
+            </h3>
+            {isEdit && editQuote!.updatedBy && (
+              <div className="text-[11px] text-sky-200/80 truncate">Son değişiklik: <b className="font-semibold text-sky-100">{editQuote!.updatedBy}</b>{editQuote!.updatedAt ? ` · ${new Date(editQuote!.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => pdfInputRef.current?.click()}

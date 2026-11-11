@@ -1,8 +1,10 @@
 import { viewStatus } from '../lib/quoteRules';
 import { trNum } from '../lib/num';
 import React, { useEffect, useRef, useState } from 'react';
-import { Eye, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { listCard, ctrl, rowCls, SearchBox, IconBtn, Pager, WideOnly, NarrowOnly } from './ListUI';
+import { Eye, FileSpreadsheet, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { MaterialImport } from './MaterialImport';
+import { LastImport, fetchLastImport } from '../lib/materialImport';
+import { listCard, ctrl, rowCls, SearchBox, IconBtn, Pager, WideOnly, NarrowOnly, LastEdit } from './ListUI';
 import { CURRENCY_LABEL, Currency } from '../lib/money';
 import { parseDecimal } from './DecimalInput';
 import { Material, MATERIAL_UNITS, MaterialFilters, MaterialSortKey, deleteMaterial, formatPrice, listMaterials, saveMaterial } from '../lib/materials';
@@ -10,7 +12,7 @@ import { MobileSortSelect, SortHeader, SortState, nextSort } from './SortHeader'
 import { SupplierListsPanel } from './SupplierListsPanel';
 import { supabase } from '../lib/supabase';
 import { fetchSupplierLists } from '../lib/suppliers';
-import { can, useAccess } from '../lib/access';
+import { allowed, can, useAccess } from '../lib/access';
 import { Quote } from '../types';
 import { STATUS_LABEL } from '../lib/constants';
 import { dayOf } from '../lib/dates';
@@ -41,6 +43,12 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
   const [editing, setEditing] = useState<{ m: Material; originalCode?: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const reqId = useRef(0);
+  // Mikro'dan Excel ile toplu güncelleme (malzeme düzenleme ya da "Malzeme listesini yükler" izni)
+  const me = useAccess();
+  const canImport = can(me, 'materials', 'edit') || allowed(me, 'matImport');
+  const [importing, setImporting] = useState(false);
+  const [lastImport, setLastImport] = useState<LastImport | null>(null);
+  useEffect(() => { fetchLastImport().then(setLastImport, () => undefined); }, [reload]);
 
   const load = async (offset: number, append: boolean) => {
     const id = ++reqId.current;
@@ -105,7 +113,19 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
             <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" />
             <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara (ör. kalde vana 1/2)" />
           </div>
+          {canImport && (
+            <button type="button" onClick={() => setImporting(true)}
+              className="h-10 px-3 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-sm font-extrabold hover:bg-emerald-100 inline-flex items-center justify-center gap-1.5 shrink-0">
+              <FileSpreadsheet className="w-4 h-4" /> Listeyi yükle (Excel)
+            </button>
+          )}
         </div>
+        {lastImport && (
+          <div className="text-[11px] text-slate-500">
+            Son toplu güncelleme: <b className="text-slate-600">{new Date(lastImport.at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</b>
+            {lastImport.byName && <> · {lastImport.byName}</>} · {lastImport.updated.toLocaleString('tr-TR')} değişti, {lastImport.inserted.toLocaleString('tr-TR')} yeni
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
           <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">
             <option value="">Fiyat: Tümü</option>
@@ -220,6 +240,7 @@ const OwnMaterials: React.FC<{ quotes: Quote[]; onOpenQuote?: (q: Quote) => void
 
       {history && <MaterialHistory m={history} quotes={quotes} onClose={() => setHistory(null)}
         onOpenQuote={onOpenQuote ? q => { setHistory(null); onOpenQuote(q); } : undefined} />}
+      {importing && <MaterialImport onClose={() => setImporting(false)} onDone={() => setReload(n => n + 1)} />}
       {editing && (
         <MaterialForm
           initial={editing.m}
@@ -295,6 +316,13 @@ const MaterialForm: React.FC<{
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = <K extends keyof Material>(k: K, v: Material[K]) => setM(prev => ({ ...prev, [k]: v }));
+  // Son değiştiren (tek satır sorgu; liste sorgusu değişmez)
+  const [last, setLast] = useState<{ by: string | null; at: string | null } | null>(null);
+  useEffect(() => {
+    if (!originalCode) return;
+    supabase.from('materials').select('updated_by, updated_at').eq('code', originalCode).maybeSingle()
+      .then(({ data }) => data && setLast({ by: data.updated_by, at: data.updated_at }), () => undefined);
+  }, [originalCode]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,6 +353,7 @@ const MaterialForm: React.FC<{
           <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-4 space-y-3">
+          {last?.by && <LastEdit by={last.by} at={last.at} />}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Kod *</label>
