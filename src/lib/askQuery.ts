@@ -153,8 +153,12 @@ export function findAsk(question: string, quotes: Quote[], customers: string[], 
   // Soruda firma adı geçiyorsa yalnızca adı en çok eşleşen firmanın teklifleri
   const nameHits = (name: string) => words.filter(w => foldTr(name).includes(w)).length;
   const best = Math.max(0, ...quotes.map(q => nameHits(q.customerName)));
-  // Adı daha iyi eşleşen bir cari varsa ama teklifi yoksa başka firmanın teklifleri gönderilmez
-  if (Math.max(0, ...customers.map(nameHits)) > best) return empty;
+  // Adı daha iyi eşleşen bir cari varsa ama teklifi yoksa başka firmanın teklifleri gönderilmez.
+  // Ürünlerde de geçen kelimeler sayılmaz: "sarı dübel" → "Sarı-Tez Doğalgaz" firması sanılmasın.
+  const inItems = (w: string) => quotes.some(q => (q.items || []).some(it => foldTr(`${it.productName} ${it.code || ''}`).includes(w)));
+  const firmOnly = words.filter(w => !inItems(w));
+  const firmHits = (name: string) => firmOnly.filter(w => foldTr(name).includes(w)).length;
+  if (Math.max(0, ...customers.map(firmHits)) > Math.max(0, ...quotes.map(q => firmHits(q.customerName)))) return empty;
   let customer: string | undefined;
   if (best) {
     pool = pool.filter(q => nameHits(q.customerName) === best);
@@ -190,6 +194,15 @@ export function findAsk(question: string, quotes: Quote[], customers: string[], 
   const qs = (productSearch ? pool.filter(q => ids.has(q.id)) : pool)
     .slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   return { filter, customer, quotes: qs, lines, productSearch };
+}
+
+/**
+ * Sorudan arama kelimelerini çıkarır ("Sarı dübel kaç para?" → "sari dubel"):
+ * tarih, durum ve soru sözcükleri atılır; katalog, fiyat listesi ve firma aramasında kullanılır.
+ */
+export function searchTerm(question: string, customers: string[] = []): string {
+  const rest = parseAsk(question, new Date(), customers).rest;
+  return rest.split(/\s+/).filter(w => w && !STOP.has(w.replace(/\.+$/, ''))).join(' ');
 }
 
 /** Yapay zekâya giden satır biçimi */
