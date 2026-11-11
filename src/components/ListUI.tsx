@@ -94,7 +94,7 @@ export const StatusPill: React.FC<{ status: string }> = ({ status }) => {
 /** Satır simge düğmesi */
 export const IconBtn: React.FC<{ title: string; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode; danger?: boolean }> = ({ title, onClick, children, danger }) => (
   <button type="button" title={title} aria-label={title} onClick={e => { e.stopPropagation(); onClick(e); }}
-    className={`w-9 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${danger ? 'bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50' : 'bg-brand-50 text-brand-600 hover:bg-brand-100'}`}>
+    className={`w-9 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${danger ? 'bg-slate-50 text-slate-500 border border-slate-200 hover:text-rose-600 hover:bg-rose-50' : 'bg-brand-50 text-brand-600 border border-brand-100 hover:bg-brand-100'}`}>
     {children}
   </button>
 );

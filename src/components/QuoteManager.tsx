@@ -460,7 +460,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   {quote.status === 'gonderildi' && quote.lostReason && <span className="text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-[#EAF5FC] text-[#006DBB] border-[#006DBB]/25" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
                   {extraBadges(quote)}
                 </div>
-                <div className="relative flex items-center shrink-0">
+                <div className="relative flex items-center gap-1.5 shrink-0">
                   <IconBtn title="Detay" onClick={() => setSelectedQuote(quote)}><Eye className="w-4 h-4" /></IconBtn>
                   {!readOnly && <IconBtn title="Düzenle / Revize Et" onClick={() => onEditQuote(quote)}><Pencil className="w-4 h-4" /></IconBtn>}
                   <IconBtn title="Diğer" onClick={e => openMenu(e, quote.id)}><MoreHorizontal className="w-4 h-4" /></IconBtn>
@@ -511,7 +511,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   <td className="hidden xl:table-cell py-3 px-3 text-slate-600 whitespace-nowrap tabular-nums"><span className="inline-flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-slate-400" />{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</span></td>
                   <td className="py-3 px-3 text-right font-black text-[#17365D] tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</td>
                   <td className="py-3 px-3">
-                    <div className="relative flex items-center justify-center gap-0.5">
+                    <div className="relative flex items-center justify-center gap-1">
                       <IconBtn title="Detay" onClick={() => setSelectedQuote(quote)}><Eye className="w-4 h-4" /></IconBtn>
                       {!readOnly && <IconBtn title="Düzenle / Revize Et" onClick={() => onEditQuote(quote)}><Pencil className="w-4 h-4" /></IconBtn>}
                       <IconBtn title="Diğer" onClick={e => openMenu(e, quote.id)}><MoreHorizontal className="w-4 h-4" /></IconBtn>
