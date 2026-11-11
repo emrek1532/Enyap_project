@@ -510,9 +510,8 @@ export const MaterialsPanel: React.FC<{
 
 
   const tabCls = (on: boolean) =>
-    `relative whitespace-nowrap px-4 py-2.5 text-sm font-extrabold transition-colors ${on ? 'text-[#006DBB]' : 'text-[#7186A3] hover:text-[#17365D]'}`;
-  const cnt = (on: boolean) => `ml-1.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md ${on ? 'bg-[#E6F1FB] text-[#006DBB]' : 'bg-[#F1F6FC] text-[#7186A3]'}`;
-  const bar = <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#006DBB] to-[#00B49A]" />;
+    `relative flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-2 sm:px-4 py-3 text-center transition-colors ${on ? 'bg-white text-[#006DBB] shadow-sm' : 'text-[#7186A3] hover:text-[#17365D]'}`;
+  const bar = <span className="absolute left-5 right-5 bottom-0 h-[3px] rounded-full bg-[#0072CE]" />;
   return (
     <div>
       <PageHeader
@@ -523,13 +522,15 @@ export const MaterialsPanel: React.FC<{
         hero={{ lg: '/image.png', sm: '/image.png', materials: true }}
       />
       <div className="space-y-4">
-        {showOwn && showSup && <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-[#E2EAF3]" role="tablist">
+        {showOwn && showSup && <div className="flex gap-1 rounded-2xl border border-[#DCE8F5] bg-[#E7F3FC] p-1.5" role="tablist">
           <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
-            Bizim Malzemelerimiz{counts && <span className={cnt(tab === 'own')}>{tr(counts.total)}</span>}
+            <span className="text-sm sm:text-base font-extrabold">Bizim Malzemelerimiz</span>
+            <span className="text-xs sm:text-sm font-semibold text-[#7186A3]">{counts ? `${tr(counts.total)} malzeme` : '– malzeme'}</span>
             {tab === 'own' && bar}
           </button>
           <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>
-            Firma Fiyat Listeleri{supInfo && <span className={cnt(tab === 'suppliers')}>{supInfo.lists} firma · {tr(supInfo.items)}</span>}
+            <span className="text-sm sm:text-base font-extrabold">Firma Fiyat Listeleri</span>
+            <span className="text-xs sm:text-sm font-semibold text-[#7186A3]">{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '– firma · – kalem'}</span>
             {tab === 'suppliers' && bar}
           </button>
         </div>}
