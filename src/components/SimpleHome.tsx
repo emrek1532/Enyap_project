@@ -258,10 +258,10 @@ export const SimpleHome: React.FC<{
 
   const hasInbox = myRequests.length > 0 || reviewQuotes.length > 0;
   const quick = [
-    canAdd.quote && { key: 'q', label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, tone: 'from-sky-100 to-sky-50 text-sky-600', ring: 'bg-white/80' },
-    sections.includes('materials') && { key: 'm', label: 'Malzemeler', icon: Package, on: () => onOpen('materials'), tone: 'from-violet-100 to-violet-50 text-violet-600', ring: 'bg-white/80' },
-    canAdd.collection && { key: 'c', label: 'Tahsilat', icon: Wallet, on: onNewCollection, tone: 'from-emerald-100 to-emerald-50 text-emerald-600', ring: 'bg-white/80' },
-    canAdd.expense && { key: 'e', label: 'Harcama', icon: Receipt, on: onNewExpense, tone: 'from-orange-100 to-amber-50 text-orange-500', ring: 'bg-white/80' },
+    canAdd.quote && { key: 'q', label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, tone: 'from-[#D9ECFB] to-[#F1F7FC] text-[#0072CE]', ring: 'bg-white/80' },
+    sections.includes('materials') && { key: 'm', label: 'Malzemeler', icon: Package, on: () => onOpen('materials'), tone: 'from-[#D3F2EC] to-[#EEFAF7] text-[#00B49A]', ring: 'bg-white/80' },
+    canAdd.collection && { key: 'c', label: 'Tahsilat', icon: Wallet, on: onNewCollection, tone: 'from-[#D3EEFB] to-[#EFF9FE] text-[#009FE3]', ring: 'bg-white/80' },
+    canAdd.expense && { key: 'e', label: 'Harcama', icon: Receipt, on: onNewExpense, tone: 'from-[#D8F1F0] to-[#F0F9FA] text-[#00A08A]', ring: 'bg-white/80' },
   ].filter(Boolean) as { key: string; label: string; icon: React.ElementType; on: () => void; tone: string; ring: string }[];
   const glass = 'bg-white/10 hover:bg-white/15 border border-white/15 text-white';
 
@@ -313,13 +313,13 @@ export const SimpleHome: React.FC<{
       {/* 2. Hızlı işlemler: her ekranda 4 kutu */}
       {quick.length > 0 && (
         <section className="relative">
-          <h2 className="mb-2.5 flex items-center gap-1.5 text-[15px] font-black text-[#1a3d6d]"><Zap className="w-4.5 h-4.5 text-amber-500 fill-amber-400" />Hızlı İşlemler</h2>
+          <h2 className="mb-2.5 flex items-center gap-1.5 text-[15px] font-black text-[#173F70]"><Zap className="w-4.5 h-4.5 text-[#009FE3] fill-[#009FE3]" />Hızlı İşlemler</h2>
           <div className={`grid gap-2 sm:gap-3 ${quick.length >= 4 ? 'grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {quick.map(x => (
               <button key={x.key} onClick={x.on}
                 className={`min-w-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${x.tone} border border-white shadow-[0_12px_28px_-22px_rgba(15,60,120,0.7)] px-1 py-2.5 sm:py-4 flex flex-col xl:flex-row items-center justify-center gap-1.5 sm:gap-2 xl:gap-3 transition hover:-translate-y-0.5 active:scale-[0.97]`}>
                 <span className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${x.ring} flex items-center justify-center shrink-0 shadow-sm`}><x.icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" /></span>
-                <span className="max-w-full truncate text-[11.5px] sm:text-sm font-black text-[#1a3d6d] text-center leading-tight">{x.label}</span>
+                <span className="max-w-full truncate text-[11.5px] sm:text-sm font-black text-[#173F70] text-center leading-tight">{x.label}</span>
               </button>
             ))}
           </div>
