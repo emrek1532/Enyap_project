@@ -1130,6 +1130,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           onVoice={handleVoice}
           onOpenQuote={setEditingQuote}
           onOpenCustomer={name => { setFocusCustomer(name); setActiveTab('customers'); }}
+          ai={allowed(profile, 'ai')}
         />
       )}
 

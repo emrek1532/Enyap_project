@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
-import { Bot, MessageCircleQuestion, Mic, Search, X } from 'lucide-react';
+import { Bot, Mic, Search, X } from 'lucide-react';
 import { Customer, Quote } from '../types';
 import { QuickPrice } from './QuickPrice';
-import { AskQuotes } from './AskQuotes';
 import { QuoteBuilder } from './QuoteBuilder';
 import { VoiceCommand, VoiceResult } from './VoiceCommand';
 
@@ -11,11 +10,10 @@ export type ToolAllow = { quote: boolean; collection: boolean; expense: boolean 
 
 export type ToolInfo = { key: ToolMode; label: string; short: string; desc: string; icon: React.ElementType; tone: string };
 
-/** Hızlı kısayollar: Ara, Tekliflere sor, Teklif hazırla, Sesle kayıt (yetkiye göre) */
+/** Hızlı kısayollar: Ara · Sor (birleşik), Teklif hazırla, Sesle kayıt (yetkiye göre). 'ask' eski kayıtlı seçimler için kalır, Ara · Sor açılır. */
 export function toolList(canQuotes: boolean, allow: ToolAllow, ai = true): ToolInfo[] {
   return [
-    { key: 'search' as ToolMode, label: 'Ara', short: 'Ara', desc: 'Ürün, firma, fiyat', icon: Search, tone: 'from-brand-500 to-brand-700' },
-    canQuotes && ai && { key: 'ask' as ToolMode, label: 'Tekliflere sor', short: 'Sor', desc: 'Soru sor, cevap al', icon: MessageCircleQuestion, tone: 'from-violet-500 to-indigo-600' },
+    { key: 'search' as ToolMode, label: 'Ara · Sor', short: 'Ara · Sor', desc: canQuotes ? 'Ürün, firma, fiyat, soru' : 'Ürün, firma, fiyat', icon: Search, tone: 'from-brand-500 to-brand-700' },
     allow.quote && ai && { key: 'draft' as ToolMode, label: 'Teklif hazırla', short: 'Hazırla', desc: 'Talepten taslak', icon: Bot, tone: 'from-emerald-500 to-teal-600' },
     (allow.quote || allow.collection || allow.expense) && { key: 'voice' as ToolMode, label: 'Sesle kayıt', short: 'Sesle', desc: 'Konuş, kaydedeyim', icon: Mic, tone: 'from-orange-400 to-rose-500' },
   ].filter(Boolean) as ToolInfo[];
@@ -36,7 +34,8 @@ export const QuickToolsModal: React.FC<{
   onVoice: (r: VoiceResult) => void;
   onOpenQuote: (q: Quote) => void;
   onOpenCustomer?: (name: string) => void;
-}> = ({ mode, tools, onMode, onClose, quotes, customers, allow, onVoice, onOpenQuote, onOpenCustomer }) => {
+  ai?: boolean;
+}> = ({ mode, tools, onMode, onClose, quotes, customers, allow, onVoice, onOpenQuote, onOpenCustomer, ai = true }) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -44,7 +43,7 @@ export const QuickToolsModal: React.FC<{
     document.body.style.overflow = 'hidden';
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
   }, [onClose]);
-  const active = tools.some(t => t.key === mode) ? mode : tools[0]?.key;
+  const active = tools.some(t => t.key === mode) ? mode : mode === 'ask' ? 'search' : tools[0]?.key;
   return (
     <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-[2px] flex items-end sm:items-start sm:justify-center sm:pt-[6vh]" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} role="dialog" aria-modal="true"
@@ -61,8 +60,7 @@ export const QuickToolsModal: React.FC<{
           <button onClick={onClose} className="p-2 rounded-xl text-slate-500 hover:bg-slate-100" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
         <div className="overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
-          {active === 'search' && <QuickPrice quotes={quotes} customers={customers} onOpenQuote={q => { onClose(); onOpenQuote(q); }} onOpenCustomer={onOpenCustomer && (n => { onClose(); onOpenCustomer(n); })} />}
-          {active === 'ask' && <AskQuotes quotes={quotes} customers={customers.map(c => c.name)} onOpenQuote={q => { onClose(); onOpenQuote(q); }} />}
+          {active === 'search' && <QuickPrice quotes={quotes} customers={customers} ai={ai} onOpenQuote={q => { onClose(); onOpenQuote(q); }} onOpenCustomer={onOpenCustomer && (n => { onClose(); onOpenCustomer(n); })} />}
           {active === 'draft' && <QuoteBuilder quotes={quotes} customers={customers} onDraft={draft => { onClose(); onVoice({ kind: 'quote', draft }); }} />}
           {active === 'voice' && <VoiceCommand customers={customers.map(c => c.name)} allow={allow} onResult={r => { onClose(); onVoice(r); }} />}
         </div>
