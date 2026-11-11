@@ -268,49 +268,47 @@ export const SimpleHome: React.FC<{
   return (
     <div className="relative pb-6 space-y-4 sm:space-y-5">
       {/* Arka plan: üstte yumuşak mavi ışık */}
-      {/* 1. Üst bant: arka planda ENYAP binası, selam, dönem, (bilgisayar/tablet) arama; içinde dönem kartı (büyük satış + teklif/tahsilat/harcama) */}
-      <section className="relative overflow-hidden rounded-3xl bg-[#0a3168] text-white px-3 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-5 shadow-[0_24px_50px_-30px_rgba(10,49,104,0.9)]">
-        {/* Telefonda küçük resim; tablet/bilgisayarda büyük resim yakınlaştırılmış (yalnız bina tarafı görünür) */}
-        <img src="/hero-enyap-sm.webp" alt="" aria-hidden decoding="async"
-          className="md:hidden absolute inset-0 h-full w-full object-cover object-[78%_30%] [mask-image:linear-gradient(to_right,transparent,black_35%)]" />
-        <div aria-hidden className="hidden md:block absolute inset-y-0 right-0 w-[85%] bg-[url(/hero-enyap.webp)] bg-no-repeat bg-[length:auto_190%] bg-[position:100%_12%] [mask-image:linear-gradient(to_right,transparent,black_40%)]" />
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-[#0a3168] via-[#0b3a75]/60 to-transparent" />
-        <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#0a3168]/70 to-transparent" />
-        <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-3 px-1">
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm text-sky-100/85"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-sky-100/55 tabular-nums">v{__APP_VERSION__}</span></p>
-            <h1 className="text-[22px] sm:text-[30px] font-black tracking-tight leading-tight drop-shadow-sm">{hello}, {firstName} <span className="inline-block">👋</span></h1>
-            <p className="text-sm text-sky-100/85">Isı sistemlerinde güvenilir çözüm ortağınız.</p>
-          </div>
-          {(canQuotes || canMoney) && (
-            <div className="flex items-center gap-2 lg:shrink-0">
-              <div className="flex flex-1 sm:flex-none items-center gap-1">
-                <button onClick={() => stepPeriod(-1)} className={`w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur ${glass}`} aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
-                <span className={`flex flex-1 sm:flex-none items-center justify-center gap-1.5 h-10 px-3 rounded-xl text-sm font-bold backdrop-blur ${glass}`}>
-                  <CalendarDays className="w-4 h-4 text-sky-300" /><span className="whitespace-nowrap">{title}</span>
-                </span>
-                <button onClick={() => stepPeriod(1)} disabled={isCurrent} className={`w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur disabled:opacity-30 disabled:pointer-events-none ${glass}`} aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
-              </div>
-              <div className="flex h-10 p-0.5 rounded-xl bg-white/10 border border-white/20 backdrop-blur" role="tablist" aria-label="Dönem türü">
-                {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
-                  <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
-                    className={`px-3.5 rounded-[10px] text-[13px] font-bold ${period.kind === k ? 'bg-white text-[#0b2a4c]' : 'text-sky-50 hover:text-white'}`}>{l}</button>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* 1. Selam bandı: lacivert, sağda ENYAP binası fotoğrafı (net görünür) */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0a3168] via-[#0c3f7d] to-[#0f4f96] text-white min-h-[118px] sm:min-h-[150px] px-5 py-4 sm:px-7 sm:py-6 flex items-center shadow-[0_20px_44px_-28px_rgba(10,49,104,0.9)]">
+        <div aria-hidden className="absolute inset-y-0 right-0 w-[58%] md:w-[50%] bg-no-repeat bg-[url(/hero-enyap-sm.webp)] md:bg-[url(/hero-enyap.webp)] bg-[length:auto_230%] bg-[position:96%_30%] md:bg-[length:auto_400%] md:bg-[position:100%_26%] [mask-image:linear-gradient(to_right,transparent,black_28%)]" />
+        <div aria-hidden className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[#0a3168]/70 to-transparent" />
+        <div className="relative min-w-0 max-w-[68%] md:max-w-[55%]">
+          <p className="text-[11px] sm:text-sm text-sky-100/85"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-sky-100/55 tabular-nums">v{__APP_VERSION__}</span></p>
+          <h1 className="text-[20px] sm:text-[30px] font-black tracking-tight leading-tight drop-shadow whitespace-nowrap">{hello}, {firstName} <span className="inline-block">👋</span></h1>
+          <p className="text-[13px] sm:text-[15px] text-sky-100/90">Bugünün özeti burada.</p>
         </div>
-        <button onClick={() => onOpenTool('search')} className="relative mt-4 sm:mt-5 hidden md:flex w-full lg:max-w-xl items-center gap-3 h-12 px-4 rounded-2xl bg-white/95 text-left text-slate-500 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
-          <Search className="w-5 h-5 text-brand-600 shrink-0" /><span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
-        </button>
-        {(canQuotes || canMoney) && (
-          <PeriodCard className="relative mt-4 sm:mt-6" title={title} isYear={isYear} cur={s.cur} prev={s.prevSame} spark={s.spark} conv={conv}
-            canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} forecast={isCurrent && !isYear ? forecast : undefined}
-            onOpenSales={() => openQuotes({ status: 'onaylandi', from: s.from, to: s.to })}
-            onOpenQuotes={() => openQuotes({ status: 'all', from: s.from, to: s.to })}
-            onOpenCollections={() => onOpen('collections')} onOpenExpenses={() => onOpen('expenses')} />
-        )}
       </section>
+
+      {/* 2. Arama (tablet/bilgisayar) + dönem seçimi */}
+      {(canQuotes || canMoney) && (
+        <div className="flex flex-col md:flex-row md:items-center gap-2.5 sm:gap-3">
+          <button onClick={() => onOpenTool('search')} className="hidden md:flex flex-1 min-w-0 items-center gap-3 h-12 px-4 rounded-2xl bg-white border border-white text-left text-slate-500 shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)] hover:border-sky-200">
+            <Search className="w-5 h-5 text-brand-600 shrink-0" /><span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
+          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-1 md:flex-none items-center h-12 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]">
+              <button onClick={() => stepPeriod(-1)} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#0b2a4c]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
+              <span className="flex-1 md:w-36 flex items-center justify-center gap-1.5 text-sm font-black text-[#0b2a4c] whitespace-nowrap"><CalendarDays className="w-4 h-4 text-brand-500" />{title}</span>
+              <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#0b2a4c] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
+            </div>
+            <div className="flex h-12 p-1 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]" role="tablist" aria-label="Dönem türü">
+              {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
+                <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
+                  className={`px-4 rounded-xl text-sm font-bold ${period.kind === k ? 'bg-[#0b3a75] text-white' : 'text-slate-600'}`}>{l}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Dönem kartı: büyük satış + teklif / tahsilat / harcama */}
+      {(canQuotes || canMoney) && (
+        <PeriodCard title={title} isYear={isYear} cur={s.cur} prev={s.prevSame} spark={s.spark} conv={conv}
+          canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} forecast={isCurrent && !isYear ? forecast : undefined}
+          onOpenSales={() => openQuotes({ status: 'onaylandi', from: s.from, to: s.to })}
+          onOpenQuotes={() => openQuotes({ status: 'all', from: s.from, to: s.to })}
+          onOpenCollections={() => onOpen('collections')} onOpenExpenses={() => onOpen('expenses')} />
+      )}
 
       {/* 2. Hızlı işlemler: her ekranda 4 kutu */}
       {quick.length > 0 && (
@@ -425,7 +423,7 @@ const PeriodCard: React.FC<{
   ].filter(Boolean) as { label: string; value: number; prev: number; sub?: string; on: () => void; spark: number[]; color: string; lower?: boolean }[];
   const tPct = targets.sales && canQuotes ? Math.round((cur.onay / targets.sales) * 100) : 0;
   return (
-    <section className={`bg-white rounded-3xl border border-white shadow-[0_18px_40px_-24px_rgba(0,0,0,0.45)] min-w-0 overflow-hidden text-slate-900 ${className}`}>
+    <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden text-slate-900 ${className}`}>
       <button onClick={big.on} className="w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-slate-50/60">
         <span className="min-w-0">
           <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
