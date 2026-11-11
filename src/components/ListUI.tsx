@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Clock, XCircle, PauseCircle } from 'lucide-react';
 
 /** Liste sayfalarının ortak görünümü (Teklifler, Müşteriler, Malzemeler, Tahsilat) */
 /** Geniş ekran mı (xl, 1280px+): listeler ya tablo ya kart olarak çizilir, ikisi birden değil (daha hızlı) */
@@ -26,7 +26,7 @@ export const listCard = 'bg-white rounded-3xl border border-white shadow-[0_14px
 export const ctrl = 'h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400';
 export const thCls = 'py-3 px-3 text-[12px] font-bold text-slate-500';
 /** Tablo başlık satırı: açık mavi zemin (örnek tasarım) */
-export const theadCls = 'bg-[#f2f6fc] border-b border-slate-100';
+export const theadCls = 'bg-[#f2f6fc] border-b border-slate-100 [&_th]:text-[#1a3d6d]';
 export const rowCls = 'hover:bg-brand-50/40 transition-colors';
 
 /** Hızlı seçim yuvarlak düğmeleri (Bugün, Bu Hafta, Geçen Hafta …) */
@@ -77,16 +77,16 @@ export function UnderlineTabs<K extends string>({ items, value, onChange, small 
   );
 }
 
-/** Durum rozeti: Beklemede (mor) / Onaylandı (yeşil) / İptal (gri) */
+/** Durum rozeti: Beklemede (mavi, saat) / Onaylandı (yeşil, onay) / İptal (gri) / Pasif (amber) */
 export const StatusPill: React.FC<{ status: string }> = ({ status }) => {
   const m = status === 'onaylandi'
-    ? { l: 'Onaylandı', c: 'bg-emerald-50 text-emerald-700 border-emerald-200', i: '✓' }
+    ? { l: 'Onaylandı', c: 'bg-emerald-50 text-emerald-700 border-emerald-200', I: CheckCircle2, ic: 'text-white fill-emerald-500' }
     : status === 'iptal'
-      ? { l: 'İptal', c: 'bg-slate-100 text-slate-600 border-slate-200', i: '✕' }
+      ? { l: 'İptal', c: 'bg-slate-100 text-slate-600 border-slate-200', I: XCircle, ic: 'text-slate-500' }
       : status === 'pasif'
-        ? { l: 'Pasif', c: 'bg-amber-50 text-amber-800 border-amber-200', i: '‖' }
-        : { l: 'Beklemede', c: 'bg-violet-50 text-violet-700 border-violet-200', i: '◷' };
-  return <span className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg font-bold border whitespace-nowrap ${m.c}`}><span aria-hidden className="sm:hidden">{m.i}</span>{m.l}</span>;
+        ? { l: 'Pasif', c: 'bg-amber-50 text-amber-800 border-amber-200', I: PauseCircle, ic: 'text-amber-600' }
+        : { l: 'Beklemede', c: 'bg-brand-50 text-brand-700 border-brand-200', I: Clock, ic: 'text-brand-600' };
+  return <span className={`inline-flex items-center gap-1 text-[11px] sm:text-xs pl-1.5 pr-2.5 py-0.5 sm:py-1 rounded-full font-bold border whitespace-nowrap ${m.c}`}><m.I aria-hidden className={`w-3.5 h-3.5 shrink-0 ${m.ic}`} />{m.l}</span>;
 };
 
 /** Satır simge düğmesi */
