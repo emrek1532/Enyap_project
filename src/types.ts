@@ -48,8 +48,6 @@ export interface Quote {
   /** Teklifin açıldığı diğer kullanıcılar (aynı teklifi girdiklerinde; sunucu doldurur) */
   sharedWith?: string[];
   notes?: string;
-  isEncrypted?: boolean;
-  tags?: string[];
   preparedBy?: string;   // Teklifi veren kişi
   /** İptal edilen teklifin kaybedilme nedeni */
   lostReason?: string;
