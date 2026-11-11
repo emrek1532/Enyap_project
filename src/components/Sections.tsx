@@ -114,6 +114,7 @@ export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   collections: { lg: '/hero-tahsilat.webp', sm: '/hero-tahsilat-sm.webp', center: true },
   reports: { lg: '/hero-rapor.webp', sm: '/hero-rapor-sm.webp' },
   admin: { lg: '/hero-yonetim.webp', sm: '/hero-yonetim-sm.webp', center: true },
+  notes: { lg: '/hero-notlar.webp', sm: '/hero-notlar-sm.webp' },
   customers: { lg: '/hero-musteri.webp', sm: '/hero-musteri-sm.webp', cust: true },
 };
 
