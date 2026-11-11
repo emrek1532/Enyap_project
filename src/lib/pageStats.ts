@@ -5,7 +5,11 @@ import { isPassive, isPendingQuote, needsFollowUp } from './quoteRules';
 import { Rates, quoteTry } from './rates';
 
 /** Sayfa başlığındaki (koyu bant) özet rakam */
-export type PageStat = { label: string; value: string; sub?: string; /** geçen ayın aynı günlerine göre % değişim */ trend?: number | null };
+export type PageStat = {
+  label: string; value: string; sub?: string; /** geçen ayın aynı günlerine göre % değişim */ trend?: number | null;
+  /** Dokununca listeyi süzer (Teklifler: durum + isteğe bağlı tarih aralığı) */
+  filter?: { status: string; from?: string; to?: string };
+};
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -36,35 +40,26 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
   const quotes = d.quotes || [];
 
   if (tab === 'quotes' && view) {
-    const all = view.quotes.filter(q => q.status !== 'iptal');
-    const won = all.filter(q => q.status === 'onaylandi');
     const pend = view.quotes.filter(q => q.status === 'gonderildi');
-    const follow = view.quotes.filter(needsFollowUp).length;
-    const av = all.reduce((a, q) => a + qv(q), 0), wv = won.reduce((a, q) => a + qv(q), 0);
+    const follow = quotes.filter(needsFollowUp).length; // takip sayısı süzgeçten bağımsız
     return [
-      { label: `${view.label} verilen`, value: lira(av), sub: `${n(all.length)} teklif` },
-      { label: `${view.label} onaylanan`, value: lira(wv), sub: `${n(won.length)} teklif · %${av ? Math.round((wv / av) * 100) : 0} dönüşüm` },
-      { label: `${view.label} bekleyen + pasif`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: pendSub(pend) },
-      { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
+      { label: `${view.label} bekleyen + pasif`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: pendSub(pend), filter: { status: 'gonderildi', from: mFrom, to: t } },
+      { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız', filter: { status: 'takip' } },
     ];
   }
+  // Verilen/onaylanan ana sayfada var; burada yalnız iş çıkaran iki kutu (dokununca liste süzülür)
   if (tab === 'quotes') {
-    const month = quotes.filter(q => inR(q.createdAt, mFrom) && q.status !== 'iptal');
-    const won = month.filter(q => q.status === 'onaylandi');
-    const pend = month.filter(q => q.status === 'gonderildi');
+    const pend = quotes.filter(q => inR(q.createdAt, mFrom) && q.status === 'gonderildi');
     const follow = quotes.filter(needsFollowUp).length;
-    const mv = month.reduce((a, q) => a + qv(q), 0), wv = won.reduce((a, q) => a + qv(q), 0);
     const pv = pend.reduce((a, q) => a + qv(q), 0);
     // Geçen ayın aynı gün aralığı (1 → bugünün günü; ay kısaysa ay sonu)
     const pSame = ymd(new Date(now.getFullYear(), now.getMonth() - 1, Math.min(now.getDate(), new Date(now.getFullYear(), now.getMonth(), 0).getDate())));
-    const prev = quotes.filter(q => inR(q.createdAt, pFrom, pSame) && q.status !== 'iptal');
+    const prev = quotes.filter(q => inR(q.createdAt, pFrom, pSame) && q.status === 'gonderildi');
     const sum = (l: Quote[]) => l.reduce((a, q) => a + qv(q), 0);
     const trend = (cur: number, old: number) => (old > 0 ? Math.round(((cur - old) / old) * 100) : null);
     return [
-      { label: 'Bu ay verilen', value: lira(mv), sub: `${n(month.length)} teklif`, trend: trend(mv, sum(prev)) },
-      { label: 'Bu ay onaylanan', value: lira(wv), sub: `${n(won.length)} teklif · %${mv ? Math.round((wv / mv) * 100) : 0} dönüşüm`, trend: trend(wv, sum(prev.filter(q => q.status === 'onaylandi'))) },
-      { label: 'Bu ay bekleyen + pasif', value: lira(pv), sub: pendSub(pend), trend: trend(pv, sum(prev.filter(q => q.status === 'gonderildi'))) },
-      { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
+      { label: 'Bu ay bekleyen + pasif', value: lira(pv), sub: pendSub(pend), trend: trend(pv, sum(prev)), filter: { status: 'gonderildi', from: mFrom, to: t } },
+      { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız', filter: { status: 'takip' } },
     ];
   }
   if (tab === 'customers') {

@@ -975,6 +975,13 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onBack={goBack}
             onHome={goHome}
             stats={headStats}
+            onStatClick={activeTab === 'quotes' ? (st => {
+              const f = st.filter!;
+              const on = quoteFilter === f.status;
+              setQuoteFilter(on ? 'all' : f.status);
+              setQuoteRange(on ? { from: '', to: '' } : { from: f.from || '', to: f.to || '' });
+            }) : undefined}
+            isStatActive={st => activeTab === 'quotes' && !!st.filter && quoteFilter === st.filter.status}
             hero={HERO_IMG[activeTab]}
           />
         )}

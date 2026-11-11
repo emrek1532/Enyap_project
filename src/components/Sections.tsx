@@ -96,12 +96,13 @@ export const StatBox: React.FC<{
 };
 export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
-type Stat = { label: string; value: string; sub?: string; trend?: number | null };
-const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
-  <div className={`grid grid-cols-2 ${stats.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5 sm:gap-3`}>
+type Stat = { label: string; value: string; sub?: string; trend?: number | null; filter?: { status: string; from?: string; to?: string } };
+const StatGrid: React.FC<{ stats: Stat[]; onStatClick?: (s: Stat) => void; isActive?: (s: Stat) => boolean }> = ({ stats, onStatClick, isActive }) => (
+  <div className={`grid grid-cols-2 ${stats.length === 2 ? '' : stats.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5 sm:gap-3`}>
     {stats.map((s, i) => (
       <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)}
-        className={stats.length % 2 && i === stats.length - 1 ? 'col-span-2 lg:col-span-1' : ''} />
+        onClick={onStatClick && s.filter ? () => onStatClick(s) : undefined}
+        className={`${stats.length % 2 && i === stats.length - 1 ? 'col-span-2 lg:col-span-1' : ''}${isActive?.(s) ? ' ring-2 ring-[#006DBB]' : ''}`} />
     ))}
   </div>
 );
@@ -133,6 +134,10 @@ export const PageHeader: React.FC<{
   onHome?: () => void;
   action?: { label: string; icon: React.ElementType; onClick: () => void };
   stats?: Stat[];
+  /** Rakam kutusuna dokununca (filtresi olan kutular) */
+  onStatClick?: (s: Stat) => void;
+  /** Kutunun süzgeci şu an açık mı (çerçeveyle vurgulanır) */
+  isStatActive?: (s: Stat) => boolean;
   /** İkinci düğme (çerçeveli; telefonda yalnız simge) */
   secondary?: { label: string; icon: React.ElementType; onClick: () => void };
   /** Rakamlar yerine özel içerik (Malzemeler: sunucudan sayılan kutular) */
@@ -140,7 +145,7 @@ export const PageHeader: React.FC<{
   /** Sağ üstteki düğmeler (ara, eşitle, bildirim, kılavuz, çıkış) */
   tools?: React.ReactNode;
   hero?: Hero;
-}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero }) => (
+}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, onStatClick, isStatActive, tools, hero }) => (
   <div className="mb-4 sm:mb-5 space-y-3 sm:space-y-4">
     {hero ? (
       <>
@@ -218,6 +223,6 @@ export const PageHeader: React.FC<{
     </section>
     )}
     {below}
-    {!below && stats && stats.length > 0 && <StatGrid stats={stats} />}
+    {!below && stats && stats.length > 0 && <StatGrid stats={stats} onStatClick={onStatClick} isActive={isStatActive} />}
   </div>
 );

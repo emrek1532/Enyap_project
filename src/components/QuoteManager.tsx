@@ -104,6 +104,12 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const [cityFilter, setCityFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState(initialRange?.from || '');
   const [dateTo, setDateTo] = useState(initialRange?.to || '');
+  // Başlıktaki kutuya dokununca gelen tarih aralığı (sonraki değişiklikler de uygulanır)
+  const firstRange = useRef(true);
+  useEffect(() => {
+    if (firstRange.current) { firstRange.current = false; return; }
+    if (initialRange) { setDateFrom(initialRange.from || ''); setDateTo(initialRange.to || ''); }
+  }, [initialRange]);
   const [selectedQuoteRaw, setSelectedQuote] = useState<Quote | null>(null);
   // Açık teklifin güncel hâli (takip tarihi vb. değişince pencere de güncellenir)
   const selectedQuote = selectedQuoteRaw ? (quotes.find(x => x.id === selectedQuoteRaw.id) ? { ...selectedQuoteRaw, ...quotes.find(x => x.id === selectedQuoteRaw.id)! } : selectedQuoteRaw) : null;
@@ -305,7 +311,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
   // Kayıtlı filtreler
   const saveCurrent = () => {
-    const def = [statusFilter !== 'all' ? ({ aktif: 'Beklemede', takip: 'Görüşülecek', expiring: 'Süresi dolan', onaylandi: 'Onaylı', iptal: 'İptal' } as Record<string, string>)[statusFilter] : '', cityFilter !== 'all' ? cityFilter : '', activePreset || '', searchTerm.trim()].filter(Boolean).join(' · ');
+    const def = [statusFilter !== 'all' ? ({ aktif: 'Beklemede', gonderildi: 'Bekleyen + pasif', takip: 'Görüşülecek', expiring: 'Süresi dolan', onaylandi: 'Onaylı', iptal: 'İptal' } as Record<string, string>)[statusFilter] : '', cityFilter !== 'all' ? cityFilter : '', activePreset || '', searchTerm.trim()].filter(Boolean).join(' · ');
     const name = prompt('Bu filtreye bir ad verin', def || 'Filtrem')?.trim();
     if (!name) return;
     setSaved([...saved.filter(f => f.name !== name), { name, status: statusFilter, city: cityFilter, from: dateFrom, to: dateTo, search: searchTerm, preset: activePreset }].slice(-8));
@@ -344,6 +350,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <option value="all">Tüm Teklifler</option>
               <option value="aktif">Beklemede</option>
               <option value="pasif">Pasif (neden seçilmiş)</option>
+              <option value="gonderildi">Bekleyen + pasif</option>
               <option value="takip">Tekrar Görüşülecek ({followUpCount})</option>
               <option value="expiring">Süresi Dolanlar ({expiringCount})</option>
               <option value="onaylandi">Onaylandı</option>
