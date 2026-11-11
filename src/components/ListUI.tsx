@@ -23,10 +23,10 @@ export const WideOnly: React.FC<{ children: React.ReactNode; from?: Bp }> = ({ c
 export const NarrowOnly: React.FC<{ children: React.ReactNode; from?: Bp }> = ({ children, from }) => (useWide(from) ? null : <>{children}</>);
 
 export const listCard = 'bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]';
-export const ctrl = 'h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400';
-export const thCls = 'py-3 px-3 text-[12px] font-bold text-slate-500';
+export const ctrl = 'h-10 px-3 rounded-xl border border-[#E2EAF3] bg-white text-sm text-[#173F73] font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400';
+export const thCls = 'py-3 px-3 text-[12px] font-bold text-[#173F73]';
 /** Tablo başlık satırı: açık mavi zemin (örnek tasarım) */
-export const theadCls = 'bg-[#f2f6fc] border-b border-slate-100 [&_th]:text-[#1a3d6d]';
+export const theadCls = 'bg-[#F2F6FC] border-b border-[#E2EAF3] [&_th]:text-[#173F73]';
 export const rowCls = 'hover:bg-brand-50/40 transition-colors';
 
 /** Hızlı seçim yuvarlak düğmeleri (Bugün, Bu Hafta, Geçen Hafta …) */
