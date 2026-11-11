@@ -405,7 +405,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           {hasFilters && (
             <div className="flex items-center justify-between gap-2 text-xs text-[#7186A3]">
               <span>Liste filtreleniyor</span>
-              <button type="button" onClick={clearFilters} className="font-bold text-[#006DBB] hover:text-[#173F73] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006DBB]">Filtreleri temizle</button>
+              <button type="button" onClick={resetFilters} className="font-bold text-[#006DBB] hover:text-[#173F73] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006DBB]">Filtreleri temizle</button>
             </div>
           )}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" role="tablist" aria-label="Ziyaret durumu">
