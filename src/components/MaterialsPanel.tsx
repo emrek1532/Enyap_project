@@ -29,19 +29,19 @@ const fmtStock = (v?: number | null) => (v == null ? '-' : v.toLocaleString('tr-
 /** Stok: eksi → koyu lacivert + "Eksi" etiketi, 0/boş → gri + "Yok"; kırmızı kullanılmaz */
 const StockCell: React.FC<{ v?: number | null; right?: boolean }> = ({ v, right }) => {
   const n = v ?? 0;
-  const tag = n < 0 ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#E6F1FB] text-[#006DBB] border border-[#C7DFF5]">Eksi</span>
-    : n === 0 ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#F1F6FC] text-[#7186A3] border border-[#E2EAF3]">Yok</span>
+  const tag = n < 0 ? <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[#E6F1FB] text-[#006DBB] border border-[#C7DFF5]">Eksi</span>
+    : n === 0 ? <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[#F1F6FC] text-[#5E7491] border border-[#E2EAF3]">Yok</span>
       : null;
   return (
     <span className={`inline-flex items-center gap-1.5 tabular-nums ${right ? 'flex-row-reverse' : ''}`}>
-      <span className={n < 0 ? 'font-extrabold text-[#173F73]' : n === 0 ? 'text-[#7186A3]' : 'font-semibold text-[#17365D]'}>{fmtStock(v)}</span>
+      <span className={n < 0 ? 'font-extrabold text-[#173F73]' : n === 0 ? 'text-[#5E7491]' : 'font-semibold text-[#17365D]'}>{fmtStock(v)}</span>
       {tag}
     </span>
   );
 };
 
 const CurBadge: React.FC<{ c: Currency }> = ({ c }) => (
-  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#F1F6FC] text-[#204D84] border border-[#E2EAF3]">{CURRENCY_LABEL[c]}</span>
+  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[#F1F6FC] text-[#204D84] border border-[#E2EAF3]">{CURRENCY_LABEL[c]}</span>
 );
 
 const OwnMaterials: React.FC<{
@@ -182,7 +182,7 @@ const OwnMaterials: React.FC<{
             ]}
           />
         </div>
-        <div className="text-xs text-[#7186A3] flex items-center gap-x-2 gap-y-1 flex-wrap">
+        <div className="text-xs text-[#5E7491] flex items-center gap-x-2 gap-y-1 flex-wrap">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           <span><b className="text-[#17365D]">{total.toLocaleString('tr-TR')}</b> malzeme{query.trim() || codeQuery.trim() || activeFilters ? ' bulundu' : ''}</span>
           {anything && (
@@ -213,12 +213,12 @@ const OwnMaterials: React.FC<{
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
               <div className="text-[11px] font-extrabold text-[#173F73] font-mono">{m.code}</div>
               <div className="text-sm font-semibold text-[#17365D] leading-snug uppercase">{m.name || '-'}</div>
-              <div className="text-[11px] text-[#7186A3] mt-1 flex items-center gap-1.5 flex-wrap">
+              <div className="text-[11px] text-[#5E7491] mt-1 flex items-center gap-1.5 flex-wrap">
                 <span>{m.unit}</span><span>·</span><span>KDV %{m.vatRate}</span>
               </div>
             </div>
             <div className="text-right shrink-0 space-y-1.5">
-              <div className={`text-sm font-black tabular-nums ${m.price > 0 ? 'text-[#17365D]' : 'text-[#7186A3]'}`}>
+              <div className={`text-sm font-black tabular-nums ${m.price > 0 ? 'text-[#17365D]' : 'text-[#5E7491]'}`}>
                 {priceNum(m)} {m.price > 0 && <span className="text-[11px] font-bold text-[#204D84]">{CURRENCY_LABEL[m.currency]}</span>}
               </div>
               {rowActions(m)}
@@ -250,13 +250,13 @@ const OwnMaterials: React.FC<{
                 <td className="py-3 px-3 text-[#17365D] font-semibold uppercase text-[13px]">
                   <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-[#006DBB]">{m.name || '-'}</button>
                 </td>
-                <td className="py-3 px-3 text-[#7186A3]">{m.unit}</td>
-                <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-[#17365D]' : 'text-[#7186A3]'}`}>
+                <td className="py-3 px-3 text-[#5E7491]">{m.unit}</td>
+                <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-[#17365D]' : 'text-[#5E7491]'}`}>
                   {priceNum(m)}<span className="xl:hidden">{m.price > 0 && <span className="ml-1 text-[11px] font-bold text-[#204D84]">{CURRENCY_LABEL[m.currency]}</span>}</span>
                 </td>
                 <td className="hidden xl:table-cell py-3 px-3"><CurBadge c={m.currency} /></td>
-                <td className="hidden xl:table-cell py-3 px-3 text-[#7186A3] tabular-nums">%{m.vatRate}</td>
-                <td className="hidden xl:table-cell py-3 px-3 text-[#7186A3] text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
+                <td className="hidden xl:table-cell py-3 px-3 text-[#5E7491] tabular-nums">%{m.vatRate}</td>
+                <td className="hidden xl:table-cell py-3 px-3 text-[#5E7491] text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
                 <td className="py-3 px-3 pr-5 text-center whitespace-nowrap">{rowActions(m)}</td>
               </tr>
             ))}
@@ -290,7 +290,7 @@ const EmptyState: React.FC = () => (
   <div className="py-10 flex flex-col items-center gap-2 text-center">
     <span className="w-12 h-12 rounded-2xl bg-[#F1F6FC] text-[#006DBB] flex items-center justify-center"><PackageSearch className="w-6 h-6" /></span>
     <div className="text-sm font-bold text-[#17365D]">Malzeme bulunamadı</div>
-    <div className="text-xs text-[#7186A3]">Aramayı kısaltın ya da filtreleri temizleyin.</div>
+    <div className="text-xs text-[#5E7491]">Aramayı kısaltın ya da filtreleri temizleyin.</div>
   </div>
 );
 
@@ -310,7 +310,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="bg-white w-full sm:max-w-2xl max-h-[90vh] flex flex-col rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-start gap-3">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="font-mono text-[11px] text-sky-200/80">{m.code}</div>
             <h3 className="font-black text-lg tracking-tight leading-snug">{m.name}</h3>
@@ -330,7 +330,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
               <button key={`${q.id}-${i}`} type="button" disabled={!onOpenQuote} onClick={() => onOpenQuote?.(q)}
                 className="w-full text-left px-4 py-2.5 flex items-start gap-3 hover:bg-slate-50 disabled:hover:bg-transparent">
                 <div className="min-w-0 flex-1 text-xs">
-                  <div><b className="text-slate-800 text-sm">{q.customerName}</b> <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${st?.cls || ''}`}>{st?.label || q.status}</span></div>
+                  <div><b className="text-slate-800 text-sm">{q.customerName}</b> <span className={`ml-1 px-1.5 py-0.5 rounded text-[11px] font-bold ${st?.cls || ''}`}>{st?.label || q.status}</span></div>
                   <div className="text-slate-500 mt-0.5">{dayOf(q.createdAt).split('-').reverse().join('.')} · {q.quoteNumber}</div>
                 </div>
                 <div className="text-right text-xs shrink-0 tabular-nums">
@@ -351,7 +351,7 @@ const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => v
 const Group: React.FC<{ icon: React.ElementType; title: string; note?: string; children: React.ReactNode }> = ({ icon: I, title, note, children }) => (
   <fieldset className="rounded-xl border border-[#E2EAF3] bg-white p-3 sm:p-3.5">
     <legend className="px-1.5 -ml-1.5 flex items-center gap-1.5 text-[12px] font-extrabold uppercase tracking-wider text-[#204D84]">
-      <I className="w-4 h-4 text-[#006DBB]" /> {title}{note && <span className="normal-case tracking-normal font-semibold text-[#7186A3]">· {note}</span>}
+      <I className="w-4 h-4 text-[#006DBB]" /> {title}{note && <span className="normal-case tracking-normal font-semibold text-[#5E7491]">· {note}</span>}
     </legend>
     {children}
   </fieldset>
@@ -393,17 +393,17 @@ const MaterialForm: React.FC<{
   const input = 'w-full h-10 px-3 border border-[#E2EAF3] rounded-lg text-sm text-[#17365D] bg-white focus:outline-none focus:ring-2 focus:ring-[#006DBB]/20 focus:border-[#7DB6E3]';
   const label = 'block text-xs font-bold text-[#17365D] mb-1';
   return (
-    <div className="fixed inset-0 z-50 bg-[#0B2447]/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-[#0B2343]/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <form
         onSubmit={submit}
         onClick={e => e.stopPropagation()}
         className="bg-[#F7FAFD] w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto"
       >
-        <div className="sticky top-0 z-10 relative flex items-center gap-3 px-4 sm:px-5 py-3.5 bg-gradient-to-r from-white to-[#EAF4FC] border-b border-[#E2EAF3]">
+        <div className="sticky top-0 z-10 relative flex items-center gap-3 px-4 sm:px-5 py-3.5 bg-gradient-to-r from-white to-[#EAF5FC] border-b border-[#E2EAF3]">
           <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#006DBB] to-[#173F73] text-white flex items-center justify-center shrink-0 shadow-[0_8px_18px_-10px_rgba(0,109,187,0.9)]"><Package className="w-5 h-5" /></span>
           <div className="min-w-0 flex-1">
             <h3 className="font-black text-lg tracking-tight text-[#173F73] leading-tight">{originalCode ? 'Malzemeyi Düzenle' : 'Yeni Malzeme'}</h3>
-            <p className="text-xs text-[#7186A3] truncate">{originalCode ? <span className="font-mono">{originalCode}</span> : 'Kod ve ad zorunlu; diğer alanlar sonradan da girilebilir.'}</p>
+            <p className="text-xs text-[#5E7491] truncate">{originalCode ? <span className="font-mono">{originalCode}</span> : 'Kod ve ad zorunlu; diğer alanlar sonradan da girilebilir.'}</p>
           </div>
           <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E2EAF3] text-[#204D84] hover:bg-[#F1F6FC] shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
           <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-[#006DBB] to-[#00B49A]" />
@@ -510,8 +510,8 @@ export const MaterialsPanel: React.FC<{
 
 
   const tabCls = (on: boolean) =>
-    `relative flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-2 sm:px-4 py-3 text-center transition-colors ${on ? 'bg-white text-[#006DBB] shadow-sm' : 'text-[#7186A3] hover:text-[#17365D]'}`;
-  const bar = <span className="absolute left-5 right-5 bottom-0 h-[3px] rounded-full bg-[#0072CE]" />;
+    `relative flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-2 sm:px-4 py-3 text-center transition-colors ${on ? 'bg-white text-[#006DBB] shadow-sm' : 'text-[#5E7491] hover:text-[#17365D]'}`;
+  const bar = <span className="absolute left-5 right-5 bottom-0 h-[3px] rounded-full bg-[#006DBB]" />;
   return (
     <div>
       <PageHeader
@@ -522,22 +522,22 @@ export const MaterialsPanel: React.FC<{
         hero={{ lg: '/hero-malzeme-sabit.png', sm: '/hero-malzeme-sabit.png', materials: true }}
       />
       <div className="space-y-4">
-        {showOwn && showSup && <div className="flex gap-1 rounded-2xl border border-[#DCE8F5] bg-[#E7F3FC] p-1.5" role="tablist">
+        {showOwn && showSup && <div className="flex gap-1 rounded-2xl border border-[#E2EAF3] bg-[#E7F3FC] p-1.5" role="tablist">
           <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
             <span className="text-sm sm:text-base font-extrabold">Bizim Malzemelerimiz</span>
-            <span className="text-xs sm:text-sm font-semibold text-[#7186A3]">{counts ? `${tr(counts.total)} malzeme` : '– malzeme'}</span>
+            <span className="text-xs sm:text-sm font-semibold text-[#5E7491]">{counts ? `${tr(counts.total)} malzeme` : '– malzeme'}</span>
             {tab === 'own' && bar}
           </button>
           <button role="tab" aria-selected={tab === 'suppliers'} onClick={() => choose('suppliers')} className={tabCls(tab === 'suppliers')}>
             <span className="text-sm sm:text-base font-extrabold">Firma Fiyat Listeleri</span>
-            <span className="text-xs sm:text-sm font-semibold text-[#7186A3]">{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '– firma · – kalem'}</span>
+            <span className="text-xs sm:text-sm font-semibold text-[#5E7491]">{supInfo ? `${supInfo.lists} firma · ${tr(supInfo.items)} kalem` : '– firma · – kalem'}</span>
             {tab === 'suppliers' && bar}
           </button>
         </div>}
         {tab === 'own'
           ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} newRequest={newLocal} importRequest={importReq}
               actions={<>
-                {canImport && <button type="button" onClick={() => setImportReq(n => n + 1)} className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#C9DDF1] bg-white px-3 text-xs sm:text-sm font-bold text-[#173F73] hover:bg-[#F1F6FC]"><FileSpreadsheet className="h-4 w-4 text-[#00A08A]" />Excel'den Malzeme Aktar</button>}
+                {canImport && <button type="button" onClick={() => setImportReq(n => n + 1)} className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#C9DDF1] bg-white px-3 text-xs sm:text-sm font-bold text-[#173F73] hover:bg-[#F1F6FC]"><FileSpreadsheet className="h-4 w-4 text-[#008F79]" />Excel'den Malzeme Aktar</button>}
                 {canAdd && <button type="button" onClick={() => setNewLocal(n => n + 1)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#006DBB] px-3 text-xs sm:text-sm font-bold text-white hover:bg-[#173F73]"><Plus className="h-4 w-4" />Yeni Malzeme</button>}
               </>}
               onChanged={() => loadCounts(true)}

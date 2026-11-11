@@ -12,11 +12,11 @@ const trDay = (d: string) => d.split('-').reverse().join('.');
 const card = 'bg-white rounded-2xl border border-[#E2EAF3] shadow-[0_10px_28px_-24px_rgba(11,35,67,0.45)]';
 /** Ziyaret durumu: bugün (turkuaz) / yakın zamanda ≤30 gün (mavi) / uzun süredir >90 gün ya da hiç (gri) */
 const visitTag = (d: string | undefined, today: string) => {
-  if (!d) return { l: 'Hiç uğranmadı', c: 'bg-[#F1F6FC] text-[#7186A3] border-[#E2EAF3]' };
-  if (d === today) return { l: 'Bugün uğrandı', c: 'bg-[#E6F7F4] text-[#00897A] border-[#00B49A]/30' };
+  if (!d) return { l: 'Hiç uğranmadı', c: 'bg-[#F1F6FC] text-[#5E7491] border-[#E2EAF3]' };
+  if (d === today) return { l: 'Bugün uğrandı', c: 'bg-[#E6F7F4] text-[#008F79] border-[#00B49A]/30' };
   const n = Math.floor((Date.parse(today) - Date.parse(d)) / 864e5);
   if (n <= 30) return { l: 'Yakın zamanda', c: 'bg-[#EAF5FC] text-[#006DBB] border-[#006DBB]/25' };
-  if (n > 90) return { l: 'Uzun süredir uğranmadı', c: 'bg-[#F1F6FC] text-[#7186A3] border-[#E2EAF3]' };
+  if (n > 90) return { l: 'Uzun süredir uğranmadı', c: 'bg-[#F1F6FC] text-[#5E7491] border-[#E2EAF3]' };
   return { l: `${n} gün önce`, c: 'bg-[#F1F6FC] text-[#173F73] border-[#E2EAF3]' };
 };
 
@@ -87,7 +87,7 @@ export const RouteView: React.FC<{
             <p className="text-xs text-white/70">{stops.length ? `${stops.length} durak · ${done} uğrandı` : 'Henüz durak yok'} · {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })}</p>
           </div>
           {url && (
-            <a href={url} target="_blank" rel="noopener noreferrer" className="h-10 px-4 rounded-xl bg-[#00B49A] hover:bg-[#00A08A] text-white text-sm font-bold inline-flex items-center gap-1.5 transition-colors">
+            <a href={url} target="_blank" rel="noopener noreferrer" className="h-10 px-4 rounded-xl bg-[#00B49A] hover:bg-[#008F79] text-white text-sm font-bold inline-flex items-center gap-1.5 transition-colors">
               <Navigation className="w-4 h-4" />Yol tarifi
             </a>
           )}
@@ -104,7 +104,7 @@ export const RouteView: React.FC<{
                 {matches.map(c => (
                   <li key={c.id}>
                     <button type="button" onClick={() => add(c)} className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[#EAF5FC]">
-                      <span className="min-w-0"><span className="block text-sm font-semibold text-[#0B2343] truncate">{c.name}</span><span className="block text-[11px] text-[#7186A3]">{c.city || '—'}</span></span>
+                      <span className="min-w-0"><span className="block text-sm font-semibold text-[#0B2343] truncate">{c.name}</span><span className="block text-[11px] text-[#5E7491]">{c.city || '—'}</span></span>
                       <Plus className="w-4 h-4 text-[#006DBB] shrink-0" />
                     </button>
                   </li>
@@ -114,7 +114,7 @@ export const RouteView: React.FC<{
           </div>
 
           {stops.length === 0 && (
-            <div className="rounded-2xl border-2 border-dashed border-[#E2EAF3] bg-[#F1F6FC]/60 px-4 py-8 text-center text-sm text-[#7186A3]">
+            <div className="rounded-2xl border-2 border-dashed border-[#E2EAF3] bg-[#F1F6FC]/60 px-4 py-8 text-center text-sm text-[#5E7491]">
               Bugün uğrayacağınız firmaları yukarıdan arayıp ekleyin ya da sağdaki önerilerden seçin. Sıralayıp "Yol tarifi" ile Google Haritalar'da açabilirsiniz.
             </div>
           )}
@@ -129,28 +129,28 @@ export const RouteView: React.FC<{
                   <div className="flex items-start gap-3">
                     <span className={`mt-0.5 w-7 h-7 rounded-full grid place-items-center text-xs font-black shrink-0 ${v ? 'bg-[#00B49A] text-white' : 'bg-[#0B2343] text-white'}`}>{v ? '✓' : i + 1}</span>
                     <button type="button" onClick={() => onOpen(c)} className="flex-1 min-w-0 text-left">
-                      <span className={`block text-sm font-bold break-words ${v ? 'text-[#7186A3] line-through decoration-[#7186A3]/40' : 'text-[#0B2343]'}`}>{c.name}</span>
-                      <span className="flex items-center gap-1 text-[11px] text-[#7186A3]"><MapPin className="w-3.5 h-3.5 shrink-0 text-[#006DBB]" />{c.city || '—'}</span>
-                      <span className="mt-1 flex flex-wrap items-center gap-1 text-[10px] font-bold">
+                      <span className={`block text-sm font-bold break-words ${v ? 'text-[#5E7491] line-through decoration-[#5E7491]/40' : 'text-[#0B2343]'}`}>{c.name}</span>
+                      <span className="flex items-center gap-1 text-[11px] text-[#5E7491]"><MapPin className="w-3.5 h-3.5 shrink-0 text-[#006DBB]" />{c.city || '—'}</span>
+                      <span className="mt-1 flex flex-wrap items-center gap-1 text-[11px] font-bold">
                         <span className={`px-1.5 py-0.5 rounded-md border ${tag.c}`}>{tag.l}</span>
                         {c.lastVisit && !v && <span className="px-1.5 py-0.5 rounded-md bg-[#F1F6FC] text-[#173F73] tabular-nums">Son ziyaret {trDay(c.lastVisit)}</span>}
                         <span className="px-1.5 py-0.5 rounded-md bg-[#EAF5FC] text-[#006DBB]">Planlı · {i + 1}. durak</span>
                         {inf?.pending ? <span className="px-1.5 py-0.5 rounded-md bg-[#EAF5FC] text-[#006DBB] tabular-nums">{inf.pending} bekleyen teklif</span> : null}
-                        {inf?.due ? <span className="px-1.5 py-0.5 rounded-md bg-[#E6F7F4] text-[#00897A]">Bugün aranacak</span> : null}
+                        {inf?.due ? <span className="px-1.5 py-0.5 rounded-md bg-[#E6F7F4] text-[#008F79]">Bugün aranacak</span> : null}
                       </span>
                     </button>
                   </div>
                   <div className="mt-2 flex items-center justify-end gap-1 flex-wrap">
                     {canEdit && (
                       <button type="button" onClick={() => toggleVisit(c)} title={v ? 'Uğradım işaretini kaldır' : 'Ziyaret kaydı: uğradım'}
-                        className={`h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-bold border transition-colors ${v ? 'bg-[#E6F7F4] border-[#00B49A]/30 text-[#00897A]' : 'bg-[#006DBB] border-[#006DBB] text-white hover:bg-[#173F73]'}`}>
+                        className={`h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-bold border transition-colors ${v ? 'bg-[#E6F7F4] border-[#00B49A]/30 text-[#008F79]' : 'bg-[#006DBB] border-[#006DBB] text-white hover:bg-[#173F73]'}`}>
                         {v ? <MapPinCheck className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}{v ? 'Uğrandı' : 'Ziyaret kaydı'}
                       </button>
                     )}
                     {tel && <a href={`tel:${tel}`} aria-label="Ara" className="w-9 h-9 rounded-lg grid place-items-center text-[#006DBB] bg-[#EAF5FC] hover:bg-[#d6ebf8]"><Phone className="w-4 h-4" /></a>}
                     <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Yukarı" className="w-9 h-9 rounded-lg grid place-items-center text-[#173F73] hover:bg-[#F1F6FC] disabled:opacity-30"><ArrowUp className="w-4 h-4" /></button>
                     <button type="button" onClick={() => move(i, 1)} disabled={i === stops.length - 1} aria-label="Aşağı" className="w-9 h-9 rounded-lg grid place-items-center text-[#173F73] hover:bg-[#F1F6FC] disabled:opacity-30"><ArrowDown className="w-4 h-4" /></button>
-                    <button type="button" onClick={() => remove(c.id)} aria-label="Rotadan çıkar" className="w-9 h-9 rounded-lg grid place-items-center text-[#7186A3] hover:text-rose-600 hover:bg-rose-50"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => remove(c.id)} aria-label="Rotadan çıkar" className="w-9 h-9 rounded-lg grid place-items-center text-[#5E7491] hover:text-rose-600 hover:bg-rose-50"><X className="w-4 h-4" /></button>
                   </div>
                 </li>
               );
@@ -162,12 +162,12 @@ export const RouteView: React.FC<{
 
       <aside className={`${card} p-4 h-fit`}>
         <h3 className="text-sm font-black text-[#0B2343]">Öneriler</h3>
-        <p className="text-[11px] text-[#7186A3] mb-2">Takip günü gelen firmalar; rotadaki şehirlerde 3 aydır uğranmayanlar</p>
-        {suggest.length === 0 && <p className="text-xs text-[#7186A3] py-3">Şu an öneri yok. Rotaya firma ekledikçe aynı şehirdeki uğranmayan firmalar burada çıkar.</p>}
+        <p className="text-[11px] text-[#5E7491] mb-2">Takip günü gelen firmalar; rotadaki şehirlerde 3 aydır uğranmayanlar</p>
+        {suggest.length === 0 && <p className="text-xs text-[#5E7491] py-3">Şu an öneri yok. Rotaya firma ekledikçe aynı şehirdeki uğranmayan firmalar burada çıkar.</p>}
         <ul className="divide-y divide-[#E2EAF3]">
           {suggest.map(({ c, why }) => (
             <li key={c.id} className="flex items-center gap-2 py-2">
-              <span className="flex-1 min-w-0"><span className="block text-[13px] font-semibold text-[#0B2343] truncate">{c.name}</span><span className="block text-[11px] text-[#7186A3] truncate">{c.city || '—'} · {why}</span></span>
+              <span className="flex-1 min-w-0"><span className="block text-[13px] font-semibold text-[#0B2343] truncate">{c.name}</span><span className="block text-[11px] text-[#5E7491] truncate">{c.city || '—'} · {why}</span></span>
               <button type="button" onClick={() => add(c)} className="h-9 px-3 rounded-lg bg-[#EAF5FC] text-[#006DBB] hover:bg-[#d6ebf8] text-xs font-bold inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Ekle</button>
             </li>
           ))}

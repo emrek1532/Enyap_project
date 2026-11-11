@@ -50,9 +50,9 @@ export const ForecastCard: React.FC<{ quotes: Quote[]; amountOf: (q: Quote) => n
         )}
       </div>
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <div className="rounded-xl bg-emerald-50 px-3 py-2"><div className="text-[10px] font-bold uppercase tracking-wide text-emerald-800/80">Kesin (onaylı)</div><div className="text-lg font-black text-emerald-800 tabular-nums">{tl(f.approved)}</div><div className="text-[11px] text-emerald-800/80">{f.n} teklif</div></div>
-        <div className="rounded-xl bg-sky-50 px-3 py-2"><div className="text-[10px] font-bold uppercase tracking-wide text-sky-800/80">Tahmini ek</div><div className="text-lg font-black text-sky-800 tabular-nums">{tl(f.expected)}</div><div className="text-[11px] text-sky-800/80">{f.pendN} bekleyen · {tl(f.pendAmt)}</div></div>
-        <div className="rounded-xl bg-slate-50 px-3 py-2"><div className="text-[10px] font-bold uppercase tracking-wide text-slate-600">Ay sonu tahmini</div><div className="text-lg font-black text-slate-900 tabular-nums">{tl(f.total)}</div><div className="text-[11px] text-slate-500">{target ? `hedef ${tl(target)}` : 'hedef girilmemiş (ana sayfada)'}</div></div>
+        <div className="rounded-xl bg-emerald-50 px-3 py-2"><div className="text-[11px] font-bold uppercase tracking-wide text-emerald-800/80">Kesin (onaylı)</div><div className="text-lg font-black text-emerald-800 tabular-nums">{tl(f.approved)}</div><div className="text-[11px] text-emerald-800/80">{f.n} teklif</div></div>
+        <div className="rounded-xl bg-sky-50 px-3 py-2"><div className="text-[11px] font-bold uppercase tracking-wide text-sky-800/80">Tahmini ek</div><div className="text-lg font-black text-sky-800 tabular-nums">{tl(f.expected)}</div><div className="text-[11px] text-sky-800/80">{f.pendN} bekleyen · {tl(f.pendAmt)}</div></div>
+        <div className="rounded-xl bg-slate-50 px-3 py-2"><div className="text-[11px] font-bold uppercase tracking-wide text-slate-600">Ay sonu tahmini</div><div className="text-lg font-black text-slate-900 tabular-nums">{tl(f.total)}</div><div className="text-[11px] text-slate-500">{target ? `hedef ${tl(target)}` : 'hedef girilmemiş (ana sayfada)'}</div></div>
       </div>
       <div ref={box} className="mt-3">
         <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="block max-w-full" role="img" aria-label="Bu ay günlük biriken onaylı ciro ve ay sonu tahmini">

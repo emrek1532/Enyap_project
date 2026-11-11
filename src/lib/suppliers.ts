@@ -233,7 +233,7 @@ export async function exportListToExcel(list: SupplierList) {
   }
   const writeXlsx = (await import('write-excel-file')).default;
   const head = ['Grup', 'Kod', 'Ürün adı', 'Fiyat', 'Para birimi', 'Birim', 'Bizim kod']
-    .map(value => ({ value, fontWeight: 'bold' as const, backgroundColor: '#DCE8F5' }));
+    .map(value => ({ value, fontWeight: 'bold' as const, backgroundColor: '#E2EAF3' }));
   // Excel'in kabul etmediği kontrol karakterleri temizlenir (bazı PDF'lerde "i" harfi U+001E olarak gelir)
   const clean = (v: unknown) => String(v ?? '').replace(/\u001e/g, 'i').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffd]/g, '');
   const rows = all.map(r => [
@@ -423,7 +423,7 @@ export const supplierToMaterial = (s: SupplierItem): Material => ({
 
 /** Firma adına göre sabit bir renk (etiketler için) */
 /** Firma renkleri: yalnız ENYAP mavi / lacivert / turkuaz tonları (mor, turuncu yok) */
-const COLORS = ['#006DBB', '#00A08A', '#173F73', '#009FE3', '#2B5F9E', '#0E7C86', '#1D4ED8', '#0891B2', '#3A6EA5', '#00B49A', '#204D84', '#4A6F94'];
+const COLORS = ['#006DBB', '#008F79', '#173F73', '#009FE3', '#204D84', '#0E7C86', '#1D4ED8', '#0891B2', '#3A6EA5', '#00B49A', '#204D84', '#4A6F94'];
 export const supplierColor = (name: string) => {
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;

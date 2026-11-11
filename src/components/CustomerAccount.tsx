@@ -170,15 +170,15 @@ export const CustomerAccount: React.FC<{
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-[#f4f8fc] w-full sm:max-w-4xl sm:rounded-3xl shadow-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
+        className="bg-[#F1F6FC] w-full sm:max-w-4xl sm:rounded-3xl shadow-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
         {/* Başlık */}
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center gap-3 pt-safe-4">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-center gap-3 pt-safe-4">
           <div className="min-w-0 flex-1">
             <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Cari hesap</div>
             <h3 className="font-black text-lg sm:text-[22px] tracking-tight leading-tight break-words">
               {customer.name}
               {abc && <span title={ABC_STYLE[abc].hint} className={`ml-2 inline-block align-middle whitespace-nowrap text-[11px] leading-tight px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[abc].cls}`}>{abc} müşteri</span>}
-              {cStatus !== 'aktif' && <span className={`ml-2 align-middle text-[10px] px-2 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>}
+              {cStatus !== 'aktif' && <span className={`ml-2 align-middle text-[11px] px-2 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>}
             </h3>
             <p className="text-xs text-sky-200/80 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
             {customer.updatedAt && <p className="text-[11px] text-sky-200/70 mt-0.5">Son değişiklik: {customer.updatedBy && <b className="font-semibold text-sky-100">{customer.updatedBy}</b>}{customer.updatedBy ? ' · ' : ''}{new Date(customer.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
@@ -299,7 +299,7 @@ export const CustomerAccount: React.FC<{
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono font-black text-sm text-brand-700 underline decoration-brand-200 underline-offset-2">{quoteNo(x) || '—'}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${STATUS_LABEL[viewStatus(x)].cls}`}>{STATUS_LABEL[viewStatus(x)].label}</span>
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${STATUS_LABEL[viewStatus(x)].cls}`}>{STATUS_LABEL[viewStatus(x)].label}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 truncate">
                         {day(x.createdAt)}{x.preparedBy ? ` · ${x.preparedBy}` : ''}{x.items?.length ? ` · ${x.items.length} kalem` : ''}{x.notes ? ` · ${x.notes}` : ''}
@@ -307,7 +307,7 @@ export const CustomerAccount: React.FC<{
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-slate-900 tabular-nums whitespace-nowrap">{tl(quoteTry(x, rates))}</div>
-                      {x.currency !== 'TRY' && <div className="text-[10px] text-slate-500 whitespace-nowrap">{formatQuoteAmount(x)}</div>}
+                      {x.currency !== 'TRY' && <div className="text-[11px] text-slate-500 whitespace-nowrap">{formatQuoteAmount(x)}</div>}
                     </div>
                     {onOpenQuote && <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />}
                   </button>

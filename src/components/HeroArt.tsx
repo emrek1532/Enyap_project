@@ -50,10 +50,10 @@ export const PipeArt: React.FC<{ className?: string }> = ({ className = '' }) =>
         <stop offset="0" stopColor="#E3F0FB" /><stop offset="1" stopColor="#F4F9FE" />
       </linearGradient>
       <linearGradient id="pa-pipeH" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#A9C0D8" /><stop offset="0.35" stopColor="#F3F8FD" /><stop offset="0.7" stopColor="#C4D5E7" /><stop offset="1" stopColor="#8EA8C4" />
+        <stop offset="0" stopColor="#A9C0D8" /><stop offset="0.35" stopColor="#F1F6FC" /><stop offset="0.7" stopColor="#C4D5E7" /><stop offset="1" stopColor="#8EA8C4" />
       </linearGradient>
       <linearGradient id="pa-pipeV" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor="#A9C0D8" /><stop offset="0.35" stopColor="#F3F8FD" /><stop offset="0.7" stopColor="#C4D5E7" /><stop offset="1" stopColor="#8EA8C4" />
+        <stop offset="0" stopColor="#A9C0D8" /><stop offset="0.35" stopColor="#F1F6FC" /><stop offset="0.7" stopColor="#C4D5E7" /><stop offset="1" stopColor="#8EA8C4" />
       </linearGradient>
       <linearGradient id="pa-ringH" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stopColor="#7F9AB8" /><stop offset="0.4" stopColor="#D9E5F2" /><stop offset="1" stopColor="#6C88A8" />

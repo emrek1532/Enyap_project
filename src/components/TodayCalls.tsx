@@ -35,13 +35,13 @@ export const TodayCalls: React.FC<{
   return (
     <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden">
       <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center justify-between gap-2">
-        <h2 className="text-base font-black text-[#1a3d6d] flex items-center gap-2"><BellRing className="w-5 h-5 text-amber-500" />Takip</h2>
+        <h2 className="text-base font-black text-[#173F73] flex items-center gap-2"><BellRing className="w-5 h-5 text-amber-500" />Takip</h2>
         {list.length > SHOW && <button onClick={() => onAll(tab === 'calls' ? 'takip' : 'expiring')} className="text-xs font-bold text-brand-600">Tümü ({list.length})</button>}
       </header>
       <div className="px-4 sm:px-5 pb-1 flex gap-1.5" role="tablist" aria-label="Takip">
         {tabs.map(([k, label, n]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPick(k)}
-            className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+            className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#173F73] border-[#173F73] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
             {label} <span className={`tabular-nums ${tab === k ? 'text-sky-200' : 'text-slate-500'}`}>{n}</span>
           </button>
         ))}
@@ -58,7 +58,7 @@ export const TodayCalls: React.FC<{
                   <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
                   <span className="block text-[11px] text-slate-500 truncate">{quoteNo(q)} · {lira(quoteTry(q, rates))}</span>
                 </span>
-                <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold border ${late ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full font-bold border ${late ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
                   {tab === 'calls' ? followLabel(q.followUpAt!, today) : expiryLabel(exp ?? 0)}
                 </span>
               </button>

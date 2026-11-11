@@ -89,8 +89,8 @@ const withExisting = (base: string[], values: (string | undefined)[]) => {
 export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, startDraft, onStartNewHandled, onViewChange }) => {
   const isCollection = kind === 'collections';
   const t = isCollection
-    ? { one: 'Tahsilat', party: 'Müşteri / Firma', Icon: Wallet, tone: 'text-[#008F7C] bg-[#E8F8F4]' }
-    : { one: 'Harcama', party: 'Kategori', Icon: Receipt, tone: 'text-[#006DBB] bg-[#EAF4FC]' };
+    ? { one: 'Tahsilat', party: 'Müşteri / Firma', Icon: Wallet, tone: 'text-[#008F79] bg-[#E6F7F4]' }
+    : { one: 'Harcama', party: 'Kategori', Icon: Receipt, tone: 'text-[#006DBB] bg-[#EAF5FC]' };
 
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -301,7 +301,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <div>
                     {c?.dueDate && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${overdue ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'}`}>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${overdue ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'}`}>
                         Vade {fmtDate(c.dueDate)}
                       </span>
                     )}
@@ -320,7 +320,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
                 const overdue = !!c?.dueDate && c.dueDate < todayStr;
                 return (
                   <tr key={r.id} className="hover:bg-slate-50 align-top">
-                    <td className="hidden xl:table-cell py-3 px-3 pl-5 whitespace-nowrap font-semibold text-[#1a3d6d] tabular-nums">{fmtDate(r.date)}</td>
+                    <td className="hidden xl:table-cell py-3 px-3 pl-5 whitespace-nowrap font-semibold text-[#173F73] tabular-nums">{fmtDate(r.date)}</td>
                     <td className="py-2.5 px-3 min-w-[140px]">
                       <div className="font-bold text-slate-900">{partyOf(r) || '-'}</div>
                       <div className="text-xs text-slate-500"><span className="xl:hidden tabular-nums">{fmtDate(r.date)}{c?.city ? ' · ' : ''}</span>{c?.city}</div>
@@ -377,7 +377,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
             </div>
             <div className="text-right">
               <div className="font-black text-slate-900 text-sm tabular-nums whitespace-nowrap">{money(total, first.currency)}</div>
-              <div className="text-[10px] font-bold text-brand-700">{g.items.length} parça {open ? '▲' : '▼'}</div>
+              <div className="text-[11px] font-bold text-brand-700">{g.items.length} parça {open ? '▲' : '▼'}</div>
             </div>
           </div>
           <div className="text-xs text-slate-600 mt-1">{methods}{dues.length ? ` · vade ${fmtDate(dues[0])}${dues.length > 1 ? ` – ${fmtDate(dues[dues.length - 1])}` : ''}` : ''}</div>
@@ -392,7 +392,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
     return (
       <React.Fragment key={g.key}>
         <tr onClick={() => toggleGroup(g.key)} className="hover:bg-slate-50 cursor-pointer align-top bg-white">
-          <td className="hidden xl:table-cell py-2.5 px-3 pl-5 whitespace-nowrap font-semibold text-[#1a3d6d] tabular-nums">{fmtDate(first.date)}</td>
+          <td className="hidden xl:table-cell py-2.5 px-3 pl-5 whitespace-nowrap font-semibold text-[#173F73] tabular-nums">{fmtDate(first.date)}</td>
           <td className="py-2.5 px-3 min-w-[140px]">
             <div className="font-semibold text-slate-900">{partyOf(first) || '-'}</div>
             <div className="text-xs text-slate-500"><span className="xl:hidden tabular-nums">{fmtDate(first.date)}{first.city ? ' · ' : ''}</span>{first.city}</div>

@@ -27,7 +27,7 @@ export const Sidebar: React.FC<{
     return (
       <button key={id} onClick={onClick} aria-current={on ? 'page' : undefined}
         className={`group relative w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-[15px] font-medium transition-all duration-200 ${on
-          ? 'bg-gradient-to-r from-[#1677D8] to-[#1AA6EE] text-white font-semibold shadow-[0_6px_26px_-2px_rgba(26,166,238,0.7)] ring-1 ring-[#7FD3FA]/40'
+          ? 'bg-gradient-to-r from-[#1677D8] to-[#009FE3] text-white font-semibold shadow-[0_6px_26px_-2px_rgba(26,166,238,0.7)] ring-1 ring-[#7FD3FA]/40'
           : 'text-white/90 hover:bg-white/10 hover:text-white'}`}>
         <Icon className="relative w-[22px] h-[22px] shrink-0 text-white" strokeWidth={1.7} />
         <span className="relative min-w-0 flex-1 truncate text-left">{title}</span>
@@ -36,18 +36,18 @@ export const Sidebar: React.FC<{
     );
   };
   return (
-    <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-60 flex-col overflow-hidden bg-gradient-to-b from-[#0A1E3D] via-[#0C2850] to-[#0B2447] text-white pt-safe border-r border-white/5">
+    <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-60 flex-col overflow-hidden bg-gradient-to-b from-[#0A1E3D] via-[#0C2850] to-[#0B2343] text-white pt-safe border-r border-white/5">
       {/* Süs (tıklanmaz): sağ alt yarıda kavisli, yumuşak mavi parlama */}
       <svg aria-hidden viewBox="0 0 240 1000" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 w-full h-full">
         <defs>
-          <linearGradient id="sb-g1" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1AA6EE" stopOpacity="0.38" /><stop offset="0.6" stopColor="#0072CE" stopOpacity="0.16" /><stop offset="1" stopColor="#0A1E3D" stopOpacity="0" /></linearGradient>
-          <linearGradient id="sb-g2" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5CC4F5" stopOpacity="0.32" /><stop offset="1" stopColor="#0072CE" stopOpacity="0" /></linearGradient>
+          <linearGradient id="sb-g1" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#009FE3" stopOpacity="0.38" /><stop offset="0.6" stopColor="#006DBB" stopOpacity="0.16" /><stop offset="1" stopColor="#0A1E3D" stopOpacity="0" /></linearGradient>
+          <linearGradient id="sb-g2" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5CC4F5" stopOpacity="0.32" /><stop offset="1" stopColor="#006DBB" stopOpacity="0" /></linearGradient>
         </defs>
         <path d="M240 330 C150 430 70 600 120 760 C150 860 210 930 240 960 Z" fill="url(#sb-g1)" />
         <path d="M240 470 C185 540 150 650 185 760 C205 830 230 880 240 900 Z" fill="url(#sb-g2)" />
         <path d="M240 330 C150 430 70 600 120 760 C150 860 210 930 240 960" fill="none" stroke="#7FD3FA" strokeOpacity="0.28" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
       </svg>
-      <div aria-hidden className="pointer-events-none absolute -right-16 top-[45%] w-56 h-72 rounded-full bg-[#1AA6EE]/15 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -right-16 top-[45%] w-56 h-72 rounded-full bg-[#009FE3]/15 blur-3xl" />
       <button onClick={onHome} className="relative mx-4 mt-6 mb-5 flex flex-col items-center gap-2.5 px-2 py-2 rounded-2xl hover:bg-white/5 text-center transition-colors" title="Ana Sayfa">
         <img src="/logo-dark.png" alt="ENYAP" draggable={false} className="w-full max-w-[190px] h-auto select-none" />
         <span className="text-[13px] font-medium text-white/90">Isı Sistemleri · Teklif & Satış</span>
@@ -56,9 +56,9 @@ export const Sidebar: React.FC<{
         {item('home', 'Ana Sayfa', Home, onHome)}
         {sections.map(s => item(s.id, s.title, s.icon, () => onOpen(s.id), s.badge))}
       </nav>
-      <div className="relative m-3 p-3.5 rounded-2xl bg-[#0B2447]/80 backdrop-blur-sm border border-[#5CC4F5]/25 shadow-[0_12px_30px_-16px_rgba(0,0,0,0.6)]">
+      <div className="relative m-3 p-3.5 rounded-2xl bg-[#0B2343]/80 backdrop-blur-sm border border-[#5CC4F5]/25 shadow-[0_12px_30px_-16px_rgba(0,0,0,0.6)]">
         <div className="flex items-center gap-3" title={userName}>
-          <span className="w-11 h-11 rounded-full bg-gradient-to-br from-[#1AA6EE] to-[#0072CE] flex items-center justify-center text-[15px] font-black shrink-0">{initials(userName)}</span>
+          <span className="w-11 h-11 rounded-full bg-gradient-to-br from-[#009FE3] to-[#006DBB] flex items-center justify-center text-[15px] font-black shrink-0">{initials(userName)}</span>
           <span className="min-w-0 flex-1">
             <span className="block text-[15px] font-bold truncate">{userName}</span>
             <span className="block text-xs text-white/65 truncate" title={userEmail}>{roleLabel}</span>

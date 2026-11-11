@@ -34,14 +34,14 @@ const CSS = `
 #rp-print{display:none}
 .rp-doc{color:#0f172a;font-family:Arial,Arimo,'Liberation Sans',Helvetica,sans-serif;font-size:8.5pt;line-height:1.35;
   -webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff}
-.rp-doc .rp-head{display:flex;align-items:center;justify-content:space-between;gap:6mm;border-bottom:0.5mm solid #006ec6;padding:4mm 5mm 3.5mm;margin-bottom:3.5mm}
+.rp-doc .rp-head{display:flex;align-items:center;justify-content:space-between;gap:6mm;border-bottom:0.5mm solid #006DBB;padding:4mm 5mm 3.5mm;margin-bottom:3.5mm}
 .rp-doc .rp-head img{height:15mm;display:block}
 .rp-doc .rp-head h1{margin:0;font-size:16pt;font-weight:800;text-align:right;color:#0f172a}
 .rp-doc .rp-meta{display:flex;justify-content:space-between;align-items:stretch;gap:6mm;background:#f1f6fb;border-radius:2mm;padding:3mm 4mm;margin-bottom:6mm}
 .rp-doc .rp-meta i{display:block;font-style:normal;font-size:6.5pt;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em}
 .rp-doc .rp-meta b{display:block;font-size:10.5pt;font-weight:800;color:#0f172a;margin-top:0.8mm}
 .rp-doc .rp-meta span{display:block;font-size:8pt;color:#475569;margin-top:0.6mm}
-.rp-doc .rp-prep{padding-left:3mm;border-left:0.8mm solid #00b293}
+.rp-doc .rp-prep{padding-left:3mm;border-left:0.8mm solid #00B49A}
 .rp-doc .rp-when{text-align:right}
 .rp-doc .rp-head p{margin:1mm 0 0;font-size:8.5pt;color:#475569;text-align:right}
 .rp-doc .rp-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-bottom:6mm}
@@ -287,8 +287,8 @@ export function useReportSender() {
   };
   const modal = preview && createPortal(
     <div className="fixed inset-0 z-[60] bg-slate-900/70 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setPreview(null)}>
-      <div onClick={e => e.stopPropagation()} className="bg-[#f4f8fc] w-full sm:max-w-3xl sm:rounded-3xl shadow-2xl flex flex-col h-full sm:h-[92vh] overflow-hidden">
-        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white pt-safe-4">
+      <div onClick={e => e.stopPropagation()} className="bg-[#F1F6FC] w-full sm:max-w-3xl sm:rounded-3xl shadow-2xl flex flex-col h-full sm:h-[92vh] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white pt-safe-4">
           <div className="min-w-0 flex-1">
             <h3 className="font-black text-lg tracking-tight truncate">{preview.title}</h3>
             <p className="text-xs text-sky-200/80">{preview.pages.length} sayfa · göndermeden önce kontrol edin</p>

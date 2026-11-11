@@ -165,7 +165,7 @@ export const VoiceCommand: React.FC<{
               <li key={x.text}>
                 <button type="button" onClick={() => setTyped(x.text)} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                   <span className="flex-1">“{x.text}”</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">{KIND_LABEL[x.kind]}</span>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">{KIND_LABEL[x.kind]}</span>
                 </button>
               </li>
             ))}

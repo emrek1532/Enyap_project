@@ -889,7 +889,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     : undefined;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#f4f8fc] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60">
+    <div className="min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#F1F6FC] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60">
 
       <Sidebar
         sections={navSections}

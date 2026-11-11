@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Enyap kurumsal renkleri (logodan): mavi #006EC6 = brand-500, yeşil #00B293 = accent-500.
+ * Enyap kurumsal renkleri (logodan): mavi #006DBB = brand-500, turkuaz #00B49A = accent-500.
  * Tüm uygulama "brand-*" ve "accent-*" sınıflarını kullanır; renk değişince sadece burası güncellenir.
  */
 @theme {
@@ -10,7 +10,7 @@
   --color-brand-200: #b2d4ee;
   --color-brand-300: #80b6e2;
   --color-brand-400: #4092d4;
-  --color-brand-500: #006ec6;
+  --color-brand-500: #006dbb;
   --color-brand-600: #0160ae;
   --color-brand-700: #025295;
   --color-brand-800: #03457d;
@@ -20,7 +20,7 @@
   --color-accent-200: #b2e8df;
   --color-accent-300: #80d8c9;
   --color-accent-400: #40c5ae;
-  --color-accent-500: #00b293;
+  --color-accent-500: #00b49a;
   --color-accent-600: #019a82;
   --color-accent-700: #028272;
   --color-accent-800: #036a61;

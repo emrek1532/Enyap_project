@@ -137,12 +137,12 @@ export const MaterialPicker: React.FC<{
       autoFocus={autoFocus}
       inputClassName={`${inputClassName || 'w-full p-1.5 border border-slate-300 rounded text-xs bg-white'} ${field === 'code' ? 'font-mono uppercase' : ''}`}
       header={offline ? (
-        <div className="px-2.5 py-1.5 text-[10px] text-amber-700 bg-amber-50">
+        <div className="px-2.5 py-1.5 text-[11px] text-amber-700 bg-amber-50">
           İnternet yok — sadece son kullanılan malzemeler gösteriliyor
         </div>
       ) : undefined}
       footer={total > results.length ? (
-        <div className="px-2.5 py-1.5 text-[10px] text-slate-500 bg-slate-50">
+        <div className="px-2.5 py-1.5 text-[11px] text-slate-500 bg-slate-50">
           {total.toLocaleString('tr-TR')} sonuçtan ilk {results.length} gösteriliyor — daha fazla yazarak daraltın
         </div>
       ) : undefined}
@@ -151,7 +151,7 @@ export const MaterialPicker: React.FC<{
         return (
           <>
             {m.supplier && idx === firstSupplier && (
-              <span className="block -mx-2.5 -mt-1.5 mb-1.5 px-2.5 py-1 bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-wide text-slate-500">
+              <span className="block -mx-2.5 -mt-1.5 mb-1.5 px-2.5 py-1 bg-slate-50 border-b border-slate-100 text-[11px] font-black uppercase tracking-wide text-slate-500">
                 Firma fiyat listeleri
               </span>
             )}
@@ -160,20 +160,20 @@ export const MaterialPicker: React.FC<{
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold text-slate-800 leading-snug break-words">
                   {m.supplier && (
-                    <span className="text-[9px] font-black text-white rounded px-1 py-px mr-1 align-[1px]" style={{ background: supplierColor(m.supplier) }}>
+                    <span className="text-[11px] font-black text-white rounded px-1 py-px mr-1 align-[1px]" style={{ background: supplierColor(m.supplier) }}>
                       {m.supplier.toLocaleUpperCase('tr')}
                     </span>
                   )}
                   {m.name || m.code}
                 </span>
-                <span className="block text-[10px] text-slate-500 font-mono">
+                <span className="block text-[11px] text-slate-500 font-mono">
                   {m.code}{m.supplier && m.supplierDiscount ? ` · %${m.supplierDiscount} iskonto` : ''}
                 </span>
               </span>
               <span className={`shrink-0 text-right text-xs font-bold tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-slate-900' : 'text-slate-500'}`}>
                 {m.price > 0 ? `${formatPrice(m.price)} ${CURRENCY_LABEL[m.currency]}` : 'fiyat yok'}
                 {m.supplier && m.price > 0 && m.supplierDiscount ? (
-                  <span className="block text-[10px] font-semibold text-slate-500">net {formatPrice(m.price * (1 - m.supplierDiscount / 100))}</span>
+                  <span className="block text-[11px] font-semibold text-slate-500">net {formatPrice(m.price * (1 - m.supplierDiscount / 100))}</span>
                 ) : null}
               </span>
             </span>
