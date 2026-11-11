@@ -89,8 +89,8 @@ const withExisting = (base: string[], values: (string | undefined)[]) => {
 export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, startDraft, onStartNewHandled, onViewChange }) => {
   const isCollection = kind === 'collections';
   const t = isCollection
-    ? { one: 'Tahsilat', party: 'Müşteri / Firma', Icon: Wallet, tone: 'text-accent-600 bg-accent-50' }
-    : { one: 'Harcama', party: 'Kategori', Icon: Receipt, tone: 'text-orange-600 bg-orange-50' };
+    ? { one: 'Tahsilat', party: 'Müşteri / Firma', Icon: Wallet, tone: 'text-[#008F7C] bg-[#E8F8F4]' }
+    : { one: 'Harcama', party: 'Kategori', Icon: Receipt, tone: 'text-[#006DBB] bg-[#EAF4FC]' };
 
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -619,7 +619,7 @@ const LedgerForm: React.FC<{
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-[#0B2343] to-[#006DBB] text-white flex items-center justify-between">
           <h3 className="font-black text-lg tracking-tight">{title}</h3>
           <button type="button" onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white"><X className="w-5 h-5" /></button>
         </div>
@@ -845,7 +845,7 @@ const MultiCollectionForm: React.FC<{
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-5xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-[#0B2343] to-[#006DBB] text-white flex items-center justify-between">
           <h3 className="font-black text-lg tracking-tight">Yeni Tahsilat</h3>
           <button type="button" onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white"><X className="w-5 h-5" /></button>
         </div>
@@ -1024,7 +1024,7 @@ const MultiExpenseForm: React.FC<{
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onCancel}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()}
         className="bg-white w-full sm:max-w-6xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#1a3d6d] to-[#2b5f9e] text-white flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-[#0B2343] to-[#006DBB] text-white flex items-center justify-between">
           <h3 className="font-black text-lg tracking-tight flex-1">Yeni Harcama</h3>
           <label className="mr-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold cursor-pointer" title="Fişin fotoğrafını çekin: tutar, tarih ve tür kendiliğinden dolar">
             <Camera className="w-4 h-4" /> Fişten oku
