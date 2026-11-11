@@ -47,6 +47,7 @@ const rowToCustomer = (r: Row): Customer => ({
   lastVisit: r.last_visit ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  updatedBy: r.updated_by ?? undefined,
 });
 
 const quoteToRow = (q: Quote): Row => ({
@@ -97,6 +98,7 @@ const rowToQuote = (r: Row): Quote => ({
   validUntil: r.valid_until ?? '',
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  updatedBy: r.updated_by ?? undefined,
   createdBy: r.created_by,
   assignedTo: r.assigned_to,
   notes: r.notes ?? undefined,
@@ -138,6 +140,7 @@ const rowToNote = (r: Row): QuickNote => ({
   pinned: r.pinned,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  updatedBy: r.updated_by ?? undefined,
   remindAt: r.remind_at,
   remindedAt: r.reminded_at,
   done: !!r.done,
@@ -196,6 +199,7 @@ const rowToCollection = (r: Row): Collection => ({
   createdBy: r.created_by,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  updatedBy: r.updated_by ?? undefined,
 });
 
 const expenseToRow = (e: Expense): Row => ({
@@ -224,6 +228,7 @@ const rowToExpense = (r: Row): Expense => ({
   createdBy: r.created_by,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  updatedBy: r.updated_by ?? undefined,
 });
 
 // ---------- Generic helpers ----------

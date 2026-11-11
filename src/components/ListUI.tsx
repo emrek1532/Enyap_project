@@ -120,3 +120,14 @@ export const FilterBar: React.FC<{ search: React.ReactNode; active?: number; chi
     </div>
   );
 };
+
+/** "Son değişiklik: Sıla Nur Alçı · 11.11.2026 14:05" (kimin değiştirdiğini veritabanı yazar) */
+export const LastEdit: React.FC<{ by?: string | null; at?: string | null; className?: string }> = ({ by, at, className = '' }) => {
+  if (!by && !at) return null;
+  const when = at ? new Date(at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  return (
+    <div className={`text-[11px] text-slate-500 ${className}`}>
+      Son değişiklik: {by ? <b className="font-semibold text-slate-600">{by}</b> : 'bilinmiyor'}{when && ` · ${when}`}
+    </div>
+  );
+};
