@@ -17,7 +17,6 @@ import { Quote } from '../types';
 import { STATUS_LABEL } from '../lib/constants';
 import { dayOf } from '../lib/dates';
 import { PageHeader, SECTION_SUB } from './Sections';
-import { PipeArt } from './HeroArt';
 
 const PAGE = 25;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
@@ -521,7 +520,7 @@ export const MaterialsPanel: React.FC<{
         subtitle={SECTION_SUB.materials}
         icon={Package}
         onBack={onBack || (() => undefined)}
-        hero={{ art: <PipeArt /> }}
+        hero={{ lg: '/hero-malzeme.svg', sm: '/hero-malzeme.svg' }}
       />
       <div className="space-y-4">
         {showOwn && showSup && <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-[#E2EAF3]" role="tablist">
