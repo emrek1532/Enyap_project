@@ -624,7 +624,7 @@ const LedgerForm: React.FC<{
           <button type="button" onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-4 space-y-3 overflow-y-auto text-sm">
-          <LastEdit by={record.updatedBy} at={record.updatedBy ? record.updatedAt : null} />
+          <LastEdit by={record.updatedBy} at={record.updatedAt} />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tarih *">
               <DateInput required value={form.date} onChange={v => set({ date: v })} className={inputCls} />
