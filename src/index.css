@@ -27,6 +27,24 @@
   --color-accent-900: #045250;
 }
 
+/* ENYAP ortak arayüz ölçüleri — mevcut ekranları bozmadan aşamalı geçiş için */
+:root {
+  --enyap-ink: #0B2343;
+  --enyap-text: #173F73;
+  --enyap-muted: #7186A3;
+  --enyap-blue: #006EC6;
+  --enyap-teal: #00B293;
+  --enyap-surface: #FFFFFF;
+  --enyap-page: #F1F6FC;
+  --enyap-border: #E2EAF3;
+  --enyap-radius-control: 0.75rem;
+  --enyap-radius-card: 1rem;
+  --enyap-control-height: 2.75rem;
+  --enyap-table-text: 0.8125rem;
+  --enyap-body-text: 0.875rem;
+  --enyap-title-text: 1.875rem;
+}
+
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
