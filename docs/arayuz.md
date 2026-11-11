@@ -68,3 +68,7 @@ Renkler: lacivert `#0B2343`, kurumsal lacivert `#173F73`, ENYAP mavisi `#006DBB`
 - Tablo: Teklif/Onaylı/Beklemede ortalı (onaylı turkuaz, bekleyen mavi), negatif bakiye açık kırmızı kutu; firma altında ziyaret durumu (`visitState`: bugün turkuaz, ≤30 gün mavi, >90 gün/hiç gri). İşlemler: Uğradım, görüntüle, düzenle (lg+), ⋯. ABC rozeti A açık mavi, B açık turkuaz (`ABC_STYLE`, cari kartta da).
 - Cari Bakiyeler: Toplam Alacak / Toplam Borç / Net Bakiye kutuları (dokununca süzer), lg+ tablo Firma | Şehir | Cari Bakiye | Son Tahsilat (para birimiyle) | Son İşlem (son tahsilat ya da son teklifin yenisi); hesap `estimatedBalance` aynı.
 - Bugünün Rotası: kart duraklar, ziyaret durumu etiketi, son ziyaret, "Planlı · n. durak", büyük "Ziyaret kaydı" düğmesi.
+
+## Bant düğmeleri ve fotoğraflar (v1.22.8)
+- Fotoğraflı bantlarda (`PageHeader` `hero`) "Yeni …" düğmesi artık bandın içinde değil, hemen altında sağda (telefonda tam genişlik); fotoğrafın önünü kapatmaz.
+- Talepler, Tahsilat, Harcama, Yönetim fotoğrafları (`hero.center`) ortada değil, Teklifler gibi sağda; solu maskeyle zemine karışır. Açıklama yazısı tablet/telefonda daraltıldı (fotoğrafa taşmasın).
