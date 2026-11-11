@@ -270,7 +270,7 @@ export const SimpleHome: React.FC<{
       {/* Arka plan: üstte yumuşak mavi ışık */}
       {/* 1. Selam bandı: lacivert, sağda ENYAP binası fotoğrafı (net görünür) */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0a3168] via-[#0c3f7d] to-[#0f4f96] text-white min-h-[118px] sm:min-h-[150px] px-5 py-4 sm:px-7 sm:py-6 flex items-center shadow-[0_20px_44px_-28px_rgba(10,49,104,0.9)]">
-        <div aria-hidden className="absolute inset-y-0 right-0 w-[58%] md:w-[50%] bg-no-repeat bg-[url(/hero-enyap-sm.webp)] md:bg-[url(/hero-enyap.webp)] bg-[length:auto_230%] bg-[position:96%_30%] md:bg-[length:auto_400%] md:bg-[position:100%_26%] [mask-image:linear-gradient(to_right,transparent,black_28%)]" />
+        <div aria-hidden className="absolute inset-y-0 right-0 w-[72%] sm:w-[64%] md:w-[58%] bg-no-repeat bg-[url(/hero-enyap-sm.webp)] md:bg-[url(/hero-enyap.webp)] bg-[length:auto_230%] bg-[position:96%_30%] md:bg-[length:auto_400%] md:bg-[position:100%_26%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.35)_14%,black_28%)]" />
         <div aria-hidden className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[#0a3168]/70 to-transparent" />
         <div className="relative min-w-0 max-w-[68%] md:max-w-[62%] lg:max-w-[55%]">
           <p className="text-[11px] sm:text-sm text-sky-100/85"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-sky-100/55 tabular-nums">v{__APP_VERSION__}</span></p>
