@@ -36,7 +36,7 @@ const GUIDE: [string, string[]][] = [
     'Eşleşen ürünlerde liste fiyatı ile katalog fiyatı karşılaştırılır; fiyat değişince bekleyen tekliflerde uyarı çıkar.',
     'Aynı firmanın yeni listesi (ör. "AYVAZ EKİM 2026.pdf") yüklenince eski listenin yerine geçer: eşleştirmeler, standart iskonto ve logo taşınır, eski liste kaldırılır.',
     'Yeni liste yüklenince önceki fiyatlarla karşılaştırılır: kaç üründe zam/indirim olduğu ve en çok zamlananlar firma kartında görünür.',
-    'Çevrimdışı katalog: malzeme kataloğu günde bir kez cihaza indirilir; internet yokken malzeme ve fiyat araması buradan yapılır.',
+    'Bizim malzemeler Mikro\'dan alınan Excel ile toplu güncellenir ("Listeyi yükle (Excel)"); listede olmayan malzemeye dokunulmaz, bitince yöneticiye bildirim gider.',
   ]],
   ['Tahsilat ve Harcama', [
     'Tahsilat Ekle: müşteri, tutar, ödeme şekli; çek/senet için banka, çek no ve vade girilir.',

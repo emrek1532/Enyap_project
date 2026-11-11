@@ -155,12 +155,14 @@ const ENTITY_MODULE: Record<string, Module | undefined> = {
 };
 
 function Portal({ session, profile }: { session: Session; profile: Profile }) {
-  // Çevrimdışı katalog: malzeme kataloğu günde bir kez arka planda cihaza indirilir
+  // Çevrimdışı katalog kaldırıldı: cihazda kalan eski kopya bir kez silinir (yer açılsın)
   useEffect(() => {
-    if (!can(profile, 'materials')) return;
-    const t = window.setTimeout(() => { import('./lib/offlineCatalog').then(m => m.syncOfflineCatalog()).catch(() => undefined); }, 15000);
-    return () => window.clearTimeout(t);
-  }, [profile]);
+    try {
+      if (localStorage.getItem('enyap-offline-cleared')) return;
+      indexedDB.deleteDatabase('enyap-offline');
+      localStorage.setItem('enyap-offline-cleared', '1');
+    } catch { /* yok */ }
+  }, []);
   const tabAllowed = (tab: ActiveTab): boolean => {
     switch (tab) {
       case 'home': return true;
