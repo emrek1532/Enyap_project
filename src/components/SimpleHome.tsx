@@ -333,9 +333,9 @@ export const SimpleHome: React.FC<{
             <Card className="order-2 md:col-span-2" title="Satış Performansı" icon={BarChart3}
               right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
               <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
-                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-sky-300" />Verilen teklif</span>
-                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-emerald-500" />Onaylanan</span>
-                {forecast && forecast.total > 0 && <span className="flex items-center gap-1.5 text-sky-800 font-semibold"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
+                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-[#8CC8EE]" />Verilen teklif</span>
+                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-[#00B49A]" />Onaylanan</span>
+                {forecast && forecast.total > 0 && <span className="flex items-center gap-1.5 text-[#0072CE] font-semibold"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
               </div>
               <BarsChart bars={bars} hi={hiKey}
                 onPick={b => chart === 'all'
@@ -352,20 +352,20 @@ export const SimpleHome: React.FC<{
           )}
           {feed.length > 0 && (
             <Card className="order-6 md:col-span-2" title="Son İşlemler" icon={History} right={canQuotes ? <SeeAll onClick={() => openQuotes({ status: 'all' })} /> : undefined}>
-              <ul className="px-2 sm:px-3 pb-3 divide-y divide-slate-100">
+              <ul className="px-2 sm:px-3 pb-3 divide-y divide-[#E1EAF3]">
                 {feed.map(f => {
-                  const [Icon, tone, label] = f.kind === 'q' ? [FileText, 'bg-sky-50 text-sky-600', ''] : f.kind === 'c' ? [ArrowDownLeft, 'bg-emerald-50 text-emerald-600', ''] : [Receipt, 'bg-orange-50 text-orange-500', ''];
+                  const [Icon, tone, label] = f.kind === 'q' ? [FileText, 'bg-[#F1F7FC] text-[#0072CE]', ''] : f.kind === 'c' ? [ArrowDownLeft, 'bg-[#E6F7F4] text-[#00A08A]', ''] : [Receipt, 'bg-[#EEF3F8] text-[#173F70]', ''];
                   const st = f.q ? STATUS_BADGE[viewStatus(f.q)] : null;
                   return (
                     <li key={f.id}>
-                      <button onClick={() => (f.q ? onOpenQuote(f.q) : onOpen(f.kind === 'c' ? 'collections' : 'expenses'))} className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-xl hover:bg-slate-50">
+                      <button onClick={() => (f.q ? onOpenQuote(f.q) : onOpen(f.kind === 'c' ? 'collections' : 'expenses'))} className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-xl hover:bg-[#F1F7FC]">
                         <span className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-5 h-5" />{label}</span>
                         <span className="flex-1 min-w-0">
-                          <span className="block text-[14px] font-bold text-slate-900 truncate">{f.title}</span>
-                          <span className="block text-[12px] text-slate-500 truncate">{f.sub} · <b className={f.kind === 'c' ? 'text-emerald-700' : f.kind === 'e' ? 'text-orange-600' : 'text-slate-700'}>{f.kind === 'e' ? '−' : ''}{lira(f.amount)}</b></span>
+                          <span className="block text-[14px] font-bold text-[#17365D] truncate">{f.title}</span>
+                          <span className="block text-[12px] text-[#7187A3] truncate">{f.sub} · <b className={f.kind === 'c' ? 'text-[#00866F]' : f.kind === 'e' ? 'text-[#173F70]' : 'text-[#17365D]'}>{f.kind === 'e' ? '−' : ''}{lira(f.amount)}</b></span>
                         </span>
                         <span className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-[12px] text-slate-500 tabular-nums">{f.day.slice(8, 10)}.{f.day.slice(5, 7)}.{f.day.slice(0, 4)}</span>
+                          <span className="text-[12px] text-[#7187A3] tabular-nums">{f.day.slice(8, 10)}.{f.day.slice(5, 7)}.{f.day.slice(0, 4)}</span>
                           {st && <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${st[1]}`}>{st[0]}</span>}
                         </span>
                         <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
@@ -389,7 +389,7 @@ export const SimpleHome: React.FC<{
             </TodoList>
           )}
           {(canQuotes || canMoney) && !isYear && (
-            <Card className="order-4" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-brand-600">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
+            <Card className="order-4" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-[#0072CE]">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
               <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} forecast={isCurrent && canQuotes ? forecast : undefined} />
             </Card>
           )}
@@ -474,27 +474,27 @@ const DecisionList: React.FC<{
   const list = (tab === 'calls' ? calls : tab === 'expiring' ? exp : pending).slice(0, 6);
   const SHOW_ALL: Record<K, string> = { all: 'aktif', calls: 'takip', expiring: 'expiring' };
   return (
-    <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden ${className}`}>
+    <section className={`bg-white rounded-3xl border border-[#E1EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden ${className}`}>
       <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
-        <span className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><BellRing className="w-5 h-5" /></span>
+        <span className="w-9 h-9 rounded-2xl bg-[#F1F7FC] text-[#0072CE] flex items-center justify-center shrink-0"><BellRing className="w-5 h-5" /></span>
         <span className="flex-1 min-w-0">
-          <h2 className="text-base font-black text-[#1a3d6d] truncate">Takip · karar bekleyenler</h2>
-          <p className="text-[11px] text-slate-500 truncate">Onayla ya da yarın aramak üzere ertele</p>
+          <h2 className="text-base font-black text-[#173F70] truncate">Takip · karar bekleyenler</h2>
+          <p className="text-[11px] text-[#7187A3] truncate">Onayla ya da yarın aramak üzere ertele</p>
         </span>
-        <button onClick={() => onAll(SHOW_ALL[tab])} className="text-[13px] font-bold text-brand-600 shrink-0">Tümü ({tab === 'calls' ? calls.length : tab === 'expiring' ? exp.length : pending.length})</button>
+        <button onClick={() => onAll(SHOW_ALL[tab])} className="text-[13px] font-bold text-[#0072CE] shrink-0">Tümü ({tab === 'calls' ? calls.length : tab === 'expiring' ? exp.length : pending.length})</button>
       </header>
       {tabs.length > 1 && (
         <div className="px-4 sm:px-5 pb-2 flex gap-1.5 overflow-x-auto" role="tablist">
           {tabs.map(([k, l, n]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-              className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-bold border ${tab === k ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+              className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-bold border ${tab === k ? 'bg-[#173F70] border-[#173F70] text-white' : 'bg-white border-[#E1EAF3] text-slate-600'}`}>
               {l} <span className={tab === k ? 'text-sky-200' : 'text-slate-400'}>{n}</span>
             </button>
           ))}
         </div>
       )}
-      {list.length === 0 && <p className="px-5 pb-5 text-sm text-slate-500">Karar bekleyen teklif yok.</p>}
-      <ul className="px-2 sm:px-3 pb-2 divide-y divide-slate-100">
+      {list.length === 0 && <p className="px-5 pb-5 text-sm text-[#7187A3]">Karar bekleyen teklif yok.</p>}
+      <ul className="px-2 sm:px-3 pb-2 divide-y divide-[#E1EAF3]">
         {list.map((q, i) => {
           const age = quoteAgeInDays(q);
           const due = followDue(q, today);
@@ -503,30 +503,30 @@ const DecisionList: React.FC<{
           return (
             <li key={q.id} className={`${i >= 4 ? 'max-sm:hidden ' : ''}flex flex-col sm:flex-row sm:items-center gap-2 px-2 py-3`}>
               <button onClick={() => onOpen(q)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
-                <span className="w-10 h-10 rounded-2xl bg-slate-100 text-[#1a3d6d] text-sm font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+                <span className="w-10 h-10 rounded-2xl bg-slate-100 text-[#173F70] text-sm font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
                 <span className="flex-1 min-w-0">
                   <span className="flex items-center gap-2 min-w-0">
-                    <span className="text-[14px] font-bold text-slate-900 truncate">{q.customerName}</span>
-                    {due && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">Bugün ara</span>}
-                    {!due && d2e !== null && d2e <= 3 && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600">{d2e < 0 ? 'Süre doldu' : `Süre ${d2e} gün`}</span>}
+                    <span className="text-[14px] font-bold text-[#17365D] truncate">{q.customerName}</span>
+                    {due && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#E6F7F4] text-[#00866F]">Bugün ara</span>}
+                    {!due && d2e !== null && d2e <= 3 && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#EEF3F8] text-[#173F70]">{d2e < 0 ? 'Süre doldu' : `Süre ${d2e} gün`}</span>}
                   </span>
-                  <span className="block text-[12px] text-slate-500 tabular-nums truncate">{quoteNo(q)} · {age === 0 ? 'bugün' : `${age} gün önce`} · <b className="text-slate-700">{lira(quoteTry(q, rates))}</b></span>
+                  <span className="block text-[12px] text-[#7187A3] tabular-nums truncate">{quoteNo(q)} · {age === 0 ? 'bugün' : `${age} gün önce`} · <b className="text-slate-700">{lira(quoteTry(q, rates))}</b></span>
                 </span>
               </button>
               {st ? (
-                <span className="sm:w-[208px] h-10 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold"><Check className="w-4 h-4 mr-1" />{st}</span>
+                <span className="sm:w-[208px] h-10 flex items-center justify-center rounded-xl bg-[#E6F7F4] text-[#00866F] text-xs font-bold"><Check className="w-4 h-4 mr-1" />{st}</span>
               ) : (onApprove || onTomorrow) && (
                 <span className="flex gap-2 sm:w-[208px] shrink-0">
                   {onTomorrow && (
                     <button onClick={() => { onTomorrow(q); setDone(x => ({ ...x, [q.id]: 'Yarın aranacak' })); }}
-                      className="flex-1 h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1"><Phone className="w-3.5 h-3.5" />Yarın ara</button>
+                      className="flex-1 h-10 rounded-xl border border-[#E1EAF3] text-xs font-bold text-slate-700 hover:bg-[#F1F7FC] flex items-center justify-center gap-1"><Phone className="w-3.5 h-3.5" />Yarın ara</button>
                   )}
                   {onApprove && (ask === q.id ? (
                     <button onClick={() => { onApprove(q); setAsk(null); setDone(x => ({ ...x, [q.id]: 'Onaylandı' })); }}
-                      className="flex-1 h-10 rounded-xl bg-emerald-600 text-white text-xs font-black">Evet, onayla</button>
+                      className="flex-1 h-10 rounded-xl bg-[#00B49A] hover:bg-[#00A08A] text-white text-xs font-black">Evet, onayla</button>
                   ) : (
                     <button onClick={() => setAsk(q.id)}
-                      className="flex-1 h-10 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold flex items-center justify-center gap-1"><Check className="w-3.5 h-3.5" />Onayla</button>
+                      className="flex-1 h-10 rounded-xl bg-[#E6F7F4] text-[#00866F] hover:bg-[#D2F1EB] text-xs font-bold flex items-center justify-center gap-1"><Check className="w-3.5 h-3.5" />Onayla</button>
                   ))}
                 </span>
               )}
@@ -555,17 +555,17 @@ const Spark: React.FC<{ values: number[]; color: string; w?: number; h?: number;
 };
 
 const TONES = {
-  emerald: { icon: 'bg-emerald-50 text-emerald-600', n: 'bg-emerald-500', arrow: 'text-emerald-500' },
-  sky: { icon: 'bg-sky-50 text-sky-600', n: 'bg-sky-500', arrow: 'text-sky-500' },
+  emerald: { icon: 'bg-[#E6F7F4] text-[#00B49A]', n: 'bg-[#00B49A]', arrow: 'text-[#00B49A]' },
+  sky: { icon: 'bg-[#F1F7FC] text-[#0072CE]', n: 'bg-[#0072CE]', arrow: 'text-[#0072CE]' },
 };
 const TodoCtx = React.createContext<keyof typeof TONES>('sky');
 
 /** Yapılacaklar kartı (talepler / kontrol): başlık, adet rozeti, en çok 4 satır */
 const TodoList: React.FC<{ className?: string; tone: keyof typeof TONES; icon: React.ElementType; title: string; n: number; children: React.ReactNode }> = ({ className = '', tone, icon: Icon, title, n, children }) => (
-  <section className={`${className} bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden`}>
+  <section className={`${className} bg-white rounded-3xl border border-[#E1EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden`}>
     <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
       <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${TONES[tone].icon}`}><Icon className="w-4.5 h-4.5" /></span>
-      <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#1a3d6d]">{title}</h2>
+      <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#173F70]">{title}</h2>
       <span className={`min-w-6 h-6 px-1.5 rounded-full text-white text-xs font-black flex items-center justify-center tabular-nums ${TONES[tone].n}`}>{n}</span>
     </header>
     <TodoCtx.Provider value={tone}><ul className="px-2 sm:px-3 pb-2">{children}</ul></TodoCtx.Provider>
@@ -575,11 +575,11 @@ const TodoRow: React.FC<{ title: string; sub?: string; tag?: string; onClick: ()
   const tone = React.useContext(TodoCtx);
   return (
     <li>
-      <button onClick={onClick} className="w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-slate-50">
+      <button onClick={onClick} className="w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-[#F1F7FC]">
         {tag && <span className="shrink-0 w-16 text-center text-[10px] font-black px-1.5 py-1 rounded-md bg-slate-100 text-slate-600">{tag}</span>}
         <span className="flex-1 min-w-0">
-          <span className="block text-[13px] font-semibold text-slate-800 truncate">{title}</span>
-          {sub && <span className="block text-[11px] text-slate-500 truncate">{sub}</span>}
+          <span className="block text-[13px] font-semibold text-[#17365D] truncate">{title}</span>
+          {sub && <span className="block text-[11px] text-[#7187A3] truncate">{sub}</span>}
         </span>
         <ArrowRight className={`w-4 h-4 shrink-0 ${TONES[tone].arrow}`} />
       </button>
@@ -600,28 +600,28 @@ const MoneyCard: React.FC<{
   const tab: K | undefined = tabs.find(x => x[0] === pick)?.[0] || tabs[0]?.[0];
   const SHOW = 5;
   const sum = (l: { v: number }[]) => l.reduce((t, x) => t + x.v, 0);
-  const rowCls = 'w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-slate-50';
+  const rowCls = 'w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-[#F1F7FC]';
   const rank = (i: number) => <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 text-xs font-black flex items-center justify-center shrink-0">{i + 1}</span>;
-  const val = (v: number) => <span className="text-[13px] font-black text-slate-900 tabular-nums shrink-0">{lira(v)}</span>;
-  const sub = 'block text-[11px] text-slate-500 truncate';
-  const name = 'block text-[13px] font-semibold text-slate-800 truncate';
+  const val = (v: number) => <span className="text-[13px] font-black text-[#17365D] tabular-nums shrink-0">{lira(v)}</span>;
+  const sub = 'block text-[11px] text-[#7187A3] truncate';
+  const name = 'block text-[13px] font-semibold text-[#17365D] truncate';
   const head = (label: string, total: number, all?: () => void, n?: number) => (
     <div className="flex items-center justify-between gap-2 px-2 pt-1 pb-0.5">
-      <p className="text-[11px] text-slate-500">{label} <b className="text-slate-800 tabular-nums">{lira(total)}</b></p>
-      {all && n != null && n > SHOW && <button onClick={all} className="text-xs font-bold text-brand-600 shrink-0">Tümü ({n})</button>}
+      <p className="text-[11px] text-[#7187A3]">{label} <b className="text-[#17365D] tabular-nums">{lira(total)}</b></p>
+      {all && n != null && n > SHOW && <button onClick={all} className="text-xs font-bold text-[#0072CE] shrink-0">Tümü ({n})</button>}
     </div>
   );
   return (
-    <section className="flex-1 bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden">
+    <section className="flex-1 bg-white rounded-3xl border border-[#E1EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 overflow-hidden">
       <header className="px-4 sm:px-5 pt-4 pb-2">
-        <h2 className="text-base font-black text-[#1a3d6d] flex items-center gap-2"><Wallet className="w-5 h-5 text-brand-500" />Para özeti</h2>
+        <h2 className="text-base font-black text-[#173F70] flex items-center gap-2"><Wallet className="w-5 h-5 text-[#0072CE]" />Para özeti</h2>
       </header>
       {tabs.length > 0 && (
         <div className="px-4 sm:px-5 pb-1 flex gap-1.5" role="tablist" aria-label="Para özeti">
           {tabs.map(([k, label, n]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPick(k)}
-              className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#1a3d6d] border-[#1a3d6d] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
-              {label} <span className={`tabular-nums ${tab === k ? 'text-sky-200' : 'text-slate-500'}`}>{n}</span>
+              className={`flex-1 h-9 rounded-xl text-xs font-bold border ${tab === k ? 'bg-[#173F70] border-[#173F70] text-white' : 'bg-white border-[#E1EAF3] text-slate-600'}`}>
+              {label} <span className={`tabular-nums ${tab === k ? 'text-sky-200' : 'text-[#7187A3]'}`}>{n}</span>
             </button>
           ))}
         </div>
@@ -639,7 +639,7 @@ const MoneyCard: React.FC<{
         </>)}
         {tab === 'paid' && (<>
           {head(`${periodTitle} tahsilat`, sum(data.paid), onAllPaid, data.paid.length)}
-          {data.paid.length === 0 && <p className="px-2 py-3 text-sm text-slate-500">Bu dönemde tahsilat yok.</p>}
+          {data.paid.length === 0 && <p className="px-2 py-3 text-sm text-[#7187A3]">Bu dönemde tahsilat yok.</p>}
           {data.paid.slice(0, SHOW).map((p, i) => (
             <button key={p.name} onClick={() => onOpenCustomer?.(p.name)} className={rowCls}>
               {rank(i)}
@@ -650,9 +650,9 @@ const MoneyCard: React.FC<{
         </>)}
         {tab === 'products' && (<>
           {head(`${periodTitle} onaylanan ürünler`, sum(data.products))}
-          {data.products.length === 0 && <p className="px-2 py-3 text-sm text-slate-500">Bu dönemde onaylanan ürün yok.</p>}
+          {data.products.length === 0 && <p className="px-2 py-3 text-sm text-[#7187A3]">Bu dönemde onaylanan ürün yok.</p>}
           {data.products.slice(0, SHOW).map((p, i) => (
-            <div key={p.name} className={rowCls.replace('hover:bg-slate-50', '')}>
+            <div key={p.name} className={rowCls.replace('hover:bg-[#F1F7FC]', '')}>
               {rank(i)}
               <span className="flex-1 min-w-0"><span className={name}>{p.name}</span><span className={sub}>{p.n} teklif satırında</span></span>
               {val(p.v)}
@@ -667,16 +667,16 @@ const MoneyCard: React.FC<{
 /** Teklif durumlarının payı (tutara göre) tek çubukta + dönüşüm oranı */
 const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count: number; value: number }>; conv: number; title: string; onPick: (status: string) => void }> = ({ st, conv, title, onPick }) => {
   const rows = [
-    { key: 'onaylandi', label: 'Onaylanan', x: st.onay, c: 'bg-emerald-500' },
-    { key: 'gonderildi', label: 'Bekleyen / Pasif', x: st.bekleyen, c: 'bg-amber-400' },
-    { key: 'iptal', label: 'İptal', x: st.iptal, c: 'bg-rose-400' },
+    { key: 'onaylandi', label: 'Onaylanan', x: st.onay, c: 'bg-[#00B49A]' },
+    { key: 'gonderildi', label: 'Bekleyen / Pasif', x: st.bekleyen, c: 'bg-[#009FE3]' },
+    { key: 'iptal', label: 'İptal', x: st.iptal, c: 'bg-[#A9BBD0]' },
   ];
   const total = rows.reduce((a, r) => a + r.x.value, 0);
   return (
-    <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
+    <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-[#F1F7FC]">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-slate-600">{title} teklifleri</p>
-        <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#1a3d6d]">%{conv}</b></p>
+        <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#173F70]">%{conv}</b></p>
       </div>
       <div className="mt-2 h-2.5 rounded-full bg-slate-200 overflow-hidden flex">
         {rows.map(r => total > 0 && <span key={r.key} className={r.c} style={{ width: `${(r.x.value / total) * 100}%` }} />)}
@@ -684,8 +684,8 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
       <div className="mt-2.5 grid grid-cols-3 gap-2">
         {rows.map(r => (
           <button key={r.key} onClick={() => onPick(r.key)} className="text-left min-w-0 rounded-lg hover:bg-white px-1 py-0.5">
-            <span className="flex items-center gap-1.5 text-[11px] text-slate-500"><i className={`w-2 h-2 rounded-full ${r.c}`} />{r.label} · {r.x.count}</span>
-            <span className="block text-[13px] sm:text-sm font-black text-[#1a3d6d] tabular-nums truncate">{lira(r.x.value)}</span>
+            <span className="flex items-center gap-1.5 text-[11px] text-[#7187A3]"><i className={`w-2 h-2 rounded-full ${r.c}`} />{r.label} · {r.x.count}</span>
+            <span className="block text-[13px] sm:text-sm font-black text-[#173F70] tabular-nums truncate">{lira(r.x.value)}</span>
           </button>
         ))}
       </div>
@@ -695,9 +695,9 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
 
 /** Beyaz kart: simge + başlık, sağda isteğe bağlı bağlantı/sekme */
 const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, icon: Icon, right, className = '', children }) => (
-  <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 flex flex-col ${className}`}>
+  <section className={`bg-white rounded-3xl border border-[#E1EAF3] shadow-[0_12px_30px_-24px_rgba(18,52,91,0.45)] min-w-0 flex flex-col ${className}`}>
     <header className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 pt-4 pb-2.5">
-      <h2 className="text-[15px] sm:text-base font-black text-[#1a3d6d] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-brand-500 shrink-0" />}<span className="truncate">{title}</span></h2>
+      <h2 className="text-[15px] sm:text-base font-black text-[#173F70] flex items-center gap-2 min-w-0">{Icon && <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#0072CE] shrink-0" />}<span className="truncate">{title}</span></h2>
       {right}
     </header>
     {children}
@@ -705,14 +705,14 @@ const Card: React.FC<{ title: React.ReactNode; icon?: React.ElementType; right?:
 );
 
 const SeeAll: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <button onClick={onClick} className="flex items-center gap-1 text-[13px] font-bold text-brand-600 hover:text-brand-700 shrink-0"><span className="xl:hidden 2xl:inline">Tümünü Gör</span><span className="hidden xl:inline 2xl:hidden">Tümü</span> <ArrowRight className="w-4 h-4" /></button>
+  <button onClick={onClick} className="flex items-center gap-1 text-[13px] font-bold text-[#0072CE] hover:text-[#173F70] shrink-0"><span className="xl:hidden 2xl:inline">Tümünü Gör</span><span className="hidden xl:inline 2xl:hidden">Tümü</span> <ArrowRight className="w-4 h-4" /></button>
 );
 
 const Tabs: React.FC<{ value: string; items: [string, string][]; onChange: (k: string) => void }> = ({ value, items, onChange }) => (
   <div className="flex gap-1 sm:gap-1.5 shrink-0" role="tablist">
     {items.map(([k, l]) => (
       <button key={k} role="tab" aria-selected={value === k} onClick={() => onChange(k)}
-        className={`px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition ${value === k ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>{l}</button>
+        className={`px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition ${value === k ? 'bg-[#0072CE] text-white shadow-[0_6px_14px_-6px_rgba(0,114,206,0.8)]' : 'bg-[#F1F7FC] text-[#17365D] hover:bg-[#E3EFFA]'}`}>{l}</button>
     ))}
   </div>
 );
@@ -747,8 +747,8 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
     <div className="px-3 sm:px-5 pb-4">
       <div className="relative h-44 sm:h-60 pl-11 mt-4" onPointerLeave={e => e.pointerType === 'mouse' && setTip(null)}>
         {ticks.map(v => (
-          <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-slate-100' : 'border-slate-200'}`} style={{ bottom: `${(v / max) * 100}%` }}>
-            <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-slate-500 tabular-nums">{v ? short(v) : '0 TL'}</span>
+          <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-[#E1EAF3]' : 'border-[#E1EAF3]'}`} style={{ bottom: `${(v / max) * 100}%` }}>
+            <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-[#7187A3] tabular-nums">{v ? short(v) : '0 TL'}</span>
           </div>
         ))}
         <div className={`relative h-full flex items-end ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-4'}`}>
@@ -761,26 +761,26 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
                 onPointerEnter={e => e.pointerType === 'mouse' && setTip(x.key)}
                 onPointerDown={e => { if (e.pointerType !== 'mouse' && tip !== x.key) { e.preventDefault(); setTip(x.key); } }}
                 onClick={() => { if (tip === x.key || !matchMedia('(hover: none)').matches) onPick(x); else setTip(x.key); }}
-                className={`relative flex-1 h-full flex items-end justify-center gap-1 sm:gap-1.5 min-w-0 rounded-t-xl ${hov ? 'bg-slate-100/70' : ''}`}>
-                <div className={`flex-1 ${barW} rounded-t-md ${on || hov ? 'bg-gradient-to-t from-sky-400 to-brand-400' : 'bg-gradient-to-t from-sky-300 to-sky-300/80'}`} style={{ height: `${hT}%` }} />
-                <div className={`flex-1 ${barW} rounded-t-md bg-gradient-to-t from-emerald-600 to-emerald-400 ${hov ? 'brightness-95' : ''}`} style={{ height: `${Math.max(0.8, (x.onay / max) * 100)}%` }} />
+                className={`relative flex-1 h-full flex items-end justify-center gap-1 sm:gap-1.5 min-w-0 rounded-t-xl ${hov ? 'bg-[#F1F7FC]' : ''}`}>
+                <div className={`flex-1 ${barW} rounded-t-md ${on || hov ? 'bg-gradient-to-t from-[#0072CE] to-[#009FE3]' : 'bg-gradient-to-t from-[#8CC8EE] to-[#B9DDF5]'}`} style={{ height: `${hT}%` }} />
+                <div className={`flex-1 ${barW} rounded-t-md bg-gradient-to-t from-[#00A08A] to-[#2BCDB4] ${hov ? 'brightness-95' : ''}`} style={{ height: `${Math.max(0.8, (x.onay / max) * 100)}%` }} />
               </button>
             );
           })}
         </div>
         {t && (
-          <div className="pointer-events-none absolute top-1 z-10 w-48 rounded-xl bg-[#1a3d6d] text-white shadow-lg px-3 py-2 text-xs"
+          <div className="pointer-events-none absolute top-1 z-10 w-48 rounded-xl bg-[#173F70] text-white shadow-lg px-3 py-2 text-xs"
             style={{ left: `calc(2.75rem + (100% - 2.75rem) * ${(tipIdx + 0.5) / bars.length})`, transform: `translateX(${tipIdx < bars.length / 3 ? '-15%' : tipIdx >= (bars.length * 2) / 3 ? '-85%' : '-50%'})` }}>
             <div className="font-black mb-1">{t.label}</div>
-            <div className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-sm bg-sky-300" /><span className="flex-1 text-sky-100/80">Verilen</span><b className="tabular-nums">{lira(t.teklif)}</b></div>
-            <div className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-sm bg-emerald-400" /><span className="flex-1 text-sky-100/80">Onaylanan</span><b className="tabular-nums">{lira(t.onay)}</b></div>
+            <div className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-sm bg-[#8CC8EE]" /><span className="flex-1 text-sky-100/80">Verilen</span><b className="tabular-nums">{lira(t.teklif)}</b></div>
+            <div className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-sm bg-[#2BCDB4]" /><span className="flex-1 text-sky-100/80">Onaylanan</span><b className="tabular-nums">{lira(t.onay)}</b></div>
             <div className="mt-1 text-[11px] text-sky-200/80">Onay oranı %{t.teklif ? Math.round((t.onay / t.teklif) * 100) : 0} · tıkla: teklifleri aç</div>
           </div>
         )}
       </div>
       <div className={`flex ${many ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-4'} pl-11 mt-2.5`}>
         {bars.map(x => (
-          <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-xs truncate ${x.key === hi ? 'font-bold text-[#1a3d6d]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
+          <div key={x.key} className={`flex-1 text-center min-w-0 text-[11px] sm:text-xs truncate ${x.key === hi ? 'font-bold text-[#173F70]' : 'text-slate-600'}`}><span className="xl:hidden">{x.shortLabel}</span><span className="hidden xl:inline">{x.label}</span></div>
         ))}
       </div>
     </div>
@@ -788,30 +788,30 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
 };
 
 const STATUS_BADGE: Record<string, [string, string, React.ElementType]> = {
-  onaylandi: ['Onaylandı', 'bg-emerald-50 text-emerald-700', Check],
-  gonderildi: ['Beklemede', 'bg-orange-50 text-orange-700', Clock],
-  pasif: ['Pasif', 'bg-slate-100 text-slate-600', PauseCircle],
-  iptal: ['İptal', 'bg-rose-50 text-rose-600', X],
+  onaylandi: ['Onaylandı', 'bg-[#E6F7F4] text-[#00866F]', Check],
+  gonderildi: ['Beklemede', 'bg-[#EAF4FC] text-[#0072CE]', Clock],
+  pasif: ['Pasif', 'bg-[#EEF3F8] text-[#173F70]', PauseCircle],
+  iptal: ['İptal', 'bg-slate-100 text-slate-600', X],
 };
 
 /** Son teklifler: firma, teklif no · tarih, tutar, durum (pasif ayrı) */
 const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRates>; onOpen: (q: Quote) => void }> = ({ quotes, rates, onOpen }) => {
-  if (!quotes.length) return <p className="px-5 pb-5 text-sm text-slate-500">Henüz teklif yok.</p>;
+  if (!quotes.length) return <p className="px-5 pb-5 text-sm text-[#7187A3]">Henüz teklif yok.</p>;
   return (
-    <ul className="px-2 sm:px-3 pb-3 divide-y divide-slate-100">
+    <ul className="px-2 sm:px-3 pb-3 divide-y divide-[#E1EAF3]">
       {quotes.map((q, i) => {
         const [label, cls, Icon] = STATUS_BADGE[viewStatus(q)] || [q.status, 'bg-slate-50 text-slate-600', Clock];
         const d = dayOf(q.createdAt);
         return (
           <li key={q.id} className={i >= 5 ? 'hidden lg:block' : ''}>
-            <button onClick={() => onOpen(q)} className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl">
-              <span className="w-9 h-9 rounded-xl bg-slate-100 text-[#1a3d6d] text-xs font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+            <button onClick={() => onOpen(q)} className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-[#F1F7FC] rounded-xl">
+              <span className="w-9 h-9 rounded-xl bg-slate-100 text-[#173F70] text-xs font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
               <span className="flex-1 min-w-0">
-                <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
-                <span className="block text-[11px] text-slate-500 tabular-nums truncate">{quoteNo(q)}{d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
+                <span className="block text-[13px] font-semibold text-[#17365D] truncate">{q.customerName}</span>
+                <span className="block text-[11px] text-[#7187A3] tabular-nums truncate">{quoteNo(q)}{d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
               </span>
               <span className="flex flex-col 2xl:flex-row-reverse items-end 2xl:items-center gap-1 2xl:gap-3 shrink-0">
-                <span className="text-[13px] font-black text-slate-900 tabular-nums whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
+                <span className="text-[13px] font-black text-[#17365D] tabular-nums whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
                 <span className={`inline-flex items-center 2xl:justify-center gap-1 2xl:w-24 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
               </span>
             </button>
@@ -829,9 +829,9 @@ const Donut: React.FC<{ pct: number; size: number; stroke: number; children?: Re
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#eaf0f6" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E1EAF3" strokeWidth={stroke} />
         {len > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="url(#donut-g)" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${len} ${c - len}`} />}
-        <defs><linearGradient id="donut-g" x1="0" x2="1"><stop offset="0" stopColor="#10b981" /><stop offset="1" stopColor="#0ea371" /></linearGradient></defs>
+        <defs><linearGradient id="donut-g" x1="0" x2="1"><stop offset="0" stopColor="#00B49A" /><stop offset="1" stopColor="#009FE3" /></linearGradient></defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>
     </div>
@@ -858,14 +858,14 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
     <div className="px-4 sm:px-6 pb-5 space-y-3">
       <div className="flex items-center gap-4 sm:gap-5">
         <Donut pct={pct} size={96} stroke={13}>
-          <span className="text-xl font-black text-[#1a3d6d] tabular-nums">{main.target ? `%${pct}` : '–'}</span>
+          <span className="text-xl font-black text-[#173F70] tabular-nums">{main.target ? `%${pct}` : '–'}</span>
         </Donut>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-slate-500">{main.label}</p>
-          <p className="text-lg font-black text-[#1a3d6d] tabular-nums break-all leading-tight">{lira(main.value)}</p>
-          <p className="text-xs text-slate-500 mt-1.5">{main.target ? <>Hedef: {lira(main.target)}</> : 'Hedef konmamış'}</p>
+          <p className="text-xs text-[#7187A3]">{main.label}</p>
+          <p className="text-lg font-black text-[#173F70] tabular-nums break-all leading-tight">{lira(main.value)}</p>
+          <p className="text-xs text-[#7187A3] mt-1.5">{main.target ? <>Hedef: {lira(main.target)}</> : 'Hedef konmamış'}</p>
           <div className="relative h-3 rounded-full bg-slate-100 overflow-hidden mt-2">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" style={{ width: `${Math.min(100, pct)}%` }} />
+            <div className="h-full rounded-full bg-gradient-to-r from-[#00B49A] to-[#009FE3]" style={{ width: `${Math.min(100, pct)}%` }} />
             {main.target > 0 && <div className="absolute top-0 bottom-0 w-0.5 bg-slate-400" style={{ left: `${pace}%` }} title={`Ayın %${pace}'i geçti`} />}
           </div>
         </div>
@@ -873,43 +873,43 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
       {canMoney && canQuotes && targets.sales > 0 && (
         <div className="text-xs">
           <div className="flex justify-between font-semibold text-slate-600">
-            <span>Satış hedefi · <b className={salesPct >= pace ? 'text-emerald-700' : 'text-amber-700'}>%{salesPct}</b></span>
+            <span>Satış hedefi · <b className={salesPct >= pace ? 'text-[#00866F]' : 'text-[#0072CE]'}>%{salesPct}</b></span>
             <span className="tabular-nums">{short(cur.onay)} / {short(targets.sales)} TL</span>
           </div>
           <div className="relative h-2 rounded-full bg-slate-100 overflow-hidden mt-1">
-            <div className={`h-full rounded-full ${salesPct >= pace ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, salesPct)}%` }} />
+            <div className={`h-full rounded-full ${salesPct >= pace ? 'bg-[#00B49A]' : 'bg-[#009FE3]'}`} style={{ width: `${Math.min(100, salesPct)}%` }} />
             <div className="absolute top-0 bottom-0 w-0.5 bg-slate-400" style={{ left: `${pace}%` }} />
           </div>
         </div>
       )}
       {forecast && forecast.total > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl bg-sky-50 px-3 py-2.5">
-          <span className="w-8 h-8 rounded-xl bg-white text-brand-600 flex items-center justify-center shrink-0"><TrendingUp className="w-4.5 h-4.5" /></span>
+        <div className="flex items-center gap-3 rounded-2xl bg-[#F1F7FC] px-3 py-2.5">
+          <span className="w-8 h-8 rounded-xl bg-white text-[#0072CE] flex items-center justify-center shrink-0"><TrendingUp className="w-4.5 h-4.5" /></span>
           <span className="flex-1 min-w-0">
             <span className="block text-[11px] text-slate-600">Ay sonu satış tahmini</span>
-            <span className="block text-[15px] font-black text-[#1a3d6d] tabular-nums truncate">{lira(forecast.total)}</span>
+            <span className="block text-[15px] font-black text-[#173F70] tabular-nums truncate">{lira(forecast.total)}</span>
           </span>
           {targets.sales > 0 && (() => { const p = Math.round((forecast.total / targets.sales) * 100); return (
-            <span className={`shrink-0 text-[11px] font-black px-2 py-1 rounded-full ${p >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>Hedefin %{p}'i</span>
+            <span className={`shrink-0 text-[11px] font-black px-2 py-1 rounded-full ${p >= 100 ? 'bg-[#E6F7F4] text-[#00866F]' : 'bg-[#EAF4FC] text-[#0072CE]'}`}>Hedefin %{p}'i</span>
           ); })()}
         </div>
       )}
       {edit ? (
-        <div className="rounded-2xl border border-slate-200 p-3 space-y-2 text-xs">
+        <div className="rounded-2xl border border-[#E1EAF3] p-3 space-y-2 text-xs">
           <div className="grid grid-cols-2 gap-2">
             {canQuotes && <label className="space-y-1"><span className="block text-slate-600 font-semibold">Aylık satış (TL)</span>
-              <input inputMode="numeric" value={draft.sales} onChange={e => setDraft(d => ({ ...d, sales: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm" placeholder="ör. 2000000" /></label>}
+              <input inputMode="numeric" value={draft.sales} onChange={e => setDraft(d => ({ ...d, sales: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg border border-[#E1EAF3] text-sm" placeholder="ör. 2000000" /></label>}
             {canMoney && <label className="space-y-1"><span className="block text-slate-600 font-semibold">Aylık tahsilat (TL)</span>
-              <input inputMode="numeric" value={draft.collection} onChange={e => setDraft(d => ({ ...d, collection: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm" placeholder="ör. 1500000" /></label>}
+              <input inputMode="numeric" value={draft.collection} onChange={e => setDraft(d => ({ ...d, collection: e.target.value }))} className="w-full px-2 py-1.5 rounded-lg border border-[#E1EAF3] text-sm" placeholder="ör. 1500000" /></label>}
           </div>
-          {err && <p className="text-rose-600 font-semibold">{err}</p>}
+          {err && <p className="text-red-600 font-semibold">{err}</p>}
           <div className="flex justify-end gap-2">
             <button onClick={() => setEdit(false)} className="px-3 py-1.5 rounded-lg font-bold text-slate-600">Vazgeç</button>
-            <button onClick={save} className="px-3 py-1.5 rounded-lg font-bold bg-brand-600 text-white">Kaydet</button>
+            <button onClick={save} className="px-3 py-1.5 rounded-lg font-bold bg-[#0072CE] text-white">Kaydet</button>
           </div>
         </div>
       ) : (
-        <button onClick={open} className="text-xs font-bold text-brand-700 hover:text-brand-800">{targets.sales || targets.collection ? 'Hedefi değiştir' : '+ Aylık hedef koy'}</button>
+        <button onClick={open} className="text-xs font-bold text-[#0072CE] hover:text-[#173F70]">{targets.sales || targets.collection ? 'Hedefi değiştir' : '+ Aylık hedef koy'}</button>
       )}
     </div>
   );
