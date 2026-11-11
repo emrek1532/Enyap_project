@@ -520,7 +520,7 @@ export const MaterialsPanel: React.FC<{
         subtitle={SECTION_SUB.materials}
         icon={Package}
         onBack={onBack || (() => undefined)}
-        hero={{ lg: '/hero-malzeme.svg', sm: '/hero-malzeme.svg' }}
+        hero={{ lg: '/image.png', sm: '/image.png' }}
       />
       <div className="space-y-4">
         {showOwn && showSup && <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-[#E2EAF3]" role="tablist">
