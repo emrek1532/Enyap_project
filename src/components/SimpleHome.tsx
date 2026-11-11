@@ -577,8 +577,9 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
   const max = Math.ceil(raw / step) * step;
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   return (
-    <div className="px-3 sm:px-5 pb-4">
-      <div className="relative h-40 sm:h-48 pl-11 mt-4">
+    <div className="px-3 sm:px-5 pb-4 lg:flex-1 lg:flex lg:flex-col">
+      {/* Bilgisayarda sağ sütun uzunsa grafik boşluğu doldurur (en fazla 28rem) */}
+      <div className="relative h-40 sm:h-48 lg:h-auto lg:flex-1 lg:min-h-48 lg:max-h-[28rem] pl-11 mt-4">
         {ticks.map(v => (
           <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-slate-100' : 'border-slate-200'}`} style={{ bottom: `${(v / max) * 100}%` }}>
             <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-slate-500 tabular-nums">{v ? short(v) : '0 TL'}</span>
