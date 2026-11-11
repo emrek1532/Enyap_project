@@ -17,6 +17,8 @@ interface ReportsPanelProps {
   collections: Collection[];
   expenses: Expense[];
   customers?: Customer[];
+  /** Listedeki teklife dokununca Teklifler'de detayını aç */
+  onOpenQuote?: (q: Quote) => void;
 }
 
 type Period = 'month' | '3m' | 'year' | '12m' | 'all' | 'custom';
@@ -264,7 +266,7 @@ const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; 
 };
 
 /** Neden bekliyor: nedenlere göre adet ve tutar payı; satıra dokununca o nedendeki teklifler ve en sık geçen kalem */
-const WaitingReasons: React.FC<{ rows: [string, { n: number; amt: number; list: Quote[] }][]; total: number; totalAmt: number; amountOf: (q: Quote) => number }> = ({ rows, total, totalAmt, amountOf }) => {
+const WaitingReasons: React.FC<{ rows: [string, { n: number; amt: number; list: Quote[] }][]; total: number; totalAmt: number; amountOf: (q: Quote) => number; onOpen?: (q: Quote) => void }> = ({ rows, total, totalAmt, amountOf, onOpen }) => {
   const [open, setOpen] = useState<string | null>(null);
   const known = rows.filter(([k]) => k !== 'Neden girilmemiş');
   const top = known[0];
@@ -298,12 +300,17 @@ const WaitingReasons: React.FC<{ rows: [string, { n: number; amt: number; list: 
             </button>
             {isOpen && (
               <ul className="mt-1 mb-2 ml-5 divide-y divide-slate-100 rounded-lg border border-slate-100">
-                {[...v.list].sort((a, b) => amountOf(b) - amountOf(a)).slice(0, 10).map(q => (
-                  <li key={q.id} className="flex justify-between gap-2 px-2 py-1.5">
-                    <span className="min-w-0 truncate"><b className="text-slate-800">{q.customerName}</b> <span className="text-slate-500">{q.quoteNumber}{splitReason(q.lostReason).note ? ` · ${splitReason(q.lostReason).note}` : ''}</span></span>
-                    <span className="tabular-nums font-bold text-slate-800 whitespace-nowrap">{tl(amountOf(q))}</span>
-                  </li>
-                ))}
+                {[...v.list].sort((a, b) => amountOf(b) - amountOf(a)).slice(0, 10).map(q => {
+                  const days = Math.max(0, Math.floor((Date.now() - Date.parse(q.createdAt)) / 864e5));
+                  return (
+                    <li key={q.id}>
+                      <button type="button" disabled={!onOpen} onClick={() => onOpen?.(q)} className="w-full text-left flex justify-between gap-2 px-2 py-1.5 hover:bg-slate-50 disabled:hover:bg-transparent">
+                        <span className="min-w-0 truncate"><b className="text-slate-800">{q.customerName}</b> <span className="text-slate-500">{q.quoteNumber} · {days} gün{splitReason(q.lostReason).note ? ` · ${splitReason(q.lostReason).note}` : ''}</span></span>
+                        <span className="tabular-nums font-bold text-slate-800 whitespace-nowrap">{tl(amountOf(q))}</span>
+                      </button>
+                    </li>
+                  );
+                })}
                 {v.list.length > 10 && <li className="px-2 py-1.5 text-slate-500">+{v.list.length - 10} teklif daha</li>}
               </ul>
             )}
@@ -388,7 +395,7 @@ const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: bool
 
 type CustKey = 'name' | 'city' | 'total' | 'totalAmt' | 'approved' | 'approvedAmt' | 'rate' | 'collected';
 
-export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections, expenses, customers }) => {
+export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections, expenses, customers, onOpenQuote }) => {
   const rates = useRates(quotes);
   const qTry = (q: Quote) => quoteTry(q, rates);
   const [period, setPeriod] = useState<Period>('year');
@@ -755,7 +762,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] p-4">
           <h3 className="font-bold text-slate-900 text-sm">Bekleyen ve Pasif Teklifler · Neden?</h3>
           <p className="text-xs text-slate-500 mb-3">{stats.pending} bekleyen · {stats.passive} pasif · {tl(stats.pendingAmt + stats.passiveAmt)} · teklif detayında seçilen neden ("Müşteri düşünüyor" dışındakiler pasif sayılır)</p>
-          <WaitingReasons rows={stats.waiting} total={stats.pending + stats.passive} totalAmt={stats.pendingAmt + stats.passiveAmt} amountOf={qTry} />
+          <WaitingReasons rows={stats.waiting} total={stats.pending + stats.passive} totalAmt={stats.pendingAmt + stats.passiveAmt} amountOf={qTry} onOpen={onOpenQuote} />
           {stats.rivals.length > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-100">
               <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Rakip notları</div>

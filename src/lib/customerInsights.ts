@@ -65,3 +65,33 @@ export function evaluate(quotes: Quote[], collections: Collection[], rates: Rate
   };
 }
 
+
+/** Müşteri sınıfı (ABC): son 12 ayda onaylanan tutara göre; ciroların ilk %80'i A, sonraki %15 B, kalanı C */
+export type AbcClass = 'A' | 'B' | 'C';
+export const ABC_STYLE: Record<AbcClass, { cls: string; hint: string }> = {
+  A: { cls: 'bg-amber-100 text-amber-900 border-amber-300', hint: 'A: son 12 ayda cironun ilk %80\'ini yapan firmalar' },
+  B: { cls: 'bg-sky-50 text-sky-800 border-sky-200', hint: 'B: cironun sonraki %15\'i' },
+  C: { cls: 'bg-slate-50 text-slate-600 border-slate-200', hint: 'C: kalan küçük alımlar' },
+};
+/** Firma adı (foldName) → sınıf; son 12 ayda onayı olmayan firma sınıfsız */
+export function abcClasses(quotes: Quote[], rates: Rates, now = Date.now()): Map<string, AbcClass> {
+  const since = now - 365 * DAY;
+  const won = new Map<string, number>();
+  quotes.forEach(q => {
+    if (!isWon(q) || !q.createdAt || Date.parse(q.createdAt) < since) return;
+    const k = foldName(q.customerName);
+    won.set(k, (won.get(k) || 0) + quoteTry(q, rates));
+  });
+  const rows = [...won.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const total = rows.reduce((s, [, v]) => s + v, 0);
+  const out = new Map<string, AbcClass>();
+  let cum = 0;
+  rows.forEach(([k, v]) => {
+    // Firmanın başladığı noktaya göre: ilk %80'e giren (sınırı aşan ilk firma dahil) A
+    out.set(k, cum < 0.8 * total ? 'A' : cum < 0.95 * total ? 'B' : 'C');
+    cum += v;
+  });
+  return out;
+}
+/** Önemli (A/B) ama bu kadar gündür teklif istemeyen müşteri "sessizleşen" sayılır */
+export const QUIET_DAYS = 60;

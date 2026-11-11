@@ -1104,6 +1104,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             collections={data.collections || []}
             expenses={data.expenses || []}
             customers={data.customers || []}
+            onOpenQuote={q => { setQuoteFilter('all'); setQuoteRange(null); setActiveTab('quotes'); setFocusQuote({ id: q.id, n: Date.now() }); }}
           />
         )}
 

@@ -7,7 +7,7 @@ import { DateInput } from './DateInput';
 import { Collection, Customer, CustomerStatus, Quote, QuoteStatus, UserRole } from '../types';
 import { CustomerInsights } from './CustomerInsights';
 import { WhatsAppMenu } from './WhatsAppMenu';
-import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
+import { ABC_STYLE, AbcClass, CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { isPendingQuote } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
 import { formatQuoteAmount } from '../lib/money';
@@ -52,7 +52,9 @@ export const CustomerAccount: React.FC<{
   onSetStatus?: (s: CustomerStatus, note: string) => void;
   /** Mikro'dan yüklenen bakiye ve sonrasındaki tahsilatlarla tahmini güncel bakiye */
   balance?: { balance: number; date: string; collectedAfter: number; estimate: number } | null;
-}> = ({ customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance }) => {
+  /** Müşteri sınıfı (A/B/C, son 12 ay ciro) */
+  abc?: AbcClass;
+}> = ({ abc, customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance }) => {
   const ev = useMemo(() => evaluate(allQuotes, allCollections, rates, maxWon), [allQuotes, allCollections, rates, maxWon]);
   const cStatus = statusOf(customer);
   const [addingCol, setAddingCol] = useState(false);
@@ -175,6 +177,7 @@ export const CustomerAccount: React.FC<{
             <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Cari hesap</div>
             <h3 className="font-black text-lg sm:text-[22px] tracking-tight leading-tight break-words">
               {customer.name}
+              {abc && <span title={ABC_STYLE[abc].hint} className={`ml-2 align-middle text-[11px] px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[abc].cls}`}>{abc} müşteri</span>}
               {cStatus !== 'aktif' && <span className={`ml-2 align-middle text-[10px] px-2 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>}
             </h3>
             <p className="text-xs text-sky-200/80 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
