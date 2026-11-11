@@ -354,10 +354,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
       {mode === 'list' && (<>
       <div className={ccard}>
-        <div className="p-3 sm:p-4 space-y-3">
+        <div className="p-3 sm:p-4 space-y-2.5">
           <FilterBar className="flex flex-col 2xl:flex-row gap-2" active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (abcFilter !== 'all' ? 1 : 0)}
             search={<SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma, şehir veya cari kod ara..." className="flex-1" />}>
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap 2xl:flex-nowrap gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap 2xl:flex-nowrap gap-2 items-center">
               <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={sel(cityFilter !== 'all')} aria-label="Şehir">
                 <option value="all">Tüm Şehirler</option>
                 {cityCounts.map(([city, count]) => <option key={city} value={city}>{city} ({count})</option>)}
@@ -402,6 +402,12 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               )}
             </div>
           </FilterBar>
+          {hasFilters && (
+            <div className="flex items-center justify-between gap-2 text-xs text-[#7186A3]">
+              <span>Liste filtreleniyor</span>
+              <button type="button" onClick={resetFilters} className="font-bold text-[#006DBB] hover:text-[#173F73] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006DBB]">Filtreleri temizle</button>
+            </div>
+          )}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" role="tablist" aria-label="Ziyaret durumu">
             {([['all', 'Tümü'], ['quiet', `Sessizleşen A-B (${QUIET_DAYS}+ gün)`], ['visited', 'Uğradıklarım'], ['not', 'Uğramadıklarım'], ['stale', 'Son 3 ayda uğramadıklarım']] as [VisitFilter, string][]).map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={visitFilter === k} onClick={() => { setVisitFilter(k); setPage(0); }}
