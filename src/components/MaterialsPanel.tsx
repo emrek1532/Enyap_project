@@ -1,7 +1,7 @@
 import { viewStatus } from '../lib/quoteRules';
 import { trNum } from '../lib/num';
 import React, { useEffect, useRef, useState } from 'react';
-import { Boxes, CircleAlert, CircleCheck, CircleSlash, Eye, FileSpreadsheet, Loader2, Package, PackageSearch, Pencil, Plus, Tag, Trash2, Wallet, Warehouse, X } from 'lucide-react';
+import { Eye, FileSpreadsheet, Loader2, Package, PackageSearch, Pencil, Plus, Trash2, Wallet, Warehouse, X } from 'lucide-react';
 import { MaterialImport } from './MaterialImport';
 import { LastImport, fetchLastImport } from '../lib/materialImport';
 import { listCard, ctrl, theadCls, SearchBox, IconBtn, Pager, WideOnly, NarrowOnly, LastEdit } from './ListUI';
@@ -16,23 +16,12 @@ import { allowed, can, useAccess } from '../lib/access';
 import { Quote } from '../types';
 import { STATUS_LABEL } from '../lib/constants';
 import { dayOf } from '../lib/dates';
-import { PageHeader, SECTION_SUB, StatBox } from './Sections';
+import { PageHeader, SECTION_SUB } from './Sections';
 import { PipeArt } from './HeroArt';
 
 const PAGE = 25;
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
 const EMPTY: Material = { code: '', name: '', price: 0, currency: 'TRY', unit: 'Adet', vatRate: 20, stock: null };
-type StockKey = NonNullable<MaterialFilters['stock']>;
-
-/**
- * Hızlı kategori: veritabanında kategori alanı yok; düğme, malzeme adında o kelimeyi arar
- * (sayılar 11.2026: vana ~6.000, pompa ~2.400, flanş ~2.300 …). Yeni sütun/sorgu gerekmez.
- */
-const CATS: [label: string, word: string][] = [
-  ['Vanalar', 'vana'], ['Pompalar', 'pompa'], ['Flanşlar', 'flanş'], ['Borular', 'boru'], ['Dirsekler', 'dirsek'],
-  ['Kollektörler', 'kollektör'], ['Manometreler', 'manometre'], ['Radyatörler', 'radyatör'], ['Kazanlar', 'kazan'],
-  ['Kombiler', 'kombi'], ['Termostatlar', 'termostat'], ['Genleşme Tankları', 'genleşme'],
-];
 
 const selectCls = `${ctrl} w-full text-xs !border-[#E2EAF3] !text-[#17365D]`;
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('tr-TR') : '-');
@@ -58,20 +47,17 @@ const CurBadge: React.FC<{ c: Currency }> = ({ c }) => (
 
 const OwnMaterials: React.FC<{
   quotes: Quote[]; onOpenQuote?: (q: Quote) => void; newRequest?: number; importRequest?: number;
-  stockPick?: { v: StockKey; n: number }; onStock?: (v: StockKey) => void; onChanged?: () => void;
+  onChanged?: () => void;
   /** istek karşılandı (sayaç sıfırlanır; sekme değişip geri gelince form yeniden açılmaz) */
   onConsumed?: (k: 'new' | 'import') => void;
-}> = ({ quotes, onOpenQuote, newRequest, importRequest, stockPick, onStock, onChanged, onConsumed }) => {
+}> = ({ quotes, onOpenQuote, newRequest, importRequest, onChanged, onConsumed }) => {
   const [page, setPage] = useState(0);
   useEffect(() => { if (newRequest) { setEditing({ m: { ...EMPTY } }); onConsumed?.('new'); } }, [newRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   const [query, setQuery] = useState('');
   const [codeQuery, setCodeQuery] = useState('');
-  const [cat, setCat] = useState('');
   const [filters, setFilters] = useState<MaterialFilters>({ currency: '', unit: '', price: '', stock: '' });
   const [sort, setSort] = useState<SortState<MaterialSortKey>>({ key: 'default', dir: 'asc' });
   const setFilter = <K extends keyof MaterialFilters>(k: K, v: MaterialFilters[K]) => setFilters(prev => ({ ...prev, [k]: v }));
-  useEffect(() => { if (stockPick) setFilter('stock', stockPick.v); }, [stockPick]);
-  useEffect(() => { onStock?.(filters.stock || ''); }, [filters.stock]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeFilters = Object.values(filters).filter(Boolean).length;
   const [items, setItems] = useState<Material[]>([]);
   const [total, setTotal] = useState(0);
@@ -95,7 +81,7 @@ const OwnMaterials: React.FC<{
     try {
       // Kod kutusu doluysa sadece kodda; değilse (kategori kelimesi + arama) adda ve kodda aranır
       const byCode = codeQuery.trim() !== '';
-      const q = byCode ? codeQuery.trim() : [cat, query.trim()].filter(Boolean).join(' ');
+      const q = byCode ? codeQuery.trim() : query.trim();
       const r = await listMaterials(q, {
         limit: PAGE, offset, field: byCode ? 'code' : 'all', filters, sortKey: sort.key, sortDir: sort.dir,
       });
@@ -116,9 +102,9 @@ const OwnMaterials: React.FC<{
     const t = window.setTimeout(() => load(page * PAGE, false), page ? 0 : 250);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, codeQuery, cat, filters, sort, reload, page]);
+  }, [query, codeQuery, filters, sort, reload, page]);
   // Arama / filtre değişince ilk sayfaya dön
-  useEffect(() => setPage(0), [query, codeQuery, cat, filters, sort]);
+  useEffect(() => setPage(0), [query, codeQuery, filters, sort]);
 
   const handleDelete = async (code: string) => {
     try {
@@ -145,27 +131,15 @@ const OwnMaterials: React.FC<{
     </span>
   );
 
-  const chip = (on: boolean) =>
-    `shrink-0 inline-flex items-center h-8 px-3 rounded-lg border text-[13px] font-semibold whitespace-nowrap transition-colors ${on
-      ? 'bg-[#006DBB] border-[#006DBB] text-white shadow-[0_6px_14px_-8px_rgba(0,109,187,0.9)]'
-      : 'bg-white border-[#E2EAF3] text-[#17365D] hover:border-[#9CC8EC] hover:bg-[#F1F6FC]'}`;
-  const anything = activeFilters > 0 || query || codeQuery || cat || sort.key !== 'default';
+  const anything = activeFilters > 0 || query || codeQuery || sort.key !== 'default';
 
   return (
     <div className="space-y-4">
     <div className={`${listCard} !rounded-2xl !border-[#E2EAF3]`}>
       <div className="p-3 sm:p-4 space-y-3">
-        {/* Hızlı kategori (adda arar) */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
-          <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[#7186A3] pr-1"><Tag className="w-3.5 h-3.5" /> Kategori</span>
-          <button type="button" onClick={() => setCat('')} className={chip(!cat && !codeQuery)}>Tümü</button>
-          {CATS.map(([label, w]) => (
-            <button key={w} type="button" aria-pressed={cat === w} onClick={() => { setCat(cat === w ? '' : w); setCodeQuery(''); }} className={chip(cat === w)}>{label}</button>
-          ))}
-        </div>
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_12rem] gap-2">
           <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı veya kod ara (ör. kalde vana 1/2)" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
-          <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) { setQuery(''); setCat(''); } }} placeholder="Yalnız kodda ara" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
+          <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Yalnız kodda ara" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
           <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">
@@ -207,10 +181,10 @@ const OwnMaterials: React.FC<{
         </div>
         <div className="text-xs text-[#7186A3] flex items-center gap-x-2 gap-y-1 flex-wrap">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          <span><b className="text-[#17365D]">{total.toLocaleString('tr-TR')}</b> malzeme{query.trim() || codeQuery.trim() || cat || activeFilters ? ' bulundu' : ''}</span>
+          <span><b className="text-[#17365D]">{total.toLocaleString('tr-TR')}</b> malzeme{query.trim() || codeQuery.trim() || activeFilters ? ' bulundu' : ''}</span>
           {anything && (
             <button
-              onClick={() => { setFilters({ currency: '', unit: '', price: '', stock: '' }); setQuery(''); setCodeQuery(''); setCat(''); setSort({ key: 'default', dir: 'asc' }); }}
+              onClick={() => { setFilters({ currency: '', unit: '', price: '', stock: '' }); setQuery(''); setCodeQuery(''); setSort({ key: 'default', dir: 'asc' }); }}
               className="text-[#006DBB] font-bold hover:underline"
             >
               Filtreleri temizle
@@ -237,7 +211,7 @@ const OwnMaterials: React.FC<{
               <div className="text-[11px] font-extrabold text-[#173F73] font-mono">{m.code}</div>
               <div className="text-sm font-semibold text-[#17365D] leading-snug uppercase">{m.name || '-'}</div>
               <div className="text-[11px] text-[#7186A3] mt-1 flex items-center gap-1.5 flex-wrap">
-                <span>{m.unit}</span><span>·</span><span>KDV %{m.vatRate}</span><span>·</span><span>Stok</span><StockCell v={m.stock} />
+                <span>{m.unit}</span><span>·</span><span>KDV %{m.vatRate}</span>
               </div>
             </div>
             <div className="text-right shrink-0 space-y-1.5">
@@ -262,7 +236,6 @@ const OwnMaterials: React.FC<{
               <SortHeader label="Birim Fiyat" align="right" active={sort.key === 'price'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'price', 'desc'))} />
               <th className="hidden xl:table-cell py-3 px-3">Para Birimi</th>
               <th className="hidden xl:table-cell py-3 px-3">KDV</th>
-              <SortHeader label="Stok" align="right" active={sort.key === 'stock'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'stock', 'desc'))} />
               <SortHeader className="hidden xl:table-cell" label="Güncelleme" active={sort.key === 'updated'} dir={sort.dir} onClick={() => setSort(s => nextSort(s, 'updated', 'desc'))} />
               <th className="py-3 px-3 pr-5 text-center">İşlemler</th>
             </tr>
@@ -280,13 +253,12 @@ const OwnMaterials: React.FC<{
                 </td>
                 <td className="hidden xl:table-cell py-3 px-3"><CurBadge c={m.currency} /></td>
                 <td className="hidden xl:table-cell py-3 px-3 text-[#7186A3] tabular-nums">%{m.vatRate}</td>
-                <td className="py-3 px-3 text-right whitespace-nowrap"><StockCell v={m.stock} right /></td>
                 <td className="hidden xl:table-cell py-3 px-3 text-[#7186A3] text-xs whitespace-nowrap">{fmtDate(m.updatedAt)}</td>
                 <td className="py-3 px-3 pr-5 text-center whitespace-nowrap">{rowActions(m)}</td>
               </tr>
             ))}
             {!loading && items.length === 0 && (
-              <tr><td colSpan={9}><EmptyState /></td></tr>
+              <tr><td colSpan={8}><EmptyState /></td></tr>
             )}
           </tbody>
         </table>
@@ -492,15 +464,14 @@ const MaterialForm: React.FC<{
   );
 };
 
-/** Özet kutuları: 4 sayım (yalnız sayı; satır inmez). 10 dakika bellekte tutulur, kayıt/aktarımdan sonra yenilenir. */
-type Counts = { total: number; inStock: number; zero: number; negative: number };
+/** Sekmedeki kalem sayısı (tek `count head` isteği, satır inmez); 10 dakika bellekte, kayıt/aktarımdan sonra yenilenir */
+type Counts = { total: number };
 let countCache: { at: number; v: Counts } | null = null;
 async function fetchCounts(force = false): Promise<Counts> {
   if (!force && countCache && Date.now() - countCache.at < 10 * 60_000) return countCache.v;
-  const head = () => supabase.from('materials').select('code', { count: 'exact', head: true });
-  const [a, b, c, d] = await Promise.all([head(), head().gt('stock', 0), head().or('stock.is.null,stock.eq.0'), head().lt('stock', 0)]);
-  if (a.error) throw a.error;
-  const v = { total: a.count ?? 0, inStock: b.count ?? 0, zero: c.count ?? 0, negative: d.count ?? 0 };
+  const { count, error } = await supabase.from('materials').select('code', { count: 'exact', head: true });
+  if (error) throw error;
+  const v = { total: count ?? 0 };
   countCache = { at: Date.now(), v };
   return v;
 }
@@ -531,27 +502,9 @@ export const MaterialsPanel: React.FC<{
   useEffect(() => {
     if (showSup) fetchSupplierLists().then(l => setSupInfo({ lists: l.length, items: l.reduce((a, x) => a + x.itemCount, 0) }), () => undefined);
   }, [showSup]);
-  const [stock, setStock] = useState<StockKey>('');
-  const [stockPick, setStockPick] = useState<{ v: StockKey; n: number }>();
-  const pick = (v: StockKey) => setStockPick(p => ({ v: stock === v ? '' : v, n: (p?.n || 0) + 1 }));
 
   const tr = (n?: number | null) => (n == null ? '–' : n.toLocaleString('tr-TR'));
-  const pct = (n?: number) => (counts && n != null && counts.total ? `%${Math.round((n / counts.total) * 100)} · ` : '');
-  const ring = (on: boolean) => (on ? 'ring-2 ring-[#006DBB]/50 border-[#9CC8EC]' : '');
 
-  const stats = tab === 'own' && showOwn ? (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3">
-      <StatBox tone="eBlue" icon={Boxes} label="Toplam Malzeme" value={tr(counts?.total)} sub="katalogdaki tüm kalemler" onClick={() => pick('')} className={ring(false)} />
-      <StatBox tone="eTeal" icon={CircleCheck} label="Stokta Bulunan" value={tr(counts?.inStock)} sub={`${pct(counts?.inStock)}stok > 0`} onClick={() => pick('in')} className={ring(stock === 'in')} />
-      <StatBox tone="eBlue" icon={CircleSlash} label="Stokta Olmayan" value={tr(counts?.zero)} sub={`${pct(counts?.zero)}stok 0 / boş`} onClick={() => pick('zero')} className={ring(stock === 'zero')} />
-      <StatBox tone="eBlue" icon={CircleAlert} label="Kritik Stok" value={tr(counts?.negative)} sub="eksiye düşen (Mikro)" onClick={() => pick('negative')} className={ring(stock === 'negative')} />
-    </div>
-  ) : tab === 'suppliers' ? (
-    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-      <StatBox tone="eBlue" icon={Warehouse} label="Firma Fiyat Listesi" value={tr(supInfo?.lists)} sub="yüklü firma" />
-      <StatBox tone="eTeal" icon={Boxes} label="Firma Kalemleri" value={tr(supInfo?.items)} sub="tüm listelerde" />
-    </div>
-  ) : null;
 
   const tabCls = (on: boolean) =>
     `relative whitespace-nowrap px-4 py-2.5 text-sm font-extrabold transition-colors ${on ? 'text-[#006DBB]' : 'text-[#7186A3] hover:text-[#17365D]'}`;
@@ -567,7 +520,6 @@ export const MaterialsPanel: React.FC<{
         hero={{ art: <PipeArt /> }}
         action={canAdd && showOwn ? { label: 'Yeni Malzeme', icon: Plus, onClick: () => { choose('own'); setNewLocal(n => n + 1); } } : undefined}
         secondary={canImport && showOwn ? { label: "Excel'den Malzeme Aktar", icon: FileSpreadsheet, onClick: () => { choose('own'); setImportReq(n => n + 1); } } : undefined}
-        below={stats}
       />
       <div className="space-y-4">
         {showOwn && showSup && <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-[#E2EAF3]" role="tablist">
@@ -582,7 +534,7 @@ export const MaterialsPanel: React.FC<{
         </div>}
         {tab === 'own'
           ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} newRequest={newLocal} importRequest={importReq}
-              stockPick={stockPick} onStock={setStock} onChanged={() => loadCounts(true)}
+              onChanged={() => loadCounts(true)}
               onConsumed={k => (k === 'new' ? setNewLocal(0) : setImportReq(0))} />
           : <SupplierListsPanel />}
       </div>
