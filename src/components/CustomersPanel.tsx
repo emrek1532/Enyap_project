@@ -294,7 +294,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       title={c.lastVisit ? `Uğrandı: ${visitTxt(c.lastVisit)} (kaldırmak için dokun)` : 'Uğradım olarak işaretle'}
       className={`h-8 px-2 inline-flex items-center gap-1 rounded-lg text-[11px] font-bold whitespace-nowrap border ${c.lastVisit ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-700'}`}>
       {c.lastVisit ? <MapPinCheck className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
-      {c.lastVisit ? visitTxt(c.lastVisit).slice(0, 5) : 'Uğradım'}
+      <span className="max-xl:max-lg:inline max-xl:hidden">{c.lastVisit ? visitTxt(c.lastVisit).slice(0, 5) : 'Uğradım'}</span>
     </button>
   );
   const rowActions = (c: Customer) => (
@@ -405,7 +405,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           </p>
         ) : (<>
           {/* Telefon: kartlar */}
-          <NarrowOnly from="md"><div className="md:hidden divide-y divide-slate-100">
+          <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-slate-100">
             {pageRows.map(({ c, st }) => (
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
@@ -437,7 +437,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               </div>
             ))}
           </div></NarrowOnly>
-          <WideOnly from="md"><div className="overflow-x-auto hidden md:block">
+          <WideOnly from="lg"><div className="overflow-x-auto hidden lg:block">
             <table className="w-full text-left text-sm">
               <thead className={theadCls}>
                 <tr className="[&>th]:text-[12px] [&>th]:font-bold [&>th]:text-slate-500">

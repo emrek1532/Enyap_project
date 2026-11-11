@@ -30,7 +30,7 @@ const p = (new URLSearchParams(location.search).get('p') || 'quotes') as 'quotes
 const secs = (['quotes', 'materials', 'customers', 'collections', 'expenses', 'notes', 'reports', 'admin'] as const).map(id => ({ id, ...SECTION_META[id] }));
 const App = () => {
   const [f, setF] = React.useState('all');
-  return h('div', { className: 'min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#f4f8fc] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-[88px] lg:pl-60' },
+  return h('div', { className: 'min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#f4f8fc] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60' },
     h(Sidebar, { sections: secs, active: p, onOpen: noop, onHome: noop, userName: 'Emre Karakaya', userEmail: 'e@x.com', roleLabel: 'Yönetici' }),
     h('div', { className: 'sticky top-0 z-30' }, h(Header, { syncStatus: { isOnline: true, isSyncing: false } as any, onTriggerSync: noop, onHome: noop, userName: 'Emre Karakaya', userEmail: 'e@x.com', roleLabel: 'Yönetici', onSearch: noop })),
     h('main', { className: 'max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1 min-w-0' },
