@@ -30,4 +30,4 @@ Kullanıcının beğendiği örnek görseller ile kullanım verisi birleştirild
 - Son İşlemler: son 45 günün teklif, tahsilat ve harcamaları tek akışta (en yeni 7; cihazdaki veriden).
 - Sol menü tablette (md–lg) dar: ikon + alt yazı (`Sidebar.tsx`, `md:pl-[88px] lg:pl-60`); lg+ geniş menü.
 - Kaldırılan: Son Teklifler kartı (Son İşlemler'e girdi), Takip kartı (`TodayCalls`, karar listesine girdi), En Çok İş Yapılan Firmalar.
-- Eski ana sayfa yedeği: commit `e405729` (v1.15.2).
+- Eski ana sayfa yedeği "EMRE GÜNCEL": dal `EMRE-GUNCEL` (commit `b715e76`, v1.15.3); geri yükleme adımı `CLAUDE.md`'de.
