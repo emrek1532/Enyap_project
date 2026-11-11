@@ -28,13 +28,15 @@ export const SECTION_SUB: Record<Exclude<ActiveTab, 'home'>, string> = {
   admin: 'Kullanıcılar ve yetkiler.',
 };
 
-/** Özet kutularının pastel renkleri ve simgeleri (sırayla: yeşil, mavi, mor, turuncu) */
-const STAT_TONES = [
-  { box: 'from-emerald-50 to-white border-emerald-100', icon: 'bg-emerald-100 text-emerald-600', label: 'text-emerald-700' },
-  { box: 'from-sky-50 to-white border-sky-100', icon: 'bg-sky-100 text-brand-600', label: 'text-brand-700' },
-  { box: 'from-violet-50 to-white border-violet-100', icon: 'bg-violet-100 text-violet-600', label: 'text-violet-700' },
-  { box: 'from-orange-50 to-white border-orange-100', icon: 'bg-orange-100 text-orange-600', label: 'text-orange-700' },
-];
+/** Özet kutusu renkleri: belirgin açık zemin + dolu renkli simge; yazılar sade (lacivert/gri) */
+export type StatTone = 'green' | 'blue' | 'violet' | 'orange';
+const STAT_TONES: Record<StatTone, { box: string; icon: string }> = {
+  green: { box: 'bg-emerald-50 border-emerald-200/80', icon: 'bg-emerald-500 text-white' },
+  blue: { box: 'bg-sky-50 border-sky-200/80', icon: 'bg-brand-500 text-white' },
+  violet: { box: 'bg-violet-50 border-violet-200/80', icon: 'bg-violet-500 text-white' },
+  orange: { box: 'bg-orange-50 border-orange-200/80', icon: 'bg-orange-500 text-white' },
+};
+const TONE_ORDER: StatTone[] = ['green', 'blue', 'violet', 'orange'];
 const statIcon = (label: string): React.ElementType =>
   /bekle|pasif/i.test(label) ? Hourglass
     : /takip|vade|gecik/i.test(label) ? AlarmClock
@@ -43,6 +45,31 @@ const statIcon = (label: string): React.ElementType =>
           : /çek|senet/i.test(label) ? Receipt
             : /harcama|kalem|kayıt başına/i.test(label) ? Coins
               : BarChart3;
+
+/** Rakam kutusu (sayfa başlıkları ve Rapor ortak): simge, etiket, büyük rakam, alt yazı; onClick varsa dokunulur */
+export const StatBox: React.FC<{
+  label: string; value: React.ReactNode; sub?: React.ReactNode; tone: StatTone; icon?: React.ElementType;
+  onClick?: () => void; className?: string;
+}> = ({ label, value, sub, tone, icon, onClick, className = '' }) => {
+  const t = STAT_TONES[tone];
+  const SI = icon || statIcon(label);
+  const body = (<>
+    <span className={`hidden sm:flex w-11 h-11 rounded-xl items-center justify-center shrink-0 shadow-sm ${t.icon}`}><SI className="w-5 h-5" /></span>
+    <span className="min-w-0 flex-1">
+      <span className="flex items-center gap-1.5 text-[11px] sm:text-[13px] font-bold text-slate-600 truncate">
+        <span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.icon}`} />{label}
+      </span>
+      <span className="block mt-0.5 text-base sm:text-xl font-black tabular-nums break-words leading-tight text-[#1a3d6d]">{value}</span>
+      {sub && <span className="block text-[11px] sm:text-xs text-slate-500 truncate">{sub}</span>}
+    </span>
+    {onClick && <ChevronRight className="hidden sm:block w-4 h-4 text-slate-400 shrink-0 self-start" />}
+  </>);
+  const cls = `${className} flex items-center gap-3 rounded-2xl border ${t.box} px-3 py-3 sm:px-4 sm:py-3.5 min-w-0 text-left shadow-[0_10px_26px_-22px_rgba(15,60,120,0.6)]`;
+  return onClick
+    ? <button type="button" onClick={onClick} className={`${cls} transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]`}>{body}</button>
+    : <div className={cls}>{body}</div>;
+};
+export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 /**
  * Bölüm sayfalarının üstündeki açık başlık kartı: mavi simge kutusu, başlık + açıklama, sağda ana düğme;
@@ -87,20 +114,10 @@ export const PageHeader: React.FC<{
     </section>
     {stats && stats.length > 0 && (
       <div className={`grid grid-cols-2 ${stats.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5 sm:gap-3`}>
-        {stats.map((s, i) => {
-          const t = STAT_TONES[i % STAT_TONES.length];
-          const SI = statIcon(s.label);
-          return (
-            <div key={s.label} className={`${stats.length % 2 && i === stats.length - 1 ? 'col-span-2 lg:col-span-1 ' : ''}flex items-center gap-3 rounded-2xl border bg-gradient-to-br ${t.box} px-3 py-3 sm:px-4 sm:py-3.5 min-w-0 shadow-[0_10px_26px_-22px_rgba(15,60,120,0.6)]`}>
-              <span className={`hidden sm:flex w-11 h-11 rounded-xl items-center justify-center shrink-0 ${t.icon}`}><SI className="w-5 h-5" /></span>
-              <span className="min-w-0">
-                <span className={`block text-[11px] sm:text-xs font-bold truncate ${t.label}`}>{s.label}</span>
-                <span className="block mt-0.5 text-base sm:text-xl font-black tabular-nums truncate text-[#1a3d6d]">{s.value}</span>
-                {s.sub && <span className="block text-[11px] text-slate-500 truncate">{s.sub}</span>}
-              </span>
-            </div>
-          );
-        })}
+        {stats.map((s, i) => (
+          <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} tone={toneAt(i)}
+            className={stats.length % 2 && i === stats.length - 1 ? 'col-span-2 lg:col-span-1' : ''} />
+        ))}
       </div>
     )}
   </div>
