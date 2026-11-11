@@ -111,7 +111,7 @@ export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   quotes: { lg: '/hero-teklifler-2.webp', sm: '/hero-teklifler-2-sm.webp', quotes: true },
   requests: { lg: '/hero-talepler-2.webp', sm: '/hero-talepler-2-sm.webp', center: true },
   expenses: { lg: '/hero-expenses.svg', sm: '/hero-expenses.svg' },
-  collections: { lg: '/hero-collections.svg', sm: '/hero-collections.svg' },
+  collections: { lg: '/hero-tahsilat.webp', sm: '/hero-tahsilat-sm.webp', center: true },
   reports: { lg: '/hero-rapor.webp', sm: '/hero-rapor-sm.webp' },
   customers: { lg: '/hero-musteri.webp', sm: '/hero-musteri-sm.webp', cust: true },
 };
@@ -146,7 +146,7 @@ export const PageHeader: React.FC<{
           ? <div aria-hidden className="pointer-events-none select-none absolute inset-y-0 right-0 w-[64%] sm:w-[58%] lg:w-[54%] [&>svg]:w-full [&>svg]:h-full">{hero.art}</div>
           : <picture aria-hidden>
             <source media="(min-width: 768px)" srcSet={hero.lg} />
-            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'w-[76%] sm:w-[68%] lg:w-[62%] object-[70%_center] sm:object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_52%)]' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : hero.quotes ? "w-[83%] sm:w-[76%] md:w-[72%] lg:w-[66%] object-[62%_center] md:object-[58%_center]" : hero.center ? "w-[58%] sm:w-[52%] md:right-auto md:left-1/2 md:-translate-x-1/2 md:w-[46%] lg:w-[42%] object-[70%_center] md:[mask-image:linear-gradient(to_right,transparent_0%,black_22%,black_78%,transparent_100%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
+            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'w-[76%] sm:w-[68%] lg:w-[62%] object-[70%_center] sm:object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_52%)]' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : hero.quotes ? "w-[83%] sm:w-[76%] md:w-[72%] lg:w-[66%] object-[62%_center] md:object-[58%_center]" : hero.center ? "w-[58%] sm:w-[52%] md:right-auto md:left-1/2 md:-translate-x-1/2 md:w-[46%] lg:w-[42%] object-[60%_center] md:[mask-image:linear-gradient(to_right,transparent_0%,black_22%,black_78%,transparent_100%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
           </picture>}
         {hero.materials
           ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[34%] via-white/70 via-[49%] to-transparent to-[75%] sm:from-[38%] sm:via-[54%] lg:from-[42%] lg:via-[57%]" />
