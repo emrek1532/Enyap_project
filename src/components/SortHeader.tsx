@@ -18,12 +18,12 @@ export const SortHeader: React.FC<{
   active: boolean;
   dir: SortDir;
   onClick: () => void;
-  align?: 'left' | 'right';
+  align?: 'left' | 'right' | 'center';
   className?: string;
 }> = ({ label, active, dir, onClick, align = 'left', className = '' }) => {
   const Icon = !active ? ArrowUpDown : dir === 'asc' ? ArrowUp : ArrowDown;
   return (
-    <th className={`py-3 px-3 ${align === 'right' ? 'text-right' : ''} ${className}`} aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <th className={`py-3 px-3 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${className}`} aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
       <button
         type="button"
         onClick={onClick}

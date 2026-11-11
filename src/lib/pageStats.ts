@@ -75,10 +75,10 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
     const six = ymd(new Date(now.getFullYear(), now.getMonth() - 6, now.getDate()));
     const active = new Set(quotes.filter(q => q.status === 'onaylandi' && inR(q.createdAt, six)).map(q => key(q.customerName || '')));
     return [
-      { label: 'Kayıtlı müşteri', value: n(custs.length) },
-      { label: 'Bu ay teklif verilen', value: n(month.size), sub: 'firma' },
-      { label: 'Bekleyen teklifi olan', value: n(pend.size), sub: 'firma' },
-      { label: 'Son 6 ayda satış', value: n(active.size), sub: 'firma' },
+      { label: 'Toplam Müşteri', value: n(custs.length), sub: 'kayıtlı firma' },
+      { label: 'Bu Ay Teklif Verilen', value: n(month.size), sub: 'firma' },
+      { label: 'Bekleyen Teklifi Olan', value: n(pend.size), sub: 'firma' },
+      { label: 'Son 6 Ayda Satış', value: n(active.size), sub: 'firma' },
     ];
   }
   if (tab === 'collections' && ledger) {
