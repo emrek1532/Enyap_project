@@ -231,11 +231,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const getStatusBadge = (status: QuoteStatus | 'pasif') => {
     switch (status) {
       case 'pasif':
-        return { label: 'Pasif', color: 'bg-amber-50 text-amber-800 border-amber-200' };
+        return { label: 'Pasif', color: 'bg-[#EEF2F7] text-[#17477D] border-[#17477D]/20' };
       case 'gonderildi':
-        return { label: 'Beklemede', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+        return { label: 'Beklemede', color: 'bg-[#EAF4FC] text-[#0072CE] border-[#0072CE]/25' };
       case 'onaylandi':
-        return { label: 'Onaylandı', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+        return { label: 'Onaylandı', color: 'bg-[#E8F8F4] text-[#008F79] border-[#00B89C]/30' };
       case 'iptal':
         return { label: 'İptal', color: 'bg-slate-100 text-slate-700 border-slate-200' };
     }
@@ -286,9 +286,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     if (!isPendingQuote(q)) return null;
     const exp = daysToExpiry(q, today);
     return (<>
-      {q.reviewPending && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-sky-50 text-sky-800 border-sky-200" title="Ekip yükledi; kontrol edip müşteriye gönderin">Kontrol bekliyor</span>}
-      {q.followUpAt && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap inline-flex items-center gap-1 ${q.followUpAt <= today ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}><BellRing className="w-3 h-3" />{followLabel(q.followUpAt, today)}</span>}
-      {exp !== null && isExpiring(q, today) && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${exp < 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-orange-50 text-orange-700 border-orange-200'}`}>{expiryLabel(exp)}</span>}
+      {q.reviewPending && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-[#EAF4FC] text-[#0072CE] border-[#0072CE]/25" title="Ekip yükledi; kontrol edip müşteriye gönderin">Kontrol bekliyor</span>}
+      {q.followUpAt && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap inline-flex items-center gap-1 ${q.followUpAt <= today ? 'bg-red-50 text-red-700 border-red-200' : 'bg-[#E8F8F4] text-[#007F6B] border-[#00B89C]/30'}`}><BellRing className="w-3 h-3" />{followLabel(q.followUpAt, today)}</span>}
+      {exp !== null && isExpiring(q, today) && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${exp < 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-[#EEF2F7] text-[#17477D] border-[#17477D]/15'}`}>{expiryLabel(exp)}</span>}
     </>);
   };
 
@@ -299,7 +299,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     return [
       ...(pending && !readOnly ? [{ key: 'ok', label: 'Onayla', icon: <Check className="w-5 h-5" />, cls: 'bg-emerald-600', onClick: () => onUpdateQuoteStatus(q.id, 'onaylandi') }] : []),
       ...(tel ? [{ key: 'tel', label: 'Ara', icon: <Phone className="w-5 h-5" />, cls: 'bg-sky-600', onClick: () => { window.location.href = `tel:${tel}`; } }] : []),
-      ...(pending && !readOnly && onPatchQuote ? [{ key: 'fu', label: 'Yarın ara', icon: <BellRing className="w-5 h-5" />, cls: 'bg-amber-500', onClick: () => setFollow(q, plusDays(1)) }] : []),
+      ...(pending && !readOnly && onPatchQuote ? [{ key: 'fu', label: 'Yarın ara', icon: <BellRing className="w-5 h-5" />, cls: 'bg-[#00B89C]', onClick: () => setFollow(q, plusDays(1)) }] : []),
     ];
   };
 
@@ -340,7 +340,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
         <FilterBar className="p-3 sm:p-4 flex flex-col xl:flex-row gap-2" active={(statusFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
           search={<SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1" />}>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
-            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Durum">
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={`${ctrl} transition-colors ${statusFilter !== 'all' ? 'border-[#0072CE] bg-[#EAF4FC] text-[#0072CE] font-bold' : ''}`} aria-label="Durum">
               <option value="all">Tüm Teklifler</option>
               <option value="aktif">Beklemede</option>
               <option value="pasif">Pasif (neden seçilmiş)</option>
@@ -349,25 +349,25 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <option value="onaylandi">Onaylandı</option>
               <option value="iptal">İptal</option>
             </select>
-            <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={ctrl} aria-label="Şehir">
+            <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={`${ctrl} transition-colors ${cityFilter !== 'all' ? 'border-[#0072CE] bg-[#EAF4FC] text-[#0072CE] font-bold' : ''}`} aria-label="Şehir">
               <option value="all">Tüm Şehirler</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <div className={`${ctrl} col-span-2 flex items-center gap-1.5 text-slate-500`}>
+            <div className={`${ctrl} col-span-2 flex items-center gap-1.5 transition-colors ${dateFrom || dateTo ? 'border-[#0072CE] bg-[#EAF4FC] text-[#0072CE]' : 'text-slate-500'}`}>
               <CalendarDays className="w-4 h-4 shrink-0" />
               <DateInput value={dateFrom} onChange={v => { setDateFrom(v); setPage(0); }} className="w-full sm:w-24 bg-transparent text-xs text-slate-700 focus:outline-none" />
               <span>–</span>
               <DateInput value={dateTo} onChange={v => { setDateTo(v); setPage(0); }} className="w-full sm:w-24 bg-transparent text-xs text-slate-700 focus:outline-none" />
             </div>
             <button type="button" onClick={() => setShowMore(v => !v)}
-              title="Sırala" className={`${ctrl} col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 font-bold ${showMore ? 'border-brand-300 text-brand-700 bg-brand-50' : ''}`}>
-              <Filter className="w-4 h-4" /> <span className="xl:hidden min-[1440px]:inline">Sırala</span>
+              title="Sırala" className={`${ctrl} col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 font-bold ${showMore ? 'border-[#0072CE] bg-[#EAF4FC] text-[#0072CE] font-bold' : ''}`}>
+              <Filter className="w-4 h-4" /> <span className="xl:max-[1439px]:hidden">Sırala</span>
             </button>
             <div className="col-span-2 sm:col-span-1 flex h-10 p-1 rounded-xl bg-slate-100" role="tablist" aria-label="Görünüm">
               {([['list', 'Liste', LayoutList], ['board', 'Pano', Columns3]] as const).map(([k, label, Icon]) => (
                 <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} title={label}
-                  className={`flex-1 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold ${view === k ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
-                  <Icon className="w-4 h-4" /><span className="xl:hidden min-[1440px]:inline">{label}</span>
+                  className={`flex-1 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold ${view === k ? 'bg-[#0072CE] text-white shadow-sm' : 'text-[#17477D]/70 hover:text-[#17477D]'}`}>
+                  <Icon className="w-4 h-4" /><span className="xl:max-[1439px]:hidden">{label}</span>
                 </button>
               ))}
             </div>
@@ -444,7 +444,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             <div className="p-3 space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <button onClick={() => setSelectedQuote(quote)} className="font-black text-brand-700 text-base leading-tight tabular-nums">{quoteNo(quote)}</button>
+                  <button onClick={() => setSelectedQuote(quote)} className="font-black text-[#123B68] text-base leading-tight tabular-nums">{quoteNo(quote)}</button>
                   <button onClick={() => setCustomerView(quote.customerName)} className="block font-semibold text-slate-900 text-sm leading-snug text-left mt-0.5">{quote.customerName}</button>
                   <div className="text-[11px] text-slate-500">{quote.city || '-'} · {new Date(quote.createdAt).toLocaleDateString('tr-TR')}</div>
                 </div>
@@ -457,7 +457,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <div className="flex items-center gap-1 flex-wrap">
                   <StatusPill status={viewStatus(quote)} />
                   {priceBadge(quote.id)}
-                  {quote.status === 'gonderildi' && quote.lostReason && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
+                  {quote.status === 'gonderildi' && quote.lostReason && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-[#EAF4FC] text-[#0072CE] border-[#0072CE]/25" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
                   {extraBadges(quote)}
                 </div>
                 <div className="relative flex items-center shrink-0">
@@ -491,25 +491,25 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 <tr><td colSpan={7} className="py-8 text-center text-slate-500">Arama kriterine uygun teklif bulunamadı.</td></tr>
               )}
               {pageRows.map(quote => (
-                <tr key={quote.id} className={`${rowCls} ${selected.has(quote.id) ? 'bg-brand-50/50' : ''}`}>
+                <tr key={quote.id} className={`transition-colors duration-150 hover:bg-[#EAF4FC]/70 ${selected.has(quote.id) ? 'bg-[#EAF4FC]' : 'bg-white'}`}>
                   <td className="hidden lg:table-cell py-3 pl-5 pr-1"><input type="checkbox" checked={selected.has(quote.id)} onChange={() => toggleSel(quote.id)} aria-label="Seç" className="w-4 h-4 rounded border-slate-300 accent-brand-500" /></td>
                   <td className="py-3 px-3 max-lg:pl-4 align-middle">
-                    <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-black text-[15px] text-[#1a3d6d] hover:text-brand-600 whitespace-nowrap tabular-nums leading-tight">{quoteNo(quote)}</button>
+                    <button onClick={() => setSelectedQuote(quote)} title="Teklifi aç" className="font-black text-[15px] text-[#123B68] hover:text-[#0072CE] whitespace-nowrap tabular-nums leading-tight transition-colors">{quoteNo(quote)}</button>
                     <div className="lg:hidden text-[11px] text-slate-500 tabular-nums">{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</div>
                   </td>
                   <td className="py-3 px-3">
-                    <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="block font-bold text-slate-900 text-left hover:text-brand-700 leading-snug">{quote.customerName}</button>
-                    <span className="mt-0.5 flex items-center gap-1 text-xs text-slate-500"><MapPin className="w-3 h-3 shrink-0" />{quote.city || '-'}</span>
+                    <button onClick={() => setCustomerView(quote.customerName)} title="Müşterinin tüm teklifleri" className="block font-bold text-[#173B63] text-left hover:text-[#0072CE] leading-snug transition-colors">{quote.customerName}</button>
+                    <span className="mt-0.5 flex items-center gap-1 text-xs text-slate-500"><MapPin className="w-3.5 h-3.5 shrink-0 text-[#0072CE]/70" />{quote.city || '-'}</span>
                   </td>
                   <td className="py-3 px-3">
                     <StatusPill status={viewStatus(quote)} />
                     {priceChanges.has(quote.id) && <span className="mt-1 block w-fit">{priceBadge(quote.id)}</span>}
-                    {quote.status === 'gonderildi' && quote.lostReason && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-amber-50 text-amber-800 border-amber-200" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
-                    {needsFollowUp(quote) && !quote.followUpAt && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)</span>}
+                    {quote.status === 'gonderildi' && quote.lostReason && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap bg-[#EAF4FC] text-[#0072CE] border-[#0072CE]/25" title={quote.lostReason}>{splitReason(quote.lostReason).reason}</span>}
+                    {needsFollowUp(quote) && !quote.followUpAt && <span className="mt-1 block w-fit text-[10px] px-2 py-0.5 rounded-full font-bold border bg-[#E8F8F4] text-[#007F6B] border-[#00B89C]/30 whitespace-nowrap">⏰ Tekrar görüş ({quoteAgeInDays(quote)} gün)</span>}
                     {isPendingQuote(quote) && <span className="mt-1 flex flex-wrap gap-1">{extraBadges(quote)}</span>}
                   </td>
                   <td className="hidden lg:table-cell py-3 px-3 text-slate-600 whitespace-nowrap tabular-nums"><span className="inline-flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-slate-400" />{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</span></td>
-                  <td className="py-3 px-3 text-right font-black text-slate-900 tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</td>
+                  <td className="py-3 px-3 text-right font-black text-[#173B63] tabular-nums whitespace-nowrap">{formatTl(netTry.get(quote.id) || 0)}</td>
                   <td className="py-3 px-3">
                     <div className="relative flex items-center justify-center gap-0.5">
                       <IconBtn title="Detay" onClick={() => setSelectedQuote(quote)}><Eye className="w-4 h-4" /></IconBtn>
@@ -599,7 +599,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   Teklif Durumu
                 </label>
                 <div className={`grid gap-2 ${isPassive(selectedQuote) ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                  {isPassive(selectedQuote) && <span className="p-2 rounded-lg text-xs font-bold border text-center bg-amber-500 text-white border-amber-600 shadow-sm" title="Neden seçildi: bekleyenlerde sayılmaz">Pasif</span>}
+                  {isPassive(selectedQuote) && <span className="p-2 rounded-lg text-xs font-bold border text-center bg-[#17477D] text-white border-[#123B68] shadow-sm" title="Neden seçildi: bekleyenlerde sayılmaz">Pasif</span>}
                   {(['gonderildi', 'onaylandi', 'iptal'] as QuoteStatus[]).map((st) => {
                     const isCurrent = selectedQuote.status === st && !(st === 'gonderildi' && isPassive(selectedQuote));
                     const badge = getStatusBadge(st);
@@ -633,11 +633,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                   return (
                     <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 space-y-2">
                       <div className="text-[11px] font-bold text-slate-600">Neden bekliyor? <span className="font-normal text-slate-500">· "{ACTIVE_REASONS.join('", "')}" dışındaki bir neden seçilirse teklif Pasif olur, bekleyenlerde sayılmaz</span></div>
-                      {isPassive(selectedQuote) && <div className="rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-[11px] font-bold text-amber-800">Pasif: bu teklif artık beklenmiyor. Nedeni kaldırırsanız yeniden Beklemede olur.</div>}
+                      {isPassive(selectedQuote) && <div className="rounded-lg bg-[#EEF2F7] border border-[#17477D]/15 px-2.5 py-1.5 text-[11px] font-bold text-[#17477D]">Pasif: bu teklif artık beklenmiyor. Nedeni kaldırırsanız yeniden Beklemede olur.</div>}
                       <div className="flex flex-wrap gap-1.5">
                         {PENDING_REASONS.map(r => (
                           <button key={r} onClick={() => save(cur.reason === r ? '' : r, reasonNote)}
-                            className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${cur.reason === r ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                            className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${cur.reason === r ? 'bg-[#17477D] border-[#17477D] text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
                             {r}
                           </button>
                         ))}
@@ -735,7 +735,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     onEditQuote(selectedQuote);
                     setSelectedQuote(null);
                   }}
-                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors"
+                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-[#0072CE] hover:bg-[#17477D] text-white text-xs font-bold transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   <span>Düzenle / Revize</span>
@@ -804,7 +804,7 @@ export const CustomerQuotes: React.FC<{
   const stats: { k: string; v: string; sub?: string; tone: string }[] = [
     { k: 'Toplam teklif', v: `${list.length}`, sub: formatTl(sum(list)), tone: 'bg-brand-50 border-brand-100 text-brand-800' },
     { k: 'Onaylanan', v: `${approved.length}`, sub: formatTl(sum(approved)), tone: 'bg-accent-50 border-accent-100 text-accent-800' },
-    { k: 'Beklemede', v: `${pending.length}`, sub: formatTl(sum(pending)), tone: 'bg-amber-50 border-amber-100 text-amber-800' },
+    { k: 'Beklemede', v: `${pending.length}`, sub: formatTl(sum(pending)), tone: 'bg-[#EAF4FC] border-[#0072CE]/15 text-[#0072CE]' },
     { k: 'Onay oranı', v: list.length ? `%${rate}` : '—', sub: `${cancelled.length} iptal`, tone: 'bg-slate-50 border-slate-200 text-slate-800' },
   ];
   return (
