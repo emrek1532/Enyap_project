@@ -142,10 +142,10 @@ export const PageHeader: React.FC<{
           ? <div aria-hidden className="pointer-events-none select-none absolute inset-y-0 right-0 w-[64%] sm:w-[58%] lg:w-[54%] [&>svg]:w-full [&>svg]:h-full">{hero.art}</div>
           : <picture aria-hidden>
             <source media="(min-width: 768px)" srcSet={hero.lg} />
-            <img src={hero.sm} alt="" draggable={false} className="pointer-events-none select-none absolute inset-y-0 right-0 h-full w-[58%] sm:w-[52%] lg:w-[46%] object-cover object-center" />
+            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
           </picture>}
         {hero.cust
-          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#EAF5FC] from-[44%] via-[#EAF5FC]/55 via-[60%] to-[#0B2343]/0 to-[80%] sm:from-[46%] sm:via-[60%] lg:from-[52%] lg:via-[64%] lg:to-[82%]" />
+          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#EAF5FC]/75 from-[30%] via-[#EAF5FC]/20 via-[53%] to-transparent to-[76%]" />
           : <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]" />}
         <div aria-hidden className={`pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r ${hero.cust ? 'from-[#006DBB] via-[#009FE3] to-[#00B49A]' : 'from-[#0072CE] via-[#0072CE] to-[#00B89C]'}`} />
         <div className={`relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 py-4 ${hero.cust ? 'min-h-[108px] sm:min-h-[145px] lg:min-h-[155px]' : 'min-h-[104px] sm:min-h-[124px] lg:min-h-[132px]'}`}>
