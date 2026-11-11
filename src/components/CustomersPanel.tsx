@@ -439,10 +439,9 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
             {customers.length === 0 ? 'Henüz müşteri kaydı yok.' : 'Filtrelere uygun müşteri bulunamadı.'}
           </p>
         ) : (<>
-          {/* Telefon / dik tablet: kompakt kartlar (firma, bakiye, teklif sayısı, son ziyaret öncelikli) */}
+          {/* Telefon / dik tablet: kompakt kartlar (firma, onaylı toplam, teklif sayısı, son ziyaret öncelikli) */}
           <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-[#E2EAF3]">
             {pageRows.map(({ c, st }) => {
-              const b = balanceOf(c);
               return (
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
@@ -452,13 +451,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     <VisitLine d={c.lastVisit} />
                   </div>
                   <div className="text-right shrink-0">
-                    {b ? (<>
-                      <div className={`font-black text-sm tabular-nums ${b.estimate < 0 ? 'text-rose-600' : 'text-[#0B2343]'}`}>{money(b.estimate)}</div>
-                      <div className="text-[10px] text-[#7186A3]">bakiye</div>
-                    </>) : (<>
-                      <div className="font-black text-[#0B2343] text-sm tabular-nums">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</div>
-                      <div className="text-[10px] text-[#7186A3]">onaylı toplam</div>
-                    </>)}
+                    <div className="font-black text-[#0B2343] text-sm tabular-nums">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</div>
+                    <div className="text-[10px] text-[#7186A3]">onaylı toplam</div>
                   </div>
                 </button>
                 <div className="mt-2 flex items-center justify-between gap-2">
