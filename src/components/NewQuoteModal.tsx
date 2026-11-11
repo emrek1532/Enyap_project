@@ -617,7 +617,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
       notes: notes.trim() || undefined,
       paymentTerm: paymentTerm || undefined,
       preparedBy: pdfMeta?.preparedBy,
-      isEncrypted: false,
     };
 
     onSaveQuote(newQuote, { fromPdf: !!pdfMeta });
