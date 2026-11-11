@@ -422,7 +422,8 @@ export const supplierToMaterial = (s: SupplierItem): Material => ({
 });
 
 /** Firma adına göre sabit bir renk (etiketler için) */
-const COLORS = ['#e11d48', '#2563eb', '#0891b2', '#7c3aed', '#059669', '#d97706', '#db2777', '#4f46e5', '#0d9488', '#b45309', '#dc2626', '#475569'];
+/** Firma renkleri: yalnız ENYAP mavi / lacivert / turkuaz tonları (mor, turuncu yok) */
+const COLORS = ['#006DBB', '#00A08A', '#173F73', '#009FE3', '#2B5F9E', '#0E7C86', '#1D4ED8', '#0891B2', '#3A6EA5', '#00B49A', '#204D84', '#4A6F94'];
 export const supplierColor = (name: string) => {
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;

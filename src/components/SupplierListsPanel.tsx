@@ -126,11 +126,11 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           <div className="font-bold text-sm text-slate-900">Fiyat listesi yükle (PDF, Excel)</div>
           <div className="text-xs text-slate-500">
             PDF ya da Excel (.xlsx, CSV) seçin; birden fazla dosya seçebilirsiniz. Excel'de başlık satırında "Ürün adı" ve "Fiyat" sütunları olmalı (isteğe bağlı: Kod, Grup, Ölçü, Para birimi). Firma adı ve tarih dosya adından alınır, ör. "FAF Nisan 2026.xlsx". Liste bizim kodlarla kendiliğinden eşleştirilir.
-            {' '}<a href="/fiyat-listesi-sablonu.xlsx" download="Fiyat listesi şablonu.xlsx" className="font-semibold text-emerald-700 hover:underline">Excel şablonunu indir</a> (en sorunsuz yol).
+            {' '}<a href="/fiyat-listesi-sablonu.xlsx" download="Fiyat listesi şablonu.xlsx" className="font-semibold text-[#008F79] hover:underline">Excel şablonunu indir</a> (en sorunsuz yol).
             {uploaded !== null && uploaded > 0 && <> · Şu ana kadar <b>{uploaded}</b> dosya yüklendi.</>}
           </div>
           {busy && (
-            <div className="mt-1 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            <div className="mt-1 text-xs font-semibold text-[#173F73] bg-[#F1F6FC] border border-[#C7DFF5] rounded px-2 py-1">
               Yükleme bitene kadar bu sayfayı açık tutun. Kapanırsa aynı dosyaları tekrar seçin; yüklenmiş olanlar atlanır.
             </div>
           )}
@@ -150,7 +150,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
           {rows.map(r => (
             <div key={r.name} className="py-1.5 flex items-center gap-2 text-xs">
               {r.status === 'run' ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-600 shrink-0" />
-                : r.status === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                : r.status === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00A08A] shrink-0" />
                 : r.status === 'err' || r.status === 'skip' ? <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                 : <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0" />}
               <span className="min-w-0 flex-1 truncate text-slate-700">{r.name}</span>
@@ -160,7 +160,7 @@ const SupplierUploader: React.FC<{ onImported?: () => void }> = ({ onImported })
         </div>
       )}
       {!busy && total > 0 && done === total && (
-        <div className="text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-md px-2 py-1.5">
+        <div className="text-xs font-semibold text-[#008F79] bg-[#E8F8F4] rounded-md px-2 py-1.5">
           {done} liste eklendi. Firmaların adını, tarihini ve iskontosunu listeye girip kontrol edebilirsiniz.
         </div>
       )}
@@ -364,8 +364,8 @@ export const SupplierListsPanel: React.FC = () => {
     const age = ageMonths(listDate);
     if (age === null) return null;
     return age >= 6
-      ? <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">{age} ay önce</span>
-      : <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">Güncel</span>;
+      ? <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#F1F6FC] text-[#173F73] border border-[#C7DFF5] whitespace-nowrap">{age} ay önce</span>
+      : <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#E8F8F4] text-[#008F79] border border-[#BFE9DF] whitespace-nowrap">Güncel</span>;
   };
   const showUploader = uploadOpen || !lists.length;
 
@@ -415,7 +415,7 @@ export const SupplierListsPanel: React.FC = () => {
                   key={c.id ?? 'all'}
                   onClick={() => { setActive(c.id); setOnlyUnlinked(false); setConfirmDelete(false); setEditInfo(null); }}
                   className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-extrabold whitespace-nowrap transition-colors ${on ? 'text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-brand-300'}`}
-                  style={on ? { background: c.id ? supplierColor(c.name) : '#006ec6', borderColor: c.id ? supplierColor(c.name) : '#006ec6' } : undefined}
+                  style={on ? { background: c.id ? supplierColor(c.name) : '#006DBB', borderColor: c.id ? supplierColor(c.name) : '#006DBB' } : undefined}
                 >
                   {!on && c.id && <span className="w-2 h-2 rounded-full" style={{ background: supplierColor(c.name) }} />}
                   {c.name}
@@ -494,13 +494,13 @@ export const SupplierListsPanel: React.FC = () => {
                 ) : (
                   <span className="flex flex-col items-end gap-1">
                     <button type="button" onClick={() => exportListToExcel(current).catch(() => setError('Excel oluşturulamadı.'))}
-                      className="text-xs font-semibold text-emerald-700 hover:underline">Excel olarak indir</button>
+                      className="text-xs font-semibold text-[#008F79] hover:underline">Excel olarak indir</button>
                     {current.sourceFile && (
                       <button type="button" onClick={reread} disabled={!!reading} className="text-xs font-semibold text-brand-700 hover:underline disabled:opacity-60">
                         {reading ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{reading}</span> : 'Yeniden oku'}
                       </button>
                     )}
-                    <button type="button" onClick={() => runBulk('rule', null)} disabled={!!bulk} className="text-xs font-semibold text-violet-700 hover:underline disabled:opacity-60">
+                    <button type="button" onClick={() => runBulk('rule', null)} disabled={!!bulk} className="text-xs font-semibold text-[#006DBB] hover:underline disabled:opacity-60">
                       {bulk?.key === '*' && bulk.info ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{bulk.info}</span> : 'Kuralla eşleştir (tümü)'}
                     </button>
                     <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-slate-500 hover:text-rose-600">Listeyi sil</button>
@@ -525,7 +525,7 @@ export const SupplierListsPanel: React.FC = () => {
 
           {current?.priceDiff && (
             <div className="bg-white rounded-2xl border border-slate-200 p-3.5 text-xs space-y-1.5">
-              <div className={`font-bold ${current.priceDiff.up ? 'text-rose-700' : 'text-emerald-700'}`}>{priceDiffText(current.priceDiff)}</div>
+              <div className={`font-bold ${current.priceDiff.up ? 'text-rose-700' : 'text-[#008F79]'}`}>{priceDiffText(current.priceDiff)}</div>
               <div className="text-slate-500">Son yükleme {new Date(current.priceDiff.at).toLocaleDateString('tr-TR')} · tüm kalemlerde ortalama değişim %{current.priceDiff.avgAll.toLocaleString('tr-TR')}</div>
               {current.priceDiff.top.length > 0 && (
                 <ul className="divide-y divide-slate-100">
@@ -542,7 +542,7 @@ export const SupplierListsPanel: React.FC = () => {
 
           {error && <div className="text-sm text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{error}</div>}
           {notice && (
-            <button onClick={() => setNotice('')} className="w-full text-left text-sm text-emerald-800 bg-emerald-50 rounded-lg px-3 py-2">{notice}</button>
+            <button onClick={() => setNotice('')} className="w-full text-left text-sm text-[#006B5B] bg-[#E8F8F4] rounded-lg px-3 py-2">{notice}</button>
           )}
 
           {(active || query.trim()) && (
@@ -602,7 +602,7 @@ export const SupplierListsPanel: React.FC = () => {
                               </>
                             ) : (
                               <button type="button" onClick={() => { setLinking(it.id); setLinkText(''); }}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 font-semibold hover:border-amber-400">
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-[#C7DFF5] bg-[#F1F6FC] text-[#173F73] font-semibold hover:border-[#7DB6E3]">
                                 eşleşmedi <Link2 className="w-3 h-3" />
                               </button>
                             )}
