@@ -20,3 +20,14 @@ Bu dosya `CLAUDE.md`'den taşındı; içerik aynıdır. Yalnız bu konuda çalı
 - Pasif (v1.11.4): "Müşteri düşünüyor" dışında neden seçilen bekleyen teklif `isPassive` → listede "Pasif" rozeti, filtre "Pasif", panoda ayrı sütun; bekleyen sayılarına, takip/süre uyarılarına ve tahmine girmez. Nedeni kaldırmak ya da "Beklemede"ye basmak yeniden bekleyen yapar. Raporlarda nedenler bekleyen + pasif birlikte.
 - Çevrimdışı katalog (cihaza 34 bin malzeme indirme, "Cihaza indir / yenile") kaldırıldı (v1.14.1): kullanılmıyordu, katalog değiştikçe her cihazda tam indirme yapıyordu. Cihazdaki eski kopya `enyap-offline` bir kez silinir.
 - Müşteri sınıfı (ABC, `abcClasses` `lib/customerInsights.ts`): son 12 ayda onaylanan tutara (TL) göre cironun ilk %80'i A, sonraki %15 B, kalanı C; alımı olmayan sınıfsız. Cihazdaki veriden hesaplanır (ek sorgu yok). Müşteriler listesinde ad yanında rozet, "Tüm sınıflar" süzgeci, sekme "Sessizleşen A-B (60+ gün)" (`QUIET_DAYS`: A/B olup 60 gündür teklif istemeyen aktif firmalar, sahada uğranacaklar); cari kartı başlığında "A müşteri". Raporlar → "Bekleyen ve Pasif Teklifler · Neden?" listesinde her teklifin bekleme günü görünür, dokununca Teklifler'de detayı açılır.
+
+## Ana sayfa yenilemesi (v1.16.0)
+Kullanıcının beğendiği örnek görseller ile kullanım verisi birleştirildi (son 30 gün: 123 teklif çoğu PDF'ten, 171 durum değişikliği, 39 tahsilat, 20 harcama).
+- Üstte koyu lacivert bant: sağ üstte bina/vinç silüeti (`Buildings`, kendi SVG çizimimiz; telefonda soluk), tarih + sürüm, "İyi akşamlar, Emre 👋 / Bugünün özeti burada.", dönem (‹ Kasım 2026 ›, Ay | Yıl), md+ arama kutusu, altta dönemin 4 rakamı (son ayların çizgisi + geçen aya göre %).
+- Hızlı İşlemler: her ekranda 4 pastel kutu — Yeni Teklif, Malzemeler (`onOpen('materials')`, yetki varsa), Tahsilat, Harcama.
+- Gövde: lg+ iki bağımsız sütun (solda Satış Performansı + ay sonu tahmini, Takip · karar bekleyenler, Son İşlemler; sağda Gelen işler, Aylık Hedef, Para özeti). md (tablet dik) iki sütunlu ızgara: Aylık Hedef ile Para özeti yan yana. Telefonda tek sütun.
+- Takip · karar bekleyenler (`DecisionList`): Bekleyen / Bugün ara / Süresi dolan; satırda "Yarın ara" (`followUpAt` yarın) ve "Onayla" (iki dokunuş). App: `onSetStatus`, `onPatchQuote` (teklif düzenleme yetkisiyle). En çok 6 satır (telefonda 4).
+- Son İşlemler: son 45 günün teklif, tahsilat ve harcamaları tek akışta (en yeni 7; cihazdaki veriden).
+- Sol menü tablette (md–lg) dar: ikon + alt yazı (`Sidebar.tsx`, `md:pl-[88px] lg:pl-60`); lg+ geniş menü.
+- Kaldırılan: Son Teklifler kartı (Son İşlemler'e girdi), Takip kartı (`TodayCalls`, karar listesine girdi), En Çok İş Yapılan Firmalar.
+- Eski ana sayfa yedeği "EMRE GÜNCEL": dal `EMRE-GUNCEL` (commit `b715e76`, v1.15.3); geri yükleme adımı `CLAUDE.md`'de.

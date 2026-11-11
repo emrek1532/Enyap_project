@@ -1,15 +1,17 @@
 import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target } from 'lucide-react';
-import { Collection, Customer, Expense, Quote, SyncStatus } from '../types';
-import { PENDING_STATUSES } from '../lib/quoteRules';
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Inbox, PauseCircle, Phone, Zap, History, ArrowDownLeft, CheckCircle2, BellRing, Package } from 'lucide-react';
+import { Collection, Customer, Expense, Quote, QuoteStatus, SyncStatus } from '../types';
+import { PENDING_STATUSES, quoteNo, viewStatus, isPendingQuote, followDue, isExpiring, quoteAgeInDays, daysToExpiry, plusDays } from '../lib/quoteRules';
+import { localDay } from '../lib/dates';
+import { monthForecast } from '../lib/forecast';
+import { useWide } from './ListUI';
 import { quoteTry, useRates } from '../lib/rates';
 import { estimatedBalance } from '../lib/mikroBalance';
 import type { ActiveTab } from './Sections';
 import type { ToolInfo, ToolMode } from './QuickTools';
 import { Targets, useSetting } from '../lib/settings';
-import { TodayCalls } from './TodayCalls';
 
 type Tab = Exclude<ActiveTab, 'home'>;
 /** Teklifler sayfasını süzülmüş açar: durum (all, aktif, takip, onaylandi, iptal) ve tarih aralığı */
@@ -82,7 +84,11 @@ export const SimpleHome: React.FC<{
   /** Bana atanan açık talepler */
   myRequests?: { id: string; customerName: string; note?: string; createdAt: string }[];
   onOpenRequest?: (id: string) => void;
-}> = ({ reviewQuotes = [], myRequests = [], onOpenRequest, quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
+  /** Ana sayfadan teklif durumu (Onayla) */
+  onSetStatus?: (id: string, status: QuoteStatus) => void;
+  /** Ana sayfadan takip günü (Yarın ara) */
+  onPatchQuote?: (id: string, patch: { followUpAt?: string }) => void;
+}> = ({ onSetStatus, onPatchQuote, reviewQuotes = [], myRequests = [], onOpenRequest, quotes, customers, showBalances, collections, expenses, sections, onOpen, onOpenQuotes, onOpenQuote, onShowQuote, canAdd, onNewQuote, onNewCollection, onNewExpense, onOpenCustomer, userName, tools, onOpenTool, syncStatus, onSync, onSignOut, userEmail }) => {
   const rates = useRates(quotes);
   const now = new Date();
   const t = ymd(now);
@@ -160,7 +166,7 @@ export const SimpleHome: React.FC<{
   const firstName = userName.split(/\s+/)[0] || userName;
 
   // Son teklifler (en yeni 5) ve yaklaşan ödemeler
-  const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 8), [quotes]);
+  const recent = useMemo(() => [...quotes].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 7), [quotes]);
   // Para özeti: en çok alacağımız firmalar (Mikro bakiyesi − sonraki tahsilat), en büyük bekleyen teklifler, dönemin en çok satılan ürünleri
   const money3 = useMemo(() => {
     const debtors = showBalances
@@ -197,7 +203,11 @@ export const SimpleHome: React.FC<{
   // Telefonda grafik / hedef / firmalar kapalı başlar (seçim cihazda hatırlanır)
   const [more, setMore] = useState(() => { try { return localStorage.getItem('home-more') === '1'; } catch { return false; } });
   const toggleMore = () => setMore(v => { try { localStorage.setItem('home-more', v ? '0' : '1'); } catch { /* yok */ } return !v; });
-  const moreCls = more ? '' : 'max-lg:hidden';
+  const wide = useWide('lg');
+  /** Telefonda grafik ve firmalar kapalıyken hiç çizilmez (daha hızlı açılış) */
+  const showMore = wide || more;
+  // Bu ayın satış tahmini (raporlardaki ile aynı hesap; cihazdaki veriden)
+  const forecast = useMemo(() => (isCurrent && !isYear && canQuotes ? monthForecast(quotes, q => quoteTry(q, rates), now) : undefined), [quotes, rates, isCurrent, isYear, canQuotes, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ay / Yıl düğmesi: ay seçiliyken Yıl'a basınca o ayın yılı, Yıl'dayken Ay'a basınca o yılın (bu yılsa bu ayın) Aralık'ı
   const setKind = (k: 'month' | 'year') => {
@@ -213,95 +223,90 @@ export const SimpleHome: React.FC<{
     return { kind: 'month', y: x.getFullYear(), m: x.getMonth() };
   });
 
-  const actions = [
-    canAdd.quote && { label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, primary: true },
-    canAdd.collection && { label: 'Tahsilat', icon: Wallet, on: onNewCollection },
-    canAdd.expense && { label: 'Harcama', icon: Receipt, on: onNewExpense },
-  ].filter(Boolean) as { label: string; icon: React.ElementType; on: () => void; primary?: boolean }[];
+  // ---------- Yeni ana sayfa (v1.16): işe göre düzen ----------
+  // Kullanım: en sık iş teklif girme (PDF) ve bekleyen teklife karar vermek; sonra tahsilat/harcama girmek.
+  const pending = useMemo(() => {
+    const today = localDay();
+    const list = quotes.filter(isPendingQuote);
+    const rank = (q: Quote) => (followDue(q, today) ? 0 : isExpiring(q, today) ? 1 : 2);
+    return list
+      .map(q => ({ q, r: rank(q) }))
+      .sort((a, b) => a.r - b.r || (b.q.createdAt || '').localeCompare(a.q.createdAt || ''))
+      .map(x => x.q);
+  }, [quotes, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const kpis = [
-    canQuotes && { label: 'Verilen teklif', value: s.cur.teklif, sub: `${s.cur.adet} teklif`, prev: s.prevSame.teklif, on: () => openQuotes({ status: 'all', from: monthFrom, to: monthTo }) },
-    canQuotes && { label: 'Satış (onaylanan)', value: s.cur.onay, sub: `${s.cur.onayAdet} teklif`, prev: s.prevSame.onay, on: () => openQuotes({ status: 'onaylandi', from: monthFrom, to: monthTo }) },
-    canMoney && { label: 'Tahsilat', value: s.cur.tahsilat, prev: s.prevSame.tahsilat, on: () => onOpen('collections') },
-    canExp && { label: 'Harcama', value: s.cur.harcama, prev: s.prevSame.harcama, on: () => onOpen('expenses'), lowerIsBetter: true },
-  ].filter(Boolean) as { label: string; value: number; sub?: string; prev: number; on: () => void; lowerIsBetter?: boolean }[];
+    canQuotes && { label: 'Verilen teklif', tone: 0, icon: FileText, spark: s.spark.map(x => x.teklif), value: s.cur.teklif, sub: `${s.cur.adet} teklif`, prev: s.prevSame.teklif, on: () => openQuotes({ status: 'all', from: s.from, to: s.to }) },
+    canQuotes && { label: 'Satış (onaylanan)', tone: 1, icon: CheckCircle2, spark: s.spark.map(x => x.onay), value: s.cur.onay, sub: `${s.cur.onayAdet} teklif`, prev: s.prevSame.onay, on: () => openQuotes({ status: 'onaylandi', from: s.from, to: s.to }) },
+    canMoney && { label: 'Tahsilat', tone: 2, icon: Wallet, spark: s.spark.map(x => x.tahsilat), value: s.cur.tahsilat, prev: s.prevSame.tahsilat, on: () => onOpen('collections') },
+    canExp && { label: 'Harcama', tone: 3, icon: Receipt, spark: s.spark.map(x => x.harcama), value: s.cur.harcama, prev: s.prevSame.harcama, on: () => onOpen('expenses'), lowerIsBetter: true },
+  ].filter(Boolean) as { label: string; tone: number; icon: React.ElementType; spark: number[]; value: number; sub?: string; prev: number; on: () => void; lowerIsBetter?: boolean }[];
 
-  const today = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
+  const now2 = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
   const hello = now.getHours() < 12 ? 'Günaydın' : now.getHours() < 18 ? 'İyi günler' : 'İyi akşamlar';
   const conv = s.cur.teklif ? Math.round((s.cur.onay / s.cur.teklif) * 100) : 0;
+  // Son işlemler: teklif, tahsilat ve harcamalar tek akışta (cihazdaki veriden, en yeni 7)
+  const feed = useMemo(() => {
+    type F = { id: string; kind: 'q' | 'c' | 'e'; day: string; at: string; title: string; sub: string; amount: number; q?: Quote };
+    const out: F[] = [];
+    const cut = plusDays(-45);
+    for (const q of quotes) { const d = dayOf(q.createdAt); if (d >= cut) out.push({ id: 'q' + q.id, kind: 'q', day: d, at: q.createdAt || '', title: q.customerName, sub: `Teklif ${quoteNo(q)}`, amount: quoteTry(q, rates), q }); }
+    if (canMoney) for (const c of collections) if (c.date >= cut) out.push({ id: 'c' + c.id, kind: 'c', day: c.date, at: c.createdAt || '', title: c.customerName || 'Tahsilat', sub: `Tahsilat${c.method ? ` · ${c.method}` : ''}`, amount: (c.amount || 0) * (c.currency === 'USD' ? rates.USD : c.currency === 'EUR' ? rates.EUR : 1) });
+    if (canExp) for (const e of expenses) if (e.date >= cut) out.push({ id: 'e' + e.id, kind: 'e', day: e.date, at: e.createdAt || '', title: e.description || e.category || 'Harcama', sub: `Harcama${e.category ? ` · ${e.category}` : ''}`, amount: (e.amount || 0) * (e.currency === 'USD' ? rates.USD : e.currency === 'EUR' ? rates.EUR : 1) });
+    return out.sort((a, b) => b.day.localeCompare(a.day) || b.at.localeCompare(a.at)).slice(0, 7);
+  }, [quotes, collections, expenses, rates, canMoney, canExp, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hasInbox = myRequests.length > 0 || reviewQuotes.length > 0;
+  const quick = [
+    canAdd.quote && { key: 'q', label: 'Yeni Teklif', icon: FilePlus2, on: onNewQuote, tone: 'from-sky-100 to-sky-50 text-sky-600', ring: 'bg-white/80' },
+    sections.includes('materials') && { key: 'm', label: 'Malzemeler', icon: Package, on: () => onOpen('materials'), tone: 'from-violet-100 to-violet-50 text-violet-600', ring: 'bg-white/80' },
+    canAdd.collection && { key: 'c', label: 'Tahsilat', icon: Wallet, on: onNewCollection, tone: 'from-emerald-100 to-emerald-50 text-emerald-600', ring: 'bg-white/80' },
+    canAdd.expense && { key: 'e', label: 'Harcama', icon: Receipt, on: onNewExpense, tone: 'from-orange-100 to-amber-50 text-orange-500', ring: 'bg-white/80' },
+  ].filter(Boolean) as { key: string; label: string; icon: React.ElementType; on: () => void; tone: string; ring: string }[];
   const glass = 'bg-white/10 hover:bg-white/15 border border-white/15 text-white';
 
   return (
-    <div className="pb-4 space-y-4 sm:space-y-5">
-      {/* Üst bant: selam, dönem, tek arama çubuğu, hızlı işlemler ve dönemin rakamları */}
-      <section className="relative overflow-hidden rounded-3xl bg-[#0b2a4c] text-white px-4 pt-4 pb-3 sm:px-7 sm:pt-6 sm:pb-5">
+    <div className="relative pb-6 space-y-4 sm:space-y-5">
+      {/* Arka plan: üstte yumuşak mavi ışık */}
+      {/* 1. Koyu bant: bina çizimi, selam, dönem, (bilgisayar/tablet) arama ve dönemin 4 rakamı */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0b2a4c] via-[#0d3460] to-[#15457a] text-white px-4 pt-4 pb-3 sm:px-7 sm:pt-6 sm:pb-5 shadow-[0_24px_50px_-30px_rgba(11,42,76,0.9)]">
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-32 w-96 h-96 rounded-full bg-brand-500/25 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-sky-400/10 blur-3xl" />
+        <Buildings className="pointer-events-none absolute right-0 top-0 h-[130px] sm:h-[190px] w-auto opacity-45 sm:opacity-90" />
         <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs sm:text-sm text-sky-200/80"><span className="capitalize">{today}</span><span className="ml-2 text-[11px] text-sky-200/50 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>
-            <h1 className="text-xl sm:text-[26px] font-black tracking-tight leading-tight truncate">{hello}, {firstName}</h1>
+            <p className="text-xs sm:text-sm text-sky-200/80"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-sky-200/50 tabular-nums">v{__APP_VERSION__}</span></p>
+            <h1 className="text-[22px] sm:text-[30px] font-black tracking-tight leading-tight">{hello}, {firstName} <span className="inline-block">👋</span></h1>
+            <p className="text-sm text-sky-100/80">Bugünün özeti burada.</p>
           </div>
-          <div className="flex items-center gap-2 lg:shrink-0">
-            {(canQuotes || canMoney) && (
+          {(canQuotes || canMoney) && (
+            <div className="flex items-center gap-2 lg:shrink-0 lg:mr-0">
               <div className="flex flex-1 sm:flex-none items-center gap-1">
-                <button onClick={() => stepPeriod(-1)} className={`w-9 h-9 rounded-xl flex items-center justify-center ${glass}`} aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'} title={isYear ? 'Önceki yıl' : 'Önceki ay'}>
-                  <ChevronLeft className="w-4.5 h-4.5" />
-                </button>
-                <span className={`flex flex-1 sm:flex-none items-center justify-center gap-1.5 h-9 px-3 rounded-xl text-sm font-bold ${glass} hover:bg-white/10`}>
-                  <CalendarDays className="hidden sm:block w-4 h-4 text-sky-300" />
-                  <span className="whitespace-nowrap">{title}</span>
+                <button onClick={() => stepPeriod(-1)} className={`w-10 h-10 rounded-xl flex items-center justify-center ${glass}`} aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
+                <span className={`flex flex-1 sm:flex-none items-center justify-center gap-1.5 h-10 px-3 rounded-xl text-sm font-bold backdrop-blur ${glass}`}>
+                  <CalendarDays className="w-4 h-4 text-sky-300" /><span className="whitespace-nowrap">{title}</span>
                 </span>
-                <button onClick={() => stepPeriod(1)} disabled={isCurrent} className={`w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none ${glass}`} aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'} title={isYear ? 'Sonraki yıl' : 'Sonraki ay'}>
-                  <ChevronRight className="w-4.5 h-4.5" />
-                </button>
-                <div className="flex h-9 p-0.5 rounded-xl bg-white/10 border border-white/15 ml-1" role="tablist" aria-label="Dönem türü">
-                  {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
-                    <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
-                      className={`px-3 rounded-[10px] text-[13px] font-bold transition ${period.kind === k ? 'bg-white text-[#0b2a4c]' : 'text-sky-100 hover:text-white'}`}>{l}</button>
-                  ))}
-                </div>
+                <button onClick={() => stepPeriod(1)} disabled={isCurrent} className={`w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none ${glass}`} aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Bilgisayarda: tek arama kutusu (içinde diğer kısayollar) + hızlı işlemler */}
-        <div className="relative mt-5 hidden md:flex gap-2.5 items-center">
-          <div className="flex-1 min-w-0 flex items-center h-12 px-4 rounded-2xl bg-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
-            <button onClick={() => onOpenTool('search')} className="flex-1 min-w-0 h-full flex items-center gap-3 text-left text-slate-500">
-              <Search className="w-5 h-5 text-brand-600 shrink-0" />
-              <span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
-            </button>
-          </div>
-          {actions.map(a => (
-            <button key={a.label} onClick={a.on}
-              className={`flex items-center gap-2 h-12 px-4 rounded-2xl text-sm font-bold whitespace-nowrap shrink-0 ${a.primary ? 'bg-brand-500 hover:bg-brand-400 text-white shadow-[0_10px_24px_-10px_rgba(14,140,240,0.9)]' : glass}`}>
-              <a.icon className="w-4.5 h-4.5" /><span className={a.primary ? '' : 'hidden lg:inline'}>{a.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Telefonda: işlemler 3'lü (arama, sor, hazırla, sesle üst çubuktaki arama kutusundan açılır) */}
-        <div className="relative mt-4 md:hidden space-y-2">
-          {actions.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {actions.map(a => (
-                <button key={a.label} onClick={a.on}
-                  className={`flex items-center justify-center gap-1.5 h-11 rounded-2xl text-[13px] font-bold ${a.primary ? 'bg-brand-500 text-white' : 'bg-white text-[#0b2a4c]'}`}>
-                  <a.icon className="w-4 h-4" />{a.label}
-                </button>
-              ))}
+              <div className="flex h-10 p-0.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur" role="tablist" aria-label="Dönem türü">
+                {([['month', 'Ay'], ['year', 'Yıl']] as const).map(([k, l]) => (
+                  <button key={k} role="tab" aria-selected={period.kind === k} onClick={() => setKind(k)}
+                    className={`px-3.5 rounded-[10px] text-[13px] font-bold transition ${period.kind === k ? 'bg-white text-[#0b2a4c]' : 'text-sky-100 hover:text-white'}`}>{l}</button>
+                ))}
+              </div>
             </div>
           )}
         </div>
-
-        {/* Dönemin rakamları */}
+        <button onClick={() => onOpenTool('search')} className="relative mt-4 sm:mt-5 hidden md:flex w-full lg:w-[calc(100%-260px)] items-center gap-3 h-12 px-4 rounded-2xl bg-white text-left text-slate-500 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
+          <Search className="w-5 h-5 text-brand-600 shrink-0" /><span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
+        </button>
         {kpis.length > 0 && (
-          <div className="relative mt-4 sm:mt-6 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden bg-white/10">
+          <div className="relative mt-4 sm:mt-5 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm">
             {kpis.map(k => (
-              <button key={k.label} onClick={k.on} className="text-left bg-[#0b2a4c] hover:bg-[#0f335c] px-3 py-3 sm:px-4 sm:py-3.5 min-w-0">
-                <span className="block text-[11px] sm:text-xs text-sky-200/80 font-semibold truncate">{k.label}</span>
+              <button key={k.label} onClick={k.on} className="group text-left bg-[#0b2a4c]/85 hover:bg-[#0f335c] px-3 py-3 sm:px-4 sm:py-3.5 min-w-0">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] sm:text-xs text-sky-200/80 font-semibold truncate">{k.label}</span>
+                  <Spark values={k.spark} color={k.lowerIsBetter ? '#fda4af' : '#7dd3fc'} />
+                </span>
                 <span className="block mt-0.5 text-lg sm:text-2xl font-black tabular-nums truncate">{lira(k.value)}</span>
                 <span className="mt-1 flex items-center gap-1.5 text-[11px] sm:text-xs text-sky-100/70 min-w-0">
                   <Change cur={k.value} prev={k.prev} lowerIsBetter={k.lowerIsBetter} dark />
@@ -313,83 +318,94 @@ export const SimpleHome: React.FC<{
         )}
       </section>
 
-      {/* Telefonda sıra: yapılacaklar, son teklifler, (açılır) grafik + hedef + firmalar; bilgisayarda solda grafik + son teklifler, sağda diğerleri */}
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:[grid-template-areas:'chart_todo'_'recent_side']">
-        {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
-          <div className="lg:[grid-area:todo] min-w-0 flex flex-col gap-4 sm:gap-5 max-lg:order-1">
-            {myRequests.length > 0 && (
-              <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 sm:p-4">
-                <h3 className="text-sm font-black text-emerald-900 mb-2">Size atanan talepler ({myRequests.length})</h3>
-                <div className="space-y-1.5">
-                  {myRequests.slice(0, 5).map(r => (
-                    <button key={r.id} onClick={() => onOpenRequest?.(r.id)}
-                      className="w-full text-left rounded-xl bg-white border border-emerald-100 hover:border-emerald-300 px-3 py-2 flex items-center gap-2">
-                      <span className="flex-1 min-w-0">
-                        <span className="block truncate text-sm font-semibold text-slate-900">{r.customerName}</span>
-                        {r.note && <span className="block truncate text-[11px] text-slate-500">{r.note}</span>}
-                      </span>
-                      <ArrowRight className="w-4 h-4 text-emerald-500 shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-            {reviewQuotes.length > 0 && (
-              <section className="rounded-2xl border border-sky-200 bg-sky-50 p-3 sm:p-4">
-                <h3 className="text-sm font-black text-sky-900 mb-2">Kontrol bekleyen teklifler ({reviewQuotes.length})</h3>
-                <div className="space-y-1.5">
-                  {reviewQuotes.slice(0, 5).map(q => (
-                    <button key={q.id} onClick={() => (onShowQuote || onOpenQuote)(q)}
-                      className="w-full text-left rounded-xl bg-white border border-sky-100 hover:border-sky-300 px-3 py-2 flex items-center gap-2">
-                      <span className="font-black text-sky-800 tabular-nums whitespace-nowrap text-xs">{q.quoteNumber}</span>
-                      <span className="flex-1 min-w-0 truncate text-sm font-semibold text-slate-900">{q.customerName}</span>
-                      <ArrowRight className="w-4 h-4 text-sky-500 shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-            {canQuotes && <TodayCalls quotes={quotes} rates={rates} onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })} />}
-            <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
-              onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />
+      {/* 2. Hızlı işlemler: her ekranda 4 kutu */}
+      {quick.length > 0 && (
+        <section className="relative">
+          <h2 className="mb-2.5 flex items-center gap-1.5 text-[15px] font-black text-[#0b2a4c]"><Zap className="w-4.5 h-4.5 text-amber-500 fill-amber-400" />Hızlı İşlemler</h2>
+          <div className={`grid gap-2 sm:gap-3 ${quick.length >= 4 ? 'grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {quick.map(x => (
+              <button key={x.key} onClick={x.on}
+                className={`min-w-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${x.tone} border border-white shadow-[0_12px_28px_-22px_rgba(15,60,120,0.7)] px-1 py-2.5 sm:py-4 flex flex-col xl:flex-row items-center justify-center gap-1.5 sm:gap-2 xl:gap-3 transition hover:-translate-y-0.5 active:scale-[0.97]`}>
+                <span className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${x.ring} flex items-center justify-center shrink-0 shadow-sm`}><x.icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" /></span>
+                <span className="max-w-full truncate text-[11.5px] sm:text-sm font-black text-[#0b2a4c] text-center leading-tight">{x.label}</span>
+              </button>
+            ))}
           </div>
-        )}
-        {canQuotes && (
-          <Card className={`lg:[grid-area:chart] max-lg:order-4 ${moreCls}`} title="Satış Performansı" icon={BarChart3}
-            right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
-              <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-sky-300" />Verilen teklif</span>
-              <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />Onaylanan</span>
-            </div>
-            <BarsChart bars={bars} hi={hiKey}
-              onPick={b => chart === 'all'
-                ? (setPeriod({ kind: 'year', y: Number(b.key), m: 0 }), setChart('year'))
-                : openQuotes({ status: 'all', from: b.from, to: b.to })} />
-            <StatusSplit st={s.status} conv={conv} title={title} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />
-          </Card>
-        )}
-        {canQuotes && (
-          <Card className="lg:[grid-area:recent] max-lg:order-2" title="Son Teklifler" icon={FileText} right={<SeeAll onClick={() => openQuotes({ status: 'all' })} />}>
-            <RecentQuotes quotes={recent} rates={rates} onOpen={onOpenQuote} />
-          </Card>
-        )}
-        {canQuotes && (
-          <button type="button" onClick={toggleMore} aria-expanded={more}
-            className="lg:hidden max-lg:order-3 h-11 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-[#0b2a4c] flex items-center justify-center gap-2">
-            <BarChart3 className="w-4 h-4 text-brand-500" />{more ? 'Grafik, hedef ve firmaları gizle' : 'Grafik, hedef ve firmaları göster'}
-            <ChevronDown className={`w-4 h-4 transition-transform ${more ? 'rotate-180' : ''}`} />
-          </button>
-        )}
-        <div className={`lg:[grid-area:side] min-w-0 flex flex-col gap-4 sm:gap-5 max-lg:order-5 ${moreCls}`}>
-          {(canQuotes || canMoney) && !isYear && (
-            <Card title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-slate-500">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
-              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} />
+        </section>
+      )}
+
+      {/* 4. Gövde: bilgisayarda iki bağımsız sütun; tablette iki sütunlu ızgara; telefonda tek sütun */}
+      <div className="relative flex flex-col gap-4 sm:gap-5 md:grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
+        <div className="max-lg:contents lg:flex lg:flex-col lg:gap-5 min-w-0">
+          {canQuotes && (
+            <Card className="order-2 md:col-span-2" title="Satış Performansı" icon={BarChart3}
+              right={<Tabs value={chart} onChange={k => setChart(k as Chart)} items={[['6m', 'Son 6 Ay'], ['year', 'Yıl'], ['all', 'Tümü']]} />}>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
+                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-sky-300" />Verilen teklif</span>
+                <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-emerald-500" />Onaylanan</span>
+                {forecast && forecast.total > 0 && <span className="flex items-center gap-1.5 text-sky-800 font-semibold"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
+              </div>
+              <BarsChart bars={bars} hi={hiKey}
+                onPick={b => chart === 'all'
+                  ? (setPeriod({ kind: 'year', y: Number(b.key), m: 0 }), setChart('year'))
+                  : openQuotes({ status: 'all', from: b.from, to: b.to })} />
+              {showMore && <StatusSplit st={s.status} conv={conv} title={title} onPick={status => openQuotes({ status, from: monthFrom, to: monthTo })} />}
             </Card>
           )}
           {canQuotes && (
-            <Card className="flex-1" title="En Çok İş Yapılan Firmalar" icon={Building2} right={<span className="text-xs font-bold text-slate-500">{title}</span>}>
-              <FirmsCard firms={s.firms} onOpen={onOpenCustomer} />
+            <DecisionList className="order-3 md:col-span-2" pending={pending} rates={rates}
+              onOpen={onShowQuote || onOpenQuote} onAll={status => openQuotes({ status })}
+              onApprove={onSetStatus ? q => onSetStatus(q.id, 'onaylandi') : undefined}
+              onTomorrow={onPatchQuote ? q => onPatchQuote(q.id, { followUpAt: plusDays(1) }) : undefined} />
+          )}
+          {feed.length > 0 && (
+            <Card className="order-6 md:col-span-2" title="Son İşlemler" icon={History} right={canQuotes ? <SeeAll onClick={() => openQuotes({ status: 'all' })} /> : undefined}>
+              <ul className="px-2 sm:px-3 pb-3 divide-y divide-slate-100">
+                {feed.map(f => {
+                  const [Icon, tone, label] = f.kind === 'q' ? [FileText, 'bg-sky-50 text-sky-600', ''] : f.kind === 'c' ? [ArrowDownLeft, 'bg-emerald-50 text-emerald-600', ''] : [Receipt, 'bg-orange-50 text-orange-500', ''];
+                  const st = f.q ? STATUS_BADGE[viewStatus(f.q)] : null;
+                  return (
+                    <li key={f.id}>
+                      <button onClick={() => (f.q ? onOpenQuote(f.q) : onOpen(f.kind === 'c' ? 'collections' : 'expenses'))} className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-xl hover:bg-slate-50">
+                        <span className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-5 h-5" />{label}</span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[14px] font-bold text-slate-900 truncate">{f.title}</span>
+                          <span className="block text-[12px] text-slate-500 truncate">{f.sub} · <b className={f.kind === 'c' ? 'text-emerald-700' : f.kind === 'e' ? 'text-orange-600' : 'text-slate-700'}>{f.kind === 'e' ? '−' : ''}{lira(f.amount)}</b></span>
+                        </span>
+                        <span className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-[12px] text-slate-500 tabular-nums">{f.day.slice(8, 10)}.{f.day.slice(5, 7)}.{f.day.slice(0, 4)}</span>
+                          {st && <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${st[1]}`}>{st[0]}</span>}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </Card>
+          )}
+        </div>
+        <div className="max-lg:contents lg:flex lg:flex-col lg:gap-5 min-w-0">
+          {hasInbox && (
+            <TodoList className="order-1 md:col-span-2 lg:col-span-1" tone="sky" icon={Inbox} title="Gelen işler" n={myRequests.length + reviewQuotes.length}>
+              {myRequests.slice(0, 4).map(r => (
+                <TodoRow key={r.id} onClick={() => onOpenRequest?.(r.id)} tag="Talep" title={r.customerName} sub={r.note} />
+              ))}
+              {reviewQuotes.slice(0, 4).map(q => (
+                <TodoRow key={q.id} onClick={() => (onShowQuote || onOpenQuote)(q)} tag="Kontrol" title={q.customerName} sub={`${quoteNo(q)} · ${lira(quoteTry(q, rates))}`} />
+              ))}
+            </TodoList>
+          )}
+          {(canQuotes || canMoney) && !isYear && (
+            <Card className="order-4" title={canMoney ? 'Aylık Hedef' : 'Satış Hedefi'} icon={Target} right={<span className="text-xs font-bold text-brand-600">{isCurrent ? 'Bu Ay' : AY_UZUN[period.m]}</span>}>
+              <TargetCard cur={s.cur} canQuotes={canQuotes} canMoney={canMoney} day={isCurrent ? now.getDate() : s.dim} dim={s.dim} forecast={isCurrent && canQuotes ? forecast : undefined} />
+            </Card>
+          )}
+          {(canQuotes || canMoney || (showBalances && money3.debtors.length > 0)) && (
+            <div className={`order-5 min-w-0 flex ${isYear ? 'md:col-span-2 lg:col-span-1' : ''}`}>
+              <MoneyCard data={money3} canQuotes={canQuotes} canMoney={canMoney} periodTitle={title}
+                onOpenCustomer={onOpenCustomer} onAllDebtors={() => onOpen('customers')} onAllPaid={() => onOpen('collections')} />
+            </div>
           )}
         </div>
       </div>
@@ -397,6 +413,169 @@ export const SimpleHome: React.FC<{
   );
 };
 
+/** Koyu banttaki bina silüeti (sağ üst; pencereler yarı saydam, kendi çizimimiz) */
+const Buildings: React.FC<{ className?: string }> = ({ className = '' }) => {
+  const win = (x: number, y: number, cols: number, rows: number, dx = 9, dy = 11) => {
+    const out: React.ReactNode[] = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const lit = (r * 7 + c * 3 + x) % 5 === 0;
+      out.push(<rect key={`${x}-${r}-${c}`} x={x + c * dx} y={y + r * dy} width="5" height="6" rx="1" fill={lit ? '#fde68a' : '#bae6fd'} opacity={lit ? 0.75 : 0.28} />);
+    }
+    return out;
+  };
+  return (
+    <svg viewBox="0 0 260 190" className={className} aria-hidden preserveAspectRatio="xMaxYMin meet">
+      <defs>
+        <linearGradient id="bld-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#38bdf8" stopOpacity="0.55" /><stop offset="1" stopColor="#0b2a4c" stopOpacity="0" /></linearGradient>
+        <linearGradient id="bld-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7dd3fc" stopOpacity="0.35" /><stop offset="1" stopColor="#0b2a4c" stopOpacity="0" /></linearGradient>
+      </defs>
+      {/* vinç */}
+      <g stroke="#7dd3fc" strokeOpacity="0.35" strokeWidth="1.5" fill="none">
+        <path d="M60 190 V40 M66 190 V40 M60 40 H200 M60 40 L66 30 L72 40 M60 70 L66 60 L60 50 M66 100 L60 90 L66 80" />
+        <path d="M190 40 V58" /><rect x="185" y="58" width="10" height="7" />
+      </g>
+      {/* arka bina */}
+      <rect x="92" y="62" width="58" height="128" fill="url(#bld-b)" />
+      {win(98, 70, 5, 10)}
+      {/* yüksek kule */}
+      <path d="M160 20 L210 34 V190 H160 Z" fill="url(#bld-a)" />
+      {win(166, 44, 5, 13)}
+      {/* sağ bina */}
+      <rect x="216" y="80" width="44" height="110" fill="url(#bld-b)" />
+      {win(221, 88, 4, 9)}
+    </svg>
+  );
+};
+
+/** Karar bekleyen teklifler: önce bugün aranacaklar, sonra süresi dolanlar, sonra en yeniler; satırdan Onayla / Yarın ara */
+const DecisionList: React.FC<{
+  className?: string; pending: Quote[]; rates: ReturnType<typeof useRates>;
+  onOpen: (q: Quote) => void; onAll: (status: string) => void;
+  onApprove?: (q: Quote) => void; onTomorrow?: (q: Quote) => void;
+}> = ({ className = '', pending, rates, onOpen, onAll, onApprove, onTomorrow }) => {
+  const today = localDay();
+  type K = 'all' | 'calls' | 'expiring';
+  const calls = pending.filter(q => followDue(q, today));
+  const exp = pending.filter(q => isExpiring(q, today));
+  const tabs = ([['all', 'Bekleyen', pending.length], ['calls', 'Bugün ara', calls.length], ['expiring', 'Süresi dolan', exp.length]] as [K, string, number][]).filter(x => x[0] === 'all' || x[2] > 0);
+  const [tab, setTab] = useState<K>('all');
+  const [ask, setAsk] = useState<string | null>(null);
+  const [done, setDone] = useState<Record<string, string>>({});
+  const list = (tab === 'calls' ? calls : tab === 'expiring' ? exp : pending).slice(0, 6);
+  const SHOW_ALL: Record<K, string> = { all: 'aktif', calls: 'takip', expiring: 'expiring' };
+  return (
+    <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden ${className}`}>
+      <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
+        <span className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><BellRing className="w-5 h-5" /></span>
+        <span className="flex-1 min-w-0">
+          <h2 className="text-base font-black text-[#0b2a4c] truncate">Takip · karar bekleyenler</h2>
+          <p className="text-[11px] text-slate-500 truncate">Onayla ya da yarın aramak üzere ertele</p>
+        </span>
+        <button onClick={() => onAll(SHOW_ALL[tab])} className="text-[13px] font-bold text-brand-600 shrink-0">Tümü ({tab === 'calls' ? calls.length : tab === 'expiring' ? exp.length : pending.length})</button>
+      </header>
+      {tabs.length > 1 && (
+        <div className="px-4 sm:px-5 pb-2 flex gap-1.5 overflow-x-auto" role="tablist">
+          {tabs.map(([k, l, n]) => (
+            <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+              className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-bold border ${tab === k ? 'bg-[#0b2a4c] border-[#0b2a4c] text-white' : 'bg-white border-slate-200 text-slate-600'}`}>
+              {l} <span className={tab === k ? 'text-sky-200' : 'text-slate-400'}>{n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {list.length === 0 && <p className="px-5 pb-5 text-sm text-slate-500">Karar bekleyen teklif yok.</p>}
+      <ul className="px-2 sm:px-3 pb-2 divide-y divide-slate-100">
+        {list.map((q, i) => {
+          const age = quoteAgeInDays(q);
+          const due = followDue(q, today);
+          const d2e = daysToExpiry(q, today);
+          const st = done[q.id];
+          return (
+            <li key={q.id} className={`${i >= 4 ? 'max-sm:hidden ' : ''}flex flex-col sm:flex-row sm:items-center gap-2 px-2 py-3`}>
+              <button onClick={() => onOpen(q)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+                <span className="w-10 h-10 rounded-2xl bg-slate-100 text-[#0b2a4c] text-sm font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="text-[14px] font-bold text-slate-900 truncate">{q.customerName}</span>
+                    {due && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">Bugün ara</span>}
+                    {!due && d2e !== null && d2e <= 3 && <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600">{d2e < 0 ? 'Süre doldu' : `Süre ${d2e} gün`}</span>}
+                  </span>
+                  <span className="block text-[12px] text-slate-500 tabular-nums truncate">{quoteNo(q)} · {age === 0 ? 'bugün' : `${age} gün önce`} · <b className="text-slate-700">{lira(quoteTry(q, rates))}</b></span>
+                </span>
+              </button>
+              {st ? (
+                <span className="sm:w-[208px] h-10 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold"><Check className="w-4 h-4 mr-1" />{st}</span>
+              ) : (onApprove || onTomorrow) && (
+                <span className="flex gap-2 sm:w-[208px] shrink-0">
+                  {onTomorrow && (
+                    <button onClick={() => { onTomorrow(q); setDone(x => ({ ...x, [q.id]: 'Yarın aranacak' })); }}
+                      className="flex-1 h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1"><Phone className="w-3.5 h-3.5" />Yarın ara</button>
+                  )}
+                  {onApprove && (ask === q.id ? (
+                    <button onClick={() => { onApprove(q); setAsk(null); setDone(x => ({ ...x, [q.id]: 'Onaylandı' })); }}
+                      className="flex-1 h-10 rounded-xl bg-emerald-600 text-white text-xs font-black">Evet, onayla</button>
+                  ) : (
+                    <button onClick={() => setAsk(q.id)}
+                      className="flex-1 h-10 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold flex items-center justify-center gap-1"><Check className="w-3.5 h-3.5" />Onayla</button>
+                  ))}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+};
+
+/** Küçük çizgi grafik (son aylar); hepsi sıfırsa çizilmez */
+const Spark: React.FC<{ values: number[]; color: string; w?: number; h?: number; fallback?: React.ReactNode }> = ({ values, color, w = 56, h = 18, fallback = null }) => {
+  const max = Math.max(...values, 0);
+  if (values.length < 2 || max <= 0) return <>{fallback}</>;
+  const W = w, H = h;
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 2 - (v / max) * (H - 4)]);
+  const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+  const [lx, ly] = pts[pts.length - 1];
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 opacity-80 group-hover:opacity-100" aria-hidden>
+      <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lx} cy={ly} r="2.2" fill={color} />
+    </svg>
+  );
+};
+
+const TONES = {
+  emerald: { icon: 'bg-emerald-50 text-emerald-600', n: 'bg-emerald-500', arrow: 'text-emerald-500' },
+  sky: { icon: 'bg-sky-50 text-sky-600', n: 'bg-sky-500', arrow: 'text-sky-500' },
+};
+const TodoCtx = React.createContext<keyof typeof TONES>('sky');
+
+/** Yapılacaklar kartı (talepler / kontrol): başlık, adet rozeti, en çok 4 satır */
+const TodoList: React.FC<{ className?: string; tone: keyof typeof TONES; icon: React.ElementType; title: string; n: number; children: React.ReactNode }> = ({ className = '', tone, icon: Icon, title, n, children }) => (
+  <section className={`${className} bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden`}>
+    <header className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
+      <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${TONES[tone].icon}`}><Icon className="w-4.5 h-4.5" /></span>
+      <h2 className="flex-1 min-w-0 truncate text-[15px] font-black text-[#0b2a4c]">{title}</h2>
+      <span className={`min-w-6 h-6 px-1.5 rounded-full text-white text-xs font-black flex items-center justify-center tabular-nums ${TONES[tone].n}`}>{n}</span>
+    </header>
+    <TodoCtx.Provider value={tone}><ul className="px-2 sm:px-3 pb-2">{children}</ul></TodoCtx.Provider>
+  </section>
+);
+const TodoRow: React.FC<{ title: string; sub?: string; tag?: string; onClick: () => void }> = ({ title, sub, tag, onClick }) => {
+  const tone = React.useContext(TodoCtx);
+  return (
+    <li>
+      <button onClick={onClick} className="w-full flex items-center gap-3 px-2 py-2 text-left rounded-xl hover:bg-slate-50">
+        {tag && <span className="shrink-0 w-16 text-center text-[10px] font-black px-1.5 py-1 rounded-md bg-slate-100 text-slate-600">{tag}</span>}
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13px] font-semibold text-slate-800 truncate">{title}</span>
+          {sub && <span className="block text-[11px] text-slate-500 truncate">{sub}</span>}
+        </span>
+        <ArrowRight className={`w-4 h-4 shrink-0 ${TONES[tone].arrow}`} />
+      </button>
+    </li>
+  );
+};
 
 /** Para özeti: sekmeli tek liste — en çok alacağımız firmalar, en büyük bekleyen teklifler, dönemin en çok satılan ürünleri */
 const MoneyCard: React.FC<{
@@ -484,7 +663,7 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
   ];
   const total = rows.reduce((a, r) => a + r.x.value, 0);
   return (
-    <div className="mt-auto mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
+    <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-slate-50">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-slate-600">{title} teklifleri</p>
         <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#0b2a4c]">%{conv}</b></p>
@@ -500,33 +679,6 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
           </button>
         ))}
       </div>
-    </div>
-  );
-};
-
-/** Dönemin en çok iş yapılan 5 firması: onaylanan tutar (çubuk), teklif adedi ve dönüşüm; dokununca firma kartı açılır */
-const FirmsCard: React.FC<{ firms: { name: string; onay: number; teklif: number; adet: number }[]; onOpen?: (name: string) => void }> = ({ firms, onOpen }) => {
-  if (!firms.length) return <p className="px-5 pb-5 text-sm text-slate-500">Bu dönemde teklif yok.</p>;
-  const max = Math.max(1, ...firms.map(f => f.teklif));
-  return (
-    <div className="px-2 sm:px-3 pb-3">
-      {firms.map((f, i) => (
-        <button key={f.name} onClick={() => onOpen?.(f.name)} disabled={!onOpen}
-          className="w-full flex items-center gap-3 px-2 py-2 rounded-xl text-left hover:bg-slate-50 disabled:hover:bg-transparent">
-          <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
-          <span className="flex-1 min-w-0">
-            <span className="flex items-baseline justify-between gap-2">
-              <span className="text-[13px] font-semibold text-slate-800 truncate">{f.name}</span>
-              <span className="text-[13px] font-black text-[#0b2a4c] tabular-nums shrink-0">{lira(f.onay)}</span>
-            </span>
-            <span className="relative block mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-              <span className="absolute inset-y-0 left-0 rounded-full bg-sky-200" style={{ width: `${(f.teklif / max) * 100}%` }} />
-              <span className="absolute inset-y-0 left-0 rounded-full bg-emerald-500" style={{ width: `${(f.onay / max) * 100}%` }} />
-            </span>
-            <span className="block mt-0.5 text-[11px] text-slate-500 truncate">{f.adet} teklif · {f.teklif >= 1e6 ? `${(f.teklif / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} milyon` : `${Math.round(f.teklif / 1e3).toLocaleString('tr-TR')} bin`} TL verildi · %{f.teklif ? Math.round((f.onay / f.teklif) * 100) : 0} onay</span>
-          </span>
-        </button>
-      ))}
     </div>
   );
 };
@@ -556,12 +708,13 @@ const Tabs: React.FC<{ value: string; items: [string, string][]; onChange: (k: s
 );
 
 /** Önceki döneme (bu dönemse aynı günlerine kadar) göre değişim: %34 ↑ */
-const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean; dark?: boolean }> = ({ cur, prev, lowerIsBetter, dark }) => {
+const Change: React.FC<{ cur: number; prev: number; lowerIsBetter?: boolean; dark?: boolean; pill?: boolean }> = ({ cur, prev, lowerIsBetter, dark, pill }) => {
   if (!prev) return <span className={`font-bold ${dark ? 'text-sky-200/60' : 'text-slate-500'}`}>–</span>;
   const pct = Math.round(((cur - prev) / prev) * 100);
   const up = pct >= 0;
   const Icon = up ? TrendingUp : TrendingDown;
   const good = lowerIsBetter ? !up : up;
+  if (pill) return <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-black shrink-0 ${good ? 'bg-emerald-100/80 text-emerald-700' : 'bg-rose-100/80 text-rose-600'}`}>%{Math.abs(pct)} <Icon className="w-3.5 h-3.5" /></span>;
   return <span className={`inline-flex items-center gap-0.5 font-bold shrink-0 ${dark ? (good ? 'text-emerald-300' : 'text-rose-300') : good ? 'text-emerald-600' : 'text-rose-500'}`}>%{Math.abs(pct)} <Icon className="w-3.5 h-3.5" /></span>;
 };
 
@@ -581,9 +734,8 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
   const t = tipIdx >= 0 ? bars[tipIdx] : null;
   const barW = many ? 'max-w-6' : 'max-w-12';
   return (
-    <div className="px-3 sm:px-5 pb-4 lg:flex-1 lg:flex lg:flex-col">
-      {/* Bilgisayarda/tablette boşluğu doldurur ama çok uzamaz (en fazla 20rem) */}
-      <div className="relative h-44 sm:h-56 lg:h-auto lg:flex-1 lg:min-h-56 lg:max-h-80 pl-11 mt-4" onPointerLeave={e => e.pointerType === 'mouse' && setTip(null)}>
+    <div className="px-3 sm:px-5 pb-4">
+      <div className="relative h-44 sm:h-60 pl-11 mt-4" onPointerLeave={e => e.pointerType === 'mouse' && setTip(null)}>
         {ticks.map(v => (
           <div key={v} className={`absolute left-11 right-0 border-t ${v ? 'border-slate-100' : 'border-slate-200'}`} style={{ bottom: `${(v / max) * 100}%` }}>
             <span className="absolute -left-11 -top-2 w-9 text-right text-[11px] text-slate-500 tabular-nums">{v ? short(v) : '0 TL'}</span>
@@ -628,33 +780,35 @@ const BarsChart: React.FC<{ bars: BarItem[]; hi: string; onPick: (b: BarItem) =>
 const STATUS_BADGE: Record<string, [string, string, React.ElementType]> = {
   onaylandi: ['Onaylandı', 'bg-emerald-50 text-emerald-700', Check],
   gonderildi: ['Beklemede', 'bg-orange-50 text-orange-700', Clock],
+  pasif: ['Pasif', 'bg-slate-100 text-slate-600', PauseCircle],
   iptal: ['İptal', 'bg-rose-50 text-rose-600', X],
 };
 
-/** Son teklifler tablosu: firma, tarih, tutar, durum */
+/** Son teklifler: firma, teklif no · tarih, tutar, durum (pasif ayrı) */
 const RecentQuotes: React.FC<{ quotes: Quote[]; rates: ReturnType<typeof useRates>; onOpen: (q: Quote) => void }> = ({ quotes, rates, onOpen }) => {
   if (!quotes.length) return <p className="px-5 pb-5 text-sm text-slate-500">Henüz teklif yok.</p>;
-  const cols = 'grid grid-cols-[minmax(0,1fr)_auto_5.8rem] gap-2 sm:gap-3 items-center';
   return (
-    <div className="px-3 sm:px-4 pb-3">
-      <div className={`${cols} px-2 py-2 rounded-xl bg-slate-50 text-[11px] sm:text-xs font-medium text-slate-500`}>
-        <span>Firma Adı · Tarih</span><span className="text-right">Tutar</span><span className="text-center">Durum</span>
-      </div>
+    <ul className="px-2 sm:px-3 pb-3 divide-y divide-slate-100">
       {quotes.map((q, i) => {
-        const [label, cls, Icon] = STATUS_BADGE[q.status] || [q.status, 'bg-slate-50 text-slate-600', Clock];
+        const [label, cls, Icon] = STATUS_BADGE[viewStatus(q)] || [q.status, 'bg-slate-50 text-slate-600', Clock];
         const d = dayOf(q.createdAt);
         return (
-          <button key={q.id} onClick={() => onOpen(q)} className={`${i >= 5 ? cols.replace('grid ', 'hidden lg:grid ') : cols} w-full px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl`}>
-            <span className="min-w-0">
-              <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
-              <span className="block text-[11px] text-slate-500 tabular-nums">{d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
-            </span>
-            <span className="text-[12px] sm:text-[13px] text-slate-800 tabular-nums text-right whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
-            <span className={`w-full justify-center inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 py-1 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
-          </button>
+          <li key={q.id} className={i >= 5 ? 'hidden lg:block' : ''}>
+            <button onClick={() => onOpen(q)} className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-slate-50 rounded-xl">
+              <span className="w-9 h-9 rounded-xl bg-slate-100 text-[#0b2a4c] text-xs font-black flex items-center justify-center shrink-0">{(q.customerName || '?').trim().charAt(0).toLocaleUpperCase('tr')}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13px] font-semibold text-slate-800 truncate">{q.customerName}</span>
+                <span className="block text-[11px] text-slate-500 tabular-nums truncate">{quoteNo(q)}{d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ''}</span>
+              </span>
+              <span className="flex flex-col 2xl:flex-row-reverse items-end 2xl:items-center gap-1 2xl:gap-3 shrink-0">
+                <span className="text-[13px] font-black text-slate-900 tabular-nums whitespace-nowrap">{lira(quoteTry(q, rates))}</span>
+                <span className={`inline-flex items-center 2xl:justify-center gap-1 2xl:w-24 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}><Icon className="w-3 h-3" />{label}</span>
+              </span>
+            </button>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 };
 
@@ -675,7 +829,7 @@ const Donut: React.FC<{ pct: number; size: number; stroke: number; children?: Re
 };
 
 /** Aylık hedef: tahsilat (yoksa satış) halkası, toplam, hedef, ilerleme; hedef buradan konur/değiştirilir */
-const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; day: number; dim: number }> = ({ cur, canQuotes, canMoney, day, dim }) => {
+const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; day: number; dim: number; forecast?: { total: number; expected: number; pendN: number } }> = ({ cur, canQuotes, canMoney, day, dim, forecast }) => {
   const [targets, saveTargets] = useSetting<Targets>('targets', { sales: 0, collection: 0 });
   const [edit, setEdit] = React.useState(false);
   const [draft, setDraft] = React.useState({ sales: '', collection: '' });
@@ -716,6 +870,18 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
             <div className={`h-full rounded-full ${salesPct >= pace ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, salesPct)}%` }} />
             <div className="absolute top-0 bottom-0 w-0.5 bg-slate-400" style={{ left: `${pace}%` }} />
           </div>
+        </div>
+      )}
+      {forecast && forecast.total > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl bg-sky-50 px-3 py-2.5">
+          <span className="w-8 h-8 rounded-xl bg-white text-brand-600 flex items-center justify-center shrink-0"><TrendingUp className="w-4.5 h-4.5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[11px] text-slate-600">Ay sonu satış tahmini</span>
+            <span className="block text-[15px] font-black text-[#0b2a4c] tabular-nums truncate">{lira(forecast.total)}</span>
+          </span>
+          {targets.sales > 0 && (() => { const p = Math.round((forecast.total / targets.sales) * 100); return (
+            <span className={`shrink-0 text-[11px] font-black px-2 py-1 rounded-full ${p >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>Hedefin %{p}'i</span>
+          ); })()}
         </div>
       )}
       {edit ? (

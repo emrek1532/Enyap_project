@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { Quote } from '../types';
-import { dayOf, localDay } from '../lib/dates';
-import { isPendingQuote } from '../lib/quoteRules';
+import { monthForecast } from '../lib/forecast';
 import { Targets, useSetting } from '../lib/settings';
 import { trNum } from '../lib/num';
 
 const tl = (v: number) => `${trNum(Math.round(v))} TL`;
 const short = (v: number) => (v >= 1e6 ? `${trNum(v / 1e6, { maximumFractionDigits: 1 })} M` : v >= 1e3 ? `${trNum(Math.round(v / 1e3))} B` : trNum(Math.round(v)));
-const DAY = 864e5;
 
 /**
  * Bu ay tahmini ciro: onaylanan (kesin) + bekleyen tekliflerden beklenen.
@@ -17,31 +15,7 @@ const DAY = 864e5;
  */
 export const ForecastCard: React.FC<{ quotes: Quote[]; amountOf: (q: Quote) => number }> = ({ quotes, amountOf }) => {
   const [targets] = useSetting<Targets>('targets', { sales: 0, collection: 0 });
-  const f = useMemo(() => {
-    const now = new Date();
-    const today = localDay(now);
-    const ym = today.slice(0, 7);
-    const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const d = now.getDate();
-    const daily = new Array(dim + 1).fill(0);
-    let approved = 0, n = 0;
-    let histAll = 0, histOk = 0, pendAmt = 0, pendN = 0;
-    const t = now.getTime();
-    for (const q of quotes) {
-      const day = dayOf(q.createdAt);
-      const amt = amountOf(q);
-      if (q.status === 'onaylandi' && day.startsWith(ym)) { approved += amt; n++; daily[Number(day.slice(8, 10))] += amt; }
-      const age = (t - Date.parse(q.createdAt)) / DAY;
-      if (age >= 30 && age <= 210) { histAll += amt; if (q.status === 'onaylandi') histOk += amt; }
-      if (isPendingQuote(q) && age <= 45) { pendAmt += amt; pendN++; }
-    }
-    const rate = histAll > 0 ? histOk / histAll : 0;
-    const expected = pendAmt * rate;
-    const cum: number[] = [];
-    let run = 0;
-    for (let i = 1; i <= d; i++) { run += daily[i]; cum.push(run); }
-    return { dim, d, approved, n, rate, expected, pendAmt, pendN, cum, total: approved + expected };
-  }, [quotes, amountOf]);
+  const f = useMemo(() => monthForecast(quotes, amountOf), [quotes, amountOf]);
 
   const target = targets.sales || 0;
   // Grafik kutunun gerçek genişliğinde çizilir (yazılar her ekranda aynı boyda kalır)
