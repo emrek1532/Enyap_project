@@ -108,6 +108,8 @@ const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
 
 /** Fotoğraflı başlık (Teklifler): sağda tesisat fotoğrafı, solda büyük başlık; telefonda küçük fotoğraf */
 export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean; /** Teklifler: fotoğrafı tablet ve telefonda daha görünür konumlandır */ quotes?: boolean; /** Talepler, Tahsilat, Harcama, Yönetim: fotoğraf sağda, solu maskeyle zemine karışır */ center?: boolean };
+/** Bant fotoğrafının ortak ölçüsü (sekme değişince geçiş yeri kaymaz) */
+export const HERO_PHOTO = 'pointer-events-none select-none absolute inset-y-0 right-0 h-full w-[72%] sm:w-[64%] md:w-[58%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.35)_14%,black_28%)]';
 export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   quotes: { lg: '/hero-teklifler-2.webp', sm: '/hero-teklifler-2-sm.webp', quotes: true },
   requests: { lg: '/hero-talepler-2.webp', sm: '/hero-talepler-2-sm.webp', center: true },
@@ -145,20 +147,14 @@ export const PageHeader: React.FC<{
     {hero ? (
       <>
       {/* ENYAP Teklifler bandı: ~130px, solda simge + başlık, sağda fotoğraf (solu açık zemine karışır) */}
-      <section className={`relative overflow-hidden rounded-2xl border shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)] border-[#E2EAF3] ${hero.materials ? 'bg-white' : 'bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC]'}`}>
+      <section className={`relative overflow-hidden rounded-2xl border shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)] border-[#E2EAF3] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC]`}>
+        {/* Tüm bantlarda aynı ölçü: fotoğraf sağda sabit genişlikte, sol %28'i şeffaftan nete geçer (ana sayfa bandıyla aynı) */}
         {hero.art
-          ? <div aria-hidden className="pointer-events-none select-none absolute inset-y-0 right-0 w-[64%] sm:w-[58%] lg:w-[54%] [&>svg]:w-full [&>svg]:h-full">{hero.art}</div>
+          ? <div aria-hidden className={`${HERO_PHOTO} [&>svg]:w-full [&>svg]:h-full`}>{hero.art}</div>
           : <picture aria-hidden>
             <source media="(min-width: 768px)" srcSet={hero.lg} />
-            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'w-[76%] sm:w-[68%] lg:w-[62%] object-[70%_center] sm:object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_52%)]' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : hero.quotes ? "w-[83%] sm:w-[76%] md:w-[72%] lg:w-[66%] object-[62%_center] md:object-[58%_center]" : hero.center ? "w-[72%] sm:w-[64%] md:w-[60%] lg:w-[56%] object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.2)_18%,black_48%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
+            <img src={hero.sm} alt="" draggable={false} className={`${HERO_PHOTO} object-cover ${hero.materials ? 'object-[70%_center] sm:object-center' : hero.quotes ? 'object-[62%_center] md:object-[58%_center]' : 'object-center'}`} />
           </picture>}
-        {hero.materials
-          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[34%] via-white/70 via-[49%] to-transparent to-[75%] sm:from-[38%] sm:via-[54%] lg:from-[42%] lg:via-[57%]" />
-          : hero.quotes
-          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[26%] via-white/75 via-[42%] to-transparent to-[69%] sm:from-[32%] sm:via-[47%] sm:to-[70%] md:from-[35%] md:via-[49%] md:to-[72%] lg:from-[41%] lg:via-[53%] lg:to-[75%]" />
-          : hero.cust
-          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/80 from-[30%] via-white/20 via-[53%] to-transparent to-[76%]" />
-          : <div aria-hidden className={`pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]`} />}
         <div aria-hidden className={`pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#006DBB] via-[#009FE3] to-[#00B49A]`} />
         <div className={`relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 py-4 min-h-[112px] sm:min-h-[136px] lg:min-h-[148px]`}>
           <button onClick={onBack} aria-label="Geri"
@@ -170,7 +166,7 @@ export const PageHeader: React.FC<{
           </span>
           <div className="min-w-0 flex-1">
             <h1 className={`font-black text-2xl sm:text-[30px] tracking-tight leading-tight text-[#0B2343]`}>{title}</h1>
-            {subtitle && <p className={`hidden lg:block mt-0.5 text-[15px] line-clamp-2 text-[#5E7491] ${hero.materials ? 'max-w-[62%]' : 'max-w-[50%]'}`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
+            {subtitle && <p className={`hidden lg:block mt-0.5 text-[15px] line-clamp-2 text-[#5E7491] max-w-[50%]`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
           </div>
           {tools}
           {secondary && (
