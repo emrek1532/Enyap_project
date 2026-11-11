@@ -106,9 +106,9 @@ const StatGrid: React.FC<{ stats: Stat[]; brand?: boolean; cust?: boolean }> = (
 );
 
 /** Fotoğraflı başlık (Teklifler): sağda tesisat fotoğrafı, solda büyük başlık; telefonda küçük fotoğraf */
-export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean };
+export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean; /** Teklifler: fotoğrafı tablet ve telefonda daha görünür konumlandır */ quotes?: boolean };
 export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
-  quotes: { lg: '/image.png', sm: '/image.png' },
+  quotes: { lg: '/image.png', sm: '/image.png', quotes: true },
   requests: { lg: '/hero-requests.svg', sm: '/hero-requests.svg' },
   expenses: { lg: '/hero-expenses.svg', sm: '/hero-expenses.svg' },
   collections: { lg: '/hero-collections.svg', sm: '/hero-collections.svg' },
@@ -146,10 +146,12 @@ export const PageHeader: React.FC<{
           ? <div aria-hidden className="pointer-events-none select-none absolute inset-y-0 right-0 w-[64%] sm:w-[58%] lg:w-[54%] [&>svg]:w-full [&>svg]:h-full">{hero.art}</div>
           : <picture aria-hidden>
             <source media="(min-width: 768px)" srcSet={hero.lg} />
-            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'w-[76%] sm:w-[68%] lg:w-[62%] object-[70%_center] sm:object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_52%)]' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
+            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'w-[76%] sm:w-[68%] lg:w-[62%] object-[70%_center] sm:object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_52%)]' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : hero.quotes ? "w-[83%] sm:w-[76%] md:w-[72%] lg:w-[66%] object-[62%_center] md:object-[58%_center]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
           </picture>}
         {hero.materials
           ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[34%] via-white/70 via-[49%] to-transparent to-[75%] sm:from-[38%] sm:via-[54%] lg:from-[42%] lg:via-[57%]" />
+          : hero.quotes
+          ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[26%] via-white/75 via-[42%] to-transparent to-[69%] sm:from-[32%] sm:via-[47%] sm:to-[70%] md:from-[35%] md:via-[49%] md:to-[72%] lg:from-[41%] lg:via-[53%] lg:to-[75%]" />
           : hero.cust
           ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#EAF5FC]/75 from-[30%] via-[#EAF5FC]/20 via-[53%] to-transparent to-[76%]" />
           : <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]" />}
