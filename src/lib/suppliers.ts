@@ -329,6 +329,26 @@ export async function rematchSupplierItems(listId: string, grp: string | null, o
 }
 
 /**
+ * Kuralla eşleştirme (yapay zekâsız, tek seferde): bağsız kalemleri fiyat (kuruşu kuruşuna), ad (ortak kelimeler) ve
+ * ölçüye (inç/cm/mm/DN/PN/model no çelişmez) bakarak bizim kodlara bağlar; tek ve açık aday yoksa bağlamaz. Sunucuda `supplier_rule_match_part`.
+ */
+export async function ruleMatchList(listId: string, onInfo?: (info: string) => void): Promise<{ linked: number; examples: string[] }> {
+  // 400'er kalemlik parçalar (sunucudaki 8 sn sınırı); 'next' boşsa liste bitti
+  let after = 0, linked = 0;
+  const examples: string[] = [];
+  for (let guard = 0; guard < 100; guard++) {
+    const { data, error } = await supabase.rpc('supplier_rule_match_part', { p_list: listId, p_apply: true, p_after: after, p_lim: 400 });
+    if (error) throw error;
+    linked += Number(data?.linked) || 0;
+    examples.push(...((data?.examples || []) as string[]));
+    onInfo?.(`kuralla eşleştiriyor · ${linked} bağlandı`);
+    if (data?.next == null) break;
+    after = Number(data.next);
+  }
+  return { linked, examples };
+}
+
+/**
  * Yapay zekâ ile eşleştirme (RAG): veritabanı her kalem için en benzer malzemeleri bulur, yapay zekâ bunlardan
  * aynı ürünü seçer ya da "yok" der. Yalnızca bağsız kalemlere bakılır (kuralların bağladığına ve elle bağlanana dokunulmaz),
  * adaylar aynı ölçüdekilerle sınırlıdır; yarıda kalırsa kaldığı yerden sürer.
