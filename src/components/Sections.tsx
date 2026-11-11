@@ -6,12 +6,12 @@ export type ActiveTab = 'home' | 'quotes' | 'requests' | 'customers' | 'notes' |
 
 export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; icon: React.ElementType; tone: string }> = {
   quotes: { title: 'Teklifler', icon: FileText, tone: 'bg-brand-50 text-brand-600' },
-  requests: { title: 'Talepler', icon: Inbox, tone: 'bg-emerald-50 text-emerald-600' },
+  requests: { title: 'Talepler', icon: Inbox, tone: 'bg-[#EAF4FC] text-[#006DBB]' },
   customers: { title: 'Müşteriler', icon: Users, tone: 'bg-sky-50 text-sky-600' },
-  collections: { title: 'Yapılan Tahsilatlar', icon: Wallet, tone: 'bg-accent-50 text-accent-700' },
-  expenses: { title: 'Yapılan Harcamalar', icon: Receipt, tone: 'bg-slate-100 text-brand-800' },
+  collections: { title: 'Yapılan Tahsilatlar', icon: Wallet, tone: 'bg-[#E8F8F4] text-[#007C70]' },
+  expenses: { title: 'Yapılan Harcamalar', icon: Receipt, tone: 'bg-[#EAF4FC] text-[#006DBB]' },
   materials: { title: 'Malzemeler', icon: Package, tone: 'bg-violet-50 text-violet-600' },
-  reports: { title: 'Rapor', icon: BarChart3, tone: 'bg-indigo-50 text-indigo-600' },
+  reports: { title: 'Rapor', icon: BarChart3, tone: 'bg-[#EAF4FC] text-[#006DBB]' },
   notes: { title: 'Notlar', icon: StickyNote, tone: 'bg-cyan-50 text-cyan-600' },
   admin: { title: 'Yönetim', icon: ShieldCheck, tone: 'bg-slate-100 text-slate-700' },
 };
@@ -109,6 +109,10 @@ const StatGrid: React.FC<{ stats: Stat[]; brand?: boolean; cust?: boolean }> = (
 export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean };
 export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   quotes: { lg: '/image.png', sm: '/image.png' },
+  requests: { lg: '/hero-requests.svg', sm: '/hero-requests.svg' },
+  expenses: { lg: '/hero-expenses.svg', sm: '/hero-expenses.svg' },
+  collections: { lg: '/hero-collections.svg', sm: '/hero-collections.svg' },
+  reports: { lg: '/hero-reports.svg', sm: '/hero-reports.svg' },
   customers: { lg: '/hero-musteri.webp', sm: '/hero-musteri-sm.webp', cust: true },
 };
 
