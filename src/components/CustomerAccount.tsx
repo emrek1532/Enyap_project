@@ -177,7 +177,7 @@ export const CustomerAccount: React.FC<{
             <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Cari hesap</div>
             <h3 className="font-black text-lg sm:text-[22px] tracking-tight leading-tight break-words">
               {customer.name}
-              {abc && <span title={ABC_STYLE[abc].hint} className={`ml-2 align-middle text-[11px] px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[abc].cls}`}>{abc} müşteri</span>}
+              {abc && <span title={ABC_STYLE[abc].hint} className={`ml-2 inline-block align-middle whitespace-nowrap text-[11px] leading-tight px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[abc].cls}`}>{abc} müşteri</span>}
               {cStatus !== 'aktif' && <span className={`ml-2 align-middle text-[10px] px-2 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>}
             </h3>
             <p className="text-xs text-sky-200/80 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
