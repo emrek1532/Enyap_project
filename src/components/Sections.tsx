@@ -106,7 +106,7 @@ const StatGrid: React.FC<{ stats: Stat[]; brand?: boolean; cust?: boolean }> = (
 );
 
 /** Fotoğraflı başlık (Teklifler): sağda tesisat fotoğrafı, solda büyük başlık; telefonda küçük fotoğraf */
-export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean; /** Teklifler: fotoğrafı tablet ve telefonda daha görünür konumlandır */ quotes?: boolean; /** Talepler: fotoğraf tablet/masaüstünde bandın ortasında, iki yanı zemine karışır */ center?: boolean };
+export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean; /** Teklifler: fotoğrafı tablet ve telefonda daha görünür konumlandır */ quotes?: boolean; /** Talepler, Tahsilat, Harcama, Yönetim: fotoğraf sağda, solu maskeyle zemine karışır */ center?: boolean };
 export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   quotes: { lg: '/hero-teklifler-2.webp', sm: '/hero-teklifler-2-sm.webp', quotes: true },
   requests: { lg: '/hero-talepler-2.webp', sm: '/hero-talepler-2-sm.webp', center: true },
@@ -141,13 +141,14 @@ export const PageHeader: React.FC<{
 }> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero }) => (
   <div className="mb-4 sm:mb-5 space-y-3 sm:space-y-4">
     {hero ? (
-      /* ENYAP Teklifler bandı: ~130px, solda simge + başlık, sağda fotoğraf (solu açık zemine karışır) */
+      <>
+      {/* ENYAP Teklifler bandı: ~130px, solda simge + başlık, sağda fotoğraf (solu açık zemine karışır) */}
       <section className={`relative overflow-hidden rounded-2xl border shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)] ${hero.materials ? 'border-[#DCE8F5] bg-white' : hero.cust ? 'border-[#E2EAF3] bg-gradient-to-r from-[#F7FBFE] via-[#EAF5FC] to-[#EAF5FC]' : 'border-[#DCE8F5] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF4FC]'}`}>
         {hero.art
           ? <div aria-hidden className="pointer-events-none select-none absolute inset-y-0 right-0 w-[64%] sm:w-[58%] lg:w-[54%] [&>svg]:w-full [&>svg]:h-full">{hero.art}</div>
           : <picture aria-hidden>
             <source media="(min-width: 768px)" srcSet={hero.lg} />
-            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'w-[76%] sm:w-[68%] lg:w-[62%] object-[70%_center] sm:object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_52%)]' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : hero.quotes ? "w-[83%] sm:w-[76%] md:w-[72%] lg:w-[66%] object-[62%_center] md:object-[58%_center]" : hero.center ? "w-[58%] sm:w-[52%] md:right-auto md:left-1/2 md:-translate-x-1/2 md:w-[46%] lg:w-[42%] object-[60%_center] md:[mask-image:linear-gradient(to_right,transparent_0%,black_22%,black_78%,transparent_100%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
+            <img src={hero.sm} alt="" draggable={false} className={`pointer-events-none select-none absolute inset-y-0 right-0 h-full object-cover object-center ${hero.materials ? 'w-[76%] sm:w-[68%] lg:w-[62%] object-[70%_center] sm:object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_52%)]' : hero.cust ? "w-[72%] sm:w-[65%] lg:w-[60%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_18%,black_55%)]" : hero.quotes ? "w-[83%] sm:w-[76%] md:w-[72%] lg:w-[66%] object-[62%_center] md:object-[58%_center]" : hero.center ? "w-[72%] sm:w-[64%] md:w-[60%] lg:w-[56%] object-center [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.2)_18%,black_48%)]" : "w-[58%] sm:w-[52%] lg:w-[46%]"}`} />
           </picture>}
         {hero.materials
           ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[34%] via-white/70 via-[49%] to-transparent to-[75%] sm:from-[38%] sm:via-[54%] lg:from-[42%] lg:via-[57%]" />
@@ -155,7 +156,7 @@ export const PageHeader: React.FC<{
           ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[26%] via-white/75 via-[42%] to-transparent to-[69%] sm:from-[32%] sm:via-[47%] sm:to-[70%] md:from-[35%] md:via-[49%] md:to-[72%] lg:from-[41%] lg:via-[53%] lg:to-[75%]" />
           : hero.cust
           ? <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#EAF5FC]/75 from-[30%] via-[#EAF5FC]/20 via-[53%] to-transparent to-[76%]" />
-          : <div aria-hidden className={`pointer-events-none absolute inset-0 ${hero.center ? 'md:hidden ' : ''}bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]`} />}
+          : <div aria-hidden className={`pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-[42%] via-white/40 via-[58%] to-transparent to-[78%] sm:from-[48%] sm:via-[62%] lg:from-[54%] lg:via-[66%] lg:to-[82%]`} />}
         <div aria-hidden className={`pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r ${hero.cust ? 'from-[#006DBB] via-[#009FE3] to-[#00B49A]' : 'from-[#0072CE] via-[#0072CE] to-[#00B89C]'}`} />
         <div className={`relative flex items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 py-4 ${hero.cust ? 'min-h-[108px] sm:min-h-[145px] lg:min-h-[155px]' : 'min-h-[104px] sm:min-h-[124px] lg:min-h-[132px]'}`}>
           <button onClick={onBack} aria-label="Geri"
@@ -167,7 +168,7 @@ export const PageHeader: React.FC<{
           </span>
           <div className="min-w-0 flex-1">
             <h1 className={`font-black text-2xl sm:text-[30px] tracking-tight leading-tight ${hero.materials ? 'text-[#0B2343]' : hero.cust ? 'text-[#0B2343]' : 'text-[#123B68]'}`}>{title}</h1>
-            {subtitle && <p className={`mt-0.5 text-xs sm:text-[15px] line-clamp-2 max-w-[62%] ${hero.materials ? 'text-[#17477D]/80 max-w-[80%] sm:max-w-[65%] lg:max-w-[62%]' : hero.cust ? 'text-[#7186A3] sm:max-w-[52%] lg:max-w-[46%]' : 'text-[#17477D]/80 sm:max-w-none'}`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
+            {subtitle && <p className={`mt-0.5 text-xs sm:text-[15px] line-clamp-2 max-w-[62%] ${hero.materials ? 'text-[#17477D]/80 max-w-[80%] sm:max-w-[65%] lg:max-w-[62%]' : hero.cust ? 'text-[#7186A3] sm:max-w-[52%] lg:max-w-[46%]' : 'text-[#17477D]/80 max-w-[56%] md:max-w-[50%] xl:max-w-none'}`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
           </div>
           {tools}
           {secondary && (
@@ -176,14 +177,18 @@ export const PageHeader: React.FC<{
               <secondary.icon className="w-5 h-5 text-[#00A08A]" /> <span className="hidden xl:inline">{secondary.label}</span>
             </button>
           )}
-          {action && (
-            <button onClick={action.onClick}
-              className={`group flex items-center gap-2 h-11 sm:h-12 px-3.5 sm:pl-5 sm:pr-4 rounded-xl ${hero.cust ? 'self-start bg-[#006DBB] hover:bg-[#173F73]' : 'bg-[#0072CE] hover:bg-[#17477D]'} text-white text-sm sm:text-[15px] font-bold shadow-[0_12px_26px_-12px_rgba(0,114,206,0.95)] transition-colors duration-200 shrink-0`}>
-              <action.icon className="w-5 h-5" /> <span className="hidden sm:inline">{action.label}</span><ChevronRight className="hidden sm:block w-4 h-4 opacity-80 transition-transform duration-200 group-hover:translate-x-0.5" />
-            </button>
-          )}
         </div>
       </section>
+      {action && (
+        /* "Yeni …" düğmesi bandın üstünde değil, altında sağda (telefonda tam genişlik): fotoğrafın önünü kapatmaz */
+        <div className="flex justify-end">
+          <button onClick={action.onClick}
+            className={`group w-full sm:w-auto flex items-center justify-center gap-2 h-11 px-4 sm:pl-5 sm:pr-4 rounded-xl ${hero.cust ? 'bg-[#006DBB] hover:bg-[#173F73]' : 'bg-[#0072CE] hover:bg-[#17477D]'} text-white text-sm sm:text-[15px] font-bold shadow-[0_12px_26px_-14px_rgba(0,114,206,0.95)] transition-colors duration-200`}>
+            <action.icon className="w-5 h-5" /> {action.label}<ChevronRight className="hidden sm:block w-4 h-4 opacity-80 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </button>
+        </div>
+      )}
+      </>
     ) : (
     <section className="relative overflow-hidden rounded-3xl border border-white bg-gradient-to-br from-white via-[#f1f6fd] to-[#dde9fa] px-4 py-4 sm:px-6 sm:py-5 shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]">
       <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 w-80 h-80 rounded-full bg-brand-200/40 blur-3xl" />
