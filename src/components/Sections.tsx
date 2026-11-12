@@ -69,7 +69,9 @@ export const StatBox: React.FC<{
   /** geçen aya göre % değişim (varsa "↑ %40 geçen aya göre") */
   trend?: number | null;
   onClick?: () => void; className?: string;
-}> = ({ label, value, sub, tone, icon, trend, onClick, className = '' }) => {
+  /** Sık: telefonda küçük rakam (3 kutu tek sırada) */
+  dense?: boolean;
+}> = ({ label, value, sub, tone, icon, trend, onClick, className = '', dense }) => {
   const t = STAT_TONES[tone];
   const SI = icon || statIcon(label);
   const body = (<>
@@ -79,7 +81,7 @@ export const StatBox: React.FC<{
       <span className={`flex items-center gap-1.5 text-[11px] sm:text-[13px] md:text-[11.5px] xl:text-[13px] font-bold leading-snug md:whitespace-normal md:line-clamp-2 xl:truncate ${t.label || 'text-slate-600'}`}>
         <span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.dot || t.icon}`} />{label}
       </span>
-      <span className={`block mt-0.5 text-base sm:text-xl md:text-[14px] lg:text-lg xl:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] md:text-[14px] lg:text-lg xl:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
+      <span className={`block mt-0.5 ${dense ? 'text-[13px]' : 'text-base'} sm:text-xl md:text-[14px] lg:text-lg xl:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] md:text-[14px] lg:text-lg xl:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
       {trend != null ? (
         <span className="hidden sm:flex items-center gap-1 text-[11px] sm:text-xs md:text-[10.5px] xl:text-xs truncate">
           <b className={`tabular-nums ${trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
@@ -97,7 +99,14 @@ export const StatBox: React.FC<{
 export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 type Stat = { label: string; value: string; sub?: string; trend?: number | null };
-const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
+const StatGrid: React.FC<{ stats: Stat[]; row?: boolean }> = ({ stats, row }) => row ? (
+  /* Tek sıra 3 kutu (Tahsilat, Harcama): telefonda da yan yana, küçük */
+  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 lg:gap-3">
+    {stats.slice(0, 3).map((s, i) => (
+      <StatBox key={s.label} dense label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)} />
+    ))}
+  </div>
+) : (
   <div className={`grid grid-cols-2 ${stats.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-2 lg:gap-3`}>
     {stats.map((s, i) => (
       <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)}
@@ -158,7 +167,9 @@ export const PageHeader: React.FC<{
   hero?: Hero;
   /** Rakamlar kutu yerine ince satır: telefon/tablette gizli, bilgisayarda tek satır (Teklifler) */
   statsLine?: boolean;
-}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero, statsLine }) => (
+  /** Rakamlar tek sırada 3 küçük kutu (Tahsilat, Harcama) */
+  statsRow?: boolean;
+}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero, statsLine, statsRow }) => (
   <div className="mb-3 lg:mb-5 space-y-2.5 lg:space-y-4">
     {hero ? (
       <>
@@ -237,6 +248,6 @@ export const PageHeader: React.FC<{
     </section>
     )}
     {below}
-    {!below && stats && stats.length > 0 && (statsLine ? <StatLine stats={stats} /> : <StatGrid stats={stats} />)}
+    {!below && stats && stats.length > 0 && (statsRow ? <StatGrid row stats={stats} /> : statsLine ? <StatLine stats={stats} /> : <StatGrid stats={stats} />)}
   </div>
 );

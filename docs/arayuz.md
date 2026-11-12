@@ -88,3 +88,4 @@ Renkler: lacivert `#0B2343`, kurumsal lacivert `#173F73`, ENYAP mavisi `#006DBB`
 - Malzemeler: sekme kartı ve arama kartı sıkı; telefonda "Excel" / "Yeni" kısa yazı, düğmeler ve sıralama h-9.
 - Masaüstü (lg+) görünümü değişmedi.
 - v1.25.15: Teklifler özet kutuları kalktı: telefon/tablette yok, bilgisayarda tek ince satır (`PageHeader` `statsLine`, `StatLine`; filtreyle süzülür). v1.25.16: Müşteriler, Tahsilat, Harcama da aynı (App tüm sayfalarda `statsLine`).
+- v1.25.17: Tahsilat ve Harcama: kutular geri, tek sırada 3 küçük kutu (`statsRow`, `StatGrid row`, `StatBox dense`; Tahsilat 4. kutu "30 günde vadesi gelen" / filtreli "Nakit · havale · kart" sonrası gösterilmez). Teklifler ve Müşteriler ince satır.
