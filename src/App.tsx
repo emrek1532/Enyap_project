@@ -988,7 +988,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onBack={goBack}
             onHome={goHome}
             stats={headStats}
-            statsLine={activeTab === 'quotes'}
+            statsLine
             hero={HERO_IMG[activeTab]}
           />
         )}
