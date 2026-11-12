@@ -371,15 +371,24 @@ export const SupplierListsPanel: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      {/* Başlık: liste sayısı ve yükleme */}
-      <div className="flex items-center justify-between gap-2 px-0.5">
-        <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-          Firmalar · {lists.length} liste
-        </div>
+      {/* Arama ve yükleme tek satırda (liste/kalem sayısı üstteki sekmede yazıyor) */}
+      <div className="flex items-center gap-2">
+        {lists.length > 0 ? (
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={current ? `${current.name} listesinde ara…` : 'Listelerde ara (kod, ürün)…'}
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2EAF3] text-sm bg-white"
+            />
+          </div>
+        ) : <div className="flex-1" />}
         <button
           type="button"
           onClick={() => setUploadOpen(o => !o)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-brand-200 bg-white text-brand-700 text-sm font-extrabold hover:bg-brand-50"
+          className="shrink-0 inline-flex h-9 items-center gap-1.5 px-3 rounded-xl border border-brand-200 bg-white text-brand-700 text-sm font-extrabold hover:bg-brand-50"
         >
           {uploadOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} Liste Yükle
         </button>
@@ -393,18 +402,6 @@ export const SupplierListsPanel: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Arama */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="search"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder={current ? `${current.name} listesinde ara…` : 'Tüm listelerde ara (kod, ürün)…'}
-              className="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200 text-sm bg-white"
-            />
-          </div>
-
           {/* Firma şeridi */}
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none]">
             {[{ id: null as string | null, name: 'Tümü', count: lists.reduce((a, l) => a + l.itemCount, 0) },
@@ -549,7 +546,6 @@ export const SupplierListsPanel: React.FC = () => {
             <>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-slate-500">
                 {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>{total.toLocaleString('tr-TR')} kalem</span>
                 {items.length > 0 && (
                   <label className="ml-auto inline-flex items-center gap-1.5 cursor-pointer">
                     <input type="checkbox" checked={onlyUnlinked} onChange={e => setOnlyUnlinked(e.target.checked)} />
