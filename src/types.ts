@@ -63,6 +63,9 @@ export interface Quote {
   rev?: number;
   /** Yönetici olmayan biri yükledi; yönetici kontrol edene kadar "Kontrol bekliyor" (sunucu doldurur) */
   reviewPending?: boolean;
+  /** Onaylandı yapan kişi ve zaman (sunucu yazar) */
+  approvedAt?: string | null;
+  approvedBy?: string | null;
 }
 
 export interface QuickNote {
