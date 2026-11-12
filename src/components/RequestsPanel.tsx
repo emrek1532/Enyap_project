@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, Paperclip, Send, Sparkles, Trash2, Wand2, X } from 'lucide-react';
 import type { Customer, Quote } from '../types';
-import { listCard, SearchBox, UnderlineTabs } from './ListUI';
+import { listCard, SearchBox, UnderlineTabs, NewButton } from './ListUI';
 import { RequestLines, openCount } from './RequestLines';
 import { useSetting } from '../lib/settings';
 import { PREF_KEY, PrefRule } from '../lib/requestRead';
@@ -87,8 +87,9 @@ export const RequestsPanel: React.FC<{
 
   return (
     <div className={`${listCard} p-3 sm:p-5 space-y-3`}>
-      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+      <div className="flex gap-2 items-center">
         <SearchBox value={q} onChange={setQ} placeholder="Firma ya da talepte ara…" className="flex-1" />
+        {canEdit && <NewButton label="Talep gir" onClick={() => setFormOpen(true)} />}
       </div>
       <UnderlineTabs<Tab> value={tab} onChange={setTab} items={[
         { key: 'open', label: `Açık (${counts.open})` },

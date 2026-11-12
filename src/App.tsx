@@ -901,9 +901,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [ledgerView, setLedgerView] = useState<LedgerView | null>(null);
   const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, liveData, rates, undefined, activeTab === 'quotes' ? quoteView : null, ledgerView), [activeTab, liveData, rates, quoteView, ledgerView]);
   // Teklifler / Tahsilat / Harcama: "Yeni …" düğmesi listenin arama kutusunun yanında (bandın altında boş satır kalmasın)
-  const pageAction = activeTab === 'requests' && toolAllow.quote ? { label: 'Talep gir', icon: Plus, onClick: bumpNew }
-    : activeTab === 'customers' && canCustomers ? { label: 'Yeni Müşteri', icon: Plus, onClick: bumpNew }
-    : activeTab === 'admin' && profile.isAdmin ? { label: 'Kişi Ekle', icon: Plus, onClick: bumpNew }
+  const pageAction = activeTab === 'admin' && profile.isAdmin ? { label: 'Kişi Ekle', icon: Plus, onClick: bumpNew }
     : undefined;
 
   return (
