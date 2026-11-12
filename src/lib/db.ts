@@ -115,6 +115,8 @@ const rowToQuote = (r: Row): Quote => ({
   reviewPending: !!r.review_pending,
   approvedAt: r.approved_at ?? null,
   approvedBy: r.approved_by ?? null,
+  processedAt: r.processed_at ?? null,
+  processedBy: r.processed_by ?? null,
 });
 
 const noteToRow = (n: QuickNote): Row => ({
