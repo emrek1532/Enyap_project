@@ -900,11 +900,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [quoteView, setQuoteView] = useState<QuoteView | null>(null);
   const [ledgerView, setLedgerView] = useState<LedgerView | null>(null);
   const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, liveData, rates, undefined, activeTab === 'quotes' ? quoteView : null, ledgerView), [activeTab, liveData, rates, quoteView, ledgerView]);
-  // Teklifler / Tahsilat / Harcama: "Yeni …" düğmesi listenin arama kutusunun yanında (bandın altında boş satır kalmasın)
-  const pageAction = activeTab === 'requests' && toolAllow.quote ? { label: 'Talep gir', icon: Plus, onClick: bumpNew }
-    : activeTab === 'customers' && canCustomers ? { label: 'Yeni Müşteri', icon: Plus, onClick: bumpNew }
-    : activeTab === 'admin' && profile.isAdmin ? { label: 'Kişi Ekle', icon: Plus, onClick: bumpNew }
-    : undefined;
+  // "Yeni …" düğmeleri bandın altında değil, her listenin arama kutusunun yanında (NewButton)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#eef4fb] via-[#F1F6FC] to-[#eaf1fa] text-slate-900 flex flex-col pb-24 md:pb-8 md:pl-60">
@@ -987,7 +983,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           <PageHeader
             title={SECTION_META[activeTab].title}
             subtitle={SECTION_SUB[activeTab]}
-            action={pageAction}
             icon={SECTION_META[activeTab].icon}
             tone={SECTION_META[activeTab].tone}
             onBack={goBack}

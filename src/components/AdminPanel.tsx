@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Clock, Copy, KeyRound, Loader2, Pause, Play, ShieldCheck, Trash2, UserPlus, UserRound, X } from 'lucide-react';
 import { ActivityLog } from '../types';
 import { FLAGS, Level, MODULES, PRESETS, Profile, createUser, levelOf, listProfiles, removeUser, renameUser, setUserPassword, updateProfile } from '../lib/access';
-import { listCard } from './ListUI';
+import { listCard, NewButton } from './ListUI';
 
 type Perms = Profile['perms'];
 
@@ -279,6 +279,7 @@ export const AdminPanel: React.FC<{ meId: string; activities: ActivityLog[]; new
             <h2 className="font-black text-slate-900">Kullanıcılar</h2>
             <span className="text-xs font-bold text-slate-500">{users?.length ?? ''}</span>
             {pending > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">{pending} onay bekliyor</span>}
+            <span className="ml-auto"><NewButton label="Kişi Ekle" onClick={() => setAdding(true)} /></span>
           </header>
           {!users && !err && <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-slate-500" /></div>}
           <div className="divide-y divide-slate-100">

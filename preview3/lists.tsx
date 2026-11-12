@@ -19,7 +19,6 @@ const { QuoteManager } = await import('../src/components/QuoteManager');
 const { CustomersPanel } = await import('../src/components/CustomersPanel');
 const { MaterialsPanel } = await import('../src/components/MaterialsPanel');
 const { PageHeader, SECTION_SUB, HERO_IMG } = await import('../src/components/Sections');
-const { Plus } = await import('lucide-react');
 const { Sidebar } = await import('../src/components/Sidebar');
 const { Header } = await import('../src/components/Header');
 const { BottomNav } = await import('../src/components/BottomNav');
@@ -34,7 +33,7 @@ const App = () => {
     h(Sidebar, { sections: secs, active: p, onOpen: noop, onHome: noop, userName: 'Emre Karakaya', userEmail: 'e@x.com', roleLabel: 'Yönetici' }),
     h('div', { className: 'sticky top-0 z-30' }, h(Header, { syncStatus: { isOnline: true, isSyncing: false } as any, onTriggerSync: noop, onHome: noop, userName: 'Emre Karakaya', userEmail: 'e@x.com', roleLabel: 'Yönetici', onSearch: noop })),
     h('main', { className: 'max-w-7xl w-full mx-auto px-3 sm:px-6 pt-4 sm:pt-6 flex-1 min-w-0' },
-      p !== 'materials' && h(PageHeader, { title: SECTION_META[p].title, subtitle: SECTION_SUB[p], icon: SECTION_META[p].icon, onBack: noop, hero: HERO_IMG[p as 'quotes'], action: p === 'quotes' ? undefined : { label: p === 'customers' ? 'Yeni Müşteri' : 'Yeni Malzeme', icon: Plus, onClick: noop } }),
+      p !== 'materials' && h(PageHeader, { title: SECTION_META[p].title, subtitle: SECTION_SUB[p], icon: SECTION_META[p].icon, onBack: noop, hero: HERO_IMG[p as 'quotes'] }),
       p === 'quotes' && h(QuoteManager, { quotes, currentRole: 'admin' as any, onOpenNewQuote: noop, canNew: true, onUpdateQuoteStatus: noop, onDeleteQuote: noop, onPrintQuote: noop, onEditQuote: noop, statusFilter: f, onStatusFilterChange: setF }),
       p === 'customers' && h(CustomersPanel, { customers, quotes, collections, showCollections: true, onSaveCollection: noop, onSaveCustomer: noop, onDeleteCustomer: noop, onCreateQuoteForCustomer: noop }),
       p === 'materials' && h(MaterialsPanel, { quotes, canAdd: true })),
