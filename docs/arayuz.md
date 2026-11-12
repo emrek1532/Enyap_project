@@ -87,3 +87,4 @@ Renkler: lacivert `#0B2343`, kurumsal lacivert `#173F73`, ENYAP mavisi `#006DBB`
 - Özet kutuları (`StatBox`) telefonda (sm altı) sıkı: dalga süsü ve alt yazı/değişim satırı gizli, yalnız etiket + rakam.
 - Malzemeler: sekme kartı ve arama kartı sıkı; telefonda "Excel" / "Yeni" kısa yazı, düğmeler ve sıralama h-9.
 - Masaüstü (lg+) görünümü değişmedi.
+- v1.25.15: Teklifler özet kutuları kalktı: telefon/tablette yok, bilgisayarda tek ince satır (`PageHeader` `statsLine`, `StatLine`; filtreyle süzülür). Diğer sayfalarda kutular duruyor.

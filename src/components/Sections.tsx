@@ -106,6 +106,20 @@ const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
   </div>
 );
 
+/** İnce özet satırı (Teklifler, yalnız bilgisayarda): kutular yerine tek satır; filtre varsa süzülen kayıtlardan */
+const StatLine: React.FC<{ stats: Stat[] }> = ({ stats }) => (
+  <div className="hidden lg:flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-sm text-[#5E7491]">
+    {stats.map((s, i) => (
+      <span key={s.label} className="inline-flex items-baseline gap-1.5 whitespace-nowrap" title={s.sub}>
+        <span className={`w-2 h-2 rounded-full self-center ${i % 2 ? 'bg-[#00B49A]' : 'bg-[#006DBB]'}`} />
+        {s.label}
+        <b className="text-[#0B2343] tabular-nums">{s.value}</b>
+        {s.trend != null && <span className={`text-xs font-bold tabular-nums ${s.trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{s.trend >= 0 ? '↑' : '↓'} %{Math.abs(s.trend)}</span>}
+      </span>
+    ))}
+  </div>
+);
+
 /** Fotoğraflı başlık (Teklifler): sağda tesisat fotoğrafı, solda büyük başlık; telefonda küçük fotoğraf */
 export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean; /** Teklifler: fotoğrafı tablet ve telefonda daha görünür konumlandır */ quotes?: boolean; /** Talepler, Tahsilat, Harcama, Yönetim: fotoğraf sağda, solu maskeyle zemine karışır */ center?: boolean };
 /** Bant fotoğrafının ortak ölçüsü (sekme değişince geçiş yeri kaymaz) */
@@ -142,7 +156,9 @@ export const PageHeader: React.FC<{
   /** Sağ üstteki düğmeler (ara, eşitle, bildirim, kılavuz, çıkış) */
   tools?: React.ReactNode;
   hero?: Hero;
-}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero }) => (
+  /** Rakamlar kutu yerine ince satır: telefon/tablette gizli, bilgisayarda tek satır (Teklifler) */
+  statsLine?: boolean;
+}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero, statsLine }) => (
   <div className="mb-3 lg:mb-5 space-y-2.5 lg:space-y-4">
     {hero ? (
       <>
@@ -221,6 +237,6 @@ export const PageHeader: React.FC<{
     </section>
     )}
     {below}
-    {!below && stats && stats.length > 0 && <StatGrid stats={stats} />}
+    {!below && stats && stats.length > 0 && (statsLine ? <StatLine stats={stats} /> : <StatGrid stats={stats} />)}
   </div>
 );
