@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X, MapPin, PackageCheck, Loader2 } from 'lucide-react';
-import { listCard, ctrl, rowCls, theadCls, SearchBox, ChipRow, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
+import { listCard, ctrl, rowCls, theadCls, SearchBox, ChipRow, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly, NewButton } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, isPendingQuote, isExpiring, daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
 import { localDay } from '../lib/dates';
@@ -48,6 +48,8 @@ interface QuoteManagerProps {
   quotes: Quote[];
   currentRole: UserRole;
   onOpenNewQuote: () => void;
+  /** Yeni teklif düğmesi gösterilsin mi (yetki) */
+  canNew?: boolean;
   onUpdateQuoteStatus: (id: string, status: QuoteStatus, lostReason?: string) => void;
   /** Takip tarihi / geçerlilik / pano taşıması (durum + takip birlikte) */
   onPatchQuote?: (id: string, patch: Partial<Pick<Quote, 'followUpAt' | 'validUntil' | 'status' | 'lostReason'>>) => void;
@@ -76,6 +78,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   quotes,
   currentRole,
   onOpenNewQuote,
+  canNew,
   onUpdateQuoteStatus,
   onPatchQuote,
   onDeleteQuote,
@@ -357,7 +360,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       <div className={listCard}>
         {/* Filtreler */}
         <FilterBar className="p-3 sm:p-4 flex flex-col xl:flex-row gap-2" active={(statusFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
-          search={<SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1" />}>
+          search={<><SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1" />{canNew && <NewButton label="Yeni Teklif" onClick={onOpenNewQuote} />}</>}>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={`${ctrl} transition-colors ${statusFilter !== 'all' ? 'border-[#006DBB] bg-[#EAF5FC] text-[#006DBB] font-bold' : ''}`} aria-label="Durum">
               <option value="all">Tüm Teklifler</option>

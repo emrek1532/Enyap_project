@@ -1,4 +1,4 @@
-import { listCard, ctrl, theadCls, SearchBox, FilterBar, WideOnly, NarrowOnly, LastEdit } from './ListUI';
+import { listCard, ctrl, theadCls, SearchBox, FilterBar, WideOnly, NarrowOnly, LastEdit, NewButton } from './ListUI';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Search, Pencil, Trash2, X, Wallet, Receipt, Send, Loader2, Camera } from 'lucide-react';
 import { Collection, Customer, Expense, UserRole } from '../types';
@@ -28,6 +28,8 @@ interface LedgerPanelProps {
   onDelete: (id: string) => void;
   /** Ana sayfadaki "Ekle" kısayoluyla açıldıysa formu hemen aç */
   startNew?: boolean;
+  /** Yeni kayıt düğmesi gösterilsin mi (yetki) */
+  canNew?: boolean;
   /** Sesli asistandan gelen taslak: yeni kayıt formu bu bilgilerle dolu açılır */
   startDraft?: Partial<Collection & Expense> | null;
   onStartNewHandled?: () => void;
@@ -86,7 +88,7 @@ const withExisting = (base: string[], values: (string | undefined)[]) => {
   return [...set];
 };
 
-export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, startDraft, onStartNewHandled, onViewChange }) => {
+export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, customers = [], currentRole, onSave, onDelete, startNew, canNew, startDraft, onStartNewHandled, onViewChange }) => {
   const isCollection = kind === 'collections';
   const t = isCollection
     ? { one: 'Tahsilat', party: 'Müşteri / Firma', Icon: Wallet, tone: 'text-[#008F79] bg-[#E6F7F4]' }
@@ -416,7 +418,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       {/* Filtreler */}
       <FilterBar className={`${listCard} p-3 sm:p-4 flex flex-col gap-3`}
         active={(methodFilter !== 'all' ? 1 : 0) + (dueFilter !== 'all' ? 1 : 0) + (currencyFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
-        search={<SearchBox value={search} onChange={v => changed(setSearch)(v)} placeholder={isCollection ? 'Müşteri, banka, çek no ara...' : 'Kategori, şehir, açıklama ara...'} className="flex-1" />}>
+        search={<><SearchBox value={search} onChange={v => changed(setSearch)(v)} placeholder={isCollection ? 'Müşteri, banka, çek no ara...' : 'Kategori, şehir, açıklama ara...'} className="flex-1" />{canNew && <NewButton label={`Yeni ${t.one}`} onClick={() => openNew()} />}</>}>
         <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap [&>select]:w-full sm:[&>select]:w-auto [&>select]:min-w-0 [&>select]:h-10 [&>select]:rounded-xl">
           {isCollection && (
             <select value={methodFilter} onChange={e => changed(setMethodFilter)(e.target.value)} className={ctrl}>

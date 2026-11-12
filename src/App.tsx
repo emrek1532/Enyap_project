@@ -900,10 +900,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [quoteView, setQuoteView] = useState<QuoteView | null>(null);
   const [ledgerView, setLedgerView] = useState<LedgerView | null>(null);
   const headStats = useMemo(() => activeTab === 'home' ? [] : pageStats(activeTab, liveData, rates, undefined, activeTab === 'quotes' ? quoteView : null, ledgerView), [activeTab, liveData, rates, quoteView, ledgerView]);
-  const pageAction = activeTab === 'quotes' && toolAllow.quote ? { label: 'Yeni Teklif Oluştur', icon: Plus, onClick: () => setIsNewQuoteOpen(true) }
-    : activeTab === 'requests' && toolAllow.quote ? { label: 'Talep gir', icon: Plus, onClick: bumpNew }
-    : activeTab === 'collections' && toolAllow.collection ? { label: 'Yeni Tahsilat', icon: Plus, onClick: () => setLedgerStartNew('collections') }
-    : activeTab === 'expenses' && toolAllow.expense ? { label: 'Yeni Harcama', icon: Plus, onClick: () => setLedgerStartNew('expenses') }
+  // Teklifler / Tahsilat / Harcama: "Yeni …" düğmesi listenin arama kutusunun yanında (bandın altında boş satır kalmasın)
+  const pageAction = activeTab === 'requests' && toolAllow.quote ? { label: 'Talep gir', icon: Plus, onClick: bumpNew }
     : activeTab === 'customers' && canCustomers ? { label: 'Yeni Müşteri', icon: Plus, onClick: bumpNew }
     : activeTab === 'admin' && profile.isAdmin ? { label: 'Kişi Ekle', icon: Plus, onClick: bumpNew }
     : undefined;
@@ -1030,6 +1028,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             quotes={liveQuotes}
             currentRole={currentRole}
             onOpenNewQuote={() => setIsNewQuoteOpen(true)}
+            canNew={toolAllow.quote}
             onUpdateQuoteStatus={handleUpdateQuoteStatus}
             onPatchQuote={handlePatchQuote}
             onDeleteQuote={canRemove ? handleDeleteQuote : noRemove}
@@ -1096,6 +1095,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onSave={(r) => handleSaveCollection(r as Collection)}
             onDelete={canRemove ? handleDeleteCollection : noRemove}
             startNew={ledgerStartNew === 'collections'}
+            canNew={toolAllow.collection}
             startDraft={ledgerDraft}
             onStartNewHandled={() => { setLedgerStartNew(null); setLedgerDraft(null); }}
             onViewChange={setLedgerView}
@@ -1111,6 +1111,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onSave={(r) => handleSaveExpense(r as Expense)}
             onDelete={canRemove ? handleDeleteExpense : noRemove}
             startNew={ledgerStartNew === 'expenses'}
+            canNew={toolAllow.expense}
             startDraft={ledgerDraft}
             onStartNewHandled={() => { setLedgerStartNew(null); setLedgerDraft(null); }}
             onViewChange={setLedgerView}
