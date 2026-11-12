@@ -9,7 +9,7 @@ import { foldTr } from '../lib/materials';
 import { findCustomer } from '../lib/customers';
 import { SuggestInput } from './SuggestInput';
 import {
-  Assignee, QuoteRequest, REQUEST_STATUS, ReqRow, RequestStatus, createRequest, fileUrl, patchRequest, removeRequest, readRequestLines, rowsToDraft,
+  Assignee, QuoteRequest, REQUEST_STATUS, ReqRow, RequestStatus, createRequest, fetchAssignees, fileUrl, patchRequest, removeRequest, readRequestLines, rowsToDraft,
 } from '../lib/requests';
 
 const ago = (iso: string) => {
@@ -55,11 +55,16 @@ export const RequestsPanel: React.FC<{
   newRequest?: number;
   shared?: SharedRequestInput | null;
   onSharedUsed?: () => void;
-}> = ({ requests, customers, quotes, meId, assignees, canEdit, canDelete, canAi, reading, onSaved, onRead, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
+}> = ({ requests, customers, quotes, meId, assignees: given, canEdit, canDelete, canAi, reading, onSaved, onRead, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
   const [tab, setTab] = useState<Tab>('open');
   const [q, setQ] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  // Liste açılışta oturum hazır olmadan boş gelebilir: başka kimse yoksa bir kez yeniden iste
+  const [fetched, setFetched] = useState<Assignee[] | null>(null);
+  const assignees = fetched && fetched.length > given.length ? fetched : given;
+  const needAssignees = (formOpen || !!detailId) && !assignees.some(a => a.id !== meId);
+  useEffect(() => { if (needAssignees) fetchAssignees().then(setFetched, () => undefined); }, [needAssignees]);
   const names = useMemo(() => new Map(assignees.map(a => [a.id, a.fullName])), [assignees]);
 
   useEffect(() => { if (newRequest) setFormOpen(true); }, [newRequest]);
@@ -168,6 +173,9 @@ const RequestForm: React.FC<{
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<File[]>(shared?.file ? [shared.file] : []);
   const [to, setTo] = useState<string>(others[0]?.id || meId);
+  // Kişiler sonradan yüklenirse varsayılanı ilk kişiye çevir (kullanıcı seçim yapmadıysa)
+  const picked = useRef(false);
+  useEffect(() => { if (!picked.current && others[0] && to === meId) setTo(others[0].id); }, [others, to, meId]);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const match = findCustomer(customers, customer);
@@ -263,10 +271,10 @@ const RequestForm: React.FC<{
         <label className={label}>Kim hazırlasın?</label>
         <div className="flex flex-wrap gap-2">
           {others.map(a => (
-            <button key={a.id} type="button" onClick={() => setTo(a.id)}
+            <button key={a.id} type="button" onClick={() => { picked.current = true; setTo(a.id); }}
               className={`px-3 py-2 rounded-xl border text-sm font-bold ${to === a.id ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200'}`}>{a.fullName}</button>
           ))}
-          <button type="button" onClick={() => setTo(meId)}
+          <button type="button" onClick={() => { picked.current = true; setTo(meId); }}
             className={`px-3 py-2 rounded-xl border text-sm font-bold ${to === meId ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200'}`}>Ben hazırlayacağım</button>
         </div>
       </div>
