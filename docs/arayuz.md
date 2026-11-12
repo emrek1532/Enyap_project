@@ -81,3 +81,9 @@ Renkler: lacivert `#0B2343`, kurumsal lacivert `#173F73`, ENYAP mavisi `#006DBB`
 - Ana sayfa tablette: arama kutusu tam genişlik, dönem seçimi altında; selam yazısı küçültüldü (taşmasın).
 - v1.23.2: Kod ve teklif no alanlarındaki ayrı yazı tipi (font-mono) kaldırıldı; her yerde Plus Jakarta Sans (rakamlar `tabular-nums`). JetBrains Mono artık yüklenmiyor.
 - v1.23.3: Telefonda teklif formu kalem satırı: sütun adları ayrı başlık satırı yerine her kutunun üstünde (Miktar, Birim, B.Fiyat, Döviz, İsk%); kod kutusu iki sütun genişliğinde (kod tam okunur).
+
+## Telefon/tablette kısa üst kısım (v1.25.14)
+- `PageHeader` lg altında kısa: bant ~60px (telefon) / ~76px (tablet), başlık `text-xl md:text-2xl`, simge kutusu yalnız lg+; `action` verilirse lg altında bandın içinde küçük düğme ("Oluştur" kısaltılır), lg+ bandın altında.
+- Özet kutuları (`StatBox`) telefonda (sm altı) sıkı: dalga süsü ve alt yazı/değişim satırı gizli, yalnız etiket + rakam.
+- Malzemeler: sekme kartı ve arama kartı sıkı; telefonda "Excel" / "Yeni" kısa yazı, düğmeler ve sıralama h-9.
+- Masaüstü (lg+) görünümü değişmedi.

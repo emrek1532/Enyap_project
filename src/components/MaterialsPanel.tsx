@@ -134,9 +134,9 @@ const OwnMaterials: React.FC<{
   const anything = activeFilters > 0 || query || codeQuery || sort.key !== 'default';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 lg:space-y-4">
     <div className={`${listCard} !rounded-2xl !border-[#E2EAF3]`}>
-      <div className="p-3 sm:p-4 space-y-3">
+      <div className="p-2.5 sm:p-4 space-y-2 sm:space-y-3">
         <div className="flex flex-col xl:flex-row xl:items-center gap-2">
           <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] gap-2 min-w-0 flex-1">
           <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" className="[&_input]:h-9 [&_input]:!text-sm [&_input]:!border-[#E2EAF3]" />
@@ -150,7 +150,7 @@ const OwnMaterials: React.FC<{
             always
             sort={sort}
             onChange={setSort}
-            className={`${selectCls} h-11`}
+            className={`${selectCls} !h-9 !text-sm`}
             options={[
               { key: 'default', dir: 'asc', label: 'Sıra: Önerilen' },
               { key: 'name', dir: 'asc', label: 'Ad (A → Z)' },
@@ -492,7 +492,7 @@ export const MaterialsPanel: React.FC<{
 
 
   const tabCls = (on: boolean) =>
-    `relative flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-2 sm:px-4 py-3 text-center transition-colors ${on ? 'bg-white text-[#006DBB] shadow-sm' : 'text-[#5E7491] hover:text-[#17365D]'}`;
+    `relative flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-2 sm:px-4 py-1.5 lg:py-3 text-center transition-colors ${on ? 'bg-white text-[#006DBB] shadow-sm' : 'text-[#5E7491] hover:text-[#17365D]'}`;
   const bar = <span className="absolute left-5 right-5 bottom-0 h-[3px] rounded-full bg-[#006DBB]" />;
   return (
     <div>
@@ -503,8 +503,8 @@ export const MaterialsPanel: React.FC<{
         onBack={onBack || (() => undefined)}
         hero={{ lg: '/hero-malzeme-sabit.png', sm: '/hero-malzeme-sabit.png', materials: true }}
       />
-      <div className="space-y-4">
-        {showOwn && showSup && <div className="flex gap-1 rounded-2xl border border-[#E2EAF3] bg-[#E7F3FC] p-1.5" role="tablist">
+      <div className="space-y-3 lg:space-y-4">
+        {showOwn && showSup && <div className="flex gap-1 rounded-2xl border border-[#E2EAF3] bg-[#E7F3FC] p-1 lg:p-1.5" role="tablist">
           <button role="tab" aria-selected={tab === 'own'} onClick={() => choose('own')} className={tabCls(tab === 'own')}>
             <span className="text-sm sm:text-base font-extrabold">Bizim Malzemelerimiz</span>
             <span className="text-xs sm:text-sm font-semibold text-[#5E7491]">{counts ? `${tr(counts.total)} malzeme` : '– malzeme'}</span>
@@ -519,8 +519,8 @@ export const MaterialsPanel: React.FC<{
         {tab === 'own'
           ? <OwnMaterials quotes={quotes} onOpenQuote={onOpenQuote} newRequest={newLocal} importRequest={importReq}
               actions={<>
-                {canImport && <button type="button" onClick={() => setImportReq(n => n + 1)} className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#C9DDF1] bg-white px-3 text-xs sm:text-sm font-bold text-[#173F73] hover:bg-[#F1F6FC]"><FileSpreadsheet className="h-4 w-4 text-[#008F79]" />Excel'den Malzeme Aktar</button>}
-                {canAdd && <button type="button" onClick={() => setNewLocal(n => n + 1)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#006DBB] px-3 text-xs sm:text-sm font-bold text-white hover:bg-[#173F73]"><Plus className="h-4 w-4" />Yeni Malzeme</button>}
+                {canImport && <button type="button" onClick={() => setImportReq(n => n + 1)} title="Excel'den Malzeme Aktar" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#C9DDF1] bg-white px-2.5 text-sm font-bold text-[#173F73] hover:bg-[#F1F6FC]"><FileSpreadsheet className="h-4 w-4 text-[#008F79]" /><span className="sm:hidden">Excel</span><span className="hidden sm:inline">Excel'den Malzeme Aktar</span></button>}
+                {canAdd && <button type="button" onClick={() => setNewLocal(n => n + 1)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#006DBB] px-2.5 text-sm font-bold text-white hover:bg-[#173F73]"><Plus className="h-4 w-4" /><span className="sm:hidden">Yeni</span><span className="hidden sm:inline">Yeni Malzeme</span></button>}
               </>}
               onChanged={() => loadCounts(true)}
               onConsumed={k => (k === 'new' ? setNewLocal(0) : setImportReq(0))} />
