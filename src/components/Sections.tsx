@@ -79,7 +79,7 @@ export const StatBox: React.FC<{
       <span className={`flex items-center gap-1.5 text-[11px] sm:text-[13px] font-bold truncate ${t.label || 'text-slate-600'}`}>
         <span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.dot || t.icon}`} />{label}
       </span>
-      <span className={`block mt-0.5 text-base sm:text-xl font-black tabular-nums break-words leading-tight ${t.value ? `sm:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
+      <span className={`block mt-0.5 text-base sm:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
       {trend != null ? (
         <span className="flex items-center gap-1 text-[11px] sm:text-xs truncate">
           <b className={`tabular-nums ${trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
@@ -98,7 +98,7 @@ export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 type Stat = { label: string; value: string; sub?: string; trend?: number | null };
 const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
-  <div className={`grid grid-cols-2 ${stats.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5 sm:gap-3`}>
+  <div className={`grid grid-cols-2 ${stats.length === 3 ? 'lg:grid-cols-3' : 'xl:grid-cols-4'} gap-2.5 sm:gap-3`}>
     {stats.map((s, i) => (
       <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)}
         className={stats.length % 2 && i === stats.length - 1 ? 'col-span-2 lg:col-span-1' : ''} />
