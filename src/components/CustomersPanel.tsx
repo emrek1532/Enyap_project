@@ -1,6 +1,6 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight, MapPin, MapPinCheck, Wallet, ArrowDownLeft, ArrowUpRight, Scale } from 'lucide-react';
-import { SearchBox, UnderlineTabs, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
+import { SearchBox, UnderlineTabs, Pager, FilterBar, WideOnly, NarrowOnly, NewButton } from './ListUI';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
@@ -356,7 +356,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <div className={ccard}>
         <div className="p-3 sm:p-4 space-y-2.5">
           <FilterBar className="flex flex-col 2xl:flex-row gap-2" active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (abcFilter !== 'all' ? 1 : 0)}
-            search={<SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma, şehir veya cari kod ara..." className="flex-1" />}>
+            search={<><SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma, şehir veya cari kod ara..." className="flex-1" />{canEdit && <NewButton label="Yeni Müşteri" onClick={openNew} />}</>}>
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap 2xl:flex-nowrap gap-2 items-center">
               <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={sel(cityFilter !== 'all')} aria-label="Şehir">
                 <option value="all">Tüm Şehirler</option>
