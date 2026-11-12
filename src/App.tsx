@@ -989,6 +989,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onHome={goHome}
             stats={headStats}
             statsLine
+            statsRow={activeTab === 'collections' || activeTab === 'expenses'}
             hero={HERO_IMG[activeTab]}
           />
         )}
