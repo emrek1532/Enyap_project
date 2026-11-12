@@ -126,6 +126,7 @@ const noteToRow = (n: QuickNote): Row => ({
   remind_at: n.remindAt || null,
   reminded_at: n.remindedAt || null,
   done: !!n.done,
+  assigned_to: n.assignedTo || null,
 });
 
 const rowToNote = (r: Row): QuickNote => ({
@@ -140,6 +141,10 @@ const rowToNote = (r: Row): QuickNote => ({
   remindAt: r.remind_at,
   remindedAt: r.reminded_at,
   done: !!r.done,
+  createdBy: r.created_by ?? null,
+  assignedTo: r.assigned_to ?? null,
+  doneAt: r.done_at ?? null,
+  doneBy: r.done_by ?? null,
 });
 
 const activityToRow = (a: ActivityLog): Row => ({

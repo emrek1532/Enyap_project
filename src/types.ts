@@ -80,6 +80,13 @@ export interface QuickNote {
   /** Bildirim gönderildi mi (zaman değişince sıfırlanır) */
   remindedAt?: string | null;
   done?: boolean;
+  /** Notu yazan kişi (profil id; veritabanı yazar) */
+  createdBy?: string | null;
+  /** Görev olarak verildiği kişi (profil id); tamamlanana kadar açık kalır */
+  assignedTo?: string | null;
+  /** Kim, ne zaman tamamladı (veritabanı yazar) */
+  doneAt?: string | null;
+  doneBy?: string | null;
 }
 
 export interface ActivityLog {
