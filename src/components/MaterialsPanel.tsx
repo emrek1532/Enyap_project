@@ -138,28 +138,13 @@ const OwnMaterials: React.FC<{
     <div className={`${listCard} !rounded-2xl !border-[#E2EAF3]`}>
       <div className="p-3 sm:p-4 space-y-3">
         <div className="flex flex-col xl:flex-row xl:items-center gap-2">
-          <div className="grid grid-cols-1 sm:grid-cols-[minmax(11rem,0.7fr)_minmax(0,1.3fr)] gap-2 min-w-0 flex-1">
-          <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
-          <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara (ör. kalde vana 1/2)" className="[&_input]:h-11 [&_input]:!border-[#E2EAF3]" />
+          <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] gap-2 min-w-0 flex-1">
+          <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" className="[&_input]:h-9 [&_input]:!text-sm [&_input]:!border-[#E2EAF3]" />
+          <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara" className="[&_input]:h-9 [&_input]:!text-sm [&_input]:!border-[#E2EAF3]" />
           </div>
           {actions && <div className="flex flex-wrap gap-2 shrink-0">{actions}</div>}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
-          <select value={filters.price} onChange={e => setFilter('price', e.target.value as MaterialFilters['price'])} className={selectCls} aria-label="Fiyat durumu">
-            <option value="">Fiyat: Tümü</option>
-            <option value="priced">Fiyatlı</option>
-            <option value="unpriced">Fiyatsız</option>
-          </select>
-          <select value={filters.currency} onChange={e => setFilter('currency', e.target.value as MaterialFilters['currency'])} className={selectCls} aria-label="Para birimi">
-            <option value="">Para Birimi: Tümü</option>
-            {CURRENCIES.map(c => <option key={c} value={c}>{CURRENCY_LABEL[c]}</option>)}
-          </select>
-          <select value={filters.stock} onChange={e => setFilter('stock', e.target.value as MaterialFilters['stock'])} className={selectCls} aria-label="Stok durumu">
-            <option value="">Stok: Tümü</option>
-            <option value="in">Stokta var</option>
-            <option value="zero">Stok yok (0)</option>
-            <option value="negative">Eksi stok</option>
-          </select>
+        <div className="grid grid-cols-2 gap-2">
           <select value={filters.unit} onChange={e => setFilter('unit', e.target.value)} className={selectCls} aria-label="Birim">
             <option value="">Birim: Tümü</option>
             {MATERIAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
@@ -168,7 +153,7 @@ const OwnMaterials: React.FC<{
             always
             sort={sort}
             onChange={setSort}
-            className={`${selectCls} col-span-2 sm:col-span-1`}
+            className={selectCls}
             options={[
               { key: 'default', dir: 'asc', label: 'Sıra: Önerilen' },
               { key: 'name', dir: 'asc', label: 'Ad (A → Z)' },
