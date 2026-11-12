@@ -109,7 +109,7 @@ const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
 /** Fotoğraflı başlık (Teklifler): sağda tesisat fotoğrafı, solda büyük başlık; telefonda küçük fotoğraf */
 export type Hero = { lg?: string; sm?: string; /** fotoğraf yerine çizim (Malzemeler) */ art?: React.ReactNode; /** Müşteriler: açık mavi zemin, #006DBB düğme, ~155px */ cust?: boolean; /** Malzemeler: tam genişlikte koyu mavi fotoğraf */ materials?: boolean; /** Teklifler: fotoğrafı tablet ve telefonda daha görünür konumlandır */ quotes?: boolean; /** Talepler, Tahsilat, Harcama, Yönetim: fotoğraf sağda, solu maskeyle zemine karışır */ center?: boolean };
 /** Bant fotoğrafının ortak ölçüsü (sekme değişince geçiş yeri kaymaz) */
-export const HERO_PHOTO = 'pointer-events-none select-none absolute inset-y-0 right-0 h-full w-[72%] sm:w-[64%] md:w-[58%] [mask-image:linear-gradient(to_right,transparent_0%,transparent_20%,rgba(0,0,0,0.5)_28%,black_36%)]';
+export const HERO_PHOTO = 'pointer-events-none select-none absolute inset-y-0 right-0 h-full w-[72%] sm:w-[64%] md:w-[58%] [mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.35)_14%,black_28%)]';
 export const HERO_IMG: Partial<Record<ActiveTab, Hero>> = {
   quotes: { lg: '/hero-teklifler-2.webp', sm: '/hero-teklifler-2-sm.webp', quotes: true },
   requests: { lg: '/hero-talepler-2.webp', sm: '/hero-talepler-2-sm.webp', center: true },
