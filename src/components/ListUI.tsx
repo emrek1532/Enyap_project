@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Clock, XCircle, PauseCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Clock, XCircle, PauseCircle, Plus } from 'lucide-react';
 
 /** Liste sayfalarının ortak görünümü (Teklifler, Müşteriler, Malzemeler, Tahsilat) */
 /** Geniş ekran mı (xl, 1280px+): listeler ya tablo ya kart olarak çizilir, ikisi birden değil (daha hızlı) */
@@ -127,6 +127,14 @@ export const Pager: React.FC<{ page: number; total: number; size: number; onPage
  * Arama + filtreler: telefonda yalnız arama kutusu ve "Filtreler" düğmesi görünür, filtreler dokununca açılır
  * (sayfa sade kalır); tablet/bilgisayarda filtreler hep açıktır.
  */
+/** Liste sayfalarında "Yeni …" düğmesi: arama kutusunun yanında (telefonda yalnız +) */
+export const NewButton: React.FC<{ label: string; onClick: () => void }> = ({ label, onClick }) => (
+  <button type="button" onClick={onClick} title={label} aria-label={label}
+    className="shrink-0 h-10 px-3 sm:px-4 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#006DBB] hover:bg-[#173F73] text-white text-sm font-bold shadow-[0_10px_22px_-14px_rgba(0,114,206,0.95)] transition-colors">
+    <Plus className="w-5 h-5" /><span className="hidden sm:inline whitespace-nowrap">{label}</span>
+  </button>
+);
+
 export const FilterBar: React.FC<{ search: React.ReactNode; active?: number; children: React.ReactNode; className?: string }> = ({ search, active = 0, children, className = 'flex flex-col xl:flex-row gap-2' }) => {
   const [open, setOpen] = useState(false);
   return (
