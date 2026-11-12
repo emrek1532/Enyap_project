@@ -142,14 +142,15 @@ const OwnMaterials: React.FC<{
           <SearchBox mono value={codeQuery} onChange={v => { setCodeQuery(v); if (v) setQuery(''); }} placeholder="Kod ara" className="[&_input]:h-9 [&_input]:!text-sm [&_input]:!border-[#E2EAF3]" />
           <SearchBox value={query} onChange={v => { setQuery(v); if (v) setCodeQuery(''); }} placeholder="Malzeme adı ara" className="[&_input]:h-9 [&_input]:!text-sm [&_input]:!border-[#E2EAF3]" />
           </div>
-          {actions && <div className="flex flex-wrap gap-2 shrink-0">{actions}</div>}
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          {actions && <div className="flex gap-2 shrink-0">{actions}</div>}
+          <div className="min-w-0 flex-1">
           <MobileSortSelect<MaterialSortKey>
             always
             sort={sort}
             onChange={setSort}
-            className={selectCls}
+            className={`${selectCls} h-11`}
             options={[
               { key: 'default', dir: 'asc', label: 'Sıra: Önerilen' },
               { key: 'name', dir: 'asc', label: 'Ad (A → Z)' },
@@ -162,6 +163,7 @@ const OwnMaterials: React.FC<{
               { key: 'updated', dir: 'desc', label: 'Son güncellenen' },
             ]}
           />
+          </div>
         </div>
         {(loading || anything || lastImport) && <div className="text-xs text-[#5E7491] flex items-center gap-x-2 gap-y-1 flex-wrap">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
