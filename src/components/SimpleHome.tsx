@@ -287,14 +287,14 @@ export const SimpleHome: React.FC<{
 
       {/* 2. Arama (tablet/bilgisayar) + dönem seçimi */}
       {(canQuotes || canMoney) && (
-        <div className="flex flex-col xl:flex-row xl:items-center gap-2.5 sm:gap-3">
-          <button onClick={() => onOpenTool('search')} className="hidden md:flex xl:flex-1 w-full min-w-0 shrink-0 items-center gap-3 h-12 px-4 rounded-2xl bg-white border border-white text-left text-slate-500 shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)] hover:border-sky-200">
+        <div className="flex flex-col md:flex-row md:items-center gap-2.5 sm:gap-3">
+          <button onClick={() => onOpenTool('search')} className="hidden md:flex md:flex-1 w-full min-w-0 items-center gap-3 h-12 px-4 rounded-2xl bg-white border border-white text-left text-slate-500 shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)] hover:border-sky-200">
             <Search className="w-5 h-5 text-brand-600 shrink-0" /><span className="truncate text-[15px]">Ara, tekliflere sor, teklif hazırla ya da sesle kaydet…</span>
           </button>
-          <div className="flex items-center gap-2 xl:shrink-0">
-            <div className="flex flex-1 xl:flex-none items-center h-12 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]">
+          <div className="flex items-center gap-2 md:shrink-0">
+            <div className="flex flex-1 md:flex-none items-center h-12 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]">
               <button onClick={() => stepPeriod(-1)} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#173F73]" aria-label={isYear ? 'Önceki yıl' : 'Önceki ay'}><ChevronLeft className="w-5 h-5" /></button>
-              <span className="flex-1 xl:w-36 flex items-center justify-center gap-1.5 text-sm font-black text-[#173F73] whitespace-nowrap"><CalendarDays className="w-4 h-4 text-brand-500" />{title}</span>
+              <span className="flex-1 md:w-36 flex items-center justify-center gap-1.5 text-sm font-black text-[#173F73] whitespace-nowrap"><CalendarDays className="w-4 h-4 text-brand-500" />{title}</span>
               <button onClick={() => stepPeriod(1)} disabled={isCurrent} className="w-11 h-full flex items-center justify-center text-slate-500 hover:text-[#173F73] disabled:opacity-25" aria-label={isYear ? 'Sonraki yıl' : 'Sonraki ay'}><ChevronRight className="w-5 h-5" /></button>
             </div>
             <div className="flex h-12 p-1 rounded-2xl bg-white border border-white shadow-[0_12px_28px_-20px_rgba(15,60,120,0.7)]" role="tablist" aria-label="Dönem türü">
