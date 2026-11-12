@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, BellOff, Loader2, Mic, Send, Square, X } from 'lucide-react';
+import { Bell, BellOff, Loader2, Mic, Send, Square, UserRound, X } from 'lucide-react';
 import { QuickNote, UserRole } from '../types';
 import { canRecord, startRecording, RecordingHandle } from '../lib/recorder';
 import { canSpeech, listen, SpeechSession } from '../lib/speech';
 import { supabase } from '../lib/supabase';
 import { formatReminder, parseReminder, toLocalInput } from '../lib/noteTime';
+import type { Assignee } from '../lib/requests';
 
 /** Sesi yazıya çevirir (sunucudaki Whisper) */
 async function transcribe(audio: string): Promise<string> {
@@ -38,11 +39,15 @@ export const NoteComposer: React.FC<{
   autoFocus?: boolean;
   onSave: (note: QuickNote) => void;
   onCancelEdit?: () => void;
-}> = ({ currentRole, editing, autoFocus, onSave, onCancelEdit }) => {
+  /** Görev verilebilecek kişiler (boşsa "Kime" satırı gösterilmez) */
+  assignees?: Assignee[];
+  meId?: string;
+}> = ({ currentRole, editing, autoFocus, onSave, onCancelEdit, assignees = [], meId }) => {
   const [text, setText] = useState(editing?.content || '');
   const [remindAt, setRemindAt] = useState<string | null>(editing?.remindAt || null);
   const [manualRemind, setManualRemind] = useState(!!editing?.remindAt);
   const [showPicker, setShowPicker] = useState(false);
+  const [assignedTo, setAssignedTo] = useState<string | null>(editing?.assignedTo || null);
   const [rec, setRec] = useState<RecordingHandle | SpeechSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -50,7 +55,7 @@ export const NoteComposer: React.FC<{
 
   useEffect(() => {
     setText(editing?.content || ''); setRemindAt(editing?.remindAt || null);
-    setManualRemind(!!editing?.remindAt); setShowPicker(false);
+    setManualRemind(!!editing?.remindAt); setShowPicker(false); setAssignedTo(editing?.assignedTo || null);
   }, [editing?.id]);
 
   // Yazılan metinden hatırlatma zamanı (elle seçilmediyse)
@@ -113,10 +118,17 @@ export const NoteComposer: React.FC<{
       remindAt,
       remindedAt: changedTime ? null : editing?.remindedAt || null,
       done: editing?.done || false,
+      createdBy: editing?.createdBy ?? meId ?? null,
+      assignedTo,
+      doneAt: editing?.doneAt ?? null,
+      doneBy: editing?.doneBy ?? null,
     });
-    setText(''); setRemindAt(null); setManualRemind(false); setShowPicker(false);
+    setText(''); setRemindAt(null); setManualRemind(false); setShowPicker(false); setAssignedTo(null);
   };
 
+  // Başkasına atanmış görevi atanan kişi düzenlerken atamayı değiştiremez
+  const others = assignees.filter(a => a.id !== meId);
+  const lockAssign = !!editing?.assignedTo && editing.assignedTo === meId && editing.createdBy !== meId;
   const chip = 'px-2.5 py-1 rounded-full border text-xs font-bold whitespace-nowrap';
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-2.5 space-y-2">
@@ -128,7 +140,7 @@ export const NoteComposer: React.FC<{
           onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) save(); }}
           rows={text.length > 60 ? 3 : 1}
-          placeholder={rec ? 'Dinliyorum… konuşun' : 'Not yazın ya da söyleyin…'}
+          placeholder={rec ? 'Dinliyorum… konuşun' : assignedTo ? 'Görevi yazın ya da söyleyin…' : 'Not yazın ya da söyleyin…'}
           className="flex-1 min-w-0 resize-none px-3 py-2 rounded-xl border border-slate-200 text-sm leading-snug focus:outline-none focus:border-brand-400"
         />
         <button type="button" onClick={mic} disabled={busy} title={rec ? 'Kaydı bitir' : 'Sesle yaz'}
@@ -158,6 +170,17 @@ export const NoteComposer: React.FC<{
           <button type="button" className={`${chip} border-slate-200 text-slate-500 ml-auto`} onClick={onCancelEdit}>Vazgeç</button>
         )}
       </div>
+      {others.length > 0 && !lockAssign && (
+        <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
+          <span className="text-xs font-bold text-slate-500 inline-flex items-center gap-1 shrink-0"><UserRound className="w-3 h-3" /> Kime:</span>
+          <button type="button" onClick={() => setAssignedTo(null)}
+            className={`${chip} ${!assignedTo ? 'bg-slate-800 border-slate-800 text-white' : 'border-slate-200 text-slate-600'}`}>Kendime not</button>
+          {others.map(a => (
+            <button key={a.id} type="button" onClick={() => setAssignedTo(a.id)}
+              className={`${chip} ${assignedTo === a.id ? 'bg-brand-600 border-brand-600 text-white' : 'border-slate-200 text-slate-600'}`}>{a.fullName}</button>
+          ))}
+        </div>
+      )}
       {showPicker && (
         <input type="datetime-local" defaultValue={toLocalInput(remindAt ? new Date(remindAt) : new Date(Date.now() + 3600e3))}
           onChange={e => e.target.value && pick(new Date(e.target.value))}

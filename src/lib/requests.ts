@@ -66,6 +66,12 @@ export async function fetchAssignees(): Promise<Assignee[]> {
   return ((data || []) as Row[]).map(r => ({ id: r.id, fullName: r.full_name }));
 }
 
+/** Not/görev verilebilecek kişiler (aktif, notları düzenleyebilen) */
+export async function fetchNoteAssignees(): Promise<Assignee[]> {
+  const data = must(await supabase.rpc('note_assignees'));
+  return ((data || []) as Row[]).map(r => ({ id: r.id, fullName: r.full_name }));
+}
+
 /** Dosyayı yükler: fotoğraf küçültülür (JPEG), Excel/PDF olduğu gibi */
 async function uploadFile(reqId: string, f: File): Promise<ReqFile> {
   let body: Blob = f, type = f.type || 'application/octet-stream', name = f.name || 'dosya';

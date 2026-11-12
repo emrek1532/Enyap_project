@@ -823,14 +823,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   // Bekleyen işler: bana atanan açık talepler, (yöneticiyse) kontrol bekleyen teklifler → menüde ve uygulama simgesinde sayı
   const myOpenRequests = requests.filter(r => r.assignedTo === profile.id && (r.status === 'yeni' || r.status === 'hazirlaniyor')).length;
   const reviewCount = profile.isAdmin ? data.quotes.filter(q => q.reviewPending).length : 0;
-  const navBadge: Partial<Record<ActiveTab, number>> = { requests: myOpenRequests, quotes: reviewCount };
+  const myOpenTasks = data.notes.filter(n => !n.done && n.assignedTo === profile.id).length;
+  const navBadge: Partial<Record<ActiveTab, number>> = { requests: myOpenRequests, quotes: reviewCount, notes: myOpenTasks };
   const navSections = MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title, badge: navBadge[id] || 0 }));
   useEffect(() => {
     const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
-    const total = myOpenRequests + reviewCount;
+    const total = myOpenRequests + reviewCount + myOpenTasks;
     if (!nav.setAppBadge) return;
     (total > 0 ? nav.setAppBadge(total) : nav.clearAppBadge?.())?.catch(() => undefined);
-  }, [myOpenRequests, reviewCount]);
+  }, [myOpenRequests, reviewCount, myOpenTasks]);
   const userEmail = session.user.email || '';
   const userName = profile.fullName || userEmail.split('@')[0] || 'Kullanıcı';
   const roleLabel = profile.isAdmin ? 'Yönetici' : currentRole === 'istanbul' ? 'İstanbul ekibi' : 'Isparta ekibi';
@@ -1063,6 +1064,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             onSaveNote={handleSaveNote}
             onDeleteNote={canRemove ? handleDeleteNote : noRemove}
             highlightId={highlightNote}
+            meId={profile.id}
           />
         )}
 
