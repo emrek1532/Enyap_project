@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X, MapPin } from 'lucide-react';
+import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X, MapPin, PackageCheck, Loader2 } from 'lucide-react';
 import { listCard, ctrl, rowCls, theadCls, SearchBox, ChipRow, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, isPendingQuote, isExpiring, daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
@@ -15,7 +15,7 @@ import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
 import { usePriceChanges } from '../lib/priceWatch';
 import { textMatcher } from '../lib/materials';
-import { PENDING_REASONS, splitReason } from '../lib/quoteRules';
+import { PENDING_REASONS, splitReason, isOrderWaiting } from '../lib/quoteRules';
 import { DateInput } from './DateInput';
 
 const LIST_PAGE = 25;
@@ -60,6 +60,8 @@ interface QuoteManagerProps {
   onMarkReviewed?: (quote: Quote) => void;
   /** Sadece görüntüleme yetkisi: onay/düzenle/sil düğmeleri gizlenir */
   readOnly?: boolean;
+  /** "Siparişe aldım" (sunucuya yazar; başarıysa true) */
+  onMarkProcessed?: (quote: Quote) => Promise<boolean>;
   statusFilter: string;
   onStatusFilterChange: (filter: string) => void;
   /** Bu teklifin detayını aç (ör. kaydedildikten hemen sonra) */
@@ -81,6 +83,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   onPrintQuote,
   onEditQuote,
   onMarkReviewed,
+  onMarkProcessed,
   readOnly = false,
   statusFilter,
   onStatusFilterChange: setStatusFilter,
@@ -175,6 +178,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               ? needsFollowUp(quote)
               : statusFilter === 'pasif'
                 ? isPassive(quote)
+              : statusFilter === 'siparis'
+                ? isOrderWaiting(quote)
               : statusFilter === 'expiring'
                 ? isExpiring(quote, today)
                 : quote.status === statusFilter);
@@ -205,6 +210,9 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
     [quotes]
   );
   const followUpCount = useMemo(() => quotes.filter(needsFollowUp).length, [quotes]);
+  const orderCount = useMemo(() => quotes.filter(isOrderWaiting).length, [quotes]);
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [processErr, setProcessErr] = useState('');
   const expiringCount = useMemo(() => quotes.filter(q => isExpiring(q, today)).length, [quotes, today]);
   // Hızlı tarih aralıkları: [etiket, başlangıç, bitiş]
   const datePresets = useMemo((): [string, string, string][] => {
@@ -305,7 +313,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
   // Kayıtlı filtreler
   const saveCurrent = () => {
-    const def = [statusFilter !== 'all' ? ({ aktif: 'Beklemede', takip: 'Görüşülecek', expiring: 'Süresi dolan', onaylandi: 'Onaylı', iptal: 'İptal' } as Record<string, string>)[statusFilter] : '', cityFilter !== 'all' ? cityFilter : '', activePreset || '', searchTerm.trim()].filter(Boolean).join(' · ');
+    const def = [statusFilter !== 'all' ? ({ aktif: 'Beklemede', siparis: 'Sipariş bekleyen', takip: 'Görüşülecek', expiring: 'Süresi dolan', onaylandi: 'Onaylı', iptal: 'İptal' } as Record<string, string>)[statusFilter] : '', cityFilter !== 'all' ? cityFilter : '', activePreset || '', searchTerm.trim()].filter(Boolean).join(' · ');
     const name = prompt('Bu filtreye bir ad verin', def || 'Filtrem')?.trim();
     if (!name) return;
     setSaved([...saved.filter(f => f.name !== name), { name, status: statusFilter, city: cityFilter, from: dateFrom, to: dateTo, search: searchTerm, preset: activePreset }].slice(-8));
@@ -335,6 +343,17 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Sipariş bekleyen: onaylanmış, henüz siparişe alınmamış teklifler */}
+      {orderCount > 0 && (
+        <button type="button" onClick={() => { setStatusFilter(statusFilter === 'siparis' ? 'all' : 'siparis'); setPage(0); }}
+          className={`w-full mb-3 flex items-center gap-3 px-4 py-3 rounded-2xl border text-left transition ${statusFilter === 'siparis' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100'}`}>
+          <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${statusFilter === 'siparis' ? 'bg-white/15' : 'bg-emerald-600 text-white'}`}><PackageCheck className="w-5 h-5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-black">Sipariş bekleyen · {orderCount} teklif</span>
+            <span className={`block text-xs ${statusFilter === 'siparis' ? 'text-emerald-50' : 'text-emerald-700'}`}>{statusFilter === 'siparis' ? 'Tüm tekliflere dönmek için dokunun' : 'Onaylandı, siparişe alınmayı bekliyor · göster'}</span>
+          </span>
+        </button>
+      )}
       <div className={listCard}>
         {/* Filtreler */}
         <FilterBar className="p-3 sm:p-4 flex flex-col xl:flex-row gap-2" active={(statusFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
@@ -346,6 +365,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               <option value="pasif">Pasif (neden seçilmiş)</option>
               <option value="takip">Tekrar Görüşülecek ({followUpCount})</option>
               <option value="expiring">Süresi Dolanlar ({expiringCount})</option>
+              <option value="siparis">Sipariş Bekleyen ({orderCount})</option>
               <option value="onaylandi">Onaylandı</option>
               <option value="iptal">İptal</option>
             </select>
@@ -633,11 +653,24 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                           ? <>Onaylayan: <b>{live.approvedBy}</b>{live.approvedAt && <> · {new Date(live.approvedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>}</>
                           : <b>Onaylandı</b>}
                         {live.processedAt && <><br />📦 Siparişe alan: <b>{live.processedBy || '—'}</b> · {new Date(live.processedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>}
-                        {live.approvedAt && !live.processedAt && <><br /><span className="text-amber-700">Siparişe alınmayı bekliyor</span></>}
+                        {live.approvedAt && !live.processedAt && <><br /><span className="text-amber-700 font-bold">Siparişe alınmayı bekliyor</span></>}
                       </span>
+                      {isOrderWaiting(live) && !readOnly && onMarkProcessed && (
+                        <button type="button" disabled={processing === live.id}
+                          onClick={async () => {
+                            setProcessing(live.id); setProcessErr('');
+                            const ok = await onMarkProcessed(live);
+                            setProcessing(null);
+                            if (!ok) setProcessErr('Kaydedilemedi, tekrar deneyin.');
+                          }}
+                          className="ml-auto shrink-0 inline-flex items-center gap-1.5 px-3 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black disabled:opacity-60">
+                          {processing === live.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackageCheck className="w-4 h-4" />} Siparişe aldım
+                        </button>
+                      )}
                     </div>
                   );
                 })()}
+                {processErr && selectedQuote.status === 'onaylandi' && <div className="mt-1 text-xs text-rose-700">{processErr}</div>}
                 {selectedQuote.status === 'gonderildi' && (() => {
                   const cur = splitReason(selectedQuote.lostReason);
                   const save = (reason: string, note: string) => {

@@ -38,11 +38,10 @@ import { Header, BandTools } from './components/Header';
 import type { ActiveTab } from './components/Sections';
 import { HERO_IMG, PageHeader, SECTION_META, SECTION_SUB } from './components/Sections';
 import { Sidebar } from './components/Sidebar';
-import { needsFollowUp, nextRev, quoteNo, supersededMap } from './lib/quoteRules';
+import { isOrderWaiting, needsFollowUp, nextRev, quoteNo, supersededMap } from './lib/quoteRules';
 import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
 import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
-import { ApprovedOrderGate } from './components/ApprovedOrderGate';
 import { RequestsPanel, SharedRequestInput, readAndStore } from './components/RequestsPanel';
 import { Assignee, QuoteRequest, fetchAssignees, fetchRequest, fetchRequests, patchRequest, rowsToDraft, subscribeRequests } from './lib/requests';
 import { PREF_KEY, PrefRule } from './lib/requestRead';
@@ -721,6 +720,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   };
 
   // Update Quote Status
+  // "Siparişe aldım": sunucu kim/ne zaman yazar, yöneticiye bildirim gider
+  const markProcessed = async (quote: Quote): Promise<boolean> => {
+    const { data: ok, error } = await supabase.rpc('mark_quote_processed', { p_id: quote.id });
+    if (error) return false;
+    const by = ok ? (profile.fullName || session.user.email || '') : (quote.processedBy || '');
+    mutate(d => ({ ...d, quotes: d.quotes.map(q => q.id === quote.id ? { ...q, processedAt: new Date().toISOString(), processedBy: by } : q) }));
+    return true;
+  };
+
   const handleUpdateQuoteStatus = (id: string, status: QuoteStatus, lostReason?: string) => {
     const target = data.quotes.find(q => q.id === id);
     if (!target) return;
@@ -831,20 +839,18 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const myOpenRequests = requests.filter(r => r.assignedTo === profile.id && (r.status === 'yeni' || r.status === 'hazirlaniyor')).length;
   const reviewCount = profile.isAdmin ? data.quotes.filter(q => q.reviewPending).length : 0;
   const myOpenTasks = data.notes.filter(n => !n.done && n.assignedTo === profile.id).length;
-  const navBadge: Partial<Record<ActiveTab, number>> = { requests: myOpenRequests, quotes: reviewCount, notes: myOpenTasks };
+  // Sipariş bekleyen: onaylanmış, henüz "Siparişe aldım" denmemiş (ekipte menü/simge sayısına eklenir)
+  const orderWaiting = !profile.isAdmin && can(profile, 'quotes', 'edit') ? data.quotes.filter(isOrderWaiting).length : 0;
+  const navBadge: Partial<Record<ActiveTab, number>> = { requests: myOpenRequests, quotes: reviewCount + orderWaiting, notes: myOpenTasks };
   const navSections = MENU_ORDER.filter(tabAllowed).map(id => ({ id, ...SECTION_META[id], title: MENU_TITLE[id] || SECTION_META[id].title, badge: navBadge[id] || 0 }));
   useEffect(() => {
     const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
-    const total = myOpenRequests + reviewCount + myOpenTasks;
+    const total = myOpenRequests + reviewCount + myOpenTasks + orderWaiting;
     if (!nav.setAppBadge) return;
     (total > 0 ? nav.setAppBadge(total) : nav.clearAppBadge?.())?.catch(() => undefined);
-  }, [myOpenRequests, reviewCount, myOpenTasks]);
+  }, [myOpenRequests, reviewCount, myOpenTasks, orderWaiting]);
   const userEmail = session.user.email || '';
   const userName = profile.fullName || userEmail.split('@')[0] || 'Kullanıcı';
-  // Onaylanmış, siparişe alınmamış teklifler (yalnız onay sonrası özellikle gelenler: approvedAt dolu)
-  const orderGate = !profile.isAdmin && can(profile, 'quotes', 'edit')
-    ? data.quotes.filter(q => q.status === 'onaylandi' && q.approvedAt && !q.processedAt).sort((a, b) => (a.approvedAt || '').localeCompare(b.approvedAt || ''))
-    : [];
   const roleLabel = profile.isAdmin ? 'Yönetici' : currentRole === 'istanbul' ? 'İstanbul ekibi' : 'Isparta ekibi';
   const toolAllow = { quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') };
   const tools = toolList(tabAllowed('quotes'), toolAllow, allowed(profile, 'ai'));
@@ -1031,6 +1037,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             olderVersions={olderVersions}
             onEditQuote={setEditingQuote}
             onMarkReviewed={markReviewed}
+            onMarkProcessed={markProcessed}
             readOnly={!can(profile, 'quotes', 'edit')}
             statusFilter={quoteFilter}
             onStatusFilterChange={setQuoteFilter}
@@ -1206,15 +1213,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           initialPdf={sharedPdf}
           onSaveQuote={handleUpdateQuote}
           onClose={() => { setEditingQuote(null); setSharedPdf(null); }}
-        />
-      )}
-
-      {/* Onaylanan teklif: ekip "Siparişe aldım" demeden devam edemez (yönetici hariç) */}
-      {orderGate.length > 0 && (
-        <ApprovedOrderGate
-          quotes={orderGate}
-          meName={userName}
-          onDone={(id, by) => mutate(d => ({ ...d, quotes: d.quotes.map(q => q.id === id ? { ...q, processedAt: new Date().toISOString(), processedBy: by || q.processedBy || '' } : q) }))}
         />
       )}
 

@@ -130,3 +130,6 @@ export function supersededMap(quotes: Quote[]): Map<string, Quote> {
   }
   return out;
 }
+
+/** Onaylanmış, henüz "Siparişe aldım" denmemiş teklif (yalnız onay bilgisi kaydedilenler: approvedAt dolu) */
+export const isOrderWaiting = (q: Quote) => q.status === 'onaylandi' && !!q.approvedAt && !q.processedAt;
