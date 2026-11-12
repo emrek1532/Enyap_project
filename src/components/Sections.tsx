@@ -74,22 +74,22 @@ export const StatBox: React.FC<{
   const SI = icon || statIcon(label);
   const body = (<>
     <Wave cls={t.wave} />
-    <span className={`relative hidden sm:flex w-11 h-11 rounded-xl items-center justify-center shrink-0 shadow-sm ${t.icon}`}><SI className="w-5 h-5" /></span>
+    <span className={`relative hidden sm:flex md:hidden xl:flex w-11 h-11 rounded-xl items-center justify-center shrink-0 shadow-sm ${t.icon}`}><SI className="w-5 h-5" /></span>
     <span className="relative min-w-0 flex-1">
-      <span className={`flex items-center gap-1.5 text-[11px] sm:text-[13px] font-bold truncate ${t.label || 'text-slate-600'}`}>
+      <span className={`flex items-center gap-1.5 text-[11px] sm:text-[13px] md:text-[11.5px] xl:text-[13px] font-bold leading-snug md:whitespace-normal md:line-clamp-2 xl:truncate ${t.label || 'text-slate-600'}`}>
         <span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.dot || t.icon}`} />{label}
       </span>
-      <span className={`block mt-0.5 text-base sm:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
+      <span className={`block mt-0.5 text-base sm:text-xl md:text-[14px] lg:text-lg xl:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] md:text-[14px] lg:text-lg xl:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
       {trend != null ? (
-        <span className="flex items-center gap-1 text-[11px] sm:text-xs truncate">
+        <span className="flex items-center gap-1 text-[11px] sm:text-xs md:text-[10.5px] xl:text-xs truncate">
           <b className={`tabular-nums ${trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
-          <span className="text-slate-500 truncate">geçen aya göre</span>
+          <span className="text-slate-500 truncate">geçen aya<span className="md:hidden xl:inline"> göre</span></span>
         </span>
-      ) : sub && <span className="block text-[11px] sm:text-xs text-slate-500 truncate">{sub}</span>}
+      ) : sub && <span className="block text-[11px] sm:text-xs md:text-[10.5px] xl:text-xs text-slate-500 truncate">{sub}</span>}
     </span>
     {onClick && <ChevronRight className="relative hidden sm:block w-4 h-4 text-slate-400 shrink-0 self-start" />}
   </>);
-  const cls = `${className} relative overflow-hidden flex items-center gap-3 rounded-2xl border ${t.box} px-3 py-3 sm:px-4 sm:py-3.5 min-w-0 text-left shadow-[0_10px_26px_-22px_rgba(15,60,120,0.6)]${t.value ? ' transition-shadow duration-200 hover:shadow-[0_14px_30px_-20px_rgba(15,60,120,0.55)]' : ''}`;
+  const cls = `${className} relative overflow-hidden flex items-center gap-3 md:gap-2 xl:gap-3 rounded-2xl border ${t.box} px-3 py-3 sm:px-4 sm:py-3.5 md:px-2.5 md:py-3 lg:px-3 xl:px-4 xl:py-3.5 min-w-0 text-left shadow-[0_10px_26px_-22px_rgba(15,60,120,0.6)]${t.value ? ' transition-shadow duration-200 hover:shadow-[0_14px_30px_-20px_rgba(15,60,120,0.55)]' : ''}`;
   return onClick
     ? <button type="button" onClick={onClick} title={typeof sub === 'string' ? sub : undefined} className={`${cls} transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]`}>{body}</button>
     : <div className={cls} title={typeof sub === 'string' && trend != null ? sub : undefined}>{body}</div>;
@@ -98,10 +98,10 @@ export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 type Stat = { label: string; value: string; sub?: string; trend?: number | null };
 const StatGrid: React.FC<{ stats: Stat[] }> = ({ stats }) => (
-  <div className={`grid grid-cols-2 ${stats.length === 3 ? 'lg:grid-cols-3' : 'xl:grid-cols-4'} gap-2.5 sm:gap-3`}>
+  <div className={`grid grid-cols-2 ${stats.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-2.5 sm:gap-3`}>
     {stats.map((s, i) => (
       <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)}
-        className={stats.length % 2 && i === stats.length - 1 ? 'col-span-2 lg:col-span-1' : ''} />
+        className={stats.length % 2 && i === stats.length - 1 ? 'col-span-2 md:col-span-1' : ''} />
     ))}
   </div>
 );
