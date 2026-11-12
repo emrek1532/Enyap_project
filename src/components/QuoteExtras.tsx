@@ -89,12 +89,13 @@ type Version = { key: string; label: string; at: string; quote: Quote };
  * Revizyon geçmişi: teklif her değiştiğinde eski hâli saklanır; seçilen sürüm şimdiki hâlle kalem kalem karşılaştırılır,
  * her sürümün PDF'i alınabilir. Eski usulde ayrı numarayla girilmiş önceki sürümler (63470 → 63470-R1) de burada çıkar.
  */
-export const RevisionsBox: React.FC<{ quote: Quote; rates: Rates; older?: Quote[]; onPrint?: (q: Quote) => void }> = ({ quote, rates, older = [], onPrint }) => {
-  const [open, setOpen] = useState(false);
+export const RevisionsBox: React.FC<{ quote: Quote; rates: Rates; older?: Quote[]; onPrint?: (q: Quote) => void; embedded?: boolean }> = ({ quote, rates, older = [], onPrint, embedded }) => {
+  // embedded: teklif detayındaki sekmede açık gelir, kendi başlık/çerçevesi olmaz (açıp kapama sekmede)
+  const [open, setOpen] = useState(!!embedded);
   const [revs, setRevs] = useState<QuoteRevision[] | null>(null);
   const [err, setErr] = useState('');
   const [pick, setPick] = useState<string | null>(null);
-  useEffect(() => { setOpen(false); setRevs(null); setPick(null); setErr(''); }, [quote.id]);
+  useEffect(() => { setOpen(!!embedded); setRevs(null); setPick(null); setErr(''); }, [quote.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!open || revs) return;
     const demo = (globalThis as { __enyapDemoRevisions?: Record<string, QuoteRevision[]> }).__enyapDemoRevisions; // yalnız deneme sayfası
@@ -137,13 +138,13 @@ export const RevisionsBox: React.FC<{ quote: Quote; rates: Rates; older?: Quote[
   const nowLabel = quoteNo(quote);
   const btn = 'h-7 px-2.5 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50';
   return (
-    <div className="rounded-xl border border-slate-200">
-      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left">
+    <div className={embedded ? '' : 'rounded-xl border border-slate-200'}>
+      {!embedded && <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left">
         <span className="flex items-center gap-1.5 text-xs font-bold text-slate-700"><History className="w-4 h-4 text-brand-500" />Revizyon geçmişi{older.length ? <span className="text-slate-500 font-normal">· {older.length} eski kayıt</span> : null}</span>
         <span className="text-[11px] font-bold text-brand-600">{open ? 'Gizle' : 'Göster'}</span>
-      </button>
+      </button>}
       {open && (
-        <div className="px-3 pb-3 space-y-2">
+        <div className={embedded ? 'space-y-2' : 'px-3 pb-3 space-y-2'}>
           {!revs && !err && <div className="py-3 flex items-center gap-2 text-xs text-slate-500"><Loader2 className="w-4 h-4 animate-spin" />Okunuyor…</div>}
           {err && <p className="text-xs text-rose-600">{err}</p>}
           {revs && versions.length === 0 && <p className="text-xs text-slate-500">Henüz revizyon yok. Teklif düzenlenip kalemleri ya da tutarı değişince eski hâli burada saklanır ve numara {quote.quoteNumber}-R1, -R2… diye ilerler.</p>}

@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Printer, Share2, Trash2, Pencil, Eye, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X, MapPin } from 'lucide-react';
+import { Printer, Share2, Trash2, Pencil, Eye, Clock, CheckCircle2, XCircle, History, StickyNote, ChevronRight, ChevronDown, Package, MoreHorizontal, Check, FileText, Filter, CalendarDays, LayoutList, Columns3, Phone, BellRing, Bookmark, X, MapPin } from 'lucide-react';
 import { listCard, ctrl, rowCls, theadCls, SearchBox, ChipRow, StatusPill, IconBtn, Pager, FilterBar, WideOnly, NarrowOnly } from './ListUI';
 import { Quote, QuoteStatus, UserRole } from '../types';
 import { needsFollowUp, quoteAgeInDays, isPendingQuote, isExpiring, daysToExpiry, expiryLabel, followLabel, plusDays } from '../lib/quoteRules';
@@ -17,6 +17,7 @@ import { usePriceChanges } from '../lib/priceWatch';
 import { textMatcher } from '../lib/materials';
 import { PENDING_REASONS, splitReason } from '../lib/quoteRules';
 import { DateInput } from './DateInput';
+import { PipeArt } from './HeroArt';
 
 const LIST_PAGE = 25;
 
@@ -114,6 +115,10 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
   const today = localDay();
   const [reasonNote, setReasonNote] = useState('');
   useEffect(() => setReasonNote(splitReason(selectedQuote?.lostReason).note), [selectedQuote?.id]);
+  // Teklif detayı alt sekmeleri (Revizyon geçmişi / Teklif notları); kapalı başlar, revizyonlar yalnız açılınca okunur
+  const [detailTab, setDetailTab] = useState<'rev' | 'notes'>('rev');
+  const [detailOpen, setDetailOpen] = useState(false);
+  useEffect(() => { setDetailTab('rev'); setDetailOpen(false); }, [selectedQuote?.id]);
   useEffect(() => {
     const q = focusQuote && quotes.find(x => x.id === focusQuote.id);
     if (q) setSelectedQuote(q);
@@ -543,36 +548,35 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       {/* Quote Detail & Action Modal */}
       {selectedQuote && (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4" onClick={() => setSelectedQuote(null)}>
-          <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl sm:rounded-3xl h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl sm:rounded-3xl h-full sm:h-auto sm:max-h-[92vh] overflow-y-auto shadow-2xl">
             
-            {/* Modal Header */}
-            <div className="sticky top-0 z-10 px-4 sm:px-6 py-4 pt-safe-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs tabular-nums font-bold bg-white/15 text-white px-2 py-0.5 rounded-md">
+            {/* Modal Header: kompakt lacivert bant, sağda soluk vana çizimi */}
+            <div className="sticky top-0 z-10 overflow-hidden px-4 sm:px-6 py-4 sm:py-5 pt-safe-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white flex items-start justify-between gap-3">
+              <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-[62%] sm:w-[48%] opacity-60 mix-blend-overlay [mask-image:linear-gradient(to_right,transparent,black_45%)]">
+                <PipeArt className="w-full h-full" />
+              </div>
+              <div className="relative min-w-0">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="text-xs tabular-nums font-bold bg-white/15 border border-white/15 text-white px-2.5 py-1 rounded-lg">
                     {quoteNo(selectedQuote)}
                   </span>
-                  <span className="text-xs font-bold text-white">
-                    {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="font-normal text-sky-200/80">KDV dahil</span>
+                  <span className="text-sm sm:text-base font-black text-white tabular-nums">
+                    {formatTl(netTry.get(selectedQuote.id) ?? quoteTry(selectedQuote, rates))} <span className="text-xs font-normal text-sky-200/80">(KDV dahil)</span>
                   </span>
                 </div>
                 <button onClick={() => { setCustomerView(selectedQuote.customerName); setSelectedQuote(null); }} title="Müşterinin tüm teklifleri"
-                  className="text-lg sm:text-[22px] font-black tracking-tight text-white mt-1 text-left hover:underline underline-offset-2">
+                  className="block text-xl sm:text-[26px] leading-tight font-black tracking-tight text-white mt-2 text-left hover:underline underline-offset-2">
                   {selectedQuote.customerName}
                 </button>
-                <p className="text-xs text-sky-200/80">
-                  {selectedQuote.city}
+                <p className="text-xs text-sky-200/80 mt-1">
+                  {[selectedQuote.city,
+                    selectedQuote.updatedAt && `Son değişiklik: ${selectedQuote.updatedBy ? `${selectedQuote.updatedBy} · ` : ''}${new Date(selectedQuote.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+                  ].filter(Boolean).join(' · ')}
                 </p>
-                {selectedQuote.updatedAt && (
-                  <p className="text-[11px] text-sky-200/70 mt-0.5">
-                    Son değişiklik: {selectedQuote.updatedBy && <b className="font-semibold text-sky-100">{selectedQuote.updatedBy} · </b>}
-                    {new Date(selectedQuote.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                )}
               </div>
               <button
                 onClick={() => setSelectedQuote(null)}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0 text-base font-bold"
+                className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0 text-base font-bold"
                 aria-label="Kapat"
               >
                 ✕
@@ -580,7 +584,7 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
             </div>
 
             {/* Modal Content */}
-            <div className="p-4 sm:p-5 space-y-4 text-xs sm:text-sm">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 text-xs sm:text-sm">
               {selectedQuote.reviewPending && (
                 <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 flex items-center gap-2 flex-wrap">
                   <span className="flex-1 min-w-0 text-sky-900 font-semibold">Ekip yükledi, kontrolünüzü bekliyor. Kontrol edip aşağıdaki "Resmi Teklif" ile PDF olarak müşteriye gönderin.</span>
@@ -595,11 +599,12 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               
               {/* Stepper / Status Controller */}
               <div className={readOnly ? 'hidden' : ''}>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                <div className="sm:flex sm:items-center sm:gap-4">
+                <div className="text-sm sm:text-[15px] font-black text-[#0b2a4c] mb-2 sm:mb-0 sm:w-28 shrink-0">
                   Teklif Durumu
-                </label>
-                <div className={`grid gap-2 ${isPassive(selectedQuote) ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                  {isPassive(selectedQuote) && <span className="p-2 rounded-lg text-xs font-bold border text-center bg-[#173F73] text-white border-[#173F73] shadow-sm" title="Neden seçildi: bekleyenlerde sayılmaz">Pasif</span>}
+                </div>
+                <div className={`flex-1 grid gap-2 ${isPassive(selectedQuote) ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                  {isPassive(selectedQuote) && <span className="h-10 sm:h-11 flex items-center justify-center rounded-xl text-xs sm:text-sm font-bold border text-center bg-[#173F73] text-white border-[#173F73] shadow-sm" title="Neden seçildi: bekleyenlerde sayılmaz">Pasif</span>}
                   {(['gonderildi', 'onaylandi', 'iptal'] as QuoteStatus[]).map((st) => {
                     const isCurrent = selectedQuote.status === st && !(st === 'gonderildi' && isPassive(selectedQuote));
                     const badge = getStatusBadge(st);
@@ -612,16 +617,18 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                           onUpdateQuoteStatus(selectedQuote.id, st, clear ? '' : undefined);
                           setSelectedQuote({ ...selectedQuote, status: st, lostReason: st === 'onaylandi' || clear ? undefined : selectedQuote.lostReason });
                         }}
-                        className={`p-2 rounded-lg text-xs font-bold border transition-all text-center ${
+                        className={`h-10 sm:h-11 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs sm:text-sm font-bold border transition-all ${
                           isCurrent
-                            ? 'bg-brand-500 text-white border-brand-600 shadow-sm'
-                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            ? 'bg-gradient-to-b from-[#1565A8] to-[#0b3d70] text-white border-[#0b3d70] shadow-md shadow-[#0b3d70]/20'
+                            : 'bg-[#F3F7FB] text-[#173F73] border-slate-200 hover:bg-[#E8F1FA]'
                         }`}
                       >
+                        {st === 'gonderildi' ? <Clock className="w-4 h-4" /> : st === 'onaylandi' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                         {badge.label}
                       </button>
                     );
                   })}
+                </div>
                 </div>
                 {selectedQuote.status === 'gonderildi' && (() => {
                   const cur = splitReason(selectedQuote.lostReason);
@@ -677,67 +684,98 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                 </div>
               )}
 
-              {/* Items Table */}
+              {/* Teklif kalemleri: bilgisayar/tablette tablo, telefonda kart */}
               {(selectedQuote.items?.length || 0) > 0 && (
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Talep Edilen Malzemeler ({selectedQuote.items?.length || 0} Kalem)
-                  </label>
-                  <span className="text-xs font-bold text-slate-900">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2">
+                  <div className="flex items-center gap-1.5 text-sm sm:text-[15px] font-black text-[#0b2a4c]">
+                    <Package className="w-4 h-4 text-[#006DBB]" />
+                    Teklif Kalemleri ({selectedQuote.items?.length || 0})
+                  </div>
+                  <span className="text-xs sm:text-sm font-black text-[#0b2a4c] tabular-nums">
                     Toplam: {formatQuoteAmount(selectedQuote)}
                   </span>
                 </div>
-                <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs sm:text-[13px] tabular-nums">
+                    <thead className="bg-[#EEF4FA] text-[#173F73] font-bold border-b border-slate-200">
                       <tr>
-                        <th className="p-2">Malzeme / Ürün</th>
-                        <th className="p-2">Miktar</th>
-                        <th className="p-2 text-right">Birim Fiyat</th>
-                        <th className="p-2 text-right">Toplam</th>
+                        <th className="py-2.5 px-3 w-10 text-center">#</th>
+                        <th className="py-2.5 px-2">Malzeme / Ürün</th>
+                        <th className="py-2.5 px-2 whitespace-nowrap">Miktar</th>
+                        <th className="py-2.5 px-2 text-right whitespace-nowrap">Birim Fiyat</th>
+                        <th className="py-2.5 px-3 text-right">Toplam</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
+                    <tbody className="divide-y divide-slate-100">
                       {selectedQuote.items?.map((it, idx) => (
-                        <tr key={idx} className="hover:bg-white">
-                          <td className="p-2 font-medium text-slate-900">{it.productName}</td>
-                          <td className="p-2 text-slate-600">{it.quantity} {it.unit}</td>
-                          <td className="p-2 text-right text-slate-600">{it.unitPrice > 0 ? `${it.unitPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
-                          <td className="p-2 text-right font-bold text-slate-900">{it.totalPrice > 0 ? `${it.totalPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
+                        <tr key={idx} className="hover:bg-[#F7FAFD]">
+                          <td className="py-2.5 px-3 text-center text-slate-500">{idx + 1}</td>
+                          <td className="py-2.5 px-2 font-semibold text-slate-900">{it.productName}</td>
+                          <td className="py-2.5 px-2 text-slate-600 whitespace-nowrap">{it.quantity} {it.unit}</td>
+                          <td className="py-2.5 px-2 text-right text-slate-600 whitespace-nowrap">{it.unitPrice > 0 ? `${it.unitPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
+                          <td className="py-2.5 px-3 text-right font-black text-[#0b2a4c] whitespace-nowrap">{it.totalPrice > 0 ? `${it.totalPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                <div className="sm:hidden space-y-2">
+                  {selectedQuote.items?.map((it, idx) => (
+                    <div key={idx} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 tabular-nums">
+                      <div className="flex gap-2">
+                        <span className="shrink-0 w-5 h-5 rounded-md bg-[#EEF4FA] text-[#173F73] text-[11px] font-bold flex items-center justify-center">{idx + 1}</span>
+                        <span className="min-w-0 font-semibold text-slate-900 leading-snug">{it.productName}</span>
+                      </div>
+                      <div className="mt-1.5 pl-7 flex items-end justify-between gap-2">
+                        <span className="text-slate-500">{it.quantity} {it.unit} × {it.unitPrice > 0 ? `${it.unitPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</span>
+                        <span className="font-black text-[#0b2a4c] whitespace-nowrap">{it.totalPrice > 0 ? `${it.totalPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
               )}
 
-              <RevisionsBox quote={selectedQuote} rates={rates} older={olderVersions?.get(selectedQuote.id)} onPrint={q => { onPrintQuote(q); setSelectedQuote(null); }} />
-
-              {/* Notes */}
-              {selectedQuote.notes && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Notlar
-                  </label>
-                  <p className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700">
-                    {selectedQuote.notes}
-                  </p>
+              {/* Alt sekmeler: Revizyon geçmişi / Teklif notları (Göster ile açılır) */}
+              <div className="rounded-xl border border-slate-200">
+                <div className="flex items-stretch gap-1 px-2 border-b border-slate-200 -mb-px">
+                  {([['rev', 'Revizyon Geçmişi', History], ['notes', 'Teklif Notları', StickyNote]] as const).map(([k, label, Icon]) => {
+                    const on = detailTab === k;
+                    return (
+                      <button key={k} type="button" onClick={() => { setDetailTab(k); setDetailOpen(true); }}
+                        className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2.5 text-xs sm:text-[13px] font-bold border-b-2 whitespace-nowrap ${on ? 'border-[#006DBB] text-[#0b2a4c]' : 'border-transparent text-slate-500 hover:text-[#173F73]'}`}>
+                        <Icon className={`w-4 h-4 ${on ? 'text-[#006DBB]' : ''}`} />{label}
+                        {k === 'notes' && selectedQuote.notes && <span className="w-1.5 h-1.5 rounded-full bg-[#00B49A]" />}
+                      </button>
+                    );
+                  })}
+                  <button type="button" onClick={() => setDetailOpen(o => !o)} className="ml-auto inline-flex items-center gap-0.5 px-2 text-xs sm:text-[13px] font-bold text-[#006DBB] whitespace-nowrap">
+                    {detailOpen ? 'Gizle' : 'Göster'}{detailOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
                 </div>
-              )}
+                {detailOpen && (
+                  <div className="p-3">
+                    {detailTab === 'rev'
+                      ? <RevisionsBox embedded quote={selectedQuote} rates={rates} older={olderVersions?.get(selectedQuote.id)} onPrint={q => { onPrintQuote(q); setSelectedQuote(null); }} />
+                      : selectedQuote.notes
+                        ? <p className="text-xs sm:text-[13px] text-slate-700 whitespace-pre-wrap">{selectedQuote.notes}</p>
+                        : <p className="text-xs text-slate-500">Bu teklifte not yok. Not eklemek için "Düzenle / Revize".</p>}
+                  </div>
+                )}
+              </div>
 
-              {/* Action Buttons Grid */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
+              {/* İşlem düğmeleri */}
+              <div className={`grid gap-2 ${readOnly ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}>
                 <button
                   hidden={readOnly}
                   onClick={() => {
                     onEditQuote(selectedQuote);
                     setSelectedQuote(null);
                   }}
-                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-[#006DBB] hover:bg-[#173F73] text-white text-xs font-bold transition-colors"
+                  className="h-11 flex items-center justify-center gap-1.5 px-3 rounded-xl bg-gradient-to-b from-[#1565A8] to-[#0b3d70] hover:to-[#0b2a4c] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#0b3d70]/20 transition-colors"
                 >
-                  <Pencil className="w-3.5 h-3.5" />
+                  <Pencil className="w-4 h-4" />
                   <span>Düzenle / Revize</span>
                 </button>
                 <button
@@ -745,17 +783,11 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     onPrintQuote(selectedQuote);
                     setSelectedQuote(null);
                   }}
-                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-colors"
+                  className="h-11 flex items-center justify-center gap-1.5 px-3 rounded-xl bg-[#EAF3FC] hover:bg-[#DCEBF9] border border-[#006DBB]/20 text-[#0b3d70] text-xs sm:text-sm font-bold transition-colors"
                 >
-                  <Printer className="w-3.5 h-3.5" />
+                  <Printer className="w-4 h-4" />
                   <span>Resmi Teklif</span>
                 </button>
-
-              </div>
-
-              {/* Danger zone delete */}
-              <div className="flex justify-between items-center pt-2 text-xs text-slate-500">
-                <span>{rates.date ? `Kur: 1 USD = ${rates.USD.toLocaleString('tr-TR')} TL · 1 EUR = ${rates.EUR.toLocaleString('tr-TR')} TL (TCMB ${rates.date})` : ''}</span>
                 <button
                   hidden={readOnly}
                   onClick={() => {
@@ -764,12 +796,18 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                       setSelectedQuote(null);
                     }
                   }}
-                  className="text-rose-600 hover:underline flex items-center gap-1"
+                  className="col-span-2 sm:col-span-1 h-11 flex items-center justify-center gap-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-600 text-xs sm:text-sm font-bold transition-colors"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Teklifi Sil
+                  <Trash2 className="w-4 h-4" />
+                  <span>Teklifi Sil</span>
                 </button>
               </div>
+
+              {rates.date && (
+                <p className="text-[11px] sm:text-xs text-slate-500 tabular-nums">
+                  Kur: 1 USD = {rates.USD.toLocaleString('tr-TR')} TL · 1 EUR = {rates.EUR.toLocaleString('tr-TR')} TL (TCMB {rates.date})
+                </p>
+              )}
 
             </div>
 
