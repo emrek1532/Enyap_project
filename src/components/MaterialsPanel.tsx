@@ -144,11 +144,7 @@ const OwnMaterials: React.FC<{
           </div>
           {actions && <div className="flex flex-wrap gap-2 shrink-0">{actions}</div>}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <select value={filters.unit} onChange={e => setFilter('unit', e.target.value)} className={selectCls} aria-label="Birim">
-            <option value="">Birim: Tümü</option>
-            {MATERIAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-          </select>
+        <div>
           <MobileSortSelect<MaterialSortKey>
             always
             sort={sort}
@@ -167,9 +163,8 @@ const OwnMaterials: React.FC<{
             ]}
           />
         </div>
-        <div className="text-xs text-[#5E7491] flex items-center gap-x-2 gap-y-1 flex-wrap">
+        {(loading || anything || lastImport) && <div className="text-xs text-[#5E7491] flex items-center gap-x-2 gap-y-1 flex-wrap">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          <span><b className="text-[#17365D]">{total.toLocaleString('tr-TR')}</b> malzeme{query.trim() || codeQuery.trim() || activeFilters ? ' bulundu' : ''}</span>
           {anything && (
             <button
               onClick={() => { setFilters({ currency: '', unit: '', price: '', stock: '' }); setQuery(''); setCodeQuery(''); setSort({ key: 'default', dir: 'asc' }); }}
@@ -184,7 +179,7 @@ const OwnMaterials: React.FC<{
               {lastImport.byName && <> · {lastImport.byName}</>} · {lastImport.updated.toLocaleString('tr-TR')} değişti, {lastImport.inserted.toLocaleString('tr-TR')} yeni
             </span>
           )}
-        </div>
+        </div>}
         {error && <div className="text-xs text-[#173F73] bg-[#E6F1FB] border border-[#C7DFF5] rounded-lg px-3 py-2">{error}</div>}
       </div>
     </div>
