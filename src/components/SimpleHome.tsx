@@ -10,6 +10,7 @@ import { useWide } from './ListUI';
 import { quoteTry, useRates } from '../lib/rates';
 import { estimatedBalance } from '../lib/mikroBalance';
 import type { ActiveTab } from './Sections';
+import { HERO_PHOTO } from './Sections';
 import type { ToolInfo, ToolMode } from './QuickTools';
 import { Targets, useSetting } from '../lib/settings';
 
@@ -268,14 +269,19 @@ export const SimpleHome: React.FC<{
   return (
     <div className="relative pb-6 space-y-4 sm:space-y-5">
       {/* Arka plan: üstte yumuşak mavi ışık */}
-      {/* 1. Selam bandı: lacivert, sağda ENYAP binası fotoğrafı (net görünür) */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0a3168] via-[#0c3f7d] to-[#0f4f96] text-white min-h-[118px] sm:min-h-[150px] px-5 py-4 sm:px-7 sm:py-6 flex items-center shadow-[0_20px_44px_-28px_rgba(10,49,104,0.9)]">
-        <div aria-hidden className="absolute inset-y-0 right-0 w-[72%] sm:w-[64%] md:w-[58%] bg-no-repeat bg-[url(/hero-enyap-sm.webp)] md:bg-[url(/hero-enyap.webp)] bg-[length:auto_230%] bg-[position:96%_30%] md:bg-[length:auto_400%] md:bg-[position:100%_26%] [mask-image:linear-gradient(to_right,transparent_0%,transparent_20%,rgba(0,0,0,0.5)_28%,black_36%)]" />
-        <div aria-hidden className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[#0a3168]/70 to-transparent" />
-        <div className="relative min-w-0 max-w-[68%] md:max-w-[62%] lg:max-w-[55%]">
-          <p className="text-[11px] sm:text-sm text-sky-100/85"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-sky-100/55 tabular-nums">v{__APP_VERSION__}</span></p>
-          <h1 className="text-[20px] sm:text-[26px] xl:text-[30px] font-black tracking-tight leading-tight drop-shadow whitespace-nowrap">{hello}, {firstName} <span className="inline-block">👋</span></h1>
-          <p className="text-[13px] sm:text-[15px] text-sky-100/90">Bugünün özeti burada.</p>
+      {/* 1. Selam bandı: diğer sayfalardaki bantla aynı stil (açık zemin, sağda ENYAP binası, solu beyaza geçer) */}
+      <section className="relative overflow-hidden rounded-2xl border border-[#E2EAF3] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC] shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)]">
+        <picture aria-hidden>
+          <source media="(min-width: 768px)" srcSet="/hero-enyap-2.webp" />
+          <img src="/hero-enyap-2-sm.webp" alt="" draggable={false} className={`${HERO_PHOTO} object-cover object-[70%_center]`} />
+        </picture>
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#006DBB] via-[#009FE3] to-[#00B49A]" />
+        <div className="relative flex items-center px-4 sm:px-6 lg:px-7 py-4 min-h-[112px] sm:min-h-[136px] lg:min-h-[148px]">
+          <div className="min-w-0 max-w-[68%] md:max-w-[62%] lg:max-w-[55%]">
+            <p className="text-[11px] sm:text-sm text-[#5E7491]"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-slate-400 tabular-nums">v{__APP_VERSION__}</span></p>
+            <h1 className="font-black text-2xl sm:text-[30px] tracking-tight leading-tight text-[#0B2343] whitespace-nowrap">{hello}, {firstName} <span className="inline-block">👋</span></h1>
+            <p className="text-[13px] sm:text-[15px] text-[#5E7491]">Bugünün özeti burada.</p>
+          </div>
         </div>
       </section>
 
