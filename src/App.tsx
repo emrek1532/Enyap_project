@@ -580,6 +580,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
 
   // PDF ile revize edilen teklifi göster: Teklifler sayfası, teklif detayı ve PDF önizlemesi
   const [focusQuote, setFocusQuote] = useState<{ id: string; n: number } | null>(null);
+  // Teklifler sayfasından çıkınca odak temizlenir; yoksa sekmeye her girişte aynı teklif yeniden açılır
+  useEffect(() => { if (activeTab !== 'quotes') setFocusQuote(null); }, [activeTab]);
   const showSavedQuote = (q: Quote) => {
     setQuoteFilter('all');
     setActiveTab('quotes');
