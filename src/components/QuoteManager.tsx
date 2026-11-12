@@ -623,6 +623,19 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                     );
                   })}
                 </div>
+                {selectedQuote.status === 'onaylandi' && (() => {
+                  const live = quotes.find(q => q.id === selectedQuote.id) ?? selectedQuote;
+                  return (
+                    <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black shrink-0">✓</span>
+                      <span>
+                        {live.approvedBy
+                          ? <>Onaylayan: <b>{live.approvedBy}</b>{live.approvedAt && <> · {new Date(live.approvedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>}</>
+                          : <b>Onaylandı</b>}
+                      </span>
+                    </div>
+                  );
+                })()}
                 {selectedQuote.status === 'gonderildi' && (() => {
                   const cur = splitReason(selectedQuote.lostReason);
                   const save = (reason: string, note: string) => {

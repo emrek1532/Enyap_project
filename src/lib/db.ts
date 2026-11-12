@@ -113,6 +113,8 @@ const rowToQuote = (r: Row): Quote => ({
   followUpAt: r.follow_up_at ?? undefined,
   rev: Number(r.rev ?? 0),
   reviewPending: !!r.review_pending,
+  approvedAt: r.approved_at ?? null,
+  approvedBy: r.approved_by ?? null,
 });
 
 const noteToRow = (n: QuickNote): Row => ({

@@ -724,7 +724,12 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     const target = data.quotes.find(q => q.id === id);
     if (!target) return;
     // Bekleme nedeni: onaylanınca silinir, diğer durumlarda (ve iptalde) kalır
-    const updated: Quote = { ...target, status, lostReason: lostReason !== undefined ? (lostReason || undefined) : status === 'onaylandi' ? undefined : target.lostReason, updatedAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    // Onaylayan/zaman sunucuda yazılır; ekranda hemen görünsün diye burada da doldurulur
+    const approval = status === 'onaylandi' && target.status !== 'onaylandi'
+      ? { approvedAt: now, approvedBy: profile.fullName || session.user.email || null }
+      : status === 'gonderildi' ? { approvedAt: null, approvedBy: null } : {};
+    const updated: Quote = { ...target, ...approval, status, lostReason: lostReason !== undefined ? (lostReason || undefined) : status === 'onaylandi' ? undefined : target.lostReason, updatedAt: now };
     const activity = logActivity(
       'Teklif Durumu Değişti',
       `${target.customerName} teklifi "${status}" durumuna alındı.`,
