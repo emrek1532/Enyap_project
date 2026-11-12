@@ -632,6 +632,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         {live.approvedBy
                           ? <>Onaylayan: <b>{live.approvedBy}</b>{live.approvedAt && <> · {new Date(live.approvedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>}</>
                           : <b>Onaylandı</b>}
+                        {live.processedAt && <><br />📦 Siparişe alan: <b>{live.processedBy || '—'}</b> · {new Date(live.processedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>}
+                        {live.approvedAt && !live.processedAt && <><br /><span className="text-amber-700">Siparişe alınmayı bekliyor</span></>}
                       </span>
                     </div>
                   );

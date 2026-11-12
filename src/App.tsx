@@ -42,6 +42,7 @@ import { needsFollowUp, nextRev, quoteNo, supersededMap } from './lib/quoteRules
 import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
 import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
+import { ApprovedOrderGate } from './components/ApprovedOrderGate';
 import { RequestsPanel, SharedRequestInput, readAndStore } from './components/RequestsPanel';
 import { Assignee, QuoteRequest, fetchAssignees, fetchRequest, fetchRequests, patchRequest, rowsToDraft, subscribeRequests } from './lib/requests';
 import { PREF_KEY, PrefRule } from './lib/requestRead';
@@ -729,6 +730,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     const approval = status === 'onaylandi' && target.status !== 'onaylandi'
       ? { approvedAt: now, approvedBy: profile.fullName || session.user.email || null }
       : status === 'gonderildi' ? { approvedAt: null, approvedBy: null } : {};
+    if (status === 'onaylandi' && target.status !== 'onaylandi' || status === 'gonderildi') Object.assign(approval, { processedAt: null, processedBy: null });
     const updated: Quote = { ...target, ...approval, status, lostReason: lostReason !== undefined ? (lostReason || undefined) : status === 'onaylandi' ? undefined : target.lostReason, updatedAt: now };
     const activity = logActivity(
       'Teklif Durumu Değişti',
@@ -839,6 +841,10 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   }, [myOpenRequests, reviewCount, myOpenTasks]);
   const userEmail = session.user.email || '';
   const userName = profile.fullName || userEmail.split('@')[0] || 'Kullanıcı';
+  // Onaylanmış, siparişe alınmamış teklifler (yalnız onay sonrası özellikle gelenler: approvedAt dolu)
+  const orderGate = !profile.isAdmin && can(profile, 'quotes', 'edit')
+    ? data.quotes.filter(q => q.status === 'onaylandi' && q.approvedAt && !q.processedAt).sort((a, b) => (a.approvedAt || '').localeCompare(b.approvedAt || ''))
+    : [];
   const roleLabel = profile.isAdmin ? 'Yönetici' : currentRole === 'istanbul' ? 'İstanbul ekibi' : 'Isparta ekibi';
   const toolAllow = { quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') };
   const tools = toolList(tabAllowed('quotes'), toolAllow, allowed(profile, 'ai'));
@@ -1200,6 +1206,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           initialPdf={sharedPdf}
           onSaveQuote={handleUpdateQuote}
           onClose={() => { setEditingQuote(null); setSharedPdf(null); }}
+        />
+      )}
+
+      {/* Onaylanan teklif: ekip "Siparişe aldım" demeden devam edemez (yönetici hariç) */}
+      {orderGate.length > 0 && (
+        <ApprovedOrderGate
+          quotes={orderGate}
+          meName={userName}
+          onDone={(id, by) => mutate(d => ({ ...d, quotes: d.quotes.map(q => q.id === id ? { ...q, processedAt: new Date().toISOString(), processedBy: by || q.processedBy || '' } : q) }))}
         />
       )}
 

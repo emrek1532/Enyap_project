@@ -66,6 +66,9 @@ export interface Quote {
   /** Onaylandı yapan kişi ve zaman (sunucu yazar) */
   approvedAt?: string | null;
   approvedBy?: string | null;
+  /** Ekip "Siparişe aldım" dedi (sunucu yazar) */
+  processedAt?: string | null;
+  processedBy?: string | null;
 }
 
 export interface QuickNote {
