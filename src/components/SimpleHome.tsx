@@ -454,29 +454,29 @@ const PeriodCard: React.FC<{
       {/* Üst bölüm: satış tutarı + Bugün / Bu hafta; arkada yalnız süs amaçlı açık mavi dalga ve yükselen sütunlar */}
       <div className="relative">
         <PeriodArt />
-        <div className="relative flex flex-col lg:flex-row lg:items-center gap-2.5 sm:gap-3 lg:gap-4 px-4 sm:px-6 lg:px-7 pt-3.5 sm:pt-5 lg:pt-6 pb-3 sm:pb-4 lg:pb-5">
+        <div className="relative flex flex-col lg:flex-row lg:items-center gap-2 sm:gap-3 lg:gap-4 px-4 sm:px-6 lg:px-7 pt-3 sm:pt-5 lg:pt-6 pb-2.5 sm:pb-4 lg:pb-5">
           <button onClick={big.on} className={`group flex-1 min-w-0 flex items-stretch gap-3 sm:gap-4 text-left rounded-2xl transition-colors ${focus}`}>
             <span aria-hidden className="w-1 shrink-0 rounded-full bg-gradient-to-b from-[#0A6FD0] to-[#009FE3]" />
             <span className="min-w-0 flex-1 py-0.5">
               <span className="flex items-center gap-2 text-[13px] sm:text-[15px] font-semibold text-[#17365D] min-w-0">
                 <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-[#006DBB] shrink-0" /><span className="truncate">{title} · {big.label}</span>
               </span>
-              <span className="block mt-1 sm:mt-2 text-[28px] sm:text-[38px] lg:text-[46px] leading-none font-black tracking-tight text-[#0F2D57] tabular-nums truncate group-hover:text-[#0A4C93] transition-colors">{lira(big.value)}</span>
-              <span className="mt-1.5 sm:mt-2.5 flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-[#5E7491]">
+              <span className="block mt-1 sm:mt-2 text-[26px] sm:text-[38px] lg:text-[46px] leading-none font-black tracking-tight text-[#0F2D57] tabular-nums truncate group-hover:text-[#0A4C93] transition-colors">{lira(big.value)}</span>
+              <span className="mt-1 sm:mt-2.5 flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-[#5E7491]">
                 <Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span>
               </span>
             </span>
           </button>
           {activity && (
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:w-[340px] shrink-0">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-3 lg:w-[340px] shrink-0">
               {([['Bugün', activity.today], ['Bu hafta', activity.week]] as const).map(([l, a]) => (
                 <button key={l} onClick={() => onOpenRange(a.from, today)}
-                  className={`min-w-0 flex items-center lg:items-start gap-2 lg:gap-3 rounded-xl lg:rounded-2xl bg-gradient-to-br from-white to-[#F1F8FE] border border-[#DCEBF8] shadow-[0_10px_24px_-20px_rgba(0,109,187,0.7)] px-2.5 py-2 sm:px-3.5 lg:px-4 lg:py-3.5 text-left transition hover:border-[#B9DAF4] hover:shadow-[0_12px_26px_-18px_rgba(0,109,187,0.7)] ${focus}`}>
+                  className={`min-w-0 flex items-center lg:items-start gap-2 lg:gap-3 rounded-xl lg:rounded-2xl bg-gradient-to-br from-white to-[#F1F8FE] border border-[#DCEBF8] shadow-[0_10px_24px_-20px_rgba(0,109,187,0.7)] px-2 py-1.5 sm:py-2 sm:px-3.5 lg:px-4 lg:py-3.5 text-left transition hover:border-[#B9DAF4] hover:shadow-[0_12px_26px_-18px_rgba(0,109,187,0.7)] ${focus}`}>
                   <CalendarDays className="hidden sm:block w-4 h-4 lg:w-5 lg:h-5 lg:mt-0.5 text-[#006DBB] shrink-0" />
-                  {/* Tablet: tek satır "BUGÜN 2 teklif · 1 onay"; telefonda etiket üstte */}
-                  <span className="lg:hidden min-w-0 flex flex-wrap sm:flex-nowrap items-baseline gap-x-1.5 text-[11px] sm:text-xs text-[#5E7491] whitespace-nowrap overflow-hidden">
-                    <b className="max-sm:w-full text-[10px] sm:text-[11px] uppercase tracking-wide text-[#17365D]">{l}</b>
-                    <b className="text-base sm:text-lg font-black text-[#0F2D57] tabular-nums leading-none">{a.teklif}</b>
+                  {/* Telefon/tablet: tek satır "Bugün 2 teklif · 1 onay" */}
+                  <span className="lg:hidden min-w-0 flex items-baseline gap-x-1 text-[11px] max-[379px]:text-[10.5px] sm:text-xs text-[#5E7491] whitespace-nowrap overflow-hidden">
+                    <b className="text-[11px] sm:text-[11px] sm:uppercase sm:tracking-wide text-[#17365D]">{l}</b>
+                    <b className="text-[13px] sm:text-lg font-black text-[#0F2D57] tabular-nums leading-none">{a.teklif}</b>
                     <span className="truncate">teklif · <b className={a.onay ? 'text-[#008A4E]' : 'text-slate-500'}>{a.onay} onay</b></span>
                   </span>
                   <span className="hidden lg:block min-w-0">
@@ -492,7 +492,7 @@ const PeriodCard: React.FC<{
       </div>
       {/* Orta bölüm: satış oranı / hedef / ay sonu tahmini — her ekranda tek satır (telefon/tablette simgesiz, sıkı) */}
       {stats.length > 0 && (
-        <div className={`relative grid border-t border-[#E6EFF8] py-2.5 sm:py-3 lg:py-4 lg:px-2 ${cols(stats.length)}`}>
+        <div className={`relative grid border-t border-[#E6EFF8] py-2 sm:py-3 lg:py-4 lg:px-2 ${cols(stats.length)}`}>
           {stats.map((m, i) => (
             <div key={m.label} className={`flex items-center gap-3 min-w-0 px-2.5 sm:px-5 ${i ? 'border-l border-[#E6EFF8]' : ''}`}>
               <span className={`hidden lg:flex w-12 h-12 rounded-2xl items-center justify-center shrink-0 ${m.box}`}><m.icon className="w-6 h-6" /></span>
@@ -506,11 +506,11 @@ const PeriodCard: React.FC<{
       )}
       {/* Alt bölüm: finansal özet — her ekranda tek satır, açık zeminli iç kutu */}
       {minis.length > 0 && (
-        <div className="px-2 sm:px-3 pb-2 sm:pb-3">
-          <div className={`grid ${cols(minis.length)} rounded-2xl lg:rounded-[20px] bg-[#F6FAFE] border border-[#E4EEF8] overflow-hidden`}>
+        <div className="max-sm:border-t max-sm:border-[#E6EFF8] sm:px-3 sm:pb-3">
+          <div className={`grid ${cols(minis.length)} sm:rounded-2xl lg:rounded-[20px] sm:bg-[#F6FAFE] sm:border sm:border-[#E4EEF8] overflow-hidden`}>
             {minis.map((m, i) => (
               <button key={m.label} onClick={m.on}
-                className={`flex items-center gap-3 text-left px-2.5 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 min-w-0 transition-colors hover:bg-[#EDF5FD] ${focus} ${i ? 'border-l border-[#E4EEF8]' : ''}`}>
+                className={`flex items-center gap-3 text-left px-2.5 sm:px-4 lg:px-5 py-2 sm:py-3 lg:py-4 min-w-0 transition-colors hover:bg-[#EDF5FD] ${focus} ${i ? 'border-l border-[#E4EEF8]' : ''}`}>
                 <span className="hidden lg:flex w-12 h-12 rounded-2xl bg-white border border-[#E1EDF8] text-[#006DBB] items-center justify-center shrink-0 shadow-sm"><m.icon className="w-6 h-6" /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[11px] sm:text-[13px] lg:text-sm font-semibold text-[#5E7491] truncate">{m.label}</span>
