@@ -79,9 +79,11 @@ export const StatBox: React.FC<{
     <span className={`relative hidden sm:flex md:hidden xl:flex w-11 h-11 rounded-xl items-center justify-center shrink-0 shadow-sm ${t.icon}`}><SI className="w-5 h-5" /></span>
     <span className="relative min-w-0 flex-1">
       <span className={`flex items-center gap-1.5 text-[11px] sm:text-[13px] md:text-[11.5px] xl:text-[13px] font-bold leading-snug md:whitespace-normal md:line-clamp-2 xl:truncate ${t.label || 'text-slate-600'}`}>
-        <span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.dot || t.icon}`} />{label}
+        {dense
+          ? <><span className="sm:hidden truncate">{label.replace(/^Bu ay (.)/, (_, c: string) => c.toLocaleUpperCase('tr'))}</span><span className="hidden sm:inline">{label}</span></>
+          : <><span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.dot || t.icon}`} />{label}</>}
       </span>
-      <span className={`block mt-0.5 ${dense ? 'text-[13px]' : 'text-base'} sm:text-xl md:text-[14px] lg:text-lg xl:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] md:text-[14px] lg:text-lg xl:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
+      <span className={`block mt-0.5 ${dense ? 'text-[12px]' : 'text-base'} sm:text-xl md:text-[14px] lg:text-lg xl:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] md:text-[14px] lg:text-lg xl:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
       {trend != null ? (
         <span className="hidden sm:flex items-center gap-1 text-[11px] sm:text-xs md:text-[10.5px] xl:text-xs truncate">
           <b className={`tabular-nums ${trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
