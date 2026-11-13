@@ -683,15 +683,6 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         <div className="overflow-y-auto flex-1 bg-[#F1F6FC]">
           <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-3 sm:p-4 space-y-3">
 
-            {isEdit && onPrint && (
-              <div className="flex justify-end -mb-1">
-                <button type="button" onClick={() => pdfInputRef.current?.click()} disabled={pdfBusy}
-                  className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-brand-700 disabled:opacity-60"
-                  title="Muhasebe programının teklif PDF'inden kalemleri güncelle">
-                  {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} Muhasebe PDF'inden güncelle
-                </button>
-              </div>
-            )}
             {pdfNotice && !pdfMsg && (
               <div className="text-xs rounded-md px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200">{pdfNotice}</div>
             )}
