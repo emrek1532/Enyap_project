@@ -100,7 +100,7 @@ export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 type Stat = { label: string; value: string; sub?: string; trend?: number | null };
 const StatGrid: React.FC<{ stats: Stat[]; row?: boolean }> = ({ stats, row }) => row ? (
-  /* Tek sıra 3 kutu (Tahsilat, Harcama): telefonda da yan yana, küçük */
+  /* Tek sıra 3 kutu (Teklifler, Tahsilat, Harcama): telefonda da yan yana, küçük */
   <div className="grid grid-cols-3 gap-1.5 sm:gap-2 lg:gap-3">
     {stats.slice(0, 3).map((s, i) => (
       <StatBox key={s.label} dense label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)} />
