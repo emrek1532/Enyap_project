@@ -1,5 +1,5 @@
 import { viewStatus } from '../lib/quoteRules';
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 import React, { useEffect, useRef, useState } from 'react';
 import { Eye, FileSpreadsheet, Loader2, Package, PackageSearch, Pencil, Plus, Trash2, Wallet, Warehouse, X } from 'lucide-react';
 import { MaterialImport } from './MaterialImport';
@@ -276,7 +276,7 @@ const EmptyState: React.FC = () => (
   </div>
 );
 
-const money = (v: number, c: string) => `${trNum(v, { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as Currency] || c}`;
+const money = (v: number, c: string) => `${trMoney(v)} ${CURRENCY_LABEL[c as Currency] || c}`;
 
 /** Malzemeye tıklayınca: bu malzemeyi kime, ne zaman, kaç adet, kaçtan teklif ettik / sattık (yeni → eski) */
 const MaterialHistory: React.FC<{ m: Material; quotes: Quote[]; onClose: () => void; onOpenQuote?: (q: Quote) => void }> = ({ m, quotes, onClose, onOpenQuote }) => {

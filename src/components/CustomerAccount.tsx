@@ -1,4 +1,4 @@
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
@@ -19,7 +19,7 @@ import { STATUS_LABEL } from '../lib/constants';
 
 const isApproved = (q: Quote) => q.status === 'onaylandi';
 const isPending = (q: Quote) => isPendingQuote(q);
-const tl = (n: number) => `${Math.round(n).toLocaleString('tr-TR')} TL`;
+const tl = (n: number) => `${trMoney(n)} TL`;
 const day = (s: string) => (s ? new Date(s).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 const curSym = (c?: string) => (c === 'USD' ? '$' : c === 'EUR' ? '€' : 'TL');
 const money = (v: number, c?: string) => `${trNum(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curSym(c)}`;

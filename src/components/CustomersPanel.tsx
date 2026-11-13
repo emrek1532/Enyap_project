@@ -1,3 +1,4 @@
+import { trMoney } from '../lib/num';
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight, MapPin, MapPinCheck, Wallet, ArrowDownLeft, ArrowUpRight, Scale } from 'lucide-react';
 import { SearchBox, UnderlineTabs, Pager, FilterBar, WideOnly, NarrowOnly, NewButton } from './ListUI';
@@ -62,12 +63,12 @@ type VisitFilter = 'all' | 'visited' | 'not' | 'stale' | 'quiet';
 /** 3 ay önceki gün (YYYY-MM-DD): bundan eski ya da hiç uğranmamış = "3 aydır uğranmadı" */
 const staleSince = () => { const d = new Date(); d.setMonth(d.getMonth() - 3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const isStale = (c: Customer, since: string) => !c.lastVisit || c.lastVisit < since;
-const tl = (n: number) => `${n.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} TL`;
+const tl = (n: number) => `${trMoney(n)} TL`;
 /** Müşteriler sayfası ENYAP görünümü: beyaz kart + #E2EAF3 kenar, filtre kutuları */
 const ccard = 'bg-white rounded-2xl border border-[#E2EAF3] shadow-[0_10px_28px_-24px_rgba(11,35,67,0.45)]';
 const cctrl = 'h-10 px-3 rounded-xl border border-[#E2EAF3] bg-white text-sm text-[#173F73] font-semibold focus:outline-none focus:ring-2 focus:ring-[#006DBB]/20 focus:border-[#006DBB]';
 const CUR: Record<string, string> = { TRY: 'TL', USD: '$', EUR: '€' };
-const amt = (n: number, cur = 'TRY') => `${Math.round(n).toLocaleString('tr-TR')} ${CUR[cur] || cur}`;
+const amt = (n: number, cur = "TRY") => `${trMoney(n)} ${CUR[cur] || cur}`;
 const daysSince = (d: string) => Math.floor((Date.parse(todayIso()) - Date.parse(d)) / 864e5);
 /** Ziyaret durumu (customers.last_visit): bugün / yakın zamanda (≤30 gün) / uzun süredir (>90 gün ya da hiç) */
 export const visitState = (d?: string) => {

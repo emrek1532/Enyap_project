@@ -1,4 +1,4 @@
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 import { WideOnly, useWide } from './ListUI';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, X, ChevronRight, Loader2, Eye } from 'lucide-react';
@@ -36,7 +36,7 @@ const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 const quoteDay = (q: Quote) => ymd(new Date(q.createdAt));
 const monthLabel = (ym: string) => `${MONTHS_TR[Number(ym.slice(5, 7)) - 1]} ${ym.slice(2, 4)}`;
 
-const tl = (v: number) => `${trNum(v, { maximumFractionDigits: 0 })} TL`;
+const tl = (v: number) => `${trMoney(v)} TL`;
 const money = (v: number, c: Currency) =>
   `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c]}`;
 const pct = (a: number, b: number) => (b > 0 ? `%${((a / b) * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}` : '-');

@@ -1,4 +1,4 @@
-import { trNum } from './num';
+import { trNum, trMoney } from './num';
 import { AppData, Collection, Expense, Quote } from '../types';
 import { dayOf } from './dates';
 import { isPassive, isPendingQuote, needsFollowUp } from './quoteRules';
@@ -9,7 +9,7 @@ export type PageStat = { label: string; value: string; sub?: string; /** geçen 
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const lira = (v: number) => `₺\u00A0${trNum(Math.round(v))}`;
+const lira = (v: number) => `₺\u00A0${trMoney(v)}`;
 const n = (v: number) => trNum(v);
 /** Bekleyen + pasif: "8 teklif · 3 pasif" */
 const pendSub = (l: Quote[]) => { const p = l.filter(isPassive).length; return `${n(l.length)} teklif${p ? ` · ${n(p)} pasif` : ''}`; };

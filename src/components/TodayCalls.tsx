@@ -4,10 +4,10 @@ import { Quote } from '../types';
 import { localDay } from '../lib/dates';
 import { daysToExpiry, expiryLabel, followDue, followLabel, isExpiring } from '../lib/quoteRules';
 import { quoteTry, Rates } from '../lib/rates';
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 import { quoteNo } from '../lib/quoteRules';
 
-const lira = (v: number) => `₺ ${trNum(Math.round(v))}`;
+const lira = (v: number) => `₺ ${trMoney(v)}`;
 const SHOW = 5;
 
 /**

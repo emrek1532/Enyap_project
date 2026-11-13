@@ -1,3 +1,4 @@
+import { trMoney } from '../lib/num';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Download, Send, X } from 'lucide-react';
@@ -154,7 +155,7 @@ const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 const tlShort = (n: number) => n >= 1e6 ? `${(n / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} Mn ₺`
   : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString('tr-TR')} B ₺` : `${Math.round(n).toLocaleString('tr-TR')} ₺`;
-const tlFull = (n: number) => `${Math.round(n).toLocaleString('tr-TR')} ₺`;
+const tlFull = (n: number) => `${trMoney(n)} ₺`;
 
 function chartHtml(c: PrintChart): string {
   if (c.type === 'columns') {

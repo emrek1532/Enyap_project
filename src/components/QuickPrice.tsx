@@ -1,5 +1,5 @@
 import { isPendingQuote } from '../lib/quoteRules';
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, ChevronDown, ChevronRight, Lightbulb, Loader2, Mic, Search, Send, Sparkles, Square, Star, X } from 'lucide-react';
 import { SpeechSession, canSpeech, listen } from '../lib/speech';
@@ -18,7 +18,7 @@ const perList = (items: SupplierItem[], per: number, max: number) => {
   const n = new Map<string, number>();
   return items.filter(x => { const c = n.get(x.listId) || 0; n.set(x.listId, c + 1); return c < per; }).slice(0, max);
 };
-const money = (v: number, c: string) => `${trNum(v, { maximumFractionDigits: 2 })} ${CURRENCY_LABEL[c as keyof typeof CURRENCY_LABEL] || c}`;
+const money = (v: number, c: string) => `${trMoney(v)} ${CURRENCY_LABEL[c as keyof typeof CURRENCY_LABEL] || c}`;
 const trDay = (s: string) => dayOf(s).split('-').reverse().join('.');
 // Son aramalar/sorular yalnız bu cihazda (sunucuya gitmez); eski "Sor" geçmişi bir kez buraya taşınır
 const HIST_KEY = 'search-history', OLD_ASK_KEY = 'ask-history';

@@ -216,7 +216,7 @@ export const lineText = (l: AskLine, statusLabel: (s: QuoteStatus) => string) =>
 
 const SYM: Record<string, string> = { TRY: 'TL', USD: '$', EUR: '€' };
 export const fmtMoney = (v: number, c = 'TRY') =>
-  `${v.toLocaleString('tr-TR', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 })} ${SYM[c] || c}`;
+  `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${SYM[c] || c}`;
 const fmtDay = (s: string) => dayOf(s).split('-').reverse().join('.');
 const sumBy = <T,>(list: T[], key: (x: T) => string, val: (x: T) => number) => {
   const m = new Map<string, number>();

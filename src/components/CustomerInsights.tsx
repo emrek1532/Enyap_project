@@ -1,10 +1,10 @@
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { Ban, CirclePause, CircleCheck } from 'lucide-react';
 import { Collection, CustomerStatus, Quote } from '../types';
 import { CUSTOMER_STATUS, Evaluation } from '../lib/customerInsights';
 
-const tl = (v: number) => `${trNum(Math.round(v))} TL`;
+const tl = (v: number) => `${trMoney(v)} TL`;
 
 const STATUS_BTN: { s: CustomerStatus; icon: React.ElementType; on: string }[] = [
   { s: 'aktif', icon: CircleCheck, on: 'bg-emerald-600 border-emerald-600 text-white' },
