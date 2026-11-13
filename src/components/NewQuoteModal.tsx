@@ -782,8 +782,10 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
             )}
 
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_290px] gap-4 items-start">
+              <div className="min-w-0 space-y-4">
             {/* Teklif bilgileri */}
-            <div className="bg-white border border-[#D8E5F2] rounded-2xl shadow-[0_4px_18px_rgba(16,58,101,0.05)] p-2.5 grid grid-cols-2 grid-flow-dense sm:grid-flow-row sm:grid-cols-12 gap-x-2 gap-y-2">
+            <div className="bg-white border border-[#D8E5F2] rounded-2xl shadow-[0_4px_18px_rgba(16,58,101,0.05)] p-3 sm:p-4 grid grid-cols-2 grid-flow-dense sm:grid-flow-row sm:grid-cols-12 gap-x-3 gap-y-3">
               <div className="col-span-1 sm:col-span-2">
                 <label className="ql">Teklif No</label>
                 <input
@@ -843,7 +845,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             </div>
 
             {/* Kalemler */}
-            <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm">
+            <div className="bg-white border border-[#D8E5F2] rounded-2xl shadow-[0_4px_18px_rgba(16,58,101,0.05)]">
               <div className="flex items-center gap-2 px-3 sm:px-4 py-3 border-b border-[#E0EAF4] bg-[#F7FAFD] rounded-t-2xl">
                 <span className="text-xs font-black text-[#173F73] uppercase tracking-wide">
                   Kalemler ({items.filter(it => it.productName.trim()).length})
@@ -955,9 +957,9 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               </div>
             </div>
 
-            {/* Not + toplamlar */}
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2.5 items-start">
-              <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm p-2.5">
+            {/* Not ve teklif özeti: geniş ekranda sağ panel */}
+            <div className="contents">
+              <div className="bg-white border border-[#D8E5F2] rounded-2xl shadow-sm p-3 sm:p-4">
                 <label className="ql">Not</label>
                 <textarea
                   ref={notesRef}
@@ -968,11 +970,13 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   className="qf !h-auto py-1.5"
                 />
               </div>
+              </div>
+              <aside className="min-w-0 xl:sticky xl:top-3">
               {summary.length > 0 && (
-                <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm overflow-x-auto">
+                <div className="bg-white border border-[#D8E5F2] rounded-2xl shadow-[0_4px_18px_rgba(16,58,101,0.06)] overflow-x-auto p-3">
                   <table className="text-xs tabular-nums w-full">
                     <thead>
-                      <tr className="bg-slate-50 text-[11px] uppercase text-slate-500">
+                      <tr className="bg-[#EAF3FC] text-[11px] uppercase text-[#173F73]">
                         <th className="px-2.5 py-1 text-left font-bold" />
                         {summary.map(r => <th key={r.c} className="px-2.5 py-1 text-right font-bold">{CURRENCY_LABEL[r.c]}</th>)}
                       </tr>
@@ -984,7 +988,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                           {summary.map(r => <td key={r.c} className="px-2.5 py-0.5 text-right">{fmt2(r[k])}</td>)}
                         </tr>
                       ))}
-                      <tr className="border-t border-slate-300 font-black text-slate-900">
+                      <tr className="border-t-2 border-[#006DBB] bg-[#EAF3FC] font-black text-[#173F73]">
                         <td className="px-2.5 py-1">G.Toplam</td>
                         {summary.map(r => <td key={r.c} className="px-2.5 py-1 text-right">{fmt2(r.total)}</td>)}
                       </tr>
@@ -992,12 +996,13 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                   </table>
                 </div>
               )}
+              </aside>
             </div>
           </form>
         </div>
 
         {/* Alt çubuk */}
-        <div className="px-3 py-2 bg-white border-t border-slate-200 flex items-center justify-end gap-2 pb-safe flex-wrap">
+        <div className="px-3 sm:px-5 py-3 bg-white border-t border-[#D8E5F2] flex items-center justify-end gap-2 pb-safe flex-wrap">
           {requireCheck && (
             <label className={`mr-auto flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-bold cursor-pointer select-none ${checked ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : checkWarn ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
               <input type="checkbox" checked={checked} onChange={e => { setChecked(e.target.checked); setCheckWarn(false); }} className="w-4 h-4 accent-emerald-600" />
