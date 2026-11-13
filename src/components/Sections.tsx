@@ -80,10 +80,14 @@ export const StatBox: React.FC<{
     <span className="relative min-w-0 flex-1">
       <span className={`flex items-center gap-1.5 text-[11px] sm:text-[13px] md:text-[11.5px] xl:text-[13px] font-bold leading-snug md:whitespace-normal md:line-clamp-2 xl:truncate ${t.label || 'text-slate-600'}`}>
         {dense
-          ? <><span className="sm:hidden truncate">{label.replace(/^Bu ay (.)/, (_, c: string) => c.toLocaleUpperCase('tr'))}</span><span className="hidden sm:inline">{label}</span></>
+          ? <><span className="sm:hidden truncate">{label.replace(/^Bu ay (.)/, (_, c: string) => c.toLocaleUpperCase('tr')).replace(/ \+ pasif$/, '')}</span><span className="hidden sm:inline">{label}</span></>
           : <><span className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${t.dot || t.icon}`} />{label}</>}
       </span>
-      <span className={`block mt-0.5 ${dense ? 'text-[12px]' : 'text-base'} sm:text-xl md:text-[14px] lg:text-lg xl:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] md:text-[14px] lg:text-lg xl:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>{value}</span>
+      <span className={`block mt-0.5 ${dense ? 'text-[clamp(10px,2.9vw,13px)] tracking-tight' : 'text-base'} sm:text-xl md:text-[14px] lg:text-lg xl:text-xl font-black tabular-nums whitespace-nowrap truncate leading-tight ${t.value ? `sm:text-[22px] md:text-[14px] lg:text-lg xl:text-[22px] tracking-tight ${t.value}` : 'text-[#173F73]'}`}>
+        {dense && typeof value === 'string' && /^₺/.test(value)
+          ? <><span className="sm:hidden">{value.replace(/^₺\s?/, '')}</span><span className="hidden sm:inline">{value}</span></>
+          : value}
+      </span>
       {trend != null ? (
         <span className="hidden sm:flex items-center gap-1 text-[11px] sm:text-xs md:text-[10.5px] xl:text-xs truncate">
           <b className={`tabular-nums ${trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{trend >= 0 ? '↑' : '↓'} %{Math.abs(trend)}</b>
@@ -102,24 +106,12 @@ export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 type Stat = { label: string; value: string; sub?: string; trend?: number | null };
 const StatGrid: React.FC<{ stats: Stat[]; row?: boolean }> = ({ stats, row }) => row ? (
-  /* 3 kutu (Teklifler, Tahsilat, Harcama): geniş ekranda yan yana; telefonda tek kartta alt alta satırlar */
-  <>
-    {/* Telefonda: tek kart, alt alta ince satırlar (tutar tam okunur) */}
-    <div className="sm:hidden rounded-xl border border-slate-100 bg-white divide-y divide-slate-100 shadow-[0_10px_26px_-22px_rgba(15,60,120,0.6)]">
-      {stats.slice(0, 3).map(s => (
-        <div key={s.label} className="flex items-center gap-2 px-3 py-2 min-w-0" title={s.sub}>
-          <span className="flex-1 min-w-0 truncate text-xs font-bold text-slate-500">{s.label}</span>
-          <b className="text-[13px] font-black text-[#173F73] tabular-nums whitespace-nowrap">{s.value}</b>
-          {s.trend != null && <span className={`w-11 text-right text-[11px] font-bold tabular-nums ${s.trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{s.trend >= 0 ? '↑' : '↓'}%{Math.abs(s.trend)}</span>}
-        </div>
-      ))}
-    </div>
-    <div className="hidden sm:grid grid-cols-3 gap-2 lg:gap-3">
-      {stats.slice(0, 3).map((s, i) => (
-        <StatBox key={s.label} dense label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)} />
-      ))}
-    </div>
-  </>
+  /* 3 kutu (Teklifler, Tahsilat, Harcama): telefonda da yan yana; yazı ekran genişliğine göre küçülür, ₺ gizlenir */
+  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 lg:gap-3">
+    {stats.slice(0, 3).map((s, i) => (
+      <StatBox key={s.label} dense label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)} />
+    ))}
+  </div>
 ) : (
   <div className={`grid grid-cols-2 ${stats.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-2 lg:gap-3`}>
     {stats.map((s, i) => (
