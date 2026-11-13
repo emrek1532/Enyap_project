@@ -544,6 +544,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           currentRole={currentRole}
           maxWon={evals.max}
           onSetStatus={(st, note) => setStatus(viewing, st, note)}
+          onEdit={canEdit ? () => { const c = viewing; setViewing(null); openEdit(c); } : undefined}
           balance={balanceOf(viewing)}
         />
       )}
