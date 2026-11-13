@@ -1,7 +1,7 @@
 import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Percent, Inbox, PauseCircle, Phone, Zap, History, ArrowDownLeft, CheckCircle2, BellRing, Package } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Percent, Inbox, PauseCircle, Phone, Zap, History, ArrowDownLeft, CheckCircle2, BellRing, Package, Layers, Coins } from 'lucide-react';
 import { Collection, Customer, Expense, Quote, QuoteStatus, SyncStatus } from '../types';
 import { PENDING_STATUSES, quoteNo, viewStatus, isPendingQuote, followDue, isExpiring, quoteAgeInDays, daysToExpiry, plusDays } from '../lib/quoteRules';
 import { localDay } from '../lib/dates';
@@ -423,82 +423,131 @@ export const SimpleHome: React.FC<{
 
 type Activity = { from: string; teklif: number; onay: number };
 
-/** Dönem kartı: büyük satış rakamı + değişim, altında teklif / tahsilat / harcama (küçük çizgili), dönüşüm ve ay sonu tahmini */
+/** Dönem kartı: büyük satış rakamı + değişim, sağda Bugün / Bu hafta; ortada satış oranı / hedef / ay sonu tahmini; altta verilen teklif / tahsilat / harcama */
 const PeriodCard: React.FC<{
   className?: string; title: string; isYear: boolean; cur: Month; prev: Month; spark: Month[]; conv: number;
   canQuotes: boolean; canMoney: boolean; canExp: boolean; forecast?: { total: number };
   activity?: { today: Activity; week: Activity }; onOpenRange: (from: string, to: string) => void; today: string;
   onOpenSales: () => void; onOpenQuotes: () => void; onOpenCollections: () => void; onOpenExpenses: () => void;
-}> = ({ className = '', title, isYear, cur, prev, spark, conv, canQuotes, canMoney, canExp, forecast, activity, onOpenRange, today, onOpenSales, onOpenQuotes, onOpenCollections, onOpenExpenses }) => {
+}> = ({ className = '', title, isYear, cur, prev, conv, canQuotes, canMoney, canExp, forecast, activity, onOpenRange, today, onOpenSales, onOpenQuotes, onOpenCollections, onOpenExpenses }) => {
   const [targets] = useSetting<Targets>('targets', { sales: 0, collection: 0 });
   const vs = isYear ? 'geçen yıla göre' : 'geçen aya göre';
   const big = canQuotes
-    ? { label: 'Satış (onaylanan)', value: cur.onay, prev: prev.onay, sub: `${cur.onayAdet} teklif`, on: onOpenSales, spark: spark.map(x => x.onay) }
-    : { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, sub: '', on: onOpenCollections, spark: spark.map(x => x.tahsilat) };
+    ? { label: 'Satış (onaylanan)', value: cur.onay, prev: prev.onay, sub: `${cur.onayAdet} teklif`, on: onOpenSales }
+    : { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, sub: '', on: onOpenCollections };
   const minis = [
-    canQuotes && { label: 'Verilen teklif', value: cur.teklif, prev: prev.teklif, sub: `${cur.adet} adet`, on: onOpenQuotes, spark: spark.map(x => x.teklif), color: '#38bdf8' },
-    canQuotes && canMoney && { label: 'Tahsilat', value: cur.tahsilat, prev: prev.tahsilat, on: onOpenCollections, spark: spark.map(x => x.tahsilat), color: '#10b981' },
-    canExp && { label: 'Harcama', value: cur.harcama, prev: prev.harcama, on: onOpenExpenses, spark: spark.map(x => x.harcama), color: '#fb7185', lower: true },
-  ].filter(Boolean) as { label: string; value: number; prev: number; sub?: string; on: () => void; spark: number[]; color: string; lower?: boolean }[];
+    canQuotes && { label: 'Verilen teklif', icon: Layers, value: cur.teklif, prev: prev.teklif, sub: `${cur.adet} adet`, on: onOpenQuotes },
+    canQuotes && canMoney && { label: 'Tahsilat', icon: Wallet, value: cur.tahsilat, prev: prev.tahsilat, on: onOpenCollections },
+    // Harcamanın artması olumlu sayılmaz (lower: düşüş yeşil)
+    canExp && { label: 'Harcama', icon: Coins, value: cur.harcama, prev: prev.harcama, on: onOpenExpenses, lower: true },
+  ].filter(Boolean) as { label: string; icon: React.ElementType; value: number; prev: number; sub?: string; on: () => void; lower?: boolean }[];
   const tPct = targets.sales && canQuotes ? Math.round((cur.onay / targets.sales) * 100) : 0;
-  const cols = (n: number) => (n === 3 ? 'grid-cols-3' : n === 2 ? 'grid-cols-2' : 'grid-cols-1');
+  const smCols = (n: number) => (n === 3 ? 'sm:grid-cols-3' : n === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-1');
   const stats = (canQuotes ? [
-    conv > 0 && { label: 'Satış oranı', icon: Percent, value: `%${conv}`, tone: 'text-[#173F73]' },
-    tPct > 0 && { label: 'Hedef', icon: Target, value: `%${tPct}`, tone: tPct >= 100 ? 'text-emerald-600' : 'text-amber-600' },
-    forecast && forecast.total > 0 && { label: 'Ay sonu tahmini', icon: TrendingUp, value: trNum(Math.round(forecast.total)), tone: 'text-sky-700' },
-  ] : []).filter(Boolean) as { label: string; icon: React.FC<{ className?: string }>; value: string; tone: string }[];
+    conv > 0 && { label: 'Satış oranı', icon: Percent, value: `%${conv}`, tone: 'text-[#173F73]', box: 'bg-[#EAF4FC] text-[#006DBB]' },
+    tPct > 0 && { label: 'Hedef', icon: Target, value: `%${tPct}`, tone: 'text-[#008A4E]', box: 'bg-[#E7F7EE] text-[#00A35C]' },
+    forecast && forecast.total > 0 && { label: 'Ay sonu tahmini', icon: TrendingUp, value: trNum(Math.round(forecast.total)), tone: 'text-[#0A6FD0]', box: 'bg-[#EAF4FC] text-[#006DBB]' },
+  ] : []).filter(Boolean) as { label: string; icon: React.ElementType; value: string; tone: string; box: string }[];
+  const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009FE3]/60';
   return (
-    <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden text-slate-900 ${className}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-3">
-        <button onClick={big.on} className="flex-1 min-w-0 text-left rounded-2xl hover:bg-slate-50/60">
-          <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
-          <span className="block mt-1 text-[28px] sm:text-[40px] leading-none font-black tracking-tight text-[#173F73] tabular-nums truncate">{lira(big.value)}</span>
-          <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
-        </button>
-        {activity && (
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 sm:w-64 shrink-0">
-            {([['Bugün', activity.today], ['Bu hafta', activity.week]] as const).map(([l, a]) => (
-              <button key={l} onClick={() => onOpenRange(a.from, today)}
-                className="rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 px-2.5 py-1.5 sm:px-3 sm:py-2.5 text-left sm:text-center hover:bg-sky-50 hover:border-sky-100 min-w-0">
-                {/* Telefonda tek satır: "Bugün 2 teklif · 1 onay" */}
-                <span className="sm:hidden block text-[11px] text-[#5E7491] truncate">
-                  <b className="text-slate-500">{l}</b> <b className="text-[#173F73] text-[13px]">{a.teklif}</b> teklif · <b className={a.onay ? 'text-emerald-600' : 'text-slate-500'}>{a.onay}</b> onay
-                </span>
-                <span className="hidden sm:block text-[11px] font-bold uppercase tracking-wide text-slate-500">{l}</span>
-                <span className="hidden sm:block text-2xl font-black text-[#173F73] tabular-nums leading-tight">{a.teklif}</span>
-                <span className="hidden sm:block text-[11px] text-[#5E7491]">teklif · <b className={a.onay ? 'text-emerald-600' : 'text-slate-500'}>{a.onay} onay</b></span>
-              </button>
-            ))}
-          </div>
-        )}
+    <section className={`relative bg-white rounded-[24px] border border-[#D9E9F7] shadow-[0_18px_40px_-28px_rgba(0,109,187,0.55)] min-w-0 overflow-hidden text-slate-900 ${className}`}>
+      {/* Üst bölüm: satış tutarı + Bugün / Bu hafta; arkada yalnız süs amaçlı açık mavi dalga ve yükselen sütunlar */}
+      <div className="relative">
+        <PeriodArt />
+        <div className="relative flex flex-col lg:flex-row lg:items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 pt-4 sm:pt-6 pb-4 sm:pb-5">
+          <button onClick={big.on} className={`group flex-1 min-w-0 flex items-stretch gap-3 sm:gap-4 text-left rounded-2xl transition-colors ${focus}`}>
+            <span aria-hidden className="w-1 shrink-0 rounded-full bg-gradient-to-b from-[#0A6FD0] to-[#009FE3]" />
+            <span className="min-w-0 flex-1 py-0.5">
+              <span className="flex items-center gap-2 text-[13px] sm:text-[15px] font-semibold text-[#17365D] min-w-0">
+                <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-[#006DBB] shrink-0" /><span className="truncate">{title} · {big.label}</span>
+              </span>
+              <span className="block mt-1.5 sm:mt-2 text-[30px] sm:text-[40px] lg:text-[46px] leading-none font-black tracking-tight text-[#0F2D57] tabular-nums truncate group-hover:text-[#0A4C93] transition-colors">{lira(big.value)}</span>
+              <span className="mt-2 sm:mt-2.5 flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-[#5E7491]">
+                <Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span>
+              </span>
+            </span>
+          </button>
+          {activity && (
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:w-[340px] shrink-0">
+              {([['Bugün', activity.today], ['Bu hafta', activity.week]] as const).map(([l, a]) => (
+                <button key={l} onClick={() => onOpenRange(a.from, today)}
+                  className={`min-w-0 flex items-start gap-2 sm:gap-3 rounded-2xl bg-gradient-to-br from-white to-[#F1F8FE] border border-[#DCEBF8] shadow-[0_10px_24px_-20px_rgba(0,109,187,0.7)] px-3 py-2.5 sm:px-4 sm:py-3.5 text-left transition hover:border-[#B9DAF4] hover:shadow-[0_12px_26px_-18px_rgba(0,109,187,0.7)] ${focus}`}>
+                  <CalendarDays className="hidden sm:block w-5 h-5 mt-0.5 text-[#006DBB] shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-[#17365D]">{l}</span>
+                    <span className="block text-xl sm:text-[28px] font-black text-[#0F2D57] tabular-nums leading-tight">{a.teklif}</span>
+                    <span className="block text-[11px] sm:text-xs text-[#5E7491] truncate">teklif · <b className={a.onay ? 'text-[#008A4E]' : 'text-slate-500'}>{a.onay} onay</b></span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+      {/* Orta bölüm: satış oranı / hedef / ay sonu tahmini (telefonda iki sütun, üçüncüsü tam genişlik) */}
       {stats.length > 0 && (
-        <div className={`grid border-t border-slate-100 divide-x divide-slate-100 ${cols(stats.length)}`}>
-          {stats.map(m => (
-            <div key={m.label} className="px-2 sm:px-5 py-3 min-w-0">
-              <span className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-slate-500 truncate"><m.icon className="hidden sm:block w-3.5 h-3.5 shrink-0" />{m.label}</span>
-              <span className={`block mt-0.5 text-[13px] sm:text-lg font-black tabular-nums leading-tight ${m.tone}`}>{m.value}</span>
+        <div className={`relative grid gap-y-3 border-t border-[#E6EFF8] px-4 sm:px-2 py-3.5 sm:py-4 ${stats.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${smCols(stats.length)}`}>
+          {stats.map((m, i) => (
+            <div key={m.label} className={`flex items-center gap-3 min-w-0 sm:px-4 lg:px-5 ${i ? 'sm:border-l sm:border-[#E6EFF8]' : ''} ${stats.length === 3 && i === 2 ? 'max-sm:col-span-2' : ''}`}>
+              <span className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl flex sm:hidden lg:flex items-center justify-center shrink-0 ${m.box}`}><m.icon className="w-5 h-5 sm:w-6 sm:h-6" /></span>
+              <span className="min-w-0">
+                <span className="block text-xs sm:text-sm font-semibold text-[#5E7491] truncate">{m.label}</span>
+                <span className={`block text-lg sm:text-xl lg:text-2xl font-black tabular-nums leading-tight truncate ${m.tone}`}>{m.value}</span>
+              </span>
             </div>
           ))}
         </div>
       )}
+      {/* Alt bölüm: finansal özet (telefonda alt alta) */}
       {minis.length > 0 && (
-        <div className={`grid border-t border-slate-100 divide-x divide-slate-100 ${cols(minis.length)}`}>
-          {minis.map(m => (
-            <button key={m.label} onClick={m.on} className="text-left px-2 sm:px-5 py-3 hover:bg-slate-50 min-w-0">
-              <span className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{m.label}</span>
-                <span className="hidden xl:block"><Spark values={m.spark} color={m.color} /></span>
-              </span>
-              <span className="block mt-0.5 text-[13px] sm:text-lg font-black text-[#173F73] tabular-nums leading-tight whitespace-nowrap">{trNum(Math.round(m.value))}<span className="hidden sm:inline text-xs font-bold text-slate-400"> TL</span></span>
-              <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
-            </button>
-          ))}
+        <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3">
+          <div className={`grid grid-cols-1 ${smCols(minis.length)} rounded-[20px] bg-[#F6FAFE] border border-[#E4EEF8] overflow-hidden`}>
+            {minis.map((m, i) => (
+              <button key={m.label} onClick={m.on}
+                className={`flex items-center gap-3 text-left px-3.5 sm:px-4 lg:px-5 py-3 sm:py-4 min-w-0 transition-colors hover:bg-[#EDF5FD] ${focus} ${i ? 'max-sm:border-t sm:border-l border-[#E4EEF8]' : ''}`}>
+                <span className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl flex sm:hidden lg:flex bg-white border border-[#E1EDF8] text-[#006DBB] items-center justify-center shrink-0 shadow-sm"><m.icon className="w-5 h-5 sm:w-6 sm:h-6" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs sm:text-sm font-semibold text-[#5E7491] truncate">{m.label}</span>
+                  <span className="block text-lg sm:text-xl lg:text-2xl font-black text-[#0F2D57] tabular-nums leading-tight truncate">{trNum(Math.round(m.value))}<span className="text-xs sm:text-sm font-bold text-[#5E7491]"> TL</span></span>
+                  <span className="mt-0.5 flex items-center gap-1.5 text-xs text-[#5E7491] min-w-0"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="truncate">· {m.sub}</span>}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </section>
   );
 };
+
+/** Dönem kartının üst bölümündeki süs: açık mavi dalga + yükselen sütunlar ve ok (veri değil, yalnız görsel) */
+const PeriodArt: React.FC = () => (
+  <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1000 200" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="pa-wave" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#EAF4FC" stopOpacity="0" />
+          <stop offset="0.45" stopColor="#E3F0FB" stopOpacity="0.7" />
+          <stop offset="1" stopColor="#D6EAFA" stopOpacity="0.95" />
+        </linearGradient>
+      </defs>
+      <path d="M380 200 C 520 190, 560 120, 700 90 S 900 20, 1000 10 L1000 200 Z" fill="url(#pa-wave)" />
+      <path d="M300 200 C 470 200, 560 165, 700 140 S 900 90, 1000 80 L1000 200 Z" fill="#EAF4FC" fillOpacity="0.6" />
+    </svg>
+    {/* Sütunlar + yükselen ok: bilgisayar/tablette satış tutarı ile Bugün/Bu hafta kutuları arasında; telefonda sağ üstte soluk */}
+    <svg className="absolute bottom-0 right-2 h-[78%] w-[150px] opacity-40 lg:hidden xl:block xl:opacity-100 xl:right-[372px] xl:w-[230px]" viewBox="0 0 250 150" preserveAspectRatio="xMaxYMax meet">
+      <defs>
+        <linearGradient id="pa-bar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#5BB8F2" stopOpacity="0.75" />
+          <stop offset="1" stopColor="#5BB8F2" stopOpacity="0.08" />
+        </linearGradient>
+      </defs>
+      {[18, 30, 44, 60, 80, 104].map((h, i) => <rect key={i} x={58 + i * 30} y={150 - h} width="20" height={h} rx="3" fill="url(#pa-bar)" />)}
+      <path d="M10 120 C 70 118, 120 95, 160 70 S 215 28, 232 14" fill="none" stroke="#3DA9EE" strokeOpacity="0.7" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M220 12 L236 10 L232 26" fill="none" stroke="#3DA9EE" strokeOpacity="0.8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  </div>
+);
 
 /** Karar bekleyen teklifler: önce bugün aranacaklar, sonra süresi dolanlar, sonra en yeniler; satırdan Onayla / Yarın ara */
 const DecisionList: React.FC<{
@@ -578,22 +627,6 @@ const DecisionList: React.FC<{
         })}
       </ul>
     </section>
-  );
-};
-
-/** Küçük çizgi grafik (son aylar); hepsi sıfırsa çizilmez */
-const Spark: React.FC<{ values: number[]; color: string; w?: number; h?: number; fallback?: React.ReactNode }> = ({ values, color, w = 56, h = 18, fallback = null }) => {
-  const max = Math.max(...values, 0);
-  if (values.length < 2 || max <= 0) return <>{fallback}</>;
-  const W = w, H = h;
-  const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 2 - (v / max) * (H - 4)]);
-  const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
-  const [lx, ly] = pts[pts.length - 1];
-  return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 opacity-80 group-hover:opacity-100" aria-hidden>
-      <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lx} cy={ly} r="2.2" fill={color} />
-    </svg>
   );
 };
 
