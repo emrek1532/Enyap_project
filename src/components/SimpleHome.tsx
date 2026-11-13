@@ -139,8 +139,17 @@ export const SimpleHome: React.FC<{
       fm.set(k, f);
     }
     const firms = [...fm.values()].sort((a, b) => b.onay - a.onay || b.teklif - a.teklif).slice(0, 5);
+    // Bugün / bu hafta (pazartesiden): verilen teklif ve gelen onay sayısı
+    const wd = new Date(now); wd.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const weekFrom = ymd(wd);
+    const act = (f: string) => ({
+      from: f,
+      teklif: quotes.filter(q => q.status !== 'iptal' && dayOf(q.createdAt) >= f && dayOf(q.createdAt) <= t).length,
+      onay: quotes.filter(q => { if (q.status !== 'onaylandi') return false; const d = dayOf(q.approvedAt || q.updatedAt); return d >= f && d <= t; }).length,
+    });
+    const activity = { today: act(t), week: act(weekFrom) };
     return {
-      cur, prevSame, from, to, dim, spark, firms,
+      cur, prevSame, from, to, dim, spark, firms, activity,
       status: { onay: st(q => q.status === 'onaylandi'), bekleyen: st(q => PENDING_STATUSES.includes(q.status)), iptal: st(q => q.status === 'iptal') },
     };
   }, [quotes, collections, expenses, rates, t, period.kind, period.y, period.m]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -310,6 +319,7 @@ export const SimpleHome: React.FC<{
       {/* 3. Dönem kartı: büyük satış + teklif / tahsilat / harcama */}
       {(canQuotes || canMoney) && (
         <PeriodCard title={title} isYear={isYear} cur={s.cur} prev={s.prevSame} spark={s.spark} conv={conv}
+          activity={canQuotes ? s.activity : undefined} onOpenRange={(from, to) => openQuotes({ status: 'all', from, to })} today={t}
           canQuotes={canQuotes} canMoney={canMoney} canExp={canExp} forecast={isCurrent && !isYear ? forecast : undefined}
           onOpenSales={() => openQuotes({ status: 'onaylandi', from: s.from, to: s.to })}
           onOpenQuotes={() => openQuotes({ status: 'all', from: s.from, to: s.to })}
@@ -411,12 +421,15 @@ export const SimpleHome: React.FC<{
   );
 };
 
+type Activity = { from: string; teklif: number; onay: number };
+
 /** Dönem kartı: büyük satış rakamı + değişim, altında teklif / tahsilat / harcama (küçük çizgili), dönüşüm ve ay sonu tahmini */
 const PeriodCard: React.FC<{
   className?: string; title: string; isYear: boolean; cur: Month; prev: Month; spark: Month[]; conv: number;
   canQuotes: boolean; canMoney: boolean; canExp: boolean; forecast?: { total: number };
+  activity?: { today: Activity; week: Activity }; onOpenRange: (from: string, to: string) => void; today: string;
   onOpenSales: () => void; onOpenQuotes: () => void; onOpenCollections: () => void; onOpenExpenses: () => void;
-}> = ({ className = '', title, isYear, cur, prev, spark, conv, canQuotes, canMoney, canExp, forecast, onOpenSales, onOpenQuotes, onOpenCollections, onOpenExpenses }) => {
+}> = ({ className = '', title, isYear, cur, prev, spark, conv, canQuotes, canMoney, canExp, forecast, activity, onOpenRange, today, onOpenSales, onOpenQuotes, onOpenCollections, onOpenExpenses }) => {
   const [targets] = useSetting<Targets>('targets', { sales: 0, collection: 0 });
   const vs = isYear ? 'geçen yıla göre' : 'geçen aya göre';
   const big = canQuotes
@@ -436,13 +449,25 @@ const PeriodCard: React.FC<{
   ] : []).filter(Boolean) as { label: string; icon: React.FC<{ className?: string }>; value: string; tone: string }[];
   return (
     <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden text-slate-900 ${className}`}>
-      <button onClick={big.on} className="w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-slate-50/60">
-        <span className="min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-3">
+        <button onClick={big.on} className="flex-1 min-w-0 text-left rounded-2xl hover:bg-slate-50/60">
           <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
           <span className="block mt-1 text-[28px] sm:text-[40px] leading-none font-black tracking-tight text-[#173F73] tabular-nums truncate">{lira(big.value)}</span>
           <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
-        </span>
-      </button>
+        </button>
+        {activity && (
+          <div className="grid grid-cols-2 gap-2 sm:w-64 shrink-0">
+            {([['Bugün', activity.today], ['Bu hafta', activity.week]] as const).map(([l, a]) => (
+              <button key={l} onClick={() => onOpenRange(a.from, today)}
+                className="rounded-2xl bg-slate-50 border border-slate-100 px-3 py-2.5 text-center hover:bg-sky-50 hover:border-sky-100">
+                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">{l}</span>
+                <span className="block text-2xl font-black text-[#173F73] tabular-nums leading-tight">{a.teklif}</span>
+                <span className="block text-[11px] text-[#5E7491]">teklif · <b className={a.onay ? 'text-emerald-600' : 'text-slate-500'}>{a.onay} onay</b></span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {stats.length > 0 && (
         <div className={`grid border-t border-slate-100 divide-x divide-slate-100 ${cols(stats.length)}`}>
           {stats.map(m => (
