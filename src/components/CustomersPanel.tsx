@@ -8,7 +8,7 @@ import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types'
 import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { CustomerAccount } from './CustomerAccount';
 import { CityInput } from './TextSuggest';
-import { isPendingQuote, needsFollowUp } from '../lib/quoteRules';
+import { isPendingQuote } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
@@ -94,7 +94,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
-  const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
+  const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'none'>('all');
   // Sütun başlığına tıklayarak sıralama (varsayılan: onaylı toplamı en yüksek en üstte)
   const [sort, setSort] = useState<SortState<CustomerSortKey>>(DEFAULT_SORT);
   const sortBy = (key: CustomerSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setPage(0); };
@@ -173,7 +173,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       total: list.length,
       approved: approved.length,
       pending: list.filter(q => isPendingQuote(q)).length,
-      followUp: list.some(needsFollowUp),
       approvedTotal: approved.reduce((sum, q) => sum + quoteTry(q, rates), 0),
       lastDate: list[0]?.createdAt || '',
     };
@@ -191,7 +190,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         quoteFilter === 'all' ||
         (quoteFilter === 'approved' && st.approved > 0) ||
         (quoteFilter === 'pending' && st.pending > 0) ||
-        (quoteFilter === 'followup' && st.followUp) ||
         (quoteFilter === 'none' && st.total === 0)
       )
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -294,7 +292,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 <option value="all">Tüm Müşteriler</option>
                 <option value="approved">Onaylı teklifi olanlar</option>
                 <option value="pending">Bekleyen teklifi olanlar</option>
-                <option value="followup">Tekrar görüşülecekler</option>
                 <option value="none">Hiç teklif verilmeyenler</option>
               </select>
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value as typeof statusFilter); setPage(0); }} className={sel(statusFilter !== 'all')} aria-label="Müşteri durumu">
@@ -370,7 +367,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     <span className="px-2 py-0.5 rounded-full bg-[#F1F6FC] text-[#173F73]">{st.total} teklif</span>
                     <span className="px-2 py-0.5 rounded-full bg-[#E6F7F4] text-[#008F79]">{st.approved} onaylı</span>
                     <span className="px-2 py-0.5 rounded-full bg-[#EAF5FC] text-[#006DBB]">{st.pending} bekleyen</span>
-                    {st.followUp && <FollowPill />}
                   </div>
                 </div>
               </div>
@@ -399,7 +395,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                       <div className="font-extrabold text-[#0B2343] min-w-[13rem] leading-snug">{c.name}<StatusBadge c={c} /></div>
                       <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap [&>span]:mt-0">
                         <span className="xl:hidden text-xs text-[#5E7491] whitespace-nowrap">{c.city || '—'}{st.lastDate ? ` · ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</span>
-                        {st.followUp && <FollowPill />}
                       </div>
                     </td>
                     <td className="hidden xl:table-cell py-2.5 px-3 text-[13px] text-[#5E7491] whitespace-nowrap">{c.city || '—'}</td>
@@ -509,11 +504,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     </div>
   );
 };
-
-const FollowPill: React.FC = () => (
-  <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-bold bg-[#E6F7F4] text-[#008F79] border border-[#00B49A]/30">⏱ Tekrar görüş</span>
-);
-
 
 const StatusBadge: React.FC<{ c: Customer }> = ({ c }) => {
   const st = statusOf(c);
