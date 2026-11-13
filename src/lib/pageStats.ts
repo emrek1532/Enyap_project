@@ -13,6 +13,8 @@ const lira = (v: number) => `₺\u00A0${trMoney(v)}`;
 const n = (v: number) => trNum(v);
 /** Bekleyen + pasif: "8 teklif · 3 pasif" */
 const pendSub = (l: Quote[]) => { const p = l.filter(isPassive).length; return `${n(l.length)} teklif${p ? ` · ${n(p)} pasif` : ''}`; };
+/** Takip edilecek (3 günden uzun cevapsız) sayısı bekleyen kutusunun alt satırında */
+const followSub = (f: number) => (f ? ` · ${n(f)} takip` : '');
 const sumTry = (l: (Collection | Expense)[]) => l.filter(x => (x.currency || 'TRY') === 'TRY').reduce((t, x) => t + (x.amount || 0), 0);
 
 /**
@@ -44,8 +46,7 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
     return [
       { label: `${view.label} verilen`, value: lira(av), sub: `${n(all.length)} teklif` },
       { label: `${view.label} onaylanan`, value: lira(wv), sub: `${n(won.length)} teklif · %${av ? Math.round((wv / av) * 100) : 0} dönüşüm` },
-      { label: `${view.label} bekleyen + pasif`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: pendSub(pend) },
-      { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
+      { label: `${view.label} bekleyen + pasif`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: pendSub(pend) + followSub(follow) },
     ];
   }
   if (tab === 'quotes') {
@@ -63,8 +64,7 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
     return [
       { label: 'Bu ay verilen', value: lira(mv), sub: `${n(month.length)} teklif`, trend: trend(mv, sum(prev)) },
       { label: 'Bu ay onaylanan', value: lira(wv), sub: `${n(won.length)} teklif · %${mv ? Math.round((wv / mv) * 100) : 0} dönüşüm`, trend: trend(wv, sum(prev.filter(q => q.status === 'onaylandi'))) },
-      { label: 'Bu ay bekleyen + pasif', value: lira(pv), sub: pendSub(pend), trend: trend(pv, sum(prev.filter(q => q.status === 'gonderildi'))) },
-      { label: 'Takip edilecek', value: n(follow), sub: '3 günden uzun cevapsız' },
+      { label: 'Bu ay bekleyen + pasif', value: lira(pv), sub: pendSub(pend) + followSub(follow), trend: trend(pv, sum(prev.filter(q => q.status === 'gonderildi'))) },
     ];
   }
   if (tab === 'customers') {
