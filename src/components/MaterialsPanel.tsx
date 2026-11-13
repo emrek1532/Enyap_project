@@ -144,8 +144,8 @@ const OwnMaterials: React.FC<{
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {actions && <div className="flex gap-2 shrink-0">{actions}</div>}
-          <div className="min-w-0 flex-1">
+          {actions && <div className="flex gap-2 shrink-0 order-2">{actions}</div>}
+          <div className="min-w-0 flex-1 order-1">
           <MobileSortSelect<MaterialSortKey>
             always
             sort={sort}
