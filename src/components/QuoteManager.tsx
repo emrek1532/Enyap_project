@@ -1,3 +1,4 @@
+import { trMoney } from '../lib/num';
 import { createPortal } from 'react-dom';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf } from '../lib/dates';
@@ -754,8 +755,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
                         <tr key={idx} className="hover:bg-white">
                           <td className="p-2 font-medium text-slate-900">{it.productName}</td>
                           <td className="p-2 text-slate-600">{it.quantity} {it.unit}</td>
-                          <td className="p-2 text-right text-slate-600">{it.unitPrice > 0 ? `${it.unitPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
-                          <td className="p-2 text-right font-bold text-slate-900">{it.totalPrice > 0 ? `${it.totalPrice.toLocaleString('tr-TR')} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
+                          <td className="p-2 text-right text-slate-600">{it.unitPrice > 0 ? `${trMoney(it.unitPrice)} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
+                          <td className="p-2 text-right font-bold text-slate-900">{it.totalPrice > 0 ? `${trMoney(it.totalPrice)} ${CURRENCY_LABEL[itemCurrency(it, selectedQuote)]}` : '-'}</td>
                         </tr>
                       ))}
                     </tbody>

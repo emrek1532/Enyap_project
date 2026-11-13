@@ -7,3 +7,6 @@ export const trNum = (v: number, opts: { minimumFractionDigits?: number; maximum
   if (!f) { f = new Intl.NumberFormat('tr-TR', opts); cache.set(key, f); }
   return f.format(v);
 };
+
+/** Para: her zaman virgülden sonra iki hane (439.345,15) */
+export const trMoney = (v: number) => trNum(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 });

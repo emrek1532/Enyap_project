@@ -18,7 +18,7 @@ Kullanıcı yazılım ve yapay zekâyı öğrenmek istiyor: her işte, yapılan 
 - Atanan iş hatırlatması: `send_assigned_reminders` (cron `assigned-reminders`, 30 dk, İstanbul 08-20, pazar hariç) kişi başına tek özet bildirim: açık görev notları + atanmış talepler + sipariş bekleyen onaylı teklifler (`20261113090000_assigned_reminders.sql`).
 - Veri, eşitleme, Supabase: `src/lib/db.ts`, `src/lib/supabase.ts`; şema `supabase/migrations/`; Edge Function'lar `supabase/functions/`.
 - Yapay zekâ uçları ve bildirimler: `worker/index.ts`.
-- Yetkiler: `src/lib/access.ts`. Para/sayı/tarih: `lib/money.ts`, `lib/num.ts`, `lib/dates.ts`.
+- Yetkiler: `src/lib/access.ts`. Para/sayı/tarih: `lib/money.ts`, `lib/num.ts`, `lib/dates.ts`. Para her yerde tam ve iki haneli yazılır (`trMoney`: 439.345,15); kısaltma (M/B) yalnız grafik eksenlerinde.
 
 ## Detay dosyaları (yalnız ilgili işe başlarken oku; hepsini okuma)
 - `docs/fiyat-listesi.md`: fiyat listesi yükleme (PDF/Excel), SQL eşleştirme kuralları, öğrenme, Excel şablonu. `suppliers.ts`, `pricelistCore.ts`, `pricelist-import`.

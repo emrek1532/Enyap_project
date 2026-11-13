@@ -1,4 +1,4 @@
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 import React, { useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { Quote } from '../types';
@@ -12,7 +12,7 @@ export const waPhone = (p?: string) => {
   return d.length >= 11 ? d : '';
 };
 
-const tl = (v: number) => `${trNum(Math.round(v))} TL`;
+const tl = (v: number) => `${trMoney(v)} TL`;
 const day = (s: string) => s.slice(0, 10).split('-').reverse().join('.');
 const SIGN = '\n\nEnyap Isı Sistemleri';
 

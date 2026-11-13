@@ -1,4 +1,4 @@
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Inbox, PauseCircle, Phone, Zap, History, ArrowDownLeft, CheckCircle2, BellRing, Package } from 'lucide-react';
@@ -19,8 +19,8 @@ type Tab = Exclude<ActiveTab, 'home'>;
 export type QuoteView = { status: string; from?: string; to?: string };
 
 const foldKey = (s: string) => s.trim().toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
-const tl = (v: number) => `${trNum(Math.round(v))} TL`;
-const lira = (v: number) => `₺ ${trNum(Math.round(v))}`;
+const tl = (v: number) => `${trMoney(v)} TL`;
+const lira = (v: number) => `₺ ${trMoney(v)}`;
 const short = (v: number) => v >= 1e6 ? `${trNum((v / 1e6), { maximumFractionDigits: 1 })}M` : v >= 1e3 ? `${trNum(Math.round(v / 1e3))}B` : `${Math.round(v)}`;
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -341,7 +341,7 @@ export const SimpleHome: React.FC<{
               <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 sm:px-5 text-xs text-slate-600">
                 <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-[#8CC8EE]" />Verilen teklif</span>
                 <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-[#00B49A]" />Onaylanan</span>
-                {forecast && forecast.total > 0 && <span className="flex items-center gap-1.5 text-[#006DBB] font-semibold"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
+                {forecast && forecast.total > 0 && <span className="flex items-center gap-1.5 text-[#006DBB] font-semibold"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {tl(forecast.total)}</span>}
               </div>
               <BarsChart bars={bars} hi={hiKey}
                 onPick={b => chart === 'all'
@@ -442,7 +442,7 @@ const PeriodCard: React.FC<{
         <div className="mx-4 sm:mx-6 mb-3 flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 text-xs font-bold text-slate-700">Dönüşüm <b className="text-[#173F73]">%{conv}</b></span>
           {tPct > 0 && <span className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-bold ${tPct >= 100 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}><Target className="w-3.5 h-3.5" />Hedefin %{tPct}'i</span>}
-          {forecast && forecast.total > 0 && <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-sky-50 text-xs font-bold text-sky-800"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {short(forecast.total)} TL</span>}
+          {forecast && forecast.total > 0 && <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-sky-50 text-xs font-bold text-sky-800"><TrendingUp className="w-3.5 h-3.5" />Ay sonu tahmini {tl(forecast.total)}</span>}
         </div>
       )}
       {minis.length > 0 && (
@@ -453,7 +453,7 @@ const PeriodCard: React.FC<{
                 <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{m.label}</span>
                 <span className="hidden xl:block"><Spark values={m.spark} color={m.color} /></span>
               </span>
-              <span className="block mt-0.5 text-[15px] sm:text-xl font-black text-[#173F73] tabular-nums truncate">{short(m.value)}<span className="text-xs font-bold text-slate-400"> TL</span></span>
+              <span className="block mt-0.5 text-[12px] sm:text-lg font-black text-[#173F73] tabular-nums leading-tight break-words">{trMoney(m.value)}<span className="text-[10px] sm:text-xs font-bold text-slate-400"> TL</span></span>
               <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
             </button>
           ))}
@@ -880,7 +880,7 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
         <div className="text-xs">
           <div className="flex justify-between font-semibold text-slate-600">
             <span>Satış hedefi · <b className={salesPct >= pace ? 'text-[#008F79]' : 'text-[#006DBB]'}>%{salesPct}</b></span>
-            <span className="tabular-nums">{short(cur.onay)} / {short(targets.sales)} TL</span>
+            <span className="tabular-nums">{trMoney(cur.onay)} / {tl(targets.sales)}</span>
           </div>
           <div className="relative h-2 rounded-full bg-slate-100 overflow-hidden mt-1">
             <div className={`h-full rounded-full ${salesPct >= pace ? 'bg-[#00B49A]' : 'bg-[#009FE3]'}`} style={{ width: `${Math.min(100, salesPct)}%` }} />

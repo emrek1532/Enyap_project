@@ -3,9 +3,9 @@ import { TrendingUp } from 'lucide-react';
 import { Quote } from '../types';
 import { monthForecast } from '../lib/forecast';
 import { Targets, useSetting } from '../lib/settings';
-import { trNum } from '../lib/num';
+import { trNum, trMoney } from '../lib/num';
 
-const tl = (v: number) => `${trNum(Math.round(v))} TL`;
+const tl = (v: number) => `${trMoney(v)} TL`;
 const short = (v: number) => (v >= 1e6 ? `${trNum(v / 1e6, { maximumFractionDigits: 1 })} M` : v >= 1e3 ? `${trNum(Math.round(v / 1e3))} B` : trNum(Math.round(v)));
 
 /**
