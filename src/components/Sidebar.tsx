@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home } from 'lucide-react';
+import { Home, ChevronRight } from 'lucide-react';
 
 export type SideSection = { id: string; title: string; icon: React.ElementType; badge?: number };
 
@@ -26,11 +26,12 @@ export const Sidebar: React.FC<{
     const on = active === id;
     return (
       <button key={id} onClick={onClick} aria-current={on ? 'page' : undefined}
-        className={`group relative w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-[15px] font-medium transition-all duration-200 ${on
-          ? 'bg-gradient-to-r from-[#1677D8] to-[#009FE3] text-white font-semibold shadow-[0_6px_26px_-2px_rgba(26,166,238,0.7)] ring-1 ring-[#7FD3FA]/40'
+        className={`group relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-200 ${on
+          ? 'bg-gradient-to-r from-[#087FC8] to-[#006DBB] text-white font-semibold shadow-[0_5px_18px_-7px_rgba(0,159,227,0.65)] ring-1 ring-white/15'
           : 'text-white/90 hover:bg-white/10 hover:text-white'}`}>
-        <Icon className="relative w-[22px] h-[22px] shrink-0 text-white" strokeWidth={1.7} />
+        <Icon className="relative w-5 h-5 shrink-0 text-white/95" strokeWidth={1.7} />
         <span className="relative min-w-0 flex-1 truncate text-left">{title}</span>
+        {!on && <ChevronRight aria-hidden className="w-3.5 h-3.5 shrink-0 text-white/45 group-hover:text-white/85" />}
         {badge > 0 && <span className="relative min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-black flex items-center justify-center tabular-nums" aria-label={`${badge} bekleyen`}>{badge > 99 ? '99+' : badge}</span>}
       </button>
     );
@@ -52,9 +53,24 @@ export const Sidebar: React.FC<{
         <img src="/logo-dark.png" alt="ENYAP" draggable={false} className="w-full max-w-[190px] h-auto select-none" />
         <span className="text-[13px] font-medium text-white/90">Isı Sistemleri · Teklif & Satış</span>
       </button>
-      <nav className="relative flex-1 overflow-y-auto no-scrollbar px-3 space-y-1.5">
+      <nav className="relative flex-1 overflow-y-auto no-scrollbar px-3 pb-2 space-y-1">
         {item('home', 'Ana Sayfa', Home, onHome)}
-        {sections.map(s => item(s.id, s.title, s.icon, () => onOpen(s.id), s.badge))}
+        {([
+          { label: 'SATIŞ İŞLEMLERİ', ids: ['quotes', 'requests', 'materials', 'customers'] },
+          { label: 'FİNANS', ids: ['collections', 'expenses'] },
+          { label: 'DİĞER', ids: ['notes', 'reports'] },
+          { label: 'YÖNETİM', ids: ['admin'] },
+        ] as const).map(group => {
+          const entries = group.ids.map(id => sections.find(s => s.id === id)).filter((s): s is SideSection => Boolean(s));
+          if (!entries.length) return null;
+          return <div key={group.label} className="pt-3 first:pt-1">
+            <div className="flex items-center gap-2 px-3.5 pb-1.5">
+              <span className="text-[10px] font-bold tracking-[0.11em] text-[#AFC5DE]">{group.label}</span>
+              <span aria-hidden className="h-px flex-1 bg-white/15" />
+            </div>
+            <div className="space-y-0.5">{entries.map(s => item(s.id, s.title, s.icon, () => onOpen(s.id), s.badge))}</div>
+          </div>;
+        })}
       </nav>
       <div className="relative m-3 p-3.5 rounded-2xl bg-[#0B2343]/80 backdrop-blur-sm border border-[#5CC4F5]/25 shadow-[0_12px_30px_-16px_rgba(0,0,0,0.6)]">
         <div className="flex items-center gap-3" title={userName}>
