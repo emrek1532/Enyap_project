@@ -191,15 +191,15 @@ const OwnMaterials: React.FC<{
       {/* Telefon / dar tablet: kartlar */}
       <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-[#E2EAF3]">
         {items.map(m => (
-          <div key={m.code} className="p-3.5 sm:p-4 flex items-start gap-3 hover:bg-[#F6FAFE] transition-colors">
-            <div className="min-w-0 flex-1 cursor-pointer rounded-lg focus-within:ring-2 focus-within:ring-[#006DBB]/20" onClick={() => setHistory(m)}>
-              <div className="text-[11px] font-extrabold text-[#173F73] tabular-nums tracking-wide">{m.code}</div>
-              <div className="text-sm font-semibold text-[#17365D] leading-snug uppercase break-words mt-0.5">{m.name || '-'}</div>
+          <div key={m.code} className="p-3 flex items-start gap-3">
+            <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
+              <div className="text-[11px] font-extrabold text-[#173F73] tabular-nums">{m.code}</div>
+              <div className="text-sm font-semibold text-[#17365D] leading-snug uppercase">{m.name || '-'}</div>
               <div className="text-[11px] text-[#5E7491] mt-1 flex items-center gap-1.5 flex-wrap">
                 <span>{m.unit}</span><span>·</span><span>KDV %{m.vatRate}</span>
               </div>
             </div>
-            <div className="text-right shrink-0 space-y-2 pl-2 border-l border-[#E2EAF3]">
+            <div className="text-right shrink-0 space-y-1.5">
               <div className={`text-sm font-black tabular-nums ${m.price > 0 ? 'text-[#17365D]' : 'text-[#5E7491]'}`}>
                 {priceNum(m)} {m.price > 0 && <span className="text-[11px] font-bold text-[#204D84]">{CURRENCY_LABEL[m.currency]}</span>}
               </div>
@@ -227,10 +227,10 @@ const OwnMaterials: React.FC<{
           </thead>
           <tbody className="divide-y divide-[#E2EAF3]">
             {items.map(m => (
-              <tr key={m.code} className="hover:bg-[#F1F8FE] even:bg-[#FAFCFF] transition-colors">
+              <tr key={m.code} className="hover:bg-[#F1F8FE] transition-colors">
                 <td className="py-3 px-3 pl-5 text-xs font-extrabold text-[#173F73] whitespace-nowrap">{m.code}</td>
-                <td className="py-3.5 px-3 text-[#17365D] font-semibold uppercase text-[13px] leading-relaxed">
-                  <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-[#006DBB] focus-visible:outline-2 focus-visible:outline-[#006DBB] rounded-sm">{m.name || '-'}</button>
+                <td className="py-3 px-3 text-[#17365D] font-semibold uppercase text-[13px]">
+                  <button type="button" onClick={() => setHistory(m)} className="text-left hover:text-[#006DBB]">{m.name || '-'}</button>
                 </td>
                 <td className="py-3 px-3 text-[#5E7491]">{m.unit}</td>
                 <td className={`py-3 px-3 text-right font-black tabular-nums whitespace-nowrap ${m.price > 0 ? 'text-[#17365D]' : 'text-[#5E7491]'}`}>
