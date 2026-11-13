@@ -257,6 +257,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [sharedPdf, setSharedPdf] = useState<File | null>(null);
   const [shareError, setShareError] = useState('');
   const [pdfNotice, setPdfNotice] = useState('');
+  // Paylaşılan PDF için "Talep mi, teklif mi?" sorusu
+  const [shareAsk, setShareAsk] = useState<{ file: File; guess: 'quote' | 'request' } | null>(null);
 
   // Apply a local (optimistic) change and cache it
   const mutate = useCallback((fn: (prev: AppData) => AppData) => {
@@ -569,9 +571,10 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         const pdf = await readQuotePdf(file, { ai: false }).catch(() => null);
         const no = (s?: string) => (s || '').trim().toLocaleUpperCase('tr');
         const existing = pdf?.quoteNumber ? quotesRef.current.find(q => no(q.quoteNumber) === no(pdf.quoteNumber)) : undefined;
-        setSharedPdf(file);
-        if (existing) setEditingQuote(existing);
-        else setIsNewQuoteOpen(true);
+        // Sistemdeki bir teklifin PDF'i: soru sormadan o teklif açılır (revize)
+        if (existing) { setSharedPdf(file); setEditingQuote(existing); return; }
+        // Değilse sor: müşteri talebi mi, teklif mi? Kalemleri okunabilen PDF'te "Teklif" önerilir
+        setShareAsk({ file, guess: pdf?.items?.length ? 'quote' : 'request' });
       } catch {
         setShareError('Paylaşılan PDF açılamadı.');
       }
@@ -1192,6 +1195,38 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           }}
         />
       )}
+
+      {shareAsk && (() => {
+        const asQuote = () => { setSharedPdf(shareAsk.file); setIsNewQuoteOpen(true); setShareAsk(null); };
+        const asRequest = () => { setSharedReq({ file: shareAsk.file }); setActiveTab('requests'); setShareAsk(null); };
+        const opts = [
+          { k: 'request' as const, icon: '📥', title: 'Müşteri talebi', desc: 'Talepler\'e kaydet, birine ata, sonra teklife dönüştür', go: asRequest },
+          { k: 'quote' as const, icon: '📄', title: 'Teklif', desc: 'PDF\'ten doldurup yeni teklif aç', go: asQuote },
+        ].sort((a, b) => (a.k === shareAsk.guess ? -1 : b.k === shareAsk.guess ? 1 : 0));
+        return (
+          <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setShareAsk(null)}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
+              <div>
+                <div className="text-base font-bold text-slate-800 dark:text-slate-100">Paylaşılan PDF ne?</div>
+                <div className="text-xs text-slate-500 truncate">{shareAsk.file.name}</div>
+              </div>
+              {canReq ? opts.map((o, i) => (
+                <button key={o.k} onClick={o.go}
+                  className={`w-full text-left rounded-xl border px-4 py-3 flex items-center gap-3 ${i === 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40' : 'border-slate-200 dark:border-slate-700'}`}>
+                  <span className="text-2xl">{o.icon}</span>
+                  <span className="flex-1">
+                    <span className="block font-semibold text-slate-800 dark:text-slate-100">{o.title}{i === 0 && <span className="ml-2 text-[10px] font-bold text-blue-600 uppercase">önerilen</span>}</span>
+                    <span className="block text-xs text-slate-500">{o.desc}</span>
+                  </span>
+                </button>
+              )) : (
+                <button onClick={asQuote} className="w-full rounded-xl bg-blue-600 text-white font-semibold py-3">Teklif olarak aç</button>
+              )}
+              <button onClick={() => setShareAsk(null)} className="w-full text-sm text-slate-500 py-1">Vazgeç</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {shareError && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-rose-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-3">
