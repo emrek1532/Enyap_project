@@ -526,32 +526,16 @@ const PeriodCard: React.FC<{
   );
 };
 
-/** Dönem kartının üst bölümündeki süs: açık mavi dalga + yükselen sütunlar ve ok (veri değil, yalnız görsel) */
+/** Dönem kartının üst bölümündeki süs: açık mavi dalga + yükselen sütunlar görseli (veri değil, yalnız görsel).
+ *  Bilgisayarda görselin sağ ucu Bugün/Bu hafta kutularının soluna gelir, arkalarında dalga devam eder; telefon/tablette sağa yaslı, soluk. */
 const PeriodArt: React.FC = () => (
   <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1000 200" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="pa-wave" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#EAF4FC" stopOpacity="0" />
-          <stop offset="0.45" stopColor="#E3F0FB" stopOpacity="0.7" />
-          <stop offset="1" stopColor="#D6EAFA" stopOpacity="0.95" />
-        </linearGradient>
-      </defs>
-      <path d="M380 200 C 520 190, 560 120, 700 90 S 900 20, 1000 10 L1000 200 Z" fill="url(#pa-wave)" />
-      <path d="M300 200 C 470 200, 560 165, 700 140 S 900 90, 1000 80 L1000 200 Z" fill="#EAF4FC" fillOpacity="0.6" />
-    </svg>
-    {/* Sütunlar + yükselen ok: bilgisayar/tablette satış tutarı ile Bugün/Bu hafta kutuları arasında; telefonda sağ üstte soluk */}
-    <svg className="absolute bottom-0 right-2 h-[78%] w-[150px] opacity-40 lg:hidden xl:block xl:opacity-100 xl:right-[372px] xl:w-[230px]" viewBox="0 0 250 150" preserveAspectRatio="xMaxYMax meet">
-      <defs>
-        <linearGradient id="pa-bar" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#5BB8F2" stopOpacity="0.75" />
-          <stop offset="1" stopColor="#5BB8F2" stopOpacity="0.08" />
-        </linearGradient>
-      </defs>
-      {[18, 30, 44, 60, 80, 104].map((h, i) => <rect key={i} x={58 + i * 30} y={150 - h} width="20" height={h} rx="3" fill="url(#pa-bar)" />)}
-      <path d="M10 120 C 70 118, 120 95, 160 70 S 215 28, 232 14" fill="none" stroke="#3DA9EE" strokeOpacity="0.7" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M220 12 L236 10 L232 26" fill="none" stroke="#3DA9EE" strokeOpacity="0.8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#EAF5FD]" />
+    <picture>
+      <source media="(min-width: 1024px)" srcSet="/home-sales-art.webp" />
+      <img src="/home-sales-art-sm.webp" alt="" draggable={false} decoding="async"
+        className="absolute inset-y-0 right-0 h-full w-full object-cover object-right-bottom opacity-60 sm:opacity-75 lg:opacity-100 lg:w-auto lg:max-w-none lg:right-[330px] lg:top-auto lg:h-[86%] xl:h-full [mask-image:linear-gradient(to_right,transparent,#000_38%,#000_90%,transparent)] xl:[mask-image:linear-gradient(to_right,transparent,#000_20%,#000_90%,transparent)] max-lg:[mask-image:linear-gradient(to_right,transparent,#000_35%)]" />
+    </picture>
   </div>
 );
 
