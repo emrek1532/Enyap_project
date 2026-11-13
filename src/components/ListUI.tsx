@@ -135,12 +135,16 @@ export const NewButton: React.FC<{ label: string; onClick: () => void }> = ({ la
   </button>
 );
 
-export const FilterBar: React.FC<{ search: React.ReactNode; active?: number; children: React.ReactNode; className?: string }> = ({ search, active = 0, children, className = 'flex flex-col xl:flex-row gap-2' }) => {
+/** action: "Yeni …" düğmesi. Dar ekranda arama kutusunun yanında, geniş ekranda (tek satır) filtrelerin en sağında. */
+const WIDE = { xl: ['xl:hidden', 'hidden xl:flex'], '2xl': ['2xl:hidden', 'hidden 2xl:flex'] } as const;
+export const FilterBar: React.FC<{ search: React.ReactNode; action?: React.ReactNode; wide?: keyof typeof WIDE; active?: number; children: React.ReactNode; className?: string }> = ({ search, action, wide = 'xl', active = 0, children, className = 'flex flex-col xl:flex-row gap-2' }) => {
   const [open, setOpen] = useState(false);
+  const [narrowCls, wideCls] = WIDE[wide];
   return (
     <div className={className}>
-      <div className="flex gap-2 flex-1 min-w-0 xl:min-w-[240px]">
+      <div className={`flex gap-2 flex-1 min-w-0 ${action ? 'xl:min-w-[150px]' : 'xl:min-w-[240px]'}`}>
         {search}
+        {action && <div className={`shrink-0 flex ${narrowCls}`}>{action}</div>}
         <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
           className={`sm:hidden shrink-0 h-10 px-3 rounded-xl border text-sm font-bold inline-flex items-center gap-1.5 ${open || active ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-700'}`}>
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
@@ -148,6 +152,7 @@ export const FilterBar: React.FC<{ search: React.ReactNode; active?: number; chi
         </button>
       </div>
       <div className={open ? 'contents' : 'hidden sm:contents'}>{children}</div>
+      {action && <div className={`shrink-0 ml-auto ${wideCls}`}>{action}</div>}
     </div>
   );
 };

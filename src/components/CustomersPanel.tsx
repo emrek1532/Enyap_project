@@ -359,7 +359,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <div className={ccard}>
         <div className="p-3 sm:p-4 space-y-2.5">
           <FilterBar className="flex flex-col 2xl:flex-row gap-2" active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (abcFilter !== 'all' ? 1 : 0)}
-            search={<><SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma, şehir veya cari kod ara..." className="flex-1" />{canEdit && <NewButton label="Yeni Müşteri" onClick={openNew} />}</>}>
+            search={<><SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma, şehir veya cari kod ara..." className="flex-1" /></>}
+            wide="2xl" action={canEdit && <NewButton label="Yeni Müşteri" onClick={openNew} />}>
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap 2xl:flex-nowrap gap-2 items-center">
               <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setPage(0); }} className={sel(cityFilter !== 'all')} aria-label="Şehir">
                 <option value="all">Tüm Şehirler</option>
