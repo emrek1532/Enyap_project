@@ -25,17 +25,29 @@ function pdfjsAssets(): Plugin {
   };
 }
 
+// Yayındaki sürüm: uygulama /version.json'u okuyup yeni sürüm var mı bakar
+function versionFile(version: string): Plugin {
+  return {
+    name: 'version-file',
+    writeBundle(opts) {
+      const out = opts.dir || path.resolve(__dirname, 'dist');
+      fs.writeFileSync(path.join(out, 'version.json'), JSON.stringify({version}));
+    },
+  };
+}
+
 export default defineConfig(() => {
   // Sürüm etiketi: hangi commit'in yayında olduğu uygulamada (Kullanım kılavuzu altında) görünür
   const sha = (process.env.WORKERS_CI_COMMIT_SHA || '').slice(0, 7);
+  const version = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')).version;
   const built = new Date().toLocaleString('tr-TR', {timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
   return {
     define: {
       __APP_BUILD__: JSON.stringify([sha, built].filter(Boolean).join(' · ')),
       // Uygulama sürümü (sağ üstte): her güncellemede package.json'daki "version" artırılır
-      __APP_VERSION__: JSON.stringify(JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')).version),
+      __APP_VERSION__: JSON.stringify(version),
     },
-    plugins: [react(), tailwindcss(), pdfjsAssets()],
+    plugins: [react(), tailwindcss(), pdfjsAssets(), versionFile(version)],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

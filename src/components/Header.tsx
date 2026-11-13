@@ -1,3 +1,4 @@
+import { VersionButton } from './UpdateBanner';
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Bell, BellOff, Search, LogOut } from 'lucide-react';
 import { HelpGuide } from './HelpGuide';
@@ -45,9 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ syncStatus, onTriggerSync, onHom
         ) : <span className="flex-1" />}
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 md:ml-auto">
-          <span className="hidden sm:inline text-[11px] font-medium text-slate-500 tabular-nums select-none" title={`Sürüm ${__APP_VERSION__} · ${__APP_BUILD__}`}>
-            v{__APP_VERSION__}
-          </span>
+          <VersionButton className="hidden sm:inline text-[11px] font-medium text-slate-500" />
           <button onClick={onTriggerSync} disabled={syncStatus.isSyncing} className={`${iconBtn} relative`}
             title={syncStatus.isSyncing ? 'Eşitleniyor…' : syncStatus.isOnline ? 'Çevrimiçi · eşitlemek için dokunun' : 'Çevrimdışı · kayıtlar bağlantı gelince gönderilir'}>
             <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? 'animate-spin text-brand-500' : ''}`} />
