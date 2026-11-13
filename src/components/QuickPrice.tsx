@@ -232,13 +232,13 @@ export const QuickPrice: React.FC<{
       )}
 
       {sup.length > 0 && (
-        <Group title="Firma listeleri (iskonto sonrası)">
+        <Group title="Firma listeleri (net)">
           {sup.map(s => {
             const net = s.price * (1 - (s.discount || 0) / 100);
             return (
               <Row key={s.id}
                 left={<><span className="inline-block text-[11px] font-black text-white rounded px-1.5 py-0.5 mr-1.5 align-middle" style={{ background: supplierColor(s.listName) }}>{s.listName}</span>{s.name}</>}
-                right={<>{money(net, s.currency)}{s.discount > 0 && <span className="block text-[11px] font-normal text-slate-500">liste {money(s.price, s.currency)} · %{s.discount}</span>}</>} />
+                right={<>{money(net, s.currency)}{s.discount > 0 && <span className="block text-[11px] font-normal text-slate-500">liste {money(s.price, s.currency)}</span>}{s.discount > 0 && <span className="block text-[11px] font-bold text-emerald-700">%{s.discount} iskonto</span>}</>} />
             );
           })}
         </Group>
@@ -248,8 +248,8 @@ export const QuickPrice: React.FC<{
         <Group title="En son kime kaçtan verdik">
           {history.map(h => (
             <button key={h.q.id} onClick={() => { remember(); onOpenQuote(h.q); }} className="w-full text-left">
-              <Row left={<><b className="text-slate-800">{h.q.customerName}</b> <span className="text-slate-500">· {trDay(h.q.createdAt)}{h.q.status === 'onaylandi' ? ' · onaylı' : ''}</span><span className="block text-[11px] text-slate-500 truncate">{h.name}</span></>}
-                right={<>{money(h.price * (1 - h.disc / 100), h.cur)}{h.disc > 0 && <span className="block text-[11px] font-normal text-slate-500">liste {money(h.price, h.cur)} · %{h.disc}</span>}</>} />
+              <Row left={<><span className="block font-semibold text-slate-900 line-clamp-2">{h.name}</span><span className="block text-[11px] text-slate-500 truncate"><b className="text-slate-700">{h.q.customerName}</b> · {trDay(h.q.createdAt)}{h.q.status === 'onaylandi' ? ' · onaylı' : ''}</span></>}
+                right={<>{money(h.price * (1 - h.disc / 100), h.cur)}{h.disc > 0 && <span className="block text-[11px] font-normal text-slate-500">liste {money(h.price, h.cur)}</span>}{h.disc > 0 && <span className="block text-[11px] font-bold text-emerald-700">%{h.disc} iskonto</span>}</>} />
             </button>
           ))}
         </Group>
@@ -260,13 +260,13 @@ export const QuickPrice: React.FC<{
 
 const Group: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div>
-    <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 px-1 mb-1">{title}</div>
-    <div className="divide-y divide-slate-100 rounded-xl border border-slate-100">{children}</div>
+    <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 px-1 mb-1.5">{title}</div>
+    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">{children}</div>
   </div>
 );
 
 const Row: React.FC<{ left: React.ReactNode; right: React.ReactNode }> = ({ left, right }) => (
-  <div className="flex items-start justify-between gap-3 px-2.5 py-1.5 text-xs">
+  <div className="flex items-start justify-between gap-3 px-3 py-2.5 text-sm">
     <span className="min-w-0 flex-1 text-slate-700 leading-snug">{left}</span>
     <span className="shrink-0 text-right font-bold text-slate-900 tabular-nums">{right}</span>
   </div>

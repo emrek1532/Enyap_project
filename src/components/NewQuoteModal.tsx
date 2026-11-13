@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf, localDay } from '../lib/dates';
-import { ArrowDown, ArrowUp, FileUp, ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, FileText, FileUp, ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { Quote, QuoteItem, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { CityInput } from './TextSuggest';
@@ -40,6 +40,8 @@ interface NewQuoteModalProps {
   onOpenExisting?: (q: Quote, file: File) => void;
   /** Talepten elle yüklenen teklif: kaydetmeden önce "Kontrol ettim" işaretlenmeli */
   requireCheck?: boolean;
+  /** Düzenlemede: kayıtlı teklifin resmi teklif (yazdır / gönder) penceresini açar */
+  onPrint?: () => void;
 }
 
 export { PAYMENT_TERMS } from '../lib/constants';
@@ -65,6 +67,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   initialPdf = null,
   pdfNotice = '',
   requireCheck = false,
+  onPrint,
 }) => {
   const [checked, setChecked] = useState(false);
   const [checkWarn, setCheckWarn] = useState(false);
@@ -359,6 +362,15 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const quoteCurrency: Currency = usedCurrencies.length === 1 ? usedCurrencies[0] : 'TRY';
   const totalQuoteAmount = usedCurrencies.length === 1 ? totalsByCurrency[quoteCurrency] : totalsByCurrency.TRY;
 
+  // Resmi teklif kayıtlı hâlden çıkar: kaydedilmemiş değişiklik varsa önce uyarılır
+  const snap = () => JSON.stringify([customerName, city, paymentTerm, notes, quoteDate, items]);
+  const firstSnap = useRef<string | null>(null);
+  if (firstSnap.current === null) firstSnap.current = snap();
+  const openPrint = () => {
+    if (snap() !== firstSnap.current && !window.confirm('Kaydedilmemiş değişiklikler resmi teklifte görünmez. Önce "Değişiklikleri Kaydet"e basın.\n\nYine de kayıtlı hâlini açayım mı?')) return;
+    onPrint?.();
+  };
+
   // ---- PDF'ten doldur: muhasebe programının teklif PDF'i formu doldurur ----
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -639,6 +651,17 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
               <div className="text-[11px] text-sky-200/80 truncate">Son değişiklik: {editQuote!.updatedBy && <b className="font-semibold text-sky-100">{editQuote!.updatedBy}</b>}{editQuote!.updatedBy ? ' · ' : ''}{new Date(editQuote!.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
             )}
           </div>
+          {isEdit && onPrint ? (
+          <button
+            type="button"
+            onClick={openPrint}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-[#173F73] hover:bg-sky-50 text-xs font-black"
+            title="Resmi teklifi aç: yazdır ya da PDF olarak gönder (WhatsApp, e-posta…)"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Resmi Teklif · Gönder</span><span className="sm:hidden">Resmi Teklif</span>
+          </button>
+          ) : (
           <button
             type="button"
             onClick={() => pdfInputRef.current?.click()}
@@ -649,6 +672,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             {pdfBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
             <span className="hidden sm:inline">PDF'ten Doldur</span><span className="sm:hidden">PDF</span>
           </button>
+          )}
           <input ref={pdfInputRef} type="file" accept="application/pdf,.pdf" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) fillFromPdf(f); e.target.value = ''; }} />
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Kapat"><X className="w-5 h-5" /></button>
@@ -657,6 +681,15 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         <div className="overflow-y-auto flex-1 bg-[#F1F6FC]">
           <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-3 sm:p-4 space-y-3">
 
+            {isEdit && onPrint && (
+              <div className="flex justify-end -mb-1">
+                <button type="button" onClick={() => pdfInputRef.current?.click()} disabled={pdfBusy}
+                  className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-brand-700 disabled:opacity-60"
+                  title="Muhasebe programının teklif PDF'inden kalemleri güncelle">
+                  {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} Muhasebe PDF'inden güncelle
+                </button>
+              </div>
+            )}
             {pdfNotice && !pdfMsg && (
               <div className="text-xs rounded-md px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200">{pdfNotice}</div>
             )}

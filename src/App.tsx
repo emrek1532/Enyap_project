@@ -1251,6 +1251,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           quotes={data.quotes}
           initialPdf={sharedPdf}
           onSaveQuote={handleUpdateQuote}
+          onPrint={() => printQuote(data.quotes.find(x => x.id === editingQuote.id) || editingQuote)}
           onClose={() => { setEditingQuote(null); setSharedPdf(null); }}
         />
       )}

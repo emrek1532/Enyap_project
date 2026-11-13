@@ -226,7 +226,8 @@ const sumBy = <T,>(list: T[], key: (x: T) => string, val: (x: T) => number) => {
 const joinMoney = (pairs: [string, number][]) => pairs.map(([c, v]) => fmtMoney(Math.round(v * 100) / 100, c)).join(' + ');
 const qtyText = (pairs: [string, number][]) => pairs.map(([u, v]) => `${v.toLocaleString('tr-TR')} ${u}`).join(' + ');
 
-export type Computed = { text: string; lines: AskLine[]; quotes: Quote[] };
+/** price: fiyat sorusunda etiket (En son/En düşük/En yüksek); picked: baştaki seçilen satır sayısı (kart olarak gösterilir) */
+export type Computed = { text: string; lines: AskLine[]; quotes: Quote[]; price?: string; picked?: number };
 
 /**
  * Sayı sorularını cihazda hesaplar. Hesaplanamayan (serbest) sorularda null döner, soru yapay zekâya gider.
@@ -296,5 +297,6 @@ export function computeAsk(r: AskResult, statusLabel: (s: QuoteStatus) => string
   });
   // Seçilen satırlar önde, gerisi en yeni önce
   const rest = recent.filter(l => !used.includes(l));
-  return { text: `${head}${many ? '\n' : ''}${rows.join('\n')}${more}`, lines: [...used, ...rest], quotes: [] };
+  const label = kind === 'min' ? 'En düşük' : kind === 'max' ? 'En yüksek' : 'En son';
+  return { text: `${head}${many ? '\n' : ''}${rows.join('\n')}${more}`, lines: [...used, ...rest], quotes: [], price: label, picked: used.length };
 }
