@@ -258,7 +258,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [shareError, setShareError] = useState('');
   const [pdfNotice, setPdfNotice] = useState('');
   // Paylaşılan PDF için "Talep mi, teklif mi?" sorusu
-  const [shareAsk, setShareAsk] = useState<{ file: File; guess: 'quote' | 'request' } | null>(null);
+  const [shareAsk, setShareAsk] = useState<{ file?: File; text?: string; pdf: boolean; guess: 'quote' | 'request' } | null>(null);
 
   // Apply a local (optimistic) change and cache it
   const mutate = useCallback((fn: (prev: AppData) => AppData) => {
@@ -574,7 +574,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         // Sistemdeki bir teklifin PDF'i: soru sormadan o teklif açılır (revize)
         if (existing) { setSharedPdf(file); setEditingQuote(existing); return; }
         // Değilse sor: müşteri talebi mi, teklif mi? Kalemleri okunabilen PDF'te "Teklif" önerilir
-        setShareAsk({ file, guess: pdf?.items?.length ? 'quote' : 'request' });
+        setShareAsk({ file, pdf: true, guess: pdf?.items?.length ? 'quote' : 'request' });
       } catch {
         setShareError('Paylaşılan PDF açılamadı.');
       }
@@ -650,9 +650,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         await cache.delete('/shared-request');
         const kind = res.headers.get('x-kind');
         const name = decodeURIComponent(res.headers.get('x-file-name') || 'talep');
-        if (kind === 'text') setSharedReq({ text: await res.text() });
-        else setSharedReq({ file: new File([await res.blob()], name, { type: res.headers.get('content-type') || '' }), text: decodeURIComponent(res.headers.get('x-text') || '') || undefined });
-        setActiveTab('requests');
+        // Yazı / fotoğraf / Excel: "Talep mi, teklif mi?" diye sorulur
+        if (kind === 'text') setShareAsk({ text: await res.text(), pdf: false, guess: 'request' });
+        else setShareAsk({ file: new File([await res.blob()], name, { type: res.headers.get('content-type') || '' }), text: decodeURIComponent(res.headers.get('x-text') || '') || undefined, pdf: false, guess: 'request' });
       } catch {
         setShareError('Paylaşılan talep açılamadı.');
       }
@@ -1197,31 +1197,37 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       )}
 
       {shareAsk && (() => {
-        const asQuote = () => { setSharedPdf(shareAsk.file); setIsNewQuoteOpen(true); setShareAsk(null); };
-        const asRequest = () => { setSharedReq({ file: shareAsk.file }); setActiveTab('requests'); setShareAsk(null); };
+        const sa = shareAsk;
+        const asRequest = () => { setSharedReq({ file: sa.file, text: sa.text }); setActiveTab('requests'); setShareAsk(null); };
+        // Teklif: PDF → "PDF'ten doldur"; yazı/fotoğraf/Excel → talep kaydedilir, okunur ve teklif formu dolu açılır
+        const asQuote = sa.pdf
+          ? () => { setSharedPdf(sa.file || null); setIsNewQuoteOpen(true); setShareAsk(null); }
+          : () => { setSharedReq({ file: sa.file, text: sa.text, mode: 'quote' }); setActiveTab('requests'); setShareAsk(null); };
+        const quoteOk = sa.pdf || (canReq && allowed(profile, 'reqAi'));
+        const kindName = sa.pdf ? 'PDF' : !sa.file ? 'yazı' : /^image\//.test(sa.file.type) ? 'fotoğraf' : 'dosya';
         const opts = [
-          { k: 'request' as const, icon: '📥', title: 'Müşteri talebi', desc: 'Talepler\'e kaydet, birine ata, sonra teklife dönüştür', go: asRequest },
-          { k: 'quote' as const, icon: '📄', title: 'Teklif', desc: 'PDF\'ten doldurup yeni teklif aç', go: asQuote },
-        ].sort((a, b) => (a.k === shareAsk.guess ? -1 : b.k === shareAsk.guess ? 1 : 0));
+          ...(canReq ? [{ k: 'request' as const, icon: '📥', title: 'Müşteri talebi', desc: 'Talepler\'e kaydet, birine ata; o hazırlasın', go: asRequest }] : []),
+          ...(quoteOk ? [{ k: 'quote' as const, icon: '📄', title: 'Teklif hazırla', desc: sa.pdf ? 'PDF\'ten doldurup yeni teklif aç' : 'Müşteriyi seç; ürünler okunur, teklif formu dolu açılır', go: asQuote }] : []),
+        ].sort((a, b) => (a.k === sa.guess ? -1 : b.k === sa.guess ? 1 : 0));
+        if (!opts.length) return null;
+        const preview = sa.file ? sa.file.name : (sa.text || '').slice(0, 120);
         return (
           <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setShareAsk(null)}>
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
               <div>
-                <div className="text-base font-bold text-slate-800 dark:text-slate-100">Paylaşılan PDF ne?</div>
-                <div className="text-xs text-slate-500 truncate">{shareAsk.file.name}</div>
+                <div className="text-base font-bold text-slate-800 dark:text-slate-100">Paylaşılan {kindName} ne için?</div>
+                <div className="text-xs text-slate-500 line-clamp-2 break-words">{preview}</div>
               </div>
-              {canReq ? opts.map((o, i) => (
+              {opts.map((o, i) => (
                 <button key={o.k} onClick={o.go}
-                  className={`w-full text-left rounded-xl border px-4 py-3 flex items-center gap-3 ${i === 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40' : 'border-slate-200 dark:border-slate-700'}`}>
+                  className={`w-full text-left rounded-xl border px-4 py-3 flex items-center gap-3 ${i === 0 && opts.length > 1 ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40' : 'border-slate-200 dark:border-slate-700'}`}>
                   <span className="text-2xl">{o.icon}</span>
                   <span className="flex-1">
-                    <span className="block font-semibold text-slate-800 dark:text-slate-100">{o.title}{i === 0 && <span className="ml-2 text-[10px] font-bold text-blue-600 uppercase">önerilen</span>}</span>
+                    <span className="block font-semibold text-slate-800 dark:text-slate-100">{o.title}{i === 0 && opts.length > 1 && <span className="ml-2 text-[10px] font-bold text-blue-600 uppercase">önerilen</span>}</span>
                     <span className="block text-xs text-slate-500">{o.desc}</span>
                   </span>
                 </button>
-              )) : (
-                <button onClick={asQuote} className="w-full rounded-xl bg-blue-600 text-white font-semibold py-3">Teklif olarak aç</button>
-              )}
+              ))}
               <button onClick={() => setShareAsk(null)} className="w-full text-sm text-slate-500 py-1">Vazgeç</button>
             </div>
           </div>

@@ -27,7 +27,7 @@ export const RequestPill: React.FC<{ status: RequestStatus }> = ({ status }) => 
 );
 
 /** Paylaş menüsünden (WhatsApp) gelen yazı / dosya: Talep gir formu dolu açılır */
-export interface SharedRequestInput { text?: string; file?: File }
+export interface SharedRequestInput { text?: string; file?: File; mode?: 'quote' }
 
 type Tab = 'open' | 'mine' | 'done' | 'cancel';
 
@@ -195,6 +195,8 @@ const RequestForm: React.FC<{
   // Seçilen dosyalar hemen diziye alınır (input sıfırlanınca liste boşalmasın)
   const add = (l: FileList | null) => { const picked = l ? Array.from(l) : []; if (picked.length) setFiles(f => [...f, ...picked].slice(0, 6)); };
 
+  // Paylaşımda "Teklif hazırla" seçildiyse: kişi seçimi gizlenir, ana düğme otomatik hazırla
+  const quick = shared?.mode === 'quote' && canAi;
   const save = async (auto: boolean) => {
     if (!customer.trim()) { setErr('Müşteriyi seçin.'); return; }
     if (!text.trim() && !files.length) { setErr('Talep yazısı ya da dosya ekleyin.'); return; }
@@ -208,7 +210,7 @@ const RequestForm: React.FC<{
   };
 
   return (
-    <Modal title="Talep gir" sub="Müşterinin talebini yükleyin; atanan kişiye bildirim gider." onClose={onClose}>
+    <Modal title={quick ? 'Teklif hazırla' : 'Talep gir'} sub={quick ? 'Müşteriyi seçin; talep okunur ve teklif formu dolu açılır.' : 'Müşterinin talebini yükleyin; atanan kişiye bildirim gider.'} onClose={onClose}>
       <div>
         <label className={label}>Müşteri</label>
         <SuggestInput<Customer>
@@ -268,7 +270,7 @@ const RequestForm: React.FC<{
         <label className={label}>Not (isteğe bağlı)</label>
         <input value={note} onChange={e => setNote(e.target.value)} placeholder="Ör. acil, proje fiyatı, peşin" className={input} />
       </div>
-      <div>
+      {!quick && <div>
         <label className={label}>Kim hazırlasın?</label>
         <div className="flex flex-wrap gap-2">
           {others.map(a => (
@@ -278,17 +280,21 @@ const RequestForm: React.FC<{
           <button type="button" onClick={() => { picked.current = true; setTo(meId); }}
             className={`px-3 py-2 rounded-xl border text-sm font-bold ${to === meId ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200'}`}>Ben hazırlayacağım</button>
         </div>
-      </div>
+      </div>}
       {err && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{err}</div>}
-      <div className={`grid gap-2 ${canAi ? 'sm:grid-cols-2' : ''}`}>
+      {quick ? (
+        <button onClick={() => save(true)} disabled={!!busy} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} {busy || 'Kaydet ve teklifi hazırla'}
+        </button>
+      ) : <div className={`grid gap-2 ${canAi ? 'sm:grid-cols-2' : ''}`}>
         <button onClick={() => save(false)} disabled={!!busy} className="py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {busy || (to === meId ? 'Kaydet' : 'Kaydet ve gönder')}
         </button>
         {canAi && <button onClick={() => save(true)} disabled={!!busy} className="py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center gap-2 disabled:opacity-50">
           <Wand2 className="w-4 h-4" /> Kaydet ve otomatik hazırla
         </button>}
-      </div>
-      {canAi && <p className="text-[11px] text-slate-500">Otomatik hazırla: talep okunur, ürünler kataloğa eşleştirilir ve teklif formu dolu açılır. Müşteriye siz göndermeden gitmez.</p>}
+      </div>}
+      {canAi && !quick && <p className="text-[11px] text-slate-500">Otomatik hazırla: talep okunur, ürünler kataloğa eşleştirilir ve teklif formu dolu açılır. Müşteriye siz göndermeden gitmez.</p>}
     </Modal>
   );
 };
