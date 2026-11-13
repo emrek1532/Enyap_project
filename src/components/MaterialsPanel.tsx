@@ -191,12 +191,16 @@ const OwnMaterials: React.FC<{
       {/* Telefon / dar tablet: kartlar */}
       <NarrowOnly from="lg"><div className="lg:hidden divide-y divide-[#E2EAF3]">
         {items.map(m => (
-          <div key={m.code} className="p-3 flex items-start gap-3">
+          <div key={m.code} className="p-3.5 flex items-start gap-3 hover:bg-[#F6FAFE] transition-colors">
             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setHistory(m)}>
               <div className="text-[11px] font-extrabold text-[#173F73] tabular-nums">{m.code}</div>
-              <div className="text-sm font-semibold text-[#17365D] leading-snug uppercase">{m.name || '-'}</div>
+              <div className="text-sm font-semibold text-[#17365D] leading-snug uppercase break-words">{m.name || '-'}</div>
               <div className="text-[11px] text-[#5E7491] mt-1 flex items-center gap-1.5 flex-wrap">
                 <span>{m.unit}</span><span>·</span><span>KDV %{m.vatRate}</span>
+                <span className="inline-flex items-center gap-1 rounded-md border border-[#D9E9F5] bg-[#F1F8FC] px-1.5 py-0.5">
+                  <span className="font-semibold text-[#5E7491]">Stok</span>
+                  <StockCell v={m.stock} />
+                </span>
               </div>
             </div>
             <div className="text-right shrink-0 space-y-1.5">
