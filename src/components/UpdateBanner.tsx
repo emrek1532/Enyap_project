@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { applyUpdate, checkNow, dismissUpdateMessage, getUpdateState, subscribeUpdate } from '../lib/appUpdate';
 
 function useUpdate() {
@@ -21,27 +21,24 @@ export function VersionButton({ className = '' }: { className?: string }) {
   );
 }
 
-/** Yeni sürüm bildirimi ve "Güncelsiniz" mesajı (ekranın altında) */
+/** Yeni sürüm bildirimi ve "Güncelsiniz" mesajı (ekranın üstünde koyu şerit) */
 export function UpdateBanner() {
   const { latest, message, busy } = useUpdate();
-  const [hidden, setHidden] = useState<string | null>(null);
-  const showNew = latest && hidden !== latest && !message;
+  const showNew = !!latest && !message;
   if (!showNew && !message) return null;
   return (
-    <div className="fixed left-1/2 -translate-x-1/2 bottom-4 z-[100] w-[calc(100%-32px)] max-w-sm pb-safe" role="status">
-      <div className="flex items-center gap-3 rounded-2xl bg-slate-900 text-white shadow-lg px-4 py-3 text-sm">
+    <div className="fixed inset-x-0 top-0 z-[100] px-3 sm:px-4 pt-safe" role="status">
+      <div className="mt-2 mx-auto max-w-xl flex items-center gap-3 rounded-[22px] bg-[#111827] text-white shadow-xl pl-5 pr-2 py-2 min-h-[56px]">
         {showNew ? (
           <>
-            <Download className="w-4 h-4 shrink-0 text-emerald-300" />
-            <span className="flex-1 min-w-0">Yeni sürüm var <b className="tabular-nums">v{latest}</b></span>
+            <span className="flex-1 min-w-0 text-[15px]">Yeni sürüm hazır: <b className="tabular-nums">v{latest}</b></span>
             <button onClick={() => applyUpdate()} disabled={busy}
-              className="shrink-0 rounded-full bg-emerald-500 hover:bg-emerald-400 px-3 py-1 text-xs font-bold disabled:opacity-60">Güncelle</button>
-            <button onClick={() => setHidden(latest)} className="shrink-0 text-white/60 hover:text-white" aria-label="Kapat"><X className="w-4 h-4" /></button>
+              className="shrink-0 rounded-full bg-sky-500 hover:bg-sky-400 px-5 py-2 text-[15px] font-semibold disabled:opacity-60">Güncelle</button>
           </>
         ) : (
           <>
-            <span className="flex-1 min-w-0">{message}</span>
-            {!busy && <button onClick={dismissUpdateMessage} className="shrink-0 text-white/60 hover:text-white" aria-label="Kapat"><X className="w-4 h-4" /></button>}
+            <span className="flex-1 min-w-0 text-[15px] py-1.5">{message}</span>
+            {!busy && <button onClick={dismissUpdateMessage} className="shrink-0 p-2 text-white/60 hover:text-white" aria-label="Kapat"><X className="w-4 h-4" /></button>}
           </>
         )}
       </div>
