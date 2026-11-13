@@ -1,16 +1,14 @@
 import { trMoney } from '../lib/num';
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, FilePlus2, X, FileUp, Eye, MoreVertical, ChevronRight, MapPin, MapPinCheck, Wallet, ArrowDownLeft, ArrowUpRight, Scale } from 'lucide-react';
+import { Plus, X, FileUp, ChevronRight, Wallet, ArrowDownLeft, ArrowUpRight, Scale } from 'lucide-react';
 import { SearchBox, UnderlineTabs, Pager, FilterBar, WideOnly, NarrowOnly, NewButton } from './ListUI';
 import { MikroUpload } from './MikroUpload';
 import { estimatedBalance } from '../lib/mikroBalance';
 import { Collection, Customer, CustomerStatus, Quote, UserRole } from '../types';
-import { ABC_STYLE, AbcClass, CUSTOMER_STATUS, QUIET_DAYS, abcClasses, evaluate, foldName, statusOf } from '../lib/customerInsights';
+import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
 import { CustomerAccount } from './CustomerAccount';
-import { RouteView } from './RouteView';
-import { addToRoute, useRoute } from '../lib/route';
 import { CityInput } from './TextSuggest';
-import { isPendingQuote, needsFollowUp } from '../lib/quoteRules';
+import { isPendingQuote } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
 
@@ -40,7 +38,7 @@ interface CustomersPanelProps {
   canRemove?: boolean;
 }
 
-const emptyForm = { name: '', city: 'Isparta' };
+const emptyForm = { name: '', city: 'Isparta', contactPerson: '', phone: '', email: '', notes: '' };
 const PAGE = 25;
 const DEFAULT_SORT: SortState<CustomerSortKey> = { key: 'total', dir: 'desc' };
 
@@ -58,28 +56,12 @@ const fold = (s: string) =>
 const normalize = (s: string) => s.toLocaleLowerCase('tr');
 
 const isApproved = (q: Quote) => q.status === 'onaylandi';
-const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-const visitTxt = (d: string) => d.split('-').reverse().join('.');
-type VisitFilter = 'all' | 'visited' | 'not' | 'stale' | 'quiet';
-/** 3 ay önceki gün (YYYY-MM-DD): bundan eski ya da hiç uğranmamış = "3 aydır uğranmadı" */
-const staleSince = () => { const d = new Date(); d.setMonth(d.getMonth() - 3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-const isStale = (c: Customer, since: string) => !c.lastVisit || c.lastVisit < since;
 const tl = (n: number) => `${trMoney(n)} TL`;
 /** Müşteriler sayfası ENYAP görünümü: beyaz kart + #E2EAF3 kenar, filtre kutuları */
 const ccard = 'bg-white rounded-2xl border border-[#E2EAF3] shadow-[0_10px_28px_-24px_rgba(11,35,67,0.45)]';
 const cctrl = 'h-10 px-3 rounded-xl border border-[#E2EAF3] bg-white text-sm text-[#173F73] font-semibold focus:outline-none focus:ring-2 focus:ring-[#006DBB]/20 focus:border-[#006DBB]';
 const CUR: Record<string, string> = { TRY: 'TL', USD: '$', EUR: '€' };
 const amt = (n: number, cur = "TRY") => `${trMoney(n)} ${CUR[cur] || cur}`;
-const daysSince = (d: string) => Math.floor((Date.parse(todayIso()) - Date.parse(d)) / 864e5);
-/** Ziyaret durumu (customers.last_visit): bugün / yakın zamanda (≤30 gün) / uzun süredir (>90 gün ya da hiç) */
-export const visitState = (d?: string) => {
-  if (!d) return { k: 'none' as const, label: 'Hiç uğranmadı', cls: 'text-[#5E7491]' };
-  const n = daysSince(d);
-  if (n <= 0) return { k: 'today' as const, label: 'Bugün uğrandı', cls: 'text-[#008F79]' };
-  if (n <= 30) return { k: 'recent' as const, label: `Uğrandı ${visitTxt(d)}`, cls: 'text-[#006DBB]' };
-  if (n > 90) return { k: 'old' as const, label: `Uzun süredir uğranmadı · ${visitTxt(d)}`, cls: 'text-[#5E7491]' };
-  return { k: 'mid' as const, label: `Son ziyaret ${visitTxt(d)}`, cls: 'text-[#173F73]' };
-};
 
 type CustomerSortKey = 'name' | 'city' | 'quotes' | 'approved' | 'pending' | 'total' | 'last' | 'balance';
 
@@ -108,22 +90,15 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   const balanceOf = (c: Customer) => (showCollections ? estimatedBalance(c, collections) : null);
   const lastMikro = useMemo(() => customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), ''), [customers]);
   const rates = useRates(quotes);
-  const [mode, setMode] = useState<'list' | 'balance' | 'route'>('list');
-  const [routeIds] = useRoute();
+  const [mode, setMode] = useState<'list' | 'balance'>('list');
   const [statusFilter, setStatusFilter] = useState<'all' | CustomerStatus>('all');
-  const [abcFilter, setAbcFilter] = useState<'all' | AbcClass | 'none'>('all');
-  // Müşteri sınıfı (A/B/C): son 12 ay onaylanan tutara göre, cihazdaki veriden
-  const abc = useMemo(() => abcClasses(quotes, rates), [quotes, rates]);
-  const abcOf = (c: Customer) => abc.get(foldName(c.name));
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
-  const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
-  const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'followup' | 'none'>('all');
+  const [quoteFilter, setQuoteFilter] = useState<'all' | 'approved' | 'pending' | 'none'>('all');
   // Sütun başlığına tıklayarak sıralama (varsayılan: onaylı toplamı en yüksek en üstte)
   const [sort, setSort] = useState<SortState<CustomerSortKey>>(DEFAULT_SORT);
   const sortBy = (key: CustomerSortKey, firstDir: SortDir) => { setSort(s => nextSort(s, key, firstDir)); setPage(0); };
   const [page, setPage] = useState(0);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
   // Sayfa başlığındaki "Yeni Müşteri" düğmesi
   useEffect(() => { if (newRequest) openNew(); }, [newRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   const [editing, setEditing] = useState<Customer | null>(null);
@@ -164,12 +139,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   }, [collections]);
   const lastCollectionOf = (c: Customer) => lastCol.get(fold(c.name.trim()));
 
-  // "Uğradım": bugünün tarihi yazılır; işaretliyse sorup kaldırır
-  const toggleVisit = (c: Customer) => {
-    if (c.lastVisit && !confirm(`"${c.name}" ziyaret işareti (${visitTxt(c.lastVisit)}) kaldırılsın mı?`)) return;
-    onSaveCustomer({ ...c, lastVisit: c.lastVisit ? undefined : todayIso(), updatedAt: new Date().toISOString() });
-  };
-
   const setStatus = (c: Customer, status: CustomerStatus, note: string) => {
     const next = { ...c, status, statusNote: status === 'aktif' ? '' : note, updatedAt: new Date().toISOString() };
     onSaveCustomer(next);
@@ -204,7 +173,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       total: list.length,
       approved: approved.length,
       pending: list.filter(q => isPendingQuote(q)).length,
-      followUp: list.some(needsFollowUp),
       approvedTotal: approved.reduce((sum, q) => sum + quoteTry(q, rates), 0),
       lastDate: list[0]?.createdAt || '',
     };
@@ -216,33 +184,18 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     return customers
       .filter(c => cityFilter === 'all' || (c.city || '—') === cityFilter)
       .filter(c => statusFilter === 'all' || statusOf(c) === statusFilter)
-      .filter(c => abcFilter === 'all' || (abcFilter === 'none' ? !abcOf(c) : abcOf(c) === abcFilter))
       .filter(c => !q || fold(c.name).includes(q) || fold(c.city || '').includes(q) || (!!c.mikroCode && fold(c.mikroCode).includes(q)) || (!!c.mikroTitle && fold(c.mikroTitle).includes(q)))
       .map(c => ({ c, st: statsOf(c) }))
       .filter(({ st }) =>
         quoteFilter === 'all' ||
         (quoteFilter === 'approved' && st.approved > 0) ||
         (quoteFilter === 'pending' && st.pending > 0) ||
-        (quoteFilter === 'followup' && st.followUp) ||
         (quoteFilter === 'none' && st.total === 0)
       )
       // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customers, statsCache, deferredSearch, cityFilter, quoteFilter, statusFilter, abcFilter, abc]);
-  // Ziyaret sekmelerinde yalnız aktif firmalar (pasif / kara liste uğrama planına girmez; durum filtresinden açıkça seçilirse görünür)
-  const inPlan = (c: Customer) => statusFilter !== 'all' || statusOf(c) === 'aktif';
-  // Sessizleşen: A/B sınıfı ama QUIET_DAYS gündür teklif istemedi (sahada uğranacaklar)
-  const quietSince = new Date(Date.now() - QUIET_DAYS * 864e5).toISOString();
-  const isQuiet = (c: Customer, last: string) => { const k = abcOf(c); return (k === 'A' || k === 'B') && (!last || last < quietSince); };
-  const visitCounts = useMemo(() => {
-    const plan = base.filter(({ c }) => inPlan(c));
-    const visited = plan.filter(({ c }) => !!c.lastVisit).length;
-    const since = staleSince();
-    return { all: base.length, visited, not: plan.length - visited, stale: plan.filter(({ c }) => isStale(c, since)).length, quiet: plan.filter(({ c, st }) => isQuiet(c, st.lastDate)).length };
-  }, [base, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [customers, statsCache, deferredSearch, cityFilter, quoteFilter, statusFilter]);
   const filtered = useMemo(() => {
-    const since = staleSince();
-    return base
-      .filter(({ c, st }) => visitFilter === 'all' || (inPlan(c) && (visitFilter === 'visited' ? !!c.lastVisit : visitFilter === 'stale' ? isStale(c, since) : visitFilter === 'quiet' ? isQuiet(c, st.lastDate) : !c.lastVisit)))
+    return [...base]
       .sort((a, b) => {
         let r = 0;
         switch (sort.key) {
@@ -258,11 +211,11 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
         return (sort.dir === 'asc' ? r : -r) || trCompare(a.c.name, b.c.name);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, visitFilter, statusFilter, sort, rates, collections]);
+  }, [base, sort, rates, collections]);
 
-  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || abcFilter !== 'all' || visitFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
+  const hasFilters = !!search || cityFilter !== 'all' || quoteFilter !== 'all' || statusFilter !== 'all' || sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
   const resetFilters = () => {
-    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setAbcFilter('all'); setVisitFilter('all'); setSort(DEFAULT_SORT); setPage(0);
+    setSearch(''); setCityFilter('all'); setQuoteFilter('all'); setStatusFilter('all'); setSort(DEFAULT_SORT); setPage(0);
   };
 
   const openNew = () => {
@@ -274,7 +227,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
   const openEdit = (c: Customer) => {
     setEditing(c);
-    setForm({ name: c.name, city: c.city || '' });
+    setForm({ name: c.name, city: c.city || '', contactPerson: c.contactPerson || '', phone: c.phone || '', email: c.email || '', notes: c.notes || '' });
     setError(null);
     setIsFormOpen(true);
   };
@@ -294,6 +247,10 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       id: editing?.id || 'cus-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       name,
       city: form.city.trim(),
+      contactPerson: form.contactPerson.trim(),
+      phone: form.phone.trim(),
+      email: form.email.trim(),
+      notes: form.notes.trim(),
       createdAt: editing?.createdAt || now,
       updatedAt: now,
     });
@@ -304,36 +261,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
 
   const pageRows = filtered.slice(page * PAGE, (page + 1) * PAGE);
-  const custMenu = (c: Customer) => menuFor === c.id && (
-    <>
-      <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setMenuFor(null); }} />
-      <div className="absolute right-0 top-10 z-40 w-48 rounded-xl border border-[#E2EAF3] bg-white shadow-lg py-1 text-left text-sm" onClick={e => e.stopPropagation()}>
-        <button onClick={() => { setMenuFor(null); onCreateQuoteForCustomer(c); }} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#EAF5FC] text-[#006DBB] font-semibold"><FilePlus2 className="w-4 h-4" /> Teklif aç</button>
-        <button onClick={() => { setMenuFor(null); addToRoute(c.id); }} disabled={routeIds.includes(c.id)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#F1F6FC] text-[#173F73] disabled:text-[#5E7491]"><MapPin className="w-4 h-4" /> {routeIds.includes(c.id) ? 'Rotada' : 'Bugünün rotasına ekle'}</button>
-        {canEdit && <button onClick={() => { setMenuFor(null); openEdit(c); }} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#F1F6FC] text-[#173F73]"><Pencil className="w-4 h-4" /> Düzenle</button>}
-        {canEdit && canRemove && <button onClick={() => { setMenuFor(null); if (confirm(`"${c.name}" müşterisi silinsin mi?`)) onDeleteCustomer(c.id); }} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /> Sil</button>}
-      </div>
-    </>
-  );
-  // Ziyaret kaydı: "Uğradım" (bugünü yazar; işaretliyse sorup kaldırır)
-  const visitBtn = (c: Customer) => canEdit && (
-    <button type="button" onClick={e => { e.stopPropagation(); toggleVisit(c); }}
-      title={c.lastVisit ? `Uğrandı: ${visitTxt(c.lastVisit)} (kaldırmak için dokun)` : 'Ziyaret kaydı: uğradım olarak işaretle'}
-      className={`h-10 lg:h-8 px-2.5 lg:px-2 inline-flex items-center gap-1 rounded-lg text-[11px] font-bold whitespace-nowrap border transition-colors ${c.lastVisit ? 'bg-[#E6F7F4] border-[#00B49A]/30 text-[#008F79] hover:bg-[#d5f1ec]' : 'bg-white border-[#E2EAF3] text-[#173F73] hover:bg-[#EAF5FC] hover:text-[#006DBB]'}`}>
-      {c.lastVisit ? <MapPinCheck className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
-      <span className="max-xl:max-lg:inline max-xl:hidden">{c.lastVisit ? visitTxt(c.lastVisit).slice(0, 5) : 'Uğradım'}</span>
-    </button>
-  );
-  const act = 'w-10 h-10 lg:w-8 lg:h-8 inline-flex items-center justify-center rounded-lg bg-[#EAF5FC] text-[#006DBB] hover:bg-[#d6ebf8] transition-colors';
-  const rowActions = (c: Customer) => (
-    <div className="relative flex items-center justify-center gap-1">
-      {visitBtn(c)}
-      <button type="button" title="Müşteriyi görüntüle" aria-label="Müşteriyi görüntüle" onClick={e => { e.stopPropagation(); setViewing(c); }} className={act}><Eye className="w-4 h-4" /></button>
-      {canEdit && <button type="button" title="Müşteriyi düzenle" aria-label="Müşteriyi düzenle" onClick={e => { e.stopPropagation(); openEdit(c); }} className={`${act} max-lg:hidden`}><Pencil className="w-4 h-4" /></button>}
-      <button type="button" title="Diğer işlemler" aria-label="Diğer işlemler" onClick={e => { e.stopPropagation(); setMenuFor(c.id); }} className={act}><MoreVertical className="w-4 h-4" /></button>
-      {custMenu(c)}
-    </div>
-  );
   const sel = (on: boolean) => `${cctrl} ${on ? 'border-[#006DBB] bg-[#EAF5FC] text-[#006DBB]' : ''}`;
   const money = (n: number) => tl(Math.round(n));
 
@@ -342,12 +269,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       <UnderlineTabs<typeof mode> enyap value={mode} onChange={setMode} items={[
         { key: 'list' as const, label: 'Müşteri Listesi' },
         ...(showCollections ? [{ key: 'balance' as const, label: 'Cari Bakiyeler' }] : []),
-        { key: 'route' as const, label: <>Bugünün Rotası{routeIds.length ? <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[#EAF5FC] text-[#006DBB] text-[11px] tabular-nums">{routeIds.length}</span> : null}</> },
       ]} />
-
-      {mode === 'route' && (
-        <RouteView customers={customers} quotes={quotes} canEdit={canEdit} onSaveCustomer={onSaveCustomer} onOpen={c => setViewing(c)} />
-      )}
 
       {mode === 'balance' && showCollections && (
         <BalanceView customers={customers} balanceOf={balanceOf} lastMikro={lastMikro} search={search} setSearch={setSearch}
@@ -358,7 +280,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       {mode === 'list' && (<>
       <div className={ccard}>
         <div className="p-3 sm:p-4 space-y-2.5">
-          <FilterBar className="flex flex-col 2xl:flex-row gap-2" active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (abcFilter !== 'all' ? 1 : 0)}
+          <FilterBar className="flex flex-col 2xl:flex-row gap-2" active={(cityFilter !== 'all' ? 1 : 0) + (quoteFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
             search={<><SearchBox value={search} onChange={v => { setSearch(v); setPage(0); }} placeholder="Firma, şehir veya cari kod ara..." className="flex-1" /></>}
             wide="2xl" action={canEdit && <NewButton label="Yeni Müşteri" onClick={openNew} />}>
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap 2xl:flex-nowrap gap-2 items-center">
@@ -370,7 +292,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 <option value="all">Tüm Müşteriler</option>
                 <option value="approved">Onaylı teklifi olanlar</option>
                 <option value="pending">Bekleyen teklifi olanlar</option>
-                <option value="followup">Tekrar görüşülecekler</option>
                 <option value="none">Hiç teklif verilmeyenler</option>
               </select>
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value as typeof statusFilter); setPage(0); }} className={sel(statusFilter !== 'all')} aria-label="Müşteri durumu">
@@ -378,13 +299,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                 <option value="aktif">Aktif</option>
                 <option value="pasif">Pasif</option>
                 <option value="kara_liste">Kara liste</option>
-              </select>
-              <select value={abcFilter} onChange={e => { setAbcFilter(e.target.value as typeof abcFilter); setPage(0); }} className={sel(abcFilter !== 'all')} aria-label="Müşteri sınıfı" title="Son 12 ayda onaylanan tutara göre">
-                <option value="all">Tüm Sınıflar</option>
-                <option value="A">A · cironun %80'i</option>
-                <option value="B">B · sonraki %15</option>
-                <option value="C">C · küçük alımlar</option>
-                <option value="none">Son 12 ayda alım yok</option>
               </select>
               <MobileSortSelect always className={`${cctrl} md:hidden`} sort={sort} onChange={(s) => { setSort(s); setPage(0); }} options={[
                 { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
@@ -412,16 +326,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <button type="button" onClick={resetFilters} className="font-bold text-[#006DBB] hover:text-[#173F73] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006DBB]">Filtreleri temizle</button>
             </div>
           )}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" role="tablist" aria-label="Ziyaret durumu">
-            {([['all', 'Tümü'], ['quiet', `Sessizleşen A-B (${QUIET_DAYS}+ gün)`], ['visited', 'Uğradıklarım'], ['not', 'Uğramadıklarım'], ['stale', 'Son 3 ayda uğramadıklarım']] as [VisitFilter, string][]).map(([k, label]) => (
-              <button key={k} type="button" role="tab" aria-selected={visitFilter === k} onClick={() => { setVisitFilter(k); setPage(0); }}
-                className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${visitFilter === k
-                  ? (k === 'visited' ? 'bg-[#00B49A] border-[#00B49A] text-white' : k === 'all' ? 'bg-[#006DBB] border-[#006DBB] text-white' : 'bg-[#173F73] border-[#173F73] text-white')
-                  : 'bg-white border-[#E2EAF3] text-[#173F73] hover:bg-[#EAF5FC] hover:border-[#006DBB]/40'}`}>
-                {label} <span className="tabular-nums opacity-75">{visitCounts[k]}</span>
-              </button>
-            ))}
-          </div>
           <div className="flex items-center justify-between gap-2 text-xs text-[#5E7491]">
             <span>
               {filtered.length === customers.length ? `${customers.length} kayıtlı müşteri` : `${filtered.length} / ${customers.length} müşteri`}
@@ -450,9 +354,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <div key={c.id} className="p-3">
                 <button onClick={() => setViewing(c)} className="w-full text-left flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-bold text-[#0B2343] text-sm leading-snug break-words">{c.name}<AbcBadge k={abcOf(c)} /><StatusBadge c={c} /></div>
+                    <div className="font-bold text-[#0B2343] text-sm leading-snug break-words">{c.name}<StatusBadge c={c} /></div>
                     <div className="text-[11px] text-[#5E7491] mt-0.5">{c.city || '—'}{st.lastDate ? ` · son teklif ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</div>
-                    <VisitLine d={c.lastVisit} />
                   </div>
                   <div className="text-right shrink-0">
                     <div className="font-black text-[#0B2343] text-sm tabular-nums">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</div>
@@ -464,9 +367,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     <span className="px-2 py-0.5 rounded-full bg-[#F1F6FC] text-[#173F73]">{st.total} teklif</span>
                     <span className="px-2 py-0.5 rounded-full bg-[#E6F7F4] text-[#008F79]">{st.approved} onaylı</span>
                     <span className="px-2 py-0.5 rounded-full bg-[#EAF5FC] text-[#006DBB]">{st.pending} bekleyen</span>
-                    {st.followUp && <FollowPill />}
                   </div>
-                  {rowActions(c)}
                 </div>
               </div>
             ); })}
@@ -483,7 +384,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   <SortHeader label="Onaylı Toplam" align="right" active={sort.key === 'total'} dir={sort.dir} onClick={() => sortBy('total', 'desc')} />
                   {showCollections && <SortHeader className="hidden xl:table-cell" label="Bakiye" align="right" active={sort.key === 'balance'} dir={sort.dir} onClick={() => sortBy('balance', 'desc')} />}
                   <SortHeader className="hidden xl:table-cell" label="Son Teklif" active={sort.key === 'last'} dir={sort.dir} onClick={() => sortBy('last', 'desc')} />
-                  <th className="py-3 px-3 text-center">İşlemler</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E2EAF3]">
@@ -492,11 +392,9 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                   return (
                   <tr key={c.id} onClick={() => setViewing(c)} className="cursor-pointer bg-white hover:bg-[#EAF5FC]/60 transition-colors">
                     <td className="py-2.5 px-3 pl-5">
-                      <div className="font-extrabold text-[#0B2343] min-w-[13rem] leading-snug">{c.name}<AbcBadge k={abcOf(c)} /><StatusBadge c={c} /></div>
+                      <div className="font-extrabold text-[#0B2343] min-w-[13rem] leading-snug">{c.name}<StatusBadge c={c} /></div>
                       <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap [&>span]:mt-0">
                         <span className="xl:hidden text-xs text-[#5E7491] whitespace-nowrap">{c.city || '—'}{st.lastDate ? ` · ${new Date(st.lastDate).toLocaleDateString('tr-TR')}` : ''}</span>
-                        <VisitLine d={c.lastVisit} compact />
-                        {st.followUp && <FollowPill />}
                       </div>
                     </td>
                     <td className="hidden xl:table-cell py-2.5 px-3 text-[13px] text-[#5E7491] whitespace-nowrap">{c.city || '—'}</td>
@@ -512,7 +410,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     <td className="hidden xl:table-cell py-2.5 px-3 text-[13px] text-[#5E7491] whitespace-nowrap">
                       {st.lastDate ? <>{new Date(st.lastDate).toLocaleDateString('tr-TR')} <ChevronRight className="w-3.5 h-3.5 inline -mt-0.5" /></> : '-'}
                     </td>
-                    <td className="py-2.5 px-3" onClick={e => e.stopPropagation()}>{rowActions(c)}</td>
                   </tr>
                 ); })}
               </tbody>
@@ -528,7 +425,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       {viewing && (
         <CustomerAccount
           customer={viewing}
-          abc={abcOf(viewing)}
           quotes={quotesOf(viewing)}
           collections={collections
             .filter(c => fold(c.customerName.trim()) === fold(viewing.name.trim()))
@@ -544,7 +440,12 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
           currentRole={currentRole}
           maxWon={evals.max}
           onSetStatus={(st, note) => setStatus(viewing, st, note)}
-          onEdit={canEdit ? () => { const c = viewing; setViewing(null); openEdit(c); } : undefined}
+          onSaveCustomer={canEdit ? (next) => {
+            const dup = customers.find(c => normalize(c.name) === normalize(next.name) && c.id !== next.id);
+            if (dup) return `"${dup.name}" adında bir müşteri zaten kayıtlı.`;
+            onSaveCustomer(next); setViewing(next); return null;
+          } : undefined}
+          onDelete={canEdit && canRemove ? () => { if (confirm(`"${viewing.name}" müşterisi silinsin mi?`)) { onDeleteCustomer(viewing.id); setViewing(null); } } : undefined}
           balance={balanceOf(viewing)}
         />
       )}
@@ -575,6 +476,24 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
               <label className="block text-xs font-bold text-[#173F73] mb-1">Şehir</label>
               <CityInput value={form.city} onChange={v => setForm({ ...form, city: v })} className={inputCls} />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-[#173F73] mb-1">Yetkili</label>
+                <input value={form.contactPerson} onChange={e => setForm({ ...form, contactPerson: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#173F73] mb-1">Telefon</label>
+                <input type="tel" inputMode="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={inputCls} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#173F73] mb-1">E-posta</label>
+              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#173F73] mb-1">Açıklama / not</label>
+              <textarea rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={inputCls} />
+            </div>
             {error && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">{error}</p>}
             <button type="submit" className="w-full py-3 rounded-xl bg-[#006DBB] hover:bg-[#173F73] text-white font-bold text-sm transition-colors">
               Kaydet
@@ -585,22 +504,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
     </div>
   );
 };
-
-const FollowPill: React.FC = () => (
-  <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-bold bg-[#E6F7F4] text-[#008F79] border border-[#00B49A]/30">⏱ Tekrar görüş</span>
-);
-
-/** Ziyaret durumu satırı: konum simgesi + bugün / yakın / uzun süredir */
-const VisitLine: React.FC<{ d?: string; compact?: boolean }> = ({ d, compact }) => {
-  const v = visitState(d);
-  if (compact && v.k === 'none') return null;
-  const I = v.k === 'today' || v.k === 'recent' ? MapPinCheck : MapPin;
-  return <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${compact ? '' : 'mt-0.5'} ${v.cls}`}><I className="w-3.5 h-3.5 shrink-0" />{v.label}</span>;
-};
-
-const AbcBadge: React.FC<{ k?: AbcClass }> = ({ k }) => (k
-  ? <span title={ABC_STYLE[k].hint} className={`ml-1.5 align-middle text-[11px] px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[k].cls}`}>{k}</span>
-  : null);
 
 const StatusBadge: React.FC<{ c: Customer }> = ({ c }) => {
   const st = statusOf(c);
