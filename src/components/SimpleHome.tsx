@@ -456,13 +456,17 @@ const PeriodCard: React.FC<{
           <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
         </button>
         {activity && (
-          <div className="grid grid-cols-2 gap-2 sm:w-64 shrink-0">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 sm:w-64 shrink-0">
             {([['Bugün', activity.today], ['Bu hafta', activity.week]] as const).map(([l, a]) => (
               <button key={l} onClick={() => onOpenRange(a.from, today)}
-                className="rounded-2xl bg-slate-50 border border-slate-100 px-3 py-2.5 text-center hover:bg-sky-50 hover:border-sky-100">
-                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">{l}</span>
-                <span className="block text-2xl font-black text-[#173F73] tabular-nums leading-tight">{a.teklif}</span>
-                <span className="block text-[11px] text-[#5E7491]">teklif · <b className={a.onay ? 'text-emerald-600' : 'text-slate-500'}>{a.onay} onay</b></span>
+                className="rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 px-2.5 py-1.5 sm:px-3 sm:py-2.5 text-left sm:text-center hover:bg-sky-50 hover:border-sky-100 min-w-0">
+                {/* Telefonda tek satır: "Bugün 2 teklif · 1 onay" */}
+                <span className="sm:hidden block text-[11px] text-[#5E7491] truncate">
+                  <b className="text-slate-500">{l}</b> <b className="text-[#173F73] text-[13px]">{a.teklif}</b> teklif · <b className={a.onay ? 'text-emerald-600' : 'text-slate-500'}>{a.onay}</b> onay
+                </span>
+                <span className="hidden sm:block text-[11px] font-bold uppercase tracking-wide text-slate-500">{l}</span>
+                <span className="hidden sm:block text-2xl font-black text-[#173F73] tabular-nums leading-tight">{a.teklif}</span>
+                <span className="hidden sm:block text-[11px] text-[#5E7491]">teklif · <b className={a.onay ? 'text-emerald-600' : 'text-slate-500'}>{a.onay} onay</b></span>
               </button>
             ))}
           </div>
