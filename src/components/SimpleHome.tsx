@@ -443,7 +443,7 @@ const PeriodCard: React.FC<{
   const tPct = targets.sales && canQuotes ? Math.round((cur.onay / targets.sales) * 100) : 0;
   const cols = (n: number) => (n === 3 ? 'grid-cols-3' : n === 2 ? 'grid-cols-2' : 'grid-cols-1');
   const stats = (canQuotes ? [
-    conv > 0 && { label: 'Dönüşüm', icon: Percent, value: `%${conv}`, tone: 'text-[#173F73]' },
+    conv > 0 && { label: 'Satış oranı', icon: Percent, value: `%${conv}`, tone: 'text-[#173F73]' },
     tPct > 0 && { label: 'Hedef', icon: Target, value: `%${tPct}`, tone: tPct >= 100 ? 'text-emerald-600' : 'text-amber-600' },
     forecast && forecast.total > 0 && { label: 'Ay sonu tahmini', icon: TrendingUp, value: trNum(Math.round(forecast.total)), tone: 'text-sky-700' },
   ] : []).filter(Boolean) as { label: string; icon: React.FC<{ className?: string }>; value: string; tone: string }[];
@@ -715,7 +715,7 @@ const StatusSplit: React.FC<{ st: Record<'onay' | 'bekleyen' | 'iptal', { count:
     <div className="mx-4 sm:mx-5 mb-4 p-3 sm:p-4 rounded-2xl bg-[#F1F6FC]">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-slate-600">{title} teklifleri</p>
-        <p className="text-xs text-slate-600">Dönüşüm <b className="text-sm font-black text-[#173F73]">%{conv}</b></p>
+        <p className="text-xs text-slate-600">Satış oranı <b className="text-sm font-black text-[#173F73]">%{conv}</b></p>
       </div>
       <div className="mt-2 h-2.5 rounded-full bg-slate-200 overflow-hidden flex">
         {rows.map(r => total > 0 && <span key={r.key} className={r.c} style={{ width: `${(r.x.value / total) * 100}%` }} />)}
