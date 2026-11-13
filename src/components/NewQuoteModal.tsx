@@ -971,6 +971,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 />
               </div>
               </div>
+              </div>
               <aside className="min-w-0 xl:sticky xl:top-3">
               {summary.length > 0 && (
                 <div className="bg-white border border-[#D8E5F2] rounded-2xl shadow-[0_4px_18px_rgba(16,58,101,0.06)] overflow-x-auto p-3">
