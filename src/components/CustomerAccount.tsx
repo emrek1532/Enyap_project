@@ -1,7 +1,7 @@
 import { trNum, trMoney } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { ChevronRight, FilePlus2, MapPin, Search, Wallet, X } from 'lucide-react';
+import { Building2, CalendarDays, ChevronRight, CircleCheck, Clock3, Database, FilePlus2, FileText, Footprints, Hash, History, IdCard, Mail, MapPin, Pencil, Phone, Search, StickyNote, User, Wallet, X } from 'lucide-react';
 import { CollectionQuickForm } from './LedgerPanel';
 import { DateInput } from './DateInput';
 import { Collection, Customer, CustomerStatus, Quote, QuoteStatus, UserRole } from '../types';
@@ -26,7 +26,8 @@ const money = (v: number, c?: string) => `${trNum(v, { minimumFractionDigits: 2,
 const fold = (s: string) => s.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
   .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
 
-type Tab = 'timeline' | 'quotes' | 'items' | 'collections';
+type Tab = 'info' | 'summary' | 'timeline' | 'quotes' | 'items' | 'collections';
+const CARD = 'bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)]';
 type QFilter = 'all' | 'approved' | 'pending' | 'cancelled';
 
 /**
@@ -54,11 +55,13 @@ export const CustomerAccount: React.FC<{
   balance?: { balance: number; date: string; collectedAfter: number; estimate: number } | null;
   /** Müşteri sınıfı (A/B/C, son 12 ay ciro) */
   abc?: AbcClass;
-}> = ({ abc, customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance }) => {
+  /** Müşteri bilgilerini düzenle (yetki varsa) */
+  onEdit?: () => void;
+}> = ({ abc, onEdit, customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance }) => {
   const ev = useMemo(() => evaluate(allQuotes, allCollections, rates, maxWon), [allQuotes, allCollections, rates, maxWon]);
   const cStatus = statusOf(customer);
   const [addingCol, setAddingCol] = useState(false);
-  const [tab, setTab] = useState<Tab>('quotes');
+  const [tab, setTab] = useState<Tab>('info');
   const [qFilter, setQFilter] = useState<QFilter>('all');
   const [q, setQ] = useState('');
   const [onlyBought, setOnlyBought] = useState(true);
@@ -123,16 +126,30 @@ export const CustomerAccount: React.FC<{
   const [openCols, setOpenCols] = useState<Set<string>>(new Set());
   const toggleCol = (k: string) => setOpenCols(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
-  const tile = (label: string, value: string, sub: string, cls: string, onClick?: () => void) => (
-    <button type="button" onClick={onClick} className={`text-left p-3 rounded-xl border min-w-0 ${cls} ${onClick ? 'hover:brightness-95' : 'cursor-default'}`}>
-      <div className="text-[11px] font-bold uppercase tracking-wide opacity-80 truncate">{label}</div>
-      <div className="text-lg font-black tabular-nums truncate">{value}</div>
-      <div className="text-[11px] opacity-80 tabular-nums truncate">{sub}</div>
+  const tabBtn = (t: Tab, label: string, n?: number) => (
+    <button key={t} onClick={() => { setTab(t); setLimit(60); }}
+      className={`relative shrink-0 px-3 sm:px-4 pt-3 pb-2.5 text-[13px] sm:text-sm font-extrabold whitespace-nowrap transition-colors ${tab === t ? 'text-brand-700' : 'text-slate-500 hover:text-slate-800'}`}>
+      {label}{n != null && <span className="ml-1 tabular-nums font-bold opacity-80">({n})</span>}
+      {tab === t && <span className="absolute left-2 right-2 -bottom-px h-[3px] rounded-full bg-brand-600" />}
     </button>
   );
-  const tabBtn = (t: Tab, label: string) => (
-    <button onClick={() => { setTab(t); setLimit(60); }}
-      className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-extrabold whitespace-nowrap ${tab === t ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
+  const stat = (Icon: React.ElementType, label: string, value: string, sub: string, ring: string, val: string, onClick?: () => void) => (
+    <button type="button" onClick={onClick}
+      className={`${CARD} w-full h-full text-left flex items-center gap-3 p-3 sm:p-3.5 min-w-0 ${onClick ? 'hover:-translate-y-0.5 transition-transform' : 'cursor-default'}`}>
+      <span className={`w-10 h-10 xl:w-11 xl:h-11 rounded-full flex items-center justify-center shrink-0 ${ring}`}><Icon className="w-5 h-5" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] sm:text-xs font-bold text-slate-500 truncate">{label}</span>
+        <span className={`block font-black tabular-nums truncate ${value.length > 11 ? 'text-[15px] lg:text-base' : 'text-base sm:text-lg'} ${val}`}>{value}</span>
+        <span className="block text-[11px] text-slate-500 tabular-nums truncate">{sub}</span>
+      </span>
+    </button>
+  );
+  const infoRow = (Icon: React.ElementType, label: string, value?: React.ReactNode) => (
+    <div className="flex items-center gap-3 py-2.5 border-t border-slate-100 first:border-t-0">
+      <Icon className="w-4 h-4 text-slate-500 shrink-0" />
+      <span className="w-28 sm:w-32 shrink-0 text-[13px] text-slate-500">{label}</span>
+      <span className="min-w-0 flex-1 text-[13px] sm:text-sm font-semibold text-slate-900 break-words">{value || '—'}</span>
+    </div>
   );
   const chip = (f: QFilter, label: string, n: number) => (
     <button onClick={() => setQFilter(f)}
@@ -167,95 +184,155 @@ export const CustomerAccount: React.FC<{
     quote: 'bg-sky-500', won: 'bg-emerald-500', lost: 'bg-slate-400', call: 'bg-amber-500', col: 'bg-teal-600', visit: 'bg-indigo-500',
   };
 
+  const phone = customer.phone || allQuotes.find(x => x.customerPhone)?.customerPhone;
+  const lastQuote = allQuotes[0]?.createdAt;
+  const hdrBtn = 'inline-flex items-center justify-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold';
+  const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(`${customer.name} ${customer.city || ''}`)}`;
+
+  const actions = (<>
+            <WhatsAppMenu
+              phone={phone}
+              ctx={{ name: customer.name, contact: customer.contactPerson, quote: allQuotes.find(x => isPendingQuote(x)) || allQuotes[0], quoteValue: (() => { const x = allQuotes.find(y => isPendingQuote(y)) || allQuotes[0]; return x ? quoteTry(x, rates) : undefined; })(), balance: showCollections ? balance?.estimate : undefined, balanceDate: balance ? new Date().toISOString() : undefined }}
+              className={hdrBtn}
+            />
+            <button onClick={onNewQuote} className={`${hdrBtn} !bg-white !text-[#0b2a4c] !border-white hover:!bg-sky-50`}><FilePlus2 className="w-4 h-4" /> Yeni teklif</button>
+            {onSaveCollection && <button onClick={() => setAddingCol(true)} className={hdrBtn}><Wallet className="w-4 h-4" /> Tahsilat ekle</button>}
+            {onEdit && <button onClick={onEdit} className={hdrBtn}><Pencil className="w-4 h-4" /> Düzenle</button>}
+  </>);
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-[#F1F6FC] w-full sm:max-w-4xl sm:rounded-3xl shadow-2xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden">
-        {/* Başlık */}
-        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-center gap-3 pt-safe-4">
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Cari hesap</div>
-            <h3 className="font-black text-lg sm:text-[22px] tracking-tight leading-tight break-words">
-              {customer.name}
-              {abc && <span title={ABC_STYLE[abc].hint} className={`ml-2 inline-block align-middle whitespace-nowrap text-[11px] leading-tight px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[abc].cls}`}>{abc} müşteri</span>}
-              {cStatus !== 'aktif' && <span className={`ml-2 align-middle text-[11px] px-2 py-0.5 rounded-full font-bold border ${CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>}
-            </h3>
-            <p className="text-xs text-sky-200/80 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer.city || '—'}</p>
-            {customer.updatedAt && <p className="text-[11px] text-sky-200/70 mt-0.5">Son değişiklik: {customer.updatedBy && <b className="font-semibold text-sky-100">{customer.updatedBy}</b>}{customer.updatedBy ? ' · ' : ''}{new Date(customer.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
+        className="bg-[#F1F6FC] w-full sm:max-w-6xl sm:rounded-3xl shadow-2xl h-full sm:h-auto sm:max-h-[94vh] flex flex-col overflow-hidden">
+        {/* Başlık: firma simgesi, ad, durum, işlemler */}
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-br from-[#0b2a4c] to-[#15457a] text-white pt-safe-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <span className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
+              <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-sky-100" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] text-sky-200/80 font-bold uppercase tracking-wide">Müşteri kartı</div>
+              <h3 className="font-black text-lg sm:text-2xl tracking-tight leading-tight break-words">
+                {customer.name}
+                <span className={`ml-2 align-middle inline-block whitespace-nowrap text-[11px] leading-tight px-2 py-0.5 rounded-full font-bold border ${cStatus === 'aktif' ? 'bg-emerald-400/15 border-emerald-300/50 text-emerald-200' : CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>
+                {abc && <span title={ABC_STYLE[abc].hint} className={`ml-1.5 inline-block align-middle whitespace-nowrap text-[11px] leading-tight px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[abc].cls}`}>{abc} müşteri</span>}
+              </h3>
+              <p className="text-xs sm:text-sm text-sky-200/90 flex items-center gap-1 mt-0.5"><MapPin className="w-3.5 h-3.5" />{customer.city || '—'}{customer.contactPerson ? ` · ${customer.contactPerson}` : ''}</p>
+            </div>
+          <div className="hidden lg:flex flex-wrap gap-2 justify-end">{actions}</div>
+            <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
           </div>
-          {onSaveCollection && (
-            <button onClick={() => setAddingCol(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold">
-              <Wallet className="w-4 h-4" /> Tahsilat ekle
-            </button>
-          )}
-          <WhatsAppMenu
-            phone={customer.phone || allQuotes.find(x => x.customerPhone)?.customerPhone}
-            ctx={{ name: customer.name, contact: customer.contactPerson, quote: allQuotes.find(x => isPendingQuote(x)) || allQuotes[0], quoteValue: (() => { const x = allQuotes.find(y => isPendingQuote(y)) || allQuotes[0]; return x ? quoteTry(x, rates) : undefined; })(), balance: showCollections ? balance?.estimate : undefined, balanceDate: balance ? new Date().toISOString() : undefined }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold"
-          />
-          <button onClick={onNewQuote} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold">
-            <FilePlus2 className="w-4 h-4" /> Yeni teklif
-          </button>
-          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
+          <div className="lg:hidden mt-3 flex flex-wrap gap-2">{actions}</div>
         </div>
 
-        <div className="p-3 sm:p-5 space-y-3 overflow-y-auto flex-1">
-          {balance && showCollections && (
-            <section className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] p-3.5 sm:p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Cari bakiye (tahmini güncel)</div>
-                <div className={`text-2xl font-black tabular-nums ${balance.estimate < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(balance.estimate)}</div>
-                <div className="text-[11px] text-slate-500">{balance.estimate < 0 ? 'Firma alacaklı (fazla ödeme/avans)' : balance.estimate > 0 ? 'Firmanın borcu' : 'Bakiye yok'}</div>
-              </div>
-              <div className="text-xs text-slate-600 leading-relaxed">
-                Mikro bakiyesi <b className="tabular-nums">{tl(balance.balance)}</b> ({day(balance.date)} itibarıyla)
-                {balance.collectedAfter > 0 && <><br />Sonrasında girilen tahsilat <b className="tabular-nums">−{tl(balance.collectedAfter)}</b></>}
-              </div>
-            </section>
-          )}
-          <CustomerInsights ev={ev} collections={showCollections ? allCollections : undefined} balance={showCollections ? balance?.estimate : undefined} status={cStatus} statusNote={customer.statusNote} onSetStatus={onSetStatus} onOpenQuote={onOpenQuote} />
-          {/* Tarih filtresi */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[{ k: 'all', label: 'Tümü', on: () => setRange({ key: 'all', from: '', to: '' }) },
-              { k: 'month', label: 'Bu ay', on: pickMonth },
-              ...years.map(y => ({ k: y, label: y, on: () => pickYear(y) }))].map(o => (
-              <button key={o.k} onClick={() => { o.on(); setLimit(60); }}
-                className={`px-3 py-1.5 rounded-full border text-xs font-bold ${range.key === o.k ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>{o.label}</button>
-            ))}
-            <span className="inline-flex items-center gap-1 text-xs">
-              <DateInput value={range.key === 'custom' ? range.from : ''} onChange={v => setRange(r => ({ key: 'custom', from: v, to: r.key === 'custom' ? r.to : '' }))}
-                className={`w-32 px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} title="Başlangıç tarihi" />
-              <span className="text-slate-500">–</span>
-              <DateInput value={range.key === 'custom' ? range.to : ''} onChange={v => setRange(r => ({ key: 'custom', from: r.key === 'custom' ? r.from : '', to: v }))}
-                className={`w-32 px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} title="Bitiş tarihi" />
-            </span>
+        <div className="p-3 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
+          {/* Özet rakamlar */}
+          <div className="grid grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.4fr_1fr] gap-2 sm:gap-3">
+            {stat(FileText, 'Toplam teklif', trNum(allQuotes.length), `${allQuotes.filter(x => x.status === 'iptal').length} iptal/arşiv`, 'bg-sky-50 text-sky-700', 'text-slate-900', () => { setTab('quotes'); setQFilter('all'); })}
+            {stat(CircleCheck, 'Onaylanan', trNum(allQuotes.filter(isApproved).length), tl(sumTry(allQuotes.filter(isApproved))), 'bg-emerald-50 text-emerald-600', 'text-slate-900', () => { setTab('quotes'); setQFilter('approved'); })}
+            <div className="hidden sm:block">{stat(Clock3, 'Beklemede', trNum(allQuotes.filter(isPending).length), tl(sumTry(allQuotes.filter(isPending))), 'bg-amber-50 text-amber-600', 'text-slate-900', () => { setTab('quotes'); setQFilter('pending'); })}</div>
+            <div className="max-sm:col-span-2">{showCollections && balance
+              ? stat(Database, 'Cari bakiye', tl(balance.estimate), balance.estimate < 0 ? 'firma alacaklı' : balance.estimate > 0 ? 'firmanın borcu' : 'bakiye yok', 'bg-rose-50 text-rose-600', balance.estimate < 0 ? 'text-rose-600' : 'text-slate-900', () => setTab('info'))
+              : showCollections
+                ? stat(Wallet, 'Tahsilat', tl(allCollections.filter(c => c.currency === 'TRY').reduce((t, c) => t + c.amount, 0)), `${allCollections.length} kayıt`, 'bg-teal-50 text-teal-600', 'text-slate-900', () => setTab('collections'))
+                : stat(Wallet, 'Son alım', lastBuy ? day(lastBuy) : '—', 'son onaylanan teklif', 'bg-teal-50 text-teal-600', 'text-slate-900')}</div>
+            <div className="col-span-2 lg:col-span-1">{stat(CalendarDays, 'Son teklif', lastQuote ? day(lastQuote) : '—', ev.lastQuoteDays != null ? (ev.lastQuoteDays === 0 ? 'bugün' : `${ev.lastQuoteDays} gün önce`) : 'teklif yok', 'bg-indigo-50 text-indigo-600', 'text-slate-900')}</div>
           </div>
 
-          {/* Özet */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-            {tile('Onaylanan', `${approved.length} teklif`, tl(sumTry(approved)), 'bg-emerald-50 border-emerald-200 text-emerald-800', () => { setTab('quotes'); setQFilter('approved'); })}
-            {tile('Bekleyen', `${pending.length} teklif`, tl(sumTry(pending)), 'bg-purple-50 border-purple-200 text-purple-800', () => { setTab('quotes'); setQFilter('pending'); })}
-            {showCollections
-              ? tile('Tahsilat', tl(colTry), `${collections.length} kayıt · ${rangeLabel}`, 'bg-white border-slate-200 text-slate-800', () => setTab('collections'))
-              : tile('Toplam teklif', `${quotes.length}`, `${cancelled.length} iptal/arşiv`, 'bg-white border-slate-200 text-slate-800')}
-            {tile('Son alım', lastBuy ? day(lastBuy) : '—', quotes[0] ? `son teklif ${day(quotes[0].createdAt)}` : 'teklif yok', 'bg-white border-slate-200 text-slate-800')}
-          </div>
-
-          {/* Sekmeler + arama */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <div className="flex gap-1 p-1 rounded-xl bg-slate-200/70 w-full sm:w-fit max-w-full overflow-x-auto no-scrollbar">
-              {tabBtn('quotes', `Teklifler · ${quotes.length}`)}
+          <section className={`${CARD} overflow-hidden`}>
+            {/* Sekmeler */}
+            <div className="flex px-2 sm:px-3 border-b border-slate-200 overflow-x-auto no-scrollbar">
+              {tabBtn('info', 'Genel bilgiler')}
+              {tabBtn('summary', 'Firma özeti')}
+              {tabBtn('quotes', 'Teklifler', quotes.length)}
+              {tabBtn('items', 'Malzemeler', lines.length)}
+              {showCollections && tabBtn('collections', 'Tahsilatlar', collections.length)}
               {tabBtn('timeline', 'Akış')}
-              {tabBtn('items', `Malzemeler · ${lines.length}`)}
-              {showCollections && tabBtn('collections', `Tahsilatlar · ${collections.length}`)}
             </div>
-            <div className="relative flex-1 min-w-0" hidden={tab === 'timeline'}>
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input value={q} onChange={e => { setQ(e.target.value); setLimit(60); }}
-                placeholder={tab === 'items' ? 'Malzeme ara (ör. küresel vana 1")…' : tab === 'quotes' ? 'Teklif no, not ya da malzeme ara…' : 'Tahsilat ara…'}
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-400" />
+
+            <div className="p-3 sm:p-4 space-y-3">
+          {tab === 'info' && (
+            <div className="grid lg:grid-cols-2 gap-3">
+              <div className={`${CARD} p-3.5 sm:p-4`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <IdCard className="w-5 h-5 text-brand-700" />
+                  <span className="font-black text-slate-900 flex-1">Müşteri bilgileri</span>
+                  {onEdit && <button onClick={onEdit} title="Düzenle" aria-label="Düzenle" className="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center hover:bg-brand-100"><Pencil className="w-4 h-4" /></button>}
+                </div>
+                {infoRow(Building2, 'Firma adı', customer.name)}
+                {infoRow(MapPin, 'Şehir', customer.city)}
+                {infoRow(User, 'Yetkili', customer.contactPerson)}
+                {infoRow(Phone, 'Telefon', phone && <a href={`tel:${phone}`} className="text-brand-700 hover:underline">{phone}</a>)}
+                {infoRow(Mail, 'E-posta', customer.email && <a href={`mailto:${customer.email}`} className="text-brand-700 hover:underline break-all">{customer.email}</a>)}
+                {customer.mikroCode && infoRow(Hash, 'Mikro cari kodu', customer.mikroCode)}
+                {infoRow(Footprints, 'Son uğrama', customer.lastVisit ? day(customer.lastVisit) : 'uğranmadı')}
+                {customer.updatedAt && infoRow(History, 'Son değişiklik', <>{customer.updatedBy ? `${customer.updatedBy} · ` : ''}{new Date(customer.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>)}
+              </div>
+              <div className="space-y-3">
+                <div className={`${CARD} p-3.5 sm:p-4`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <StickyNote className="w-5 h-5 text-brand-700" />
+                    <span className="font-black text-slate-900 flex-1">Açıklama / not</span>
+                    {onEdit && <button onClick={onEdit} title="Düzenle" aria-label="Düzenle" className="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center hover:bg-brand-100"><Pencil className="w-4 h-4" /></button>}
+                  </div>
+                  <p className="min-h-[4.5rem] rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-sm text-slate-700 whitespace-pre-line">
+                    {customer.notes || customer.statusNote || <span className="text-slate-500">Not yok.</span>}
+                  </p>
+                </div>
+                {balance && showCollections && (
+                  <div className={`${CARD} p-3.5 sm:p-4`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Database className="w-5 h-5 text-brand-700" />
+                      <span className="font-black text-slate-900 flex-1">Cari bakiye</span>
+                      <span className={`text-lg font-black tabular-nums ${balance.estimate < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{tl(balance.estimate)}</span>
+                    </div>
+                    <div className="text-xs text-slate-600 leading-relaxed">
+                      Mikro bakiyesi <b className="tabular-nums">{tl(balance.balance)}</b> ({day(balance.date)} itibarıyla)
+                      {balance.collectedAfter > 0 && <><br />Sonrasında girilen tahsilat <b className="tabular-nums">−{tl(balance.collectedAfter)}</b></>}
+                      <br />{balance.estimate < 0 ? 'Firma alacaklı (fazla ödeme/avans)' : balance.estimate > 0 ? 'Firmanın borcu' : 'Bakiye yok'}
+                    </div>
+                  </div>
+                )}
+                <div className={`${CARD} p-3.5 sm:p-4 flex items-center gap-3`}>
+                  <MapPin className="w-5 h-5 text-brand-700 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-black text-slate-900">Konum</div>
+                    <div className="text-sm text-slate-600 truncate">{customer.city || 'Şehir girilmemiş'}</div>
+                  </div>
+                  <a href={mapsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50 text-brand-700 text-sm font-bold hover:bg-brand-100"><MapPin className="w-4 h-4" /> Haritada gör</a>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {tab === 'summary' && <CustomerInsights ev={ev} collections={showCollections ? allCollections : undefined} balance={showCollections ? balance?.estimate : undefined} status={cStatus} statusNote={customer.statusNote} onSetStatus={onSetStatus} onOpenQuote={onOpenQuote} />}
+
+          {tab !== 'info' && tab !== 'summary' && (
+            <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[{ k: 'all', label: 'Tümü', on: () => setRange({ key: 'all', from: '', to: '' }) },
+                  { k: 'month', label: 'Bu ay', on: pickMonth },
+                  ...years.map(y => ({ k: y, label: y, on: () => pickYear(y) }))].map(o => (
+                  <button key={o.k} onClick={() => { o.on(); setLimit(60); }}
+                    className={`px-3 py-1.5 rounded-full border text-xs font-bold ${range.key === o.k ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>{o.label}</button>
+                ))}
+                <span className="inline-flex items-center gap-1 text-xs">
+                  <DateInput value={range.key === 'custom' ? range.from : ''} onChange={v => setRange(r => ({ key: 'custom', from: v, to: r.key === 'custom' ? r.to : '' }))}
+                    className={`w-32 px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} title="Başlangıç tarihi" />
+                  <span className="text-slate-500">–</span>
+                  <DateInput value={range.key === 'custom' ? range.to : ''} onChange={v => setRange(r => ({ key: 'custom', from: r.key === 'custom' ? r.from : '', to: v }))}
+                    className={`w-32 px-2 py-1 rounded-lg border text-xs ${range.key === 'custom' ? 'border-brand-400' : 'border-slate-200'} bg-white`} title="Bitiş tarihi" />
+                </span>
+              </div>
+              <div className="relative flex-1 min-w-0" hidden={tab === 'timeline'}>
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input value={q} onChange={e => { setQ(e.target.value); setLimit(60); }}
+                  placeholder={tab === 'items' ? 'Malzeme ara (ör. küresel vana 1")…' : tab === 'quotes' ? 'Teklif no, not ya da malzeme ara…' : 'Tahsilat ara…'}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-400" />
+              </div>
+            </div>
+          )}
+          {tab === 'collections' && showCollections && <p className="text-xs text-slate-500">{rangeLabel}: <b className="text-slate-800 tabular-nums">{tl(colTry)}</b> · {collections.length} kayıt</p>}
 
           {tab === 'timeline' && (
             <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
@@ -406,14 +483,8 @@ export const CustomerAccount: React.FC<{
             <button onClick={() => setLimit(l => l + 60)} className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-brand-700">Daha fazla göster</button>
           )}
 
-          {onSaveCollection && (
-            <button onClick={() => setAddingCol(true)} className="sm:hidden w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white border border-brand-200 text-brand-700 text-sm font-bold">
-              <Wallet className="w-4 h-4" /> Bu firmaya tahsilat ekle
-            </button>
-          )}
-          <button onClick={onNewQuote} className="sm:hidden w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-bold">
-            <FilePlus2 className="w-4 h-4" /> Bu firmaya yeni teklif
-          </button>
+            </div>
+          </section>
         </div>
       </div>
       {addingCol && onSaveCollection && (
