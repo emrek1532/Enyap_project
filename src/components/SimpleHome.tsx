@@ -442,7 +442,7 @@ const PeriodCard: React.FC<{
     canExp && { label: 'Harcama', icon: Coins, value: cur.harcama, prev: prev.harcama, on: onOpenExpenses, lower: true },
   ].filter(Boolean) as { label: string; icon: React.ElementType; value: number; prev: number; sub?: string; on: () => void; lower?: boolean }[];
   const tPct = targets.sales && canQuotes ? Math.round((cur.onay / targets.sales) * 100) : 0;
-  const smCols = (n: number) => (n === 3 ? 'sm:grid-cols-3' : n === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-1');
+  const cols = (n: number) => (n === 3 ? 'grid-cols-3' : n === 2 ? 'grid-cols-2' : 'grid-cols-1');
   const stats = (canQuotes ? [
     conv > 0 && { label: 'Satış oranı', icon: Percent, value: `%${conv}`, tone: 'text-[#173F73]', box: 'bg-[#EAF4FC] text-[#006DBB]' },
     tPct > 0 && { label: 'Hedef', icon: Target, value: `%${tPct}`, tone: 'text-[#008A4E]', box: 'bg-[#E7F7EE] text-[#00A35C]' },
@@ -454,15 +454,15 @@ const PeriodCard: React.FC<{
       {/* Üst bölüm: satış tutarı + Bugün / Bu hafta; arkada yalnız süs amaçlı açık mavi dalga ve yükselen sütunlar */}
       <div className="relative">
         <PeriodArt />
-        <div className="relative flex flex-col lg:flex-row lg:items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-7 pt-4 sm:pt-6 pb-4 sm:pb-5">
+        <div className="relative flex flex-col lg:flex-row lg:items-center gap-2.5 sm:gap-3 lg:gap-4 px-4 sm:px-6 lg:px-7 pt-3.5 sm:pt-5 lg:pt-6 pb-3 sm:pb-4 lg:pb-5">
           <button onClick={big.on} className={`group flex-1 min-w-0 flex items-stretch gap-3 sm:gap-4 text-left rounded-2xl transition-colors ${focus}`}>
             <span aria-hidden className="w-1 shrink-0 rounded-full bg-gradient-to-b from-[#0A6FD0] to-[#009FE3]" />
             <span className="min-w-0 flex-1 py-0.5">
               <span className="flex items-center gap-2 text-[13px] sm:text-[15px] font-semibold text-[#17365D] min-w-0">
                 <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-[#006DBB] shrink-0" /><span className="truncate">{title} · {big.label}</span>
               </span>
-              <span className="block mt-1.5 sm:mt-2 text-[30px] sm:text-[40px] lg:text-[46px] leading-none font-black tracking-tight text-[#0F2D57] tabular-nums truncate group-hover:text-[#0A4C93] transition-colors">{lira(big.value)}</span>
-              <span className="mt-2 sm:mt-2.5 flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-[#5E7491]">
+              <span className="block mt-1 sm:mt-2 text-[28px] sm:text-[38px] lg:text-[46px] leading-none font-black tracking-tight text-[#0F2D57] tabular-nums truncate group-hover:text-[#0A4C93] transition-colors">{lira(big.value)}</span>
+              <span className="mt-1.5 sm:mt-2.5 flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-[#5E7491]">
                 <Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span>
               </span>
             </span>
@@ -471,12 +471,18 @@ const PeriodCard: React.FC<{
             <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:w-[340px] shrink-0">
               {([['Bugün', activity.today], ['Bu hafta', activity.week]] as const).map(([l, a]) => (
                 <button key={l} onClick={() => onOpenRange(a.from, today)}
-                  className={`min-w-0 flex items-start gap-2 sm:gap-3 rounded-2xl bg-gradient-to-br from-white to-[#F1F8FE] border border-[#DCEBF8] shadow-[0_10px_24px_-20px_rgba(0,109,187,0.7)] px-3 py-2.5 sm:px-4 sm:py-3.5 text-left transition hover:border-[#B9DAF4] hover:shadow-[0_12px_26px_-18px_rgba(0,109,187,0.7)] ${focus}`}>
-                  <CalendarDays className="hidden sm:block w-5 h-5 mt-0.5 text-[#006DBB] shrink-0" />
-                  <span className="min-w-0">
-                    <span className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-[#17365D]">{l}</span>
-                    <span className="block text-xl sm:text-[28px] font-black text-[#0F2D57] tabular-nums leading-tight">{a.teklif}</span>
-                    <span className="block text-[11px] sm:text-xs text-[#5E7491] truncate">teklif · <b className={a.onay ? 'text-[#008A4E]' : 'text-slate-500'}>{a.onay} onay</b></span>
+                  className={`min-w-0 flex items-center lg:items-start gap-2 lg:gap-3 rounded-xl lg:rounded-2xl bg-gradient-to-br from-white to-[#F1F8FE] border border-[#DCEBF8] shadow-[0_10px_24px_-20px_rgba(0,109,187,0.7)] px-2.5 py-2 sm:px-3.5 lg:px-4 lg:py-3.5 text-left transition hover:border-[#B9DAF4] hover:shadow-[0_12px_26px_-18px_rgba(0,109,187,0.7)] ${focus}`}>
+                  <CalendarDays className="hidden sm:block w-4 h-4 lg:w-5 lg:h-5 lg:mt-0.5 text-[#006DBB] shrink-0" />
+                  {/* Tablet: tek satır "BUGÜN 2 teklif · 1 onay"; telefonda etiket üstte */}
+                  <span className="lg:hidden min-w-0 flex flex-wrap sm:flex-nowrap items-baseline gap-x-1.5 text-[11px] sm:text-xs text-[#5E7491] whitespace-nowrap overflow-hidden">
+                    <b className="max-sm:w-full text-[10px] sm:text-[11px] uppercase tracking-wide text-[#17365D]">{l}</b>
+                    <b className="text-base sm:text-lg font-black text-[#0F2D57] tabular-nums leading-none">{a.teklif}</b>
+                    <span className="truncate">teklif · <b className={a.onay ? 'text-[#008A4E]' : 'text-slate-500'}>{a.onay} onay</b></span>
+                  </span>
+                  <span className="hidden lg:block min-w-0">
+                    <span className="block text-[11px] font-bold uppercase tracking-wide text-[#17365D]">{l}</span>
+                    <span className="block text-[28px] font-black text-[#0F2D57] tabular-nums leading-tight">{a.teklif}</span>
+                    <span className="block text-xs text-[#5E7491] truncate">teklif · <b className={a.onay ? 'text-[#008A4E]' : 'text-slate-500'}>{a.onay} onay</b></span>
                   </span>
                 </button>
               ))}
@@ -484,32 +490,32 @@ const PeriodCard: React.FC<{
           )}
         </div>
       </div>
-      {/* Orta bölüm: satış oranı / hedef / ay sonu tahmini (telefonda iki sütun, üçüncüsü tam genişlik) */}
+      {/* Orta bölüm: satış oranı / hedef / ay sonu tahmini — her ekranda tek satır (telefon/tablette simgesiz, sıkı) */}
       {stats.length > 0 && (
-        <div className={`relative grid gap-y-3 border-t border-[#E6EFF8] px-4 sm:px-2 py-3.5 sm:py-4 ${stats.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${smCols(stats.length)}`}>
+        <div className={`relative grid border-t border-[#E6EFF8] py-2.5 sm:py-3 lg:py-4 lg:px-2 ${cols(stats.length)}`}>
           {stats.map((m, i) => (
-            <div key={m.label} className={`flex items-center gap-3 min-w-0 sm:px-4 lg:px-5 ${i ? 'sm:border-l sm:border-[#E6EFF8]' : ''} ${stats.length === 3 && i === 2 ? 'max-sm:col-span-2' : ''}`}>
-              <span className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl flex sm:hidden lg:flex items-center justify-center shrink-0 ${m.box}`}><m.icon className="w-5 h-5 sm:w-6 sm:h-6" /></span>
+            <div key={m.label} className={`flex items-center gap-3 min-w-0 px-2.5 sm:px-5 ${i ? 'border-l border-[#E6EFF8]' : ''}`}>
+              <span className={`hidden lg:flex w-12 h-12 rounded-2xl items-center justify-center shrink-0 ${m.box}`}><m.icon className="w-6 h-6" /></span>
               <span className="min-w-0">
-                <span className="block text-xs sm:text-sm font-semibold text-[#5E7491] truncate">{m.label}</span>
-                <span className={`block text-lg sm:text-xl lg:text-2xl font-black tabular-nums leading-tight truncate ${m.tone}`}>{m.value}</span>
+                <span className="block text-[11px] sm:text-[13px] lg:text-sm font-semibold text-[#5E7491] truncate">{m.label}</span>
+                <span className={`block text-[14px] min-[400px]:text-[15px] sm:text-xl lg:text-2xl font-black tabular-nums leading-tight truncate ${m.tone}`}>{m.value}</span>
               </span>
             </div>
           ))}
         </div>
       )}
-      {/* Alt bölüm: finansal özet (telefonda alt alta) */}
+      {/* Alt bölüm: finansal özet — her ekranda tek satır, açık zeminli iç kutu */}
       {minis.length > 0 && (
-        <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3">
-          <div className={`grid grid-cols-1 ${smCols(minis.length)} rounded-[20px] bg-[#F6FAFE] border border-[#E4EEF8] overflow-hidden`}>
+        <div className="px-2 sm:px-3 pb-2 sm:pb-3">
+          <div className={`grid ${cols(minis.length)} rounded-2xl lg:rounded-[20px] bg-[#F6FAFE] border border-[#E4EEF8] overflow-hidden`}>
             {minis.map((m, i) => (
               <button key={m.label} onClick={m.on}
-                className={`flex items-center gap-3 text-left px-3.5 sm:px-4 lg:px-5 py-3 sm:py-4 min-w-0 transition-colors hover:bg-[#EDF5FD] ${focus} ${i ? 'max-sm:border-t sm:border-l border-[#E4EEF8]' : ''}`}>
-                <span className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl flex sm:hidden lg:flex bg-white border border-[#E1EDF8] text-[#006DBB] items-center justify-center shrink-0 shadow-sm"><m.icon className="w-5 h-5 sm:w-6 sm:h-6" /></span>
+                className={`flex items-center gap-3 text-left px-2.5 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 min-w-0 transition-colors hover:bg-[#EDF5FD] ${focus} ${i ? 'border-l border-[#E4EEF8]' : ''}`}>
+                <span className="hidden lg:flex w-12 h-12 rounded-2xl bg-white border border-[#E1EDF8] text-[#006DBB] items-center justify-center shrink-0 shadow-sm"><m.icon className="w-6 h-6" /></span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-xs sm:text-sm font-semibold text-[#5E7491] truncate">{m.label}</span>
-                  <span className="block text-lg sm:text-xl lg:text-2xl font-black text-[#0F2D57] tabular-nums leading-tight truncate">{trNum(Math.round(m.value))}<span className="text-xs sm:text-sm font-bold text-[#5E7491]"> TL</span></span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-xs text-[#5E7491] min-w-0"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="truncate">· {m.sub}</span>}</span>
+                  <span className="block text-[11px] sm:text-[13px] lg:text-sm font-semibold text-[#5E7491] truncate">{m.label}</span>
+                  <span className="block text-[13px] min-[380px]:text-[14px] sm:text-xl lg:text-2xl font-black text-[#0F2D57] tabular-nums leading-tight truncate">{trNum(Math.round(m.value))}<span className="hidden sm:inline text-sm font-bold text-[#5E7491]"> TL</span></span>
+                  <span className="mt-0.5 flex items-center gap-1.5 text-[11px] sm:text-xs text-[#5E7491] min-w-0"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
                 </span>
               </button>
             ))}
