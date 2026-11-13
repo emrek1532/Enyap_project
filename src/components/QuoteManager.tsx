@@ -361,7 +361,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
       <div className={listCard}>
         {/* Filtreler */}
         <FilterBar className="p-3 sm:p-4 flex flex-col xl:flex-row gap-2" active={(statusFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
-          search={<><SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1" />{canNew && <NewButton label="Yeni Teklif" onClick={onOpenNewQuote} />}</>}>
+          search={<><SearchBox value={searchTerm} onChange={v => { setSearchTerm(v); setPage(0); }} placeholder="Müşteri adı veya teklif no..." className="flex-1" /></>}
+          action={canNew && <NewButton label="Yeni Teklif" onClick={onOpenNewQuote} />}>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={`${ctrl} transition-colors ${statusFilter !== 'all' ? 'border-[#006DBB] bg-[#EAF5FC] text-[#006DBB] font-bold' : ''}`} aria-label="Durum">
               <option value="all">Tüm Teklifler</option>
