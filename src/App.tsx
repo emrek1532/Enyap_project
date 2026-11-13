@@ -66,6 +66,8 @@ const loaders = {
 };
 const QuoteManager = lazy(() => loaders.quotes().then(m => ({ default: m.QuoteManager })));
 const QuickNotesPanel = lazy(() => loaders.notes().then(m => ({ default: m.QuickNotesPanel })));
+// Dosya adından Mikro cari bakiye listesi tahmini (paylaşımda önerilen seçenek)
+const MIKRO_NAME = /bakiye|mizan|cari|mikro|ekstre/i;
 const PrintableQuoteModal = lazy(() => loaders.print().then(m => ({ default: m.PrintableQuoteModal })));
 const LedgerPanel = lazy(() => loaders.ledger().then(m => ({ default: m.LedgerPanel })));
 const MaterialsPanel = lazy(() => loaders.materials().then(m => ({ default: m.MaterialsPanel })));
@@ -180,7 +182,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [activeTab, setActiveTabState] = useState<ActiveTab>('home');
   // Ana sayfadaki öneriden açılacak müşteri carisi
   const [focusCustomer, setFocusCustomer] = useState<string | null>(null);
-  const [openMikro, setOpenMikro] = useState(false);
+  const [openMikro, setOpenMikro] = useState<boolean | File>(false); // File: paylaşılan Mikro bakiye dosyası
   // Ana sayfadan "Tahsilat / Harcama Ekle" ile gelince form açık başlasın
   const [ledgerStartNew, setLedgerStartNew] = useState<'collections' | 'expenses' | null>(null);
   // Hızlı kısayol penceresi (Ara, Tekliflere sor, Teklif hazırla, Sesle kayıt)
@@ -258,7 +260,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [shareError, setShareError] = useState('');
   const [pdfNotice, setPdfNotice] = useState('');
   // Paylaşılan PDF için "Talep mi, teklif mi?" sorusu
-  const [shareAsk, setShareAsk] = useState<{ file?: File; text?: string; pdf: boolean; guess: 'quote' | 'request' } | null>(null);
+  const [shareAsk, setShareAsk] = useState<{ file?: File; text?: string; pdf: boolean; guess: 'quote' | 'request' | 'mikro' } | null>(null);
 
   // Apply a local (optimistic) change and cache it
   const mutate = useCallback((fn: (prev: AppData) => AppData) => {
@@ -574,7 +576,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         // Sistemdeki bir teklifin PDF'i: soru sormadan o teklif açılır (revize)
         if (existing) { setSharedPdf(file); setEditingQuote(existing); return; }
         // Değilse sor: müşteri talebi mi, teklif mi? Kalemleri okunabilen PDF'te "Teklif" önerilir
-        setShareAsk({ file, pdf: true, guess: pdf?.items?.length ? 'quote' : 'request' });
+        setShareAsk({ file, pdf: true, guess: pdf?.items?.length ? 'quote' : MIKRO_NAME.test(name) ? 'mikro' : 'request' });
       } catch {
         setShareError('Paylaşılan PDF açılamadı.');
       }
@@ -652,7 +654,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         const name = decodeURIComponent(res.headers.get('x-file-name') || 'talep');
         // Yazı / fotoğraf / Excel: "Talep mi, teklif mi?" diye sorulur
         if (kind === 'text') setShareAsk({ text: await res.text(), pdf: false, guess: 'request' });
-        else setShareAsk({ file: new File([await res.blob()], name, { type: res.headers.get('content-type') || '' }), text: decodeURIComponent(res.headers.get('x-text') || '') || undefined, pdf: false, guess: 'request' });
+        else setShareAsk({ file: new File([await res.blob()], name, { type: res.headers.get('content-type') || '' }), text: decodeURIComponent(res.headers.get('x-text') || '') || undefined, pdf: false, guess: MIKRO_NAME.test(name) && /\.xlsx?$/i.test(name) ? 'mikro' : 'request' });
       } catch {
         setShareError('Paylaşılan talep açılamadı.');
       }
@@ -1204,10 +1206,15 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           ? () => { setSharedPdf(sa.file || null); setIsNewQuoteOpen(true); setShareAsk(null); }
           : () => { setSharedReq({ file: sa.file, text: sa.text, mode: 'quote' }); setActiveTab('requests'); setShareAsk(null); };
         const quoteOk = sa.pdf || (canReq && allowed(profile, 'reqAi'));
+        // Mikro cari bakiye listesi (Excel / PDF): Müşteriler'de "Mikro bakiyesi" penceresi bu dosyayla açılır
+        const mikroOk = !!sa.file && /\.(pdf|xlsx?)$/i.test(sa.file.name) && canCustomers
+          && can(profile, 'collections', 'edit') && allowed(profile, 'balances');
+        const asMikro = () => { setOpenMikro(sa.file!); setActiveTab('customers'); setShareAsk(null); };
         const kindName = sa.pdf ? 'PDF' : !sa.file ? 'yazı' : /^image\//.test(sa.file.type) ? 'fotoğraf' : 'dosya';
         const opts = [
           ...(canReq ? [{ k: 'request' as const, icon: '📥', title: 'Müşteri talebi', desc: 'Talepler\'e kaydet, birine ata; o hazırlasın', go: asRequest }] : []),
           ...(quoteOk ? [{ k: 'quote' as const, icon: '📄', title: 'Teklif hazırla', desc: sa.pdf ? 'PDF\'ten doldurup yeni teklif aç' : 'Müşteriyi seç; ürünler okunur, teklif formu dolu açılır', go: asQuote }] : []),
+          ...(mikroOk ? [{ k: 'mikro' as const, icon: '💰', title: 'Mikro cari bakiyeleri', desc: 'Mikro\'dan alınan bakiye listesini carilere işle', go: asMikro }] : []),
         ].sort((a, b) => (a.k === sa.guess ? -1 : b.k === sa.guess ? 1 : 0));
         if (!opts.length) return null;
         const preview = sa.file ? sa.file.name : (sa.text || '').slice(0, 120);

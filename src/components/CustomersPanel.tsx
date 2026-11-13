@@ -29,7 +29,8 @@ interface CustomersPanelProps {
   focusName?: string | null;
   onFocusHandled?: () => void;
   /** Ana sayfadan "Mikro bakiyesi yükle" ile gelindiyse yükleme penceresi açılır */
-  openMikro?: boolean;
+  /** true: Mikro bakiyesi penceresini aç; File: paylaşılan dosyayla aç */
+  openMikro?: boolean | File;
   onMikroHandled?: () => void;
   /** Sayfa başlığındaki "Yeni Müşteri" her basışta artar */
   newRequest?: number;
@@ -102,7 +103,8 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
   canRemove = true,
 }) => {
   const [mikroOpen, setMikroOpen] = useState(false);
-  useEffect(() => { if (openMikro) { setMikroOpen(true); onMikroHandled?.(); } }, [openMikro]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [mikroFile, setMikroFile] = useState<File | null>(null);
+  useEffect(() => { if (openMikro) { setMikroFile(openMikro instanceof File ? openMikro : null); setMikroOpen(true); onMikroHandled?.(); } }, [openMikro]); // eslint-disable-line react-hooks/exhaustive-deps
   const balanceOf = (c: Customer) => (showCollections ? estimatedBalance(c, collections) : null);
   const lastMikro = useMemo(() => customers.reduce((m, c) => (c.mikroBalanceDate && c.mikroBalanceDate > m ? c.mikroBalanceDate : m), ''), [customers]);
   const rates = useRates(quotes);
@@ -546,7 +548,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       )}
 
       {mikroOpen && (
-        <MikroUpload customers={customers} onClose={() => setMikroOpen(false)} onSave={list => list.forEach(onSaveCustomer)} />
+        <MikroUpload customers={customers} initialFile={mikroFile} onClose={() => { setMikroOpen(false); setMikroFile(null); }} onSave={list => list.forEach(onSaveCustomer)} />
       )}
 
       {/* Add / Edit form */}

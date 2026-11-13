@@ -1,5 +1,5 @@
 import { trNum } from '../lib/num';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FileUp, Loader2, X, AlertCircle } from 'lucide-react';
 import { Customer } from '../types';
 import { MikroRow, matchMikro, readMikroFile } from '../lib/mikroBalance';
@@ -27,7 +27,9 @@ export const MikroUpload: React.FC<{
   customers: Customer[];
   onSave: (list: Customer[]) => void;
   onClose: () => void;
-}> = ({ customers, onSave, onClose }) => {
+  /** Paylaş menüsünden (WhatsApp / Dosyalar) gelen dosya: açılınca okunur */
+  initialFile?: File | null;
+}> = ({ customers, onSave, onClose, initialFile }) => {
   const [date, setDate] = useState(todayIso());
   const [rows, setRows] = useState<MikroRow[] | null>(null);
   const [choice, setChoice] = useState<Record<string, Choice>>({});
@@ -51,6 +53,7 @@ export const MikroUpload: React.FC<{
       setErr(e instanceof Error ? e.message : 'Dosya okunamadı.');
     } finally { setBusy(false); }
   };
+  useEffect(() => { if (initialFile) read(initialFile); }, [initialFile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listede olmayan, aynı bölge kodlu (ilk 2 hane) daha önce eşleşmiş firmalar: bakiyesi sıfır kabul edilir
   const missing = useMemo(() => {
