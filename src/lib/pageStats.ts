@@ -46,7 +46,7 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
     return [
       { label: `${view.label} verilen`, value: lira(av), sub: `${n(all.length)} teklif` },
       { label: `${view.label} onaylanan`, value: lira(wv), sub: `${n(won.length)} teklif · %${av ? Math.round((wv / av) * 100) : 0} dönüşüm` },
-      { label: `${view.label} bekleyen + pasif`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: pendSub(pend) + followSub(follow) },
+      { label: `${view.label} bekleyen`, value: lira(pend.reduce((a, q) => a + qv(q), 0)), sub: pendSub(pend) + followSub(follow) },
     ];
   }
   if (tab === 'quotes') {
@@ -64,7 +64,7 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
     return [
       { label: 'Bu ay verilen', value: lira(mv), sub: `${n(month.length)} teklif`, trend: trend(mv, sum(prev)) },
       { label: 'Bu ay onaylanan', value: lira(wv), sub: `${n(won.length)} teklif · %${mv ? Math.round((wv / mv) * 100) : 0} dönüşüm`, trend: trend(wv, sum(prev.filter(q => q.status === 'onaylandi'))) },
-      { label: 'Bu ay bekleyen + pasif', value: lira(pv), sub: pendSub(pend) + followSub(follow), trend: trend(pv, sum(prev.filter(q => q.status === 'gonderildi'))) },
+      { label: 'Bu ay bekleyen', value: lira(pv), sub: pendSub(pend) + followSub(follow), trend: trend(pv, sum(prev.filter(q => q.status === 'gonderildi'))) },
     ];
   }
   if (tab === 'customers') {
