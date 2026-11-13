@@ -280,9 +280,9 @@ export const SimpleHome: React.FC<{
       {/* Arka plan: üstte yumuşak mavi ışık */}
       {/* Telefonda ilk ekran: selam + dönem + rakamlar + hızlı işlemler ekranı tam doldurur (selam bandı esner),
           Satış Performansı kaydırınca başlar. 149px = üst çubuk 57 + üst boşluk 16 + alt menü 64 + 12 pay. */}
-      <div className={`flex flex-col gap-4 sm:gap-5 [@media(min-width:768px)_and_(max-height:950px)]:gap-3.5 ${quick.length > 0 ? 'max-md:mb-10 max-md:min-h-[calc(100dvh-149px-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]' : ''}`}>
+      <div className={`flex flex-col gap-4 sm:gap-5 [@media(min-width:768px)_and_(max-height:950px)]:gap-3.5 ${quick.length > 0 ? '[@media(min-width:768px)_and_(max-height:950px)]:min-h-[calc(100dvh-36px)] max-md:mb-10 max-md:min-h-[calc(100dvh-149px-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]' : ''}`}>
       {/* 1. Selam bandı: diğer sayfalardaki bantla aynı stil (açık zemin, sağda ENYAP binası, solu beyaza geçer) */}
-      <section className="relative flex max-md:flex-1 overflow-hidden rounded-2xl border border-[#E2EAF3] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC] shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)]">
+      <section className="relative flex max-md:flex-1 [@media(min-width:768px)_and_(max-height:950px)]:flex-1 overflow-hidden rounded-2xl border border-[#E2EAF3] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC] shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)]">
         <picture aria-hidden>
           <source media="(min-width: 768px)" srcSet="/hero-enyap-2.webp" />
           <img src="/hero-enyap-2-sm.webp" alt="" draggable={false} className={`${HERO_PHOTO} object-cover object-[70%_center]`} />
