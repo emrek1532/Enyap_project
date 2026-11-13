@@ -466,7 +466,7 @@ const PeriodCard: React.FC<{
             <span aria-hidden className="w-1 shrink-0 rounded-full bg-gradient-to-b from-[#0A6FD0] to-[#009FE3]" />
             <span className="min-w-0 flex-1 py-0.5">
               <span className="flex items-center gap-2 text-[13px] sm:text-[15px] font-semibold text-[#17365D] min-w-0">
-                <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-[#006DBB] shrink-0" /><span className="truncate">{title} · {big.label}</span>
+                <span className="truncate">{big.label}</span>
               </span>
               <span className="block mt-1 sm:mt-2 text-[26px] sm:text-[38px] lg:text-[46px] [@media(min-width:768px)_and_(max-height:950px)]:text-[34px] leading-none font-black tracking-tight text-[#0F2D57] tabular-nums truncate group-hover:text-[#0A4C93] transition-colors">{lira(big.value)}</span>
               <span className="mt-1 sm:mt-2.5 flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-[#5E7491]">
