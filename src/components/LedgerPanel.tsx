@@ -789,6 +789,7 @@ const MultiCollectionForm: React.FC<{
   const [head, setHead] = useState({ date: record.date, customerName: record.customerName, city: record.city || '', description: record.description || '' });
   const [rows, setRows] = useState<Piece[]>([{ key: newKey(), method: record.method, amount: record.amount, currency: record.currency }]);
   const [err, setErr] = useState('');
+  const submitting = React.useRef(false);
   const focusRow = React.useRef<number | null>(null);
   const tableRef = React.useRef<HTMLDivElement>(null);
   const setRow = (i: number, patch: Partial<Piece>) => setRows(rs => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -822,8 +823,11 @@ const MultiCollectionForm: React.FC<{
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    setErr('');
     if (!head.customerName.trim()) { setErr('Firma girin.'); return; }
     if (!filled.length) { setErr('En az bir satıra tutar girin.'); return; }
+    if (filled.some(r => !Number.isFinite(r.amount))) { setErr('Geçersiz tutar var.'); return; }
     if (filled.some(r => HAS_DUE.includes(r.method) && !r.dueDate)) { setErr('Çek / senet satırlarında vade zorunlu.'); return; }
     const now = Date.now();
     filled.forEach((r, i) => {
@@ -888,7 +892,7 @@ const MultiCollectionForm: React.FC<{
                 const due = HAS_DUE.includes(r.method);
                 const cek = r.method === 'Çek';
                 return (
-                  <div key={r.key} data-row className={`crow px-2 py-1.5 ${i % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
+                  <div key={r.key} data-row className={`crow max-md:!grid max-md:!grid-cols-2 max-md:gap-2 max-md:rounded-xl max-md:border max-md:border-slate-200 max-md:my-2 max-md:p-3 px-2 py-1.5 ${i % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
                     <span className="text-[11px] font-bold text-slate-500 tabular-nums self-center">{i + 1}.</span>
                     <select value={r.method} onChange={e => setRow(i, { method: e.target.value })} className={c} title="Ödeme şekli">
                       {methods.map(m => <option key={m} value={m}>{m}</option>)}
@@ -949,6 +953,7 @@ const MultiExpenseForm: React.FC<{
 }> = ({ record, methods, categories, regions, onCancel, onSave }) => {
   const [rows, setRows] = useState<ExpRow[]>([{ key: newKey(), date: record.date, category: record.category || '', region: record.region || '', method: record.method, amount: record.amount || 0, currency: record.currency, description: record.description || '' }]);
   const [err, setErr] = useState('');
+  const submitting = React.useRef(false);
   const focusRow = React.useRef<number | null>(null);
   const tableRef = React.useRef<HTMLDivElement>(null);
   const setRow = (i: number, patch: Partial<ExpRow>) => setRows(rs => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -1007,6 +1012,7 @@ const MultiExpenseForm: React.FC<{
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!filled.length) { setErr('En az bir satıra tutar girin.'); return; }
+    if (filled.some(r => !Number.isFinite(r.amount))) { setErr('Geçersiz tutar var.'); return; }
     if (filled.some(r => !r.category.trim())) { setErr('Tutar girilen her satırda kategori olmalı.'); return; }
     if (filled.some(r => !r.date)) { setErr('Her satırda tarih olmalı.'); return; }
     const now = Date.now();
@@ -1042,7 +1048,7 @@ const MultiExpenseForm: React.FC<{
             </div>
             <div ref={tableRef} className="divide-y divide-slate-200" onKeyDownCapture={onKeyDown}>
               {rows.map((r, i) => (
-                <div key={r.key} data-row className={`erow px-2 py-1.5 ${i % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
+                <div key={r.key} data-row className={`erow max-md:!grid max-md:!grid-cols-2 max-md:gap-2 max-md:rounded-xl max-md:border max-md:border-slate-200 max-md:my-2 max-md:p-3 px-2 py-1.5 ${i % 2 ? 'bg-slate-50/70' : 'bg-white'} focus-within:bg-brand-50/50`}>
                   <span className="text-[11px] font-bold text-slate-500 tabular-nums self-center">{i + 1}.</span>
                   <DateInput value={r.date} onChange={v => setRow(i, { date: v })} className={c} title="Tarih" />
                   <TextSuggest dataAttrs={{ 'data-cat': '' }} options={categories} placeholder="Kategori" value={r.category} onChange={v => setRow(i, { category: v })} className={c} title="Kategori" />
