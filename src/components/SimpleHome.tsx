@@ -1,3 +1,4 @@
+import { VersionButton } from './UpdateBanner';
 import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
@@ -290,7 +291,7 @@ export const SimpleHome: React.FC<{
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#006DBB] via-[#009FE3] to-[#00B49A]" />
         <div className="relative flex flex-1 items-center px-4 sm:px-6 lg:px-7 py-3.5 min-h-[104px] sm:min-h-[136px] lg:min-h-[148px] [@media(min-width:768px)_and_(max-height:950px)]:min-h-[100px] [@media(min-width:768px)_and_(max-height:950px)]:py-3">
           <div className="min-w-0 max-w-[72%] md:max-w-[62%] lg:max-w-[55%]">
-            <p className="text-xs sm:text-sm text-[#5E7491]"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-slate-400 tabular-nums">v{__APP_VERSION__}</span></p>
+            <p className="text-xs sm:text-sm text-[#5E7491]"><span className="capitalize">{now2}</span><VersionButton className="ml-2 text-[11px] text-slate-400" /></p>
             <h1 className="font-black text-[clamp(18px,5.7vw,26px)] sm:text-[30px] [@media(min-width:768px)_and_(max-height:950px)]:text-[26px] tracking-tight leading-tight text-[#0B2343] break-words">{hello}, {firstName} <span className="inline-block">👋</span></h1>
             <p className="text-sm sm:text-[15px] text-[#5E7491]">Bugünün özeti burada.</p>
           </div>

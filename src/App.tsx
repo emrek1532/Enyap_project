@@ -52,6 +52,7 @@ import { AccessContext, Module, Profile, allowed, can, fetchMyProfile } from './
 import { AdminPanel, PendingScreen } from './components/AdminPanel';
 import { useRates } from './lib/rates';
 import { pageStats, QuoteView, LedgerView } from './lib/pageStats';
+import { UpdateBanner } from './components/UpdateBanner';
 
 // Ekranlar ihtiyaç anında yüklenir (ilk açılış hızlı); açıldıktan sonra boşta hepsi önceden indirilir
 const loaders = {
@@ -920,6 +921,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         userEmail={userEmail}
         roleLabel={roleLabel}
       />
+
+      <UpdateBanner />
 
       {/* Bilgisayar/tablette üst çubuk yok: ara, eşitle, bildirim, kılavuz, çıkış sol menünün altında; sürüm koyu bantta */}
       <div className="sticky top-0 z-30 md:hidden">

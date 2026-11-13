@@ -1,3 +1,4 @@
+import { VersionButton } from './UpdateBanner';
 import React from 'react';
 import { FileText, Inbox, Users, Wallet, Receipt, BarChart3, StickyNote, Package, ChevronRight, ShieldCheck, Hourglass, AlarmClock, CheckCircle2, Coins } from 'lucide-react';
 
@@ -199,7 +200,7 @@ export const PageHeader: React.FC<{
           </span>
           <div className="min-w-0 flex-1">
             <h1 className={`font-black text-xl md:text-2xl lg:text-[30px] tracking-tight leading-tight text-[#0B2343]`}>{title}</h1>
-            {subtitle && <p className={`hidden lg:block mt-0.5 text-[15px] line-clamp-2 text-[#5E7491] max-w-[50%]`}>{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
+            {subtitle && <p className={`hidden lg:block mt-0.5 text-[15px] line-clamp-2 text-[#5E7491] max-w-[50%]`}>{subtitle}<VersionButton className="hidden md:inline ml-2 text-[11px] text-slate-400" /></p>}
           </div>
           {tools}
           {secondary && (
@@ -241,7 +242,7 @@ export const PageHeader: React.FC<{
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="font-black text-xl md:text-2xl lg:text-[30px] tracking-tight leading-tight truncate text-[#0B2343]">{title}</h1>
-          {subtitle && <p className="hidden lg:block mt-0.5 text-[15px] text-[#5E7491] truncate">{subtitle}<span className="hidden md:inline ml-2 text-[11px] text-slate-400 tabular-nums" title={`Sürüm ${__APP_VERSION__}`}>v{__APP_VERSION__}</span></p>}
+          {subtitle && <p className="hidden lg:block mt-0.5 text-[15px] text-[#5E7491] truncate">{subtitle}<VersionButton className="hidden md:inline ml-2 text-[11px] text-slate-400" /></p>}
         </div>
         {tools}
         {action && (
