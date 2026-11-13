@@ -102,12 +102,24 @@ export const toneAt = (i: number) => TONE_ORDER[i % TONE_ORDER.length];
 
 type Stat = { label: string; value: string; sub?: string; trend?: number | null };
 const StatGrid: React.FC<{ stats: Stat[]; row?: boolean }> = ({ stats, row }) => row ? (
-  /* Tek sıra 3 kutu (Teklifler, Tahsilat, Harcama): telefonda da yan yana, küçük */
-  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 lg:gap-3">
-    {stats.slice(0, 3).map((s, i) => (
-      <StatBox key={s.label} dense label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)} />
-    ))}
-  </div>
+  /* 3 kutu (Teklifler, Tahsilat, Harcama): geniş ekranda yan yana; telefonda tek kartta alt alta satırlar */
+  <>
+    {/* Telefonda: tek kart, alt alta ince satırlar (tutar tam okunur) */}
+    <div className="sm:hidden rounded-xl border border-slate-100 bg-white divide-y divide-slate-100 shadow-[0_10px_26px_-22px_rgba(15,60,120,0.6)]">
+      {stats.slice(0, 3).map(s => (
+        <div key={s.label} className="flex items-center gap-2 px-3 py-2 min-w-0" title={s.sub}>
+          <span className="flex-1 min-w-0 truncate text-xs font-bold text-slate-500">{s.label}</span>
+          <b className="text-[13px] font-black text-[#173F73] tabular-nums whitespace-nowrap">{s.value}</b>
+          {s.trend != null && <span className={`w-11 text-right text-[11px] font-bold tabular-nums ${s.trend >= 0 ? 'text-[#00B49A]' : 'text-red-600'}`}>{s.trend >= 0 ? '↑' : '↓'}%{Math.abs(s.trend)}</span>}
+        </div>
+      ))}
+    </div>
+    <div className="hidden sm:grid grid-cols-3 gap-2 lg:gap-3">
+      {stats.slice(0, 3).map((s, i) => (
+        <StatBox key={s.label} dense label={s.label} value={s.value} sub={s.sub} trend={s.trend} tone={toneAt(i)} />
+      ))}
+    </div>
+  </>
 ) : (
   <div className={`grid grid-cols-2 ${stats.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-2 lg:gap-3`}>
     {stats.map((s, i) => (
