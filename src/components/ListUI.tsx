@@ -144,12 +144,12 @@ export const FilterBar: React.FC<{ search: React.ReactNode; action?: React.React
     <div className={className}>
       <div className={`flex gap-2 flex-1 min-w-0 ${action ? 'xl:min-w-[150px]' : 'xl:min-w-[240px]'}`}>
         {search}
-        {action && <div className={`shrink-0 flex ${narrowCls}`}>{action}</div>}
         <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
           className={`sm:hidden shrink-0 h-10 px-3 rounded-xl border text-sm font-bold inline-flex items-center gap-1.5 ${open || active ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-700'}`}>
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
           Filtre{active ? ` (${active})` : ''}
         </button>
+        {action && <div className={`shrink-0 flex ${narrowCls}`}>{action}</div>}
       </div>
       <div className={open ? 'contents' : 'hidden sm:contents'}>{children}</div>
       {action && <div className={`shrink-0 ml-auto ${wideCls}`}>{action}</div>}
