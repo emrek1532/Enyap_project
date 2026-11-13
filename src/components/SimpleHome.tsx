@@ -280,7 +280,7 @@ export const SimpleHome: React.FC<{
       {/* Arka plan: üstte yumuşak mavi ışık */}
       {/* Telefonda ilk ekran: selam + dönem + rakamlar + hızlı işlemler ekranı tam doldurur (selam bandı esner),
           Satış Performansı kaydırınca başlar. 149px = üst çubuk 57 + üst boşluk 16 + alt menü 64 + 12 pay. */}
-      <div className={`flex flex-col gap-4 sm:gap-5 ${quick.length > 0 ? 'max-md:mb-10 max-md:min-h-[calc(100dvh-149px-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]' : ''}`}>
+      <div className={`flex flex-col gap-4 sm:gap-5 [@media(min-width:768px)_and_(max-height:950px)]:gap-3.5 ${quick.length > 0 ? 'max-md:mb-10 max-md:min-h-[calc(100dvh-149px-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]' : ''}`}>
       {/* 1. Selam bandı: diğer sayfalardaki bantla aynı stil (açık zemin, sağda ENYAP binası, solu beyaza geçer) */}
       <section className="relative flex max-md:flex-1 overflow-hidden rounded-2xl border border-[#E2EAF3] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC] shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)]">
         <picture aria-hidden>
@@ -288,10 +288,10 @@ export const SimpleHome: React.FC<{
           <img src="/hero-enyap-2-sm.webp" alt="" draggable={false} className={`${HERO_PHOTO} object-cover object-[70%_center]`} />
         </picture>
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#006DBB] via-[#009FE3] to-[#00B49A]" />
-        <div className="relative flex flex-1 items-center px-4 sm:px-6 lg:px-7 py-4 min-h-[112px] sm:min-h-[136px] lg:min-h-[148px]">
+        <div className="relative flex flex-1 items-center px-4 sm:px-6 lg:px-7 py-4 min-h-[112px] sm:min-h-[136px] lg:min-h-[148px] [@media(min-width:768px)_and_(max-height:950px)]:min-h-[100px] [@media(min-width:768px)_and_(max-height:950px)]:py-3">
           <div className="min-w-0 max-w-[68%] md:max-w-[62%] lg:max-w-[55%]">
             <p className="text-xs sm:text-sm text-[#5E7491]"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-slate-400 tabular-nums">v{__APP_VERSION__}</span></p>
-            <h1 className="font-black text-[26px] sm:text-[30px] tracking-tight leading-tight text-[#0B2343] whitespace-nowrap">{hello}, {firstName} <span className="inline-block">👋</span></h1>
+            <h1 className="font-black text-[26px] sm:text-[30px] [@media(min-width:768px)_and_(max-height:950px)]:text-[26px] tracking-tight leading-tight text-[#0B2343] whitespace-nowrap">{hello}, {firstName} <span className="inline-block">👋</span></h1>
             <p className="text-sm sm:text-[15px] text-[#5E7491]">Bugünün özeti burada.</p>
           </div>
         </div>
@@ -460,14 +460,14 @@ const PeriodCard: React.FC<{
       {/* Üst bölüm: satış tutarı + Bugün / Bu hafta; arkada yalnız süs amaçlı açık mavi dalga ve yükselen sütunlar */}
       <div className="relative">
         <PeriodArt />
-        <div className="relative flex flex-col lg:flex-row lg:items-center gap-2 sm:gap-3 lg:gap-4 px-4 sm:px-6 lg:px-7 pt-3 sm:pt-5 lg:pt-6 pb-2.5 sm:pb-4 lg:pb-5">
+        <div className="relative flex flex-col lg:flex-row lg:items-center gap-2 sm:gap-3 lg:gap-4 px-4 sm:px-6 lg:px-7 pt-3 sm:pt-5 lg:pt-6 pb-2.5 sm:pb-4 lg:pb-5 [@media(min-width:768px)_and_(max-height:950px)]:pt-3.5 [@media(min-width:768px)_and_(max-height:950px)]:pb-3">
           <button onClick={big.on} className={`group flex-1 min-w-0 flex items-stretch gap-3 sm:gap-4 text-left rounded-2xl transition-colors ${focus}`}>
             <span aria-hidden className="w-1 shrink-0 rounded-full bg-gradient-to-b from-[#0A6FD0] to-[#009FE3]" />
             <span className="min-w-0 flex-1 py-0.5">
               <span className="flex items-center gap-2 text-[13px] sm:text-[15px] font-semibold text-[#17365D] min-w-0">
                 <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-[#006DBB] shrink-0" /><span className="truncate">{title} · {big.label}</span>
               </span>
-              <span className="block mt-1 sm:mt-2 text-[26px] sm:text-[38px] lg:text-[46px] leading-none font-black tracking-tight text-[#0F2D57] tabular-nums truncate group-hover:text-[#0A4C93] transition-colors">{lira(big.value)}</span>
+              <span className="block mt-1 sm:mt-2 text-[26px] sm:text-[38px] lg:text-[46px] [@media(min-width:768px)_and_(max-height:950px)]:text-[34px] leading-none font-black tracking-tight text-[#0F2D57] tabular-nums truncate group-hover:text-[#0A4C93] transition-colors">{lira(big.value)}</span>
               <span className="mt-1 sm:mt-2.5 flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-[#5E7491]">
                 <Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span>
               </span>
