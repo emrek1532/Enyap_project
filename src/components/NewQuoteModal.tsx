@@ -515,6 +515,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     if (requireCheck && !checked) { setCheckWarn(true); return; }
     if (!customerName.trim()) return;
     if (!paymentTerm && !isEdit) return; // yeni teklifte vade zorunlu (tarayıcı da uyarır)
+    if (!isEdit && (localMatch || remoteDup) && !window.confirm('Bu teklif numarası zaten kayıtlı. Yeni teklif açılmayacak; mevcut teklif güncellenecek. Devam edilsin mi?')) return;
+    if (savedItems.some(item => !item.productName?.trim())) { setSaveErr('Malzeme adı boş olan kalemleri tamamlayın.'); return; }
 
     const filledItems = savedItems;
     if (pdfRead.current && filledItems.length < pdfRead.current.length) {
