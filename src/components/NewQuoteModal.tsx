@@ -641,12 +641,12 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-stretch sm:items-center justify-center sm:p-4">
-      <div className="bg-white w-full sm:max-w-6xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[94vh]">
+      <div className="bg-white w-full sm:max-w-[1180px] sm:rounded-[24px] shadow-2xl ring-1 ring-[#D8E5F2] overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[94vh]">
 
         {/* Başlık çubuğu */}
-        <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-br from-[#173F73] to-[#204D84] text-white flex items-center gap-2 pt-safe-3 sm:pt-3.5">
+        <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-r from-[#0B274A] via-[#154675] to-[#006DBB] text-white flex items-center gap-2 pt-safe-3 sm:pt-3.5">
           <div className="flex-1 min-w-0">
-            <h3 className="font-black text-base sm:text-lg tracking-tight truncate">
+            <h3 className="font-black text-lg sm:text-xl tracking-tight truncate">
               {isEdit ? `Teklif Düzenle · ${editQuote!.quoteNumber}` : 'Yeni Fiyat Teklifi'}
             </h3>
             {isEdit && editQuote!.updatedAt && (
@@ -680,8 +680,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Kapat"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="overflow-y-auto flex-1 bg-[#F1F6FC]">
-          <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-3 sm:p-4 space-y-3">
+        <div className="overflow-y-auto flex-1 bg-[#F4F8FC]">
+          <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-3 sm:p-5 space-y-4">
 
             {pdfNotice && !pdfMsg && (
               <div className="text-xs rounded-md px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200">{pdfNotice}</div>
@@ -783,7 +783,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             )}
 
             {/* Teklif bilgileri */}
-            <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm p-2.5 grid grid-cols-2 grid-flow-dense sm:grid-flow-row sm:grid-cols-12 gap-x-2 gap-y-2">
+            <div className="bg-white border border-[#D8E5F2] rounded-2xl shadow-[0_4px_18px_rgba(16,58,101,0.05)] p-2.5 grid grid-cols-2 grid-flow-dense sm:grid-flow-row sm:grid-cols-12 gap-x-2 gap-y-2">
               <div className="col-span-1 sm:col-span-2">
                 <label className="ql">Teklif No</label>
                 <input
@@ -844,15 +844,15 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
 
             {/* Kalemler */}
             <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm">
-              <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-200 bg-slate-50 rounded-t-md">
-                <span className="text-[11px] font-black text-slate-700 uppercase tracking-wide">
+              <div className="flex items-center gap-2 px-3 sm:px-4 py-3 border-b border-[#E0EAF4] bg-[#F7FAFD] rounded-t-2xl">
+                <span className="text-xs font-black text-[#173F73] uppercase tracking-wide">
                   Kalemler ({items.filter(it => it.productName.trim()).length})
                 </span>
                 <span className="hidden md:inline text-[11px] text-slate-500 flex-1 text-right">
                   Son kutuda Tab → yeni kalem · Alt+↑↓ → taşı · Ctrl+Enter → Not / Kaydet
                 </span>
                 <button type="button" onClick={handleAddItem}
-                  className="ml-auto md:ml-0 flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-brand-700 hover:bg-brand-50">
+                  className="ml-auto md:ml-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-[#006DBB] hover:bg-[#005A9C] transition-colors">
                   <Plus className="w-3.5 h-3.5" /> Kalem
                 </button>
               </div>
@@ -1005,14 +1005,14 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             </label>
           )}
           <button type="button" onClick={onClose}
-            className="px-4 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">
+            className="px-4 py-2.5 rounded-xl border border-[#D8E5F2] bg-white hover:bg-[#F4F8FC] text-[#173F73] font-semibold text-sm">
             Vazgeç
           </button>
           <button
             type="button"
             disabled={saving || (requireCheck && !checked)}
             onClick={() => (document.getElementById('newQuoteForm') as HTMLFormElement | null)?.requestSubmit()}
-            className="px-5 py-2 rounded-md bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold text-sm shadow-sm"
+            className="px-5 py-2.5 rounded-xl bg-[#006DBB] hover:bg-[#005A9C] disabled:opacity-60 text-white font-bold text-sm shadow-sm transition-colors"
           >
             {saving ? 'Kaydediliyor…' : isEdit ? 'Değişiklikleri Kaydet' : (remoteDup || localDup) ? 'Mevcut Teklifi Güncelle' : 'Teklifi Kaydet'}
           </button>
