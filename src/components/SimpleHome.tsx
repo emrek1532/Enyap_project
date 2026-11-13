@@ -280,18 +280,18 @@ export const SimpleHome: React.FC<{
       {/* Arka plan: üstte yumuşak mavi ışık */}
       {/* Telefonda ilk ekran: selam + dönem + rakamlar + hızlı işlemler ekranı tam doldurur (selam bandı esner),
           Satış Performansı kaydırınca başlar. 149px = üst çubuk 57 + üst boşluk 16 + alt menü 64 + 12 pay. */}
-      <div className={`flex flex-col gap-4 sm:gap-5 [@media(min-width:768px)_and_(max-height:950px)]:gap-3.5 ${quick.length > 0 ? '[@media(min-width:768px)_and_(max-height:950px)]:min-h-[calc(100dvh-36px)] max-md:mb-10 max-md:min-h-[calc(100dvh-149px-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]' : ''}`}>
+      <div className={`flex flex-col gap-4 sm:gap-5 [@media(min-width:768px)_and_(max-height:950px)]:gap-3.5 ${quick.length > 0 ? '[@media(min-width:768px)_and_(max-height:950px)]:min-h-[calc(100dvh-36px)] max-md:mb-1' : ''}`}>
       {/* 1. Selam bandı: diğer sayfalardaki bantla aynı stil (açık zemin, sağda ENYAP binası, solu beyaza geçer) */}
-      <section className="relative flex max-md:flex-1 [@media(min-width:768px)_and_(max-height:950px)]:flex-1 overflow-hidden rounded-2xl border border-[#E2EAF3] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC] shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)]">
+      <section className="relative flex [@media(min-width:768px)_and_(max-height:950px)]:flex-1 overflow-hidden rounded-2xl border border-[#E2EAF3] bg-gradient-to-r from-white via-[#F6FAFE] to-[#EAF5FC] shadow-[0_12px_30px_-24px_rgba(18,59,104,0.55)]">
         <picture aria-hidden>
           <source media="(min-width: 768px)" srcSet="/hero-enyap-2.webp" />
           <img src="/hero-enyap-2-sm.webp" alt="" draggable={false} className={`${HERO_PHOTO} object-cover object-[70%_center]`} />
         </picture>
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#006DBB] via-[#009FE3] to-[#00B49A]" />
-        <div className="relative flex flex-1 items-center px-4 sm:px-6 lg:px-7 py-4 min-h-[112px] sm:min-h-[136px] lg:min-h-[148px] [@media(min-width:768px)_and_(max-height:950px)]:min-h-[100px] [@media(min-width:768px)_and_(max-height:950px)]:py-3">
-          <div className="min-w-0 max-w-[68%] md:max-w-[62%] lg:max-w-[55%]">
+        <div className="relative flex flex-1 items-center px-4 sm:px-6 lg:px-7 py-3.5 min-h-[104px] sm:min-h-[136px] lg:min-h-[148px] [@media(min-width:768px)_and_(max-height:950px)]:min-h-[100px] [@media(min-width:768px)_and_(max-height:950px)]:py-3">
+          <div className="min-w-0 max-w-[72%] md:max-w-[62%] lg:max-w-[55%]">
             <p className="text-xs sm:text-sm text-[#5E7491]"><span className="capitalize">{now2}</span><span className="ml-2 text-[11px] text-slate-400 tabular-nums">v{__APP_VERSION__}</span></p>
-            <h1 className="font-black text-[26px] sm:text-[30px] [@media(min-width:768px)_and_(max-height:950px)]:text-[26px] tracking-tight leading-tight text-[#0B2343] whitespace-nowrap">{hello}, {firstName} <span className="inline-block">👋</span></h1>
+            <h1 className="font-black text-[clamp(18px,5.7vw,26px)] sm:text-[30px] [@media(min-width:768px)_and_(max-height:950px)]:text-[26px] tracking-tight leading-tight text-[#0B2343] break-words">{hello}, {firstName} <span className="inline-block">👋</span></h1>
             <p className="text-sm sm:text-[15px] text-[#5E7491]">Bugünün özeti burada.</p>
           </div>
         </div>
@@ -338,8 +338,8 @@ export const SimpleHome: React.FC<{
           <div className={`grid gap-2 sm:gap-3 ${quick.length >= 4 ? 'grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {quick.map(x => (
               <button key={x.key} onClick={x.on}
-                className={`min-w-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${x.tone} border border-white shadow-[0_12px_28px_-22px_rgba(15,60,120,0.7)] px-1 py-3 sm:py-4 md:py-3 flex flex-col md:flex-row items-center justify-center gap-1.5 sm:gap-2 md:gap-3 transition hover:-translate-y-0.5 active:scale-[0.97]`}>
-                <span className={`w-11 h-11 sm:w-12 sm:h-12 md:w-11 md:h-11 rounded-xl sm:rounded-2xl ${x.ring} flex items-center justify-center shrink-0 shadow-sm`}><x.icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" /></span>
+                className={`min-w-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${x.tone} border border-white shadow-[0_12px_28px_-22px_rgba(15,60,120,0.7)] px-1 py-2 sm:py-4 md:py-3 flex flex-col md:flex-row items-center justify-center gap-1.5 sm:gap-2 md:gap-3 transition hover:-translate-y-0.5 active:scale-[0.97]`}>
+                <span className={`w-9 h-9 sm:w-12 sm:h-12 md:w-11 md:h-11 rounded-xl sm:rounded-2xl ${x.ring} flex items-center justify-center shrink-0 shadow-sm`}><x.icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" /></span>
                 <span className="max-w-full truncate text-xs sm:text-sm font-black text-[#173F73] text-center leading-tight">{x.label}</span>
               </button>
             ))}
