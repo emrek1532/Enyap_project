@@ -1,13 +1,12 @@
 import { trNum, trMoney } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
-import { Building2, CalendarDays, ChevronRight, CircleCheck, Clock3, Database, FilePlus2, FileText, Footprints, Hash, History, IdCard, Mail, MapPin, Pencil, Phone, Search, StickyNote, User, Wallet, X } from 'lucide-react';
-import { CollectionQuickForm } from './LedgerPanel';
+import { Building2, CalendarDays, ChevronRight, CircleCheck, Clock3, Database, FileText, Hash, History, IdCard, Mail, MapPin, Pencil, Phone, Search, StickyNote, Trash2, User, Wallet, X } from 'lucide-react';
 import { DateInput } from './DateInput';
 import { Collection, Customer, CustomerStatus, Quote, QuoteStatus, UserRole } from '../types';
 import { CustomerInsights } from './CustomerInsights';
-import { WhatsAppMenu } from './WhatsAppMenu';
-import { ABC_STYLE, AbcClass, CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
+import { CUSTOMER_STATUS, evaluate, statusOf } from '../lib/customerInsights';
+import { CityInput } from './TextSuggest';
 import { isPendingQuote } from '../lib/quoteRules';
 import { Rates, quoteTry } from '../lib/rates';
 import { formatQuoteAmount } from '../lib/money';
@@ -54,13 +53,13 @@ export const CustomerAccount: React.FC<{
   /** Mikro'dan yüklenen bakiye ve sonrasındaki tahsilatlarla tahmini güncel bakiye */
   balance?: { balance: number; date: string; collectedAfter: number; estimate: number } | null;
   /** Müşteri sınıfı (A/B/C, son 12 ay ciro) */
-  abc?: AbcClass;
-  /** Müşteri bilgilerini düzenle (yetki varsa) */
-  onEdit?: () => void;
-}> = ({ abc, onEdit, customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance }) => {
+  /** Kart içinde düzenleme (yetki varsa); hata metni döner, başarılıysa null */
+  onSaveCustomer?: (c: Customer) => string | null;
+  /** Müşteriyi sil (yetki varsa) */
+  onDelete?: () => void;
+}> = ({ onSaveCustomer, onDelete, customer, quotes: allQuotes, collections: allCollections, rates, showCollections, onClose, onOpenQuote, onNewQuote, onSaveCollection, allCollectionRecords = [], customers = [], currentRole = 'isparta', maxWon = 0, onSetStatus, balance }) => {
   const ev = useMemo(() => evaluate(allQuotes, allCollections, rates, maxWon), [allQuotes, allCollections, rates, maxWon]);
   const cStatus = statusOf(customer);
-  const [addingCol, setAddingCol] = useState(false);
   const [tab, setTab] = useState<Tab>('info');
   const [qFilter, setQFilter] = useState<QFilter>('all');
   const [q, setQ] = useState('');
@@ -176,29 +175,33 @@ export const CustomerAccount: React.FC<{
       }
     });
     if (showCollections) collections.forEach(c => out.push({ key: `c-${c.id}`, day: c.date, kind: 'col', title: `Tahsilat · ${c.method || '—'}`, sub: [c.checkNo ? `No ${c.checkNo}` : '', c.dueDate ? `vade ${day(c.dueDate)}` : '', c.description].filter(Boolean).join(' · '), amount: money(c.amount, c.currency) }));
-    if (customer.lastVisit) out.push({ key: 'visit', day: customer.lastVisit, kind: 'visit', title: 'Uğrandı (ziyaret)' });
     const rank: Record<Ev['kind'], number> = { call: 0, col: 1, won: 2, lost: 2, visit: 3, quote: 4 };
     return out.sort((a, b) => b.day.localeCompare(a.day) || rank[a.kind] - rank[b.kind]);
-  }, [quotes, collections, showCollections, customer.lastVisit, rates]);
+  }, [quotes, collections, showCollections, rates]);
   const EV_STYLE: Record<Ev['kind'], string> = {
     quote: 'bg-sky-500', won: 'bg-emerald-500', lost: 'bg-slate-400', call: 'bg-amber-500', col: 'bg-teal-600', visit: 'bg-indigo-500',
   };
 
   const phone = customer.phone || allQuotes.find(x => x.customerPhone)?.customerPhone;
   const lastQuote = allQuotes[0]?.createdAt;
-  const hdrBtn = 'inline-flex items-center justify-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-bold';
   const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(`${customer.name} ${customer.city || ''}`)}`;
-
-  const actions = (<>
-            <WhatsAppMenu
-              phone={phone}
-              ctx={{ name: customer.name, contact: customer.contactPerson, quote: allQuotes.find(x => isPendingQuote(x)) || allQuotes[0], quoteValue: (() => { const x = allQuotes.find(y => isPendingQuote(y)) || allQuotes[0]; return x ? quoteTry(x, rates) : undefined; })(), balance: showCollections ? balance?.estimate : undefined, balanceDate: balance ? new Date().toISOString() : undefined }}
-              className={hdrBtn}
-            />
-            <button onClick={onNewQuote} className={`${hdrBtn} !bg-white !text-[#0b2a4c] !border-white hover:!bg-sky-50`}><FilePlus2 className="w-4 h-4" /> Yeni teklif</button>
-            {onSaveCollection && <button onClick={() => setAddingCol(true)} className={hdrBtn}><Wallet className="w-4 h-4" /> Tahsilat ekle</button>}
-            {onEdit && <button onClick={onEdit} className={hdrBtn}><Pencil className="w-4 h-4" /> Düzenle</button>}
-  </>);
+  // Kart içinde düzenleme: kaleme basınca alanlar kutuya döner (sayfa değişmez)
+  const blank = () => ({ name: customer.name, city: customer.city || '', contactPerson: customer.contactPerson || '', phone: customer.phone || '', email: customer.email || '', mikroCode: customer.mikroCode || '', notes: customer.notes || '' });
+  const [edit, setEdit] = useState<ReturnType<typeof blank> | null>(null);
+  const [editErr, setEditErr] = useState<string | null>(null);
+  const startEdit = () => { setEdit(blank()); setEditErr(null); };
+  const saveEdit = () => {
+    if (!edit || !onSaveCustomer) return;
+    const name = edit.name.trim();
+    if (!name) { setEditErr('Firma adı boş olamaz.'); return; }
+    const err = onSaveCustomer({ ...customer, name, city: edit.city.trim(), contactPerson: edit.contactPerson.trim(), phone: edit.phone.trim(), email: edit.email.trim(), mikroCode: edit.mikroCode.trim() || undefined, notes: edit.notes.trim(), updatedAt: new Date().toISOString() });
+    if (err) setEditErr(err); else setEdit(null);
+  };
+  const inp = 'w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400';
+  const field = (label: string, el: React.ReactNode) => (
+    <label className="block"><span className="block text-xs font-bold text-slate-600 mb-1">{label}</span>{el}</label>
+  );
+  const penBtn = onSaveCustomer && !edit && <button onClick={startEdit} title="Düzenle" aria-label="Düzenle" className="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center hover:bg-brand-100"><Pencil className="w-4 h-4" /></button>;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-stretch sm:items-center justify-center sm:p-4" onClick={onClose}>
@@ -215,14 +218,11 @@ export const CustomerAccount: React.FC<{
               <h3 className="font-black text-lg sm:text-2xl tracking-tight leading-tight break-words">
                 {customer.name}
                 <span className={`ml-2 align-middle inline-block whitespace-nowrap text-[11px] leading-tight px-2 py-0.5 rounded-full font-bold border ${cStatus === 'aktif' ? 'bg-emerald-400/15 border-emerald-300/50 text-emerald-200' : CUSTOMER_STATUS[cStatus].cls}`}>{CUSTOMER_STATUS[cStatus].label}</span>
-                {abc && <span title={ABC_STYLE[abc].hint} className={`ml-1.5 inline-block align-middle whitespace-nowrap text-[11px] leading-tight px-1.5 py-0.5 rounded-md font-black border ${ABC_STYLE[abc].cls}`}>{abc} müşteri</span>}
               </h3>
               <p className="text-xs sm:text-sm text-sky-200/90 flex items-center gap-1 mt-0.5"><MapPin className="w-3.5 h-3.5" />{customer.city || '—'}{customer.contactPerson ? ` · ${customer.contactPerson}` : ''}</p>
             </div>
-          <div className="hidden lg:flex flex-wrap gap-2 justify-end">{actions}</div>
             <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white shrink-0" aria-label="Kapat"><X className="w-5 h-5" /></button>
           </div>
-          <div className="lg:hidden mt-3 flex flex-wrap gap-2">{actions}</div>
         </div>
 
         <div className="p-3 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
@@ -257,26 +257,46 @@ export const CustomerAccount: React.FC<{
                 <div className="flex items-center gap-2 mb-1">
                   <IdCard className="w-5 h-5 text-brand-700" />
                   <span className="font-black text-slate-900 flex-1">Müşteri bilgileri</span>
-                  {onEdit && <button onClick={onEdit} title="Düzenle" aria-label="Düzenle" className="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center hover:bg-brand-100"><Pencil className="w-4 h-4" /></button>}
+                  {penBtn}
                 </div>
+                {edit ? (
+                  <div className="space-y-3 pt-2">
+                    {field('Firma adı *', <input value={edit.name} onChange={e => setEdit({ ...edit, name: e.target.value })} className={inp} />)}
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {field('Şehir', <CityInput value={edit.city} onChange={v => setEdit({ ...edit, city: v })} className={inp} />)}
+                      {field('Yetkili', <input value={edit.contactPerson} onChange={e => setEdit({ ...edit, contactPerson: e.target.value })} className={inp} />)}
+                      {field('Telefon', <input type="tel" inputMode="tel" value={edit.phone} onChange={e => setEdit({ ...edit, phone: e.target.value })} className={inp} />)}
+                      {field('E-posta', <input type="email" value={edit.email} onChange={e => setEdit({ ...edit, email: e.target.value })} className={inp} />)}
+                      {field('Mikro cari kodu', <input value={edit.mikroCode} onChange={e => setEdit({ ...edit, mikroCode: e.target.value })} className={inp} />)}
+                    </div>
+                    {field('Açıklama / not', <textarea rows={3} value={edit.notes} onChange={e => setEdit({ ...edit, notes: e.target.value })} className={inp} />)}
+                    {edit.name.trim() !== customer.name && <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">Firma adı değişirse eski adla kayıtlı teklif ve tahsilatlar bu karta bağlanmaz.</p>}
+                    {editErr && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">{editErr}</p>}
+                    <div className="flex gap-2">
+                      <button onClick={() => setEdit(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50">Vazgeç</button>
+                      <button onClick={saveEdit} className="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold">Kaydet</button>
+                    </div>
+                    {onDelete && <button onClick={onDelete} className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-rose-600 hover:underline"><Trash2 className="w-3.5 h-3.5" /> Müşteriyi sil</button>}
+                  </div>
+                ) : <>
                 {infoRow(Building2, 'Firma adı', customer.name)}
                 {infoRow(MapPin, 'Şehir', customer.city)}
                 {infoRow(User, 'Yetkili', customer.contactPerson)}
                 {infoRow(Phone, 'Telefon', phone && <a href={`tel:${phone}`} className="text-brand-700 hover:underline">{phone}</a>)}
                 {infoRow(Mail, 'E-posta', customer.email && <a href={`mailto:${customer.email}`} className="text-brand-700 hover:underline break-all">{customer.email}</a>)}
                 {customer.mikroCode && infoRow(Hash, 'Mikro cari kodu', customer.mikroCode)}
-                {infoRow(Footprints, 'Son uğrama', customer.lastVisit ? day(customer.lastVisit) : 'uğranmadı')}
                 {customer.updatedAt && infoRow(History, 'Son değişiklik', <>{customer.updatedBy ? `${customer.updatedBy} · ` : ''}{new Date(customer.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>)}
+                </>}
               </div>
               <div className="space-y-3">
                 <div className={`${CARD} p-3.5 sm:p-4`}>
                   <div className="flex items-center gap-2 mb-2">
                     <StickyNote className="w-5 h-5 text-brand-700" />
                     <span className="font-black text-slate-900 flex-1">Açıklama / not</span>
-                    {onEdit && <button onClick={onEdit} title="Düzenle" aria-label="Düzenle" className="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center hover:bg-brand-100"><Pencil className="w-4 h-4" /></button>}
+                    {penBtn}
                   </div>
                   <p className="min-h-[4.5rem] rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-sm text-slate-700 whitespace-pre-line">
-                    {customer.notes || customer.statusNote || <span className="text-slate-500">Not yok.</span>}
+                    {edit ? <span className="text-slate-500">Notu soldaki düzenleme kutusundan değiştirin.</span> : customer.notes || customer.statusNote || <span className="text-slate-500">Not yok.</span>}
                   </p>
                 </div>
                 {balance && showCollections && (
@@ -487,17 +507,6 @@ export const CustomerAccount: React.FC<{
           </section>
         </div>
       </div>
-      {addingCol && onSaveCollection && (
-        <CollectionQuickForm
-          customerName={customer.name}
-          city={customer.city}
-          records={allCollectionRecords}
-          customers={customers}
-          currentRole={currentRole}
-          onCancel={() => setAddingCol(false)}
-          onSave={c => { onSaveCollection(c); setAddingCol(false); setTab('collections'); }}
-        />
-      )}
     </div>
   );
 };

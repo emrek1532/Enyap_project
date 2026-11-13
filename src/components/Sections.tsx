@@ -20,7 +20,7 @@ export const SECTION_META: Record<Exclude<ActiveTab, 'home'>, { title: string; i
 export const SECTION_SUB: Record<Exclude<ActiveTab, 'home'>, string> = {
   quotes: 'Tüm tekliflerinizi buradan görüntüleyin ve yönetin.',
   requests: 'Müşteri talepleri: girin, atayın, teklife dönüştürün.',
-  customers: 'Müşteri ilişkilerinizi, cari hesaplarınızı ve ziyaretlerinizi tek yerden yönetin.',
+  customers: 'Müşteri ilişkilerinizi ve cari hesaplarınızı tek yerden yönetin.',
   collections: '',
   expenses: '',
   materials: 'Malzeme envanterinizi, stok durumunuzu ve firma fiyat listelerinizi yönetin.',
