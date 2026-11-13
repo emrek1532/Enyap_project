@@ -1,4 +1,4 @@
-import { trNum, trMoney } from '../lib/num';
+import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
 import { dayOf } from '../lib/dates';
 import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Building2, Receipt, Search, Wallet, X, BarChart3, FilePlus2, TrendingDown, TrendingUp, Target, Percent, Inbox, PauseCircle, Phone, Zap, History, ArrowDownLeft, CheckCircle2, BellRing, Package } from 'lucide-react';
@@ -19,8 +19,8 @@ type Tab = Exclude<ActiveTab, 'home'>;
 export type QuoteView = { status: string; from?: string; to?: string };
 
 const foldKey = (s: string) => s.trim().toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
-const tl = (v: number) => `${trMoney(v)} TL`;
-const lira = (v: number) => `₺ ${trMoney(v)}`;
+const tl = (v: number) => `${trNum(Math.round(v))} TL`;
+const lira = (v: number) => `₺ ${trNum(Math.round(v))}`;
 const short = (v: number) => v >= 1e6 ? `${trNum((v / 1e6), { maximumFractionDigits: 1 })}M` : v >= 1e3 ? `${trNum(Math.round(v / 1e3))}B` : `${Math.round(v)}`;
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -432,14 +432,14 @@ const PeriodCard: React.FC<{
   const stats = (canQuotes ? [
     conv > 0 && { label: 'Dönüşüm', icon: Percent, value: `%${conv}`, tone: 'text-[#173F73]' },
     tPct > 0 && { label: 'Hedef', icon: Target, value: `%${tPct}`, tone: tPct >= 100 ? 'text-emerald-600' : 'text-amber-600' },
-    forecast && forecast.total > 0 && { label: 'Ay sonu tahmini', icon: TrendingUp, value: trMoney(forecast.total), tone: 'text-sky-700' },
+    forecast && forecast.total > 0 && { label: 'Ay sonu tahmini', icon: TrendingUp, value: trNum(Math.round(forecast.total)), tone: 'text-sky-700' },
   ] : []).filter(Boolean) as { label: string; icon: React.FC<{ className?: string }>; value: string; tone: string }[];
   return (
     <section className={`bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0 overflow-hidden text-slate-900 ${className}`}>
       <button onClick={big.on} className="w-full text-left px-4 sm:px-6 pt-4 sm:pt-5 pb-3 flex items-end justify-between gap-3 hover:bg-slate-50/60">
         <span className="min-w-0">
           <span className="block text-xs font-bold text-slate-500">{title} · {big.label}</span>
-          <span className="block mt-1 text-[24px] sm:text-[40px] leading-none font-black tracking-tight text-[#173F73] tabular-nums truncate">{lira(big.value)}</span>
+          <span className="block mt-1 text-[28px] sm:text-[40px] leading-none font-black tracking-tight text-[#173F73] tabular-nums truncate">{lira(big.value)}</span>
           <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
         </span>
         <span className="hidden sm:block"><Spark values={big.spark} color="#10b981" w={120} h={44} /></span>
@@ -449,7 +449,7 @@ const PeriodCard: React.FC<{
           {stats.map(m => (
             <div key={m.label} className="px-2 sm:px-5 py-3 min-w-0">
               <span className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-slate-500 truncate"><m.icon className="hidden sm:block w-3.5 h-3.5 shrink-0" />{m.label}</span>
-              <span className={`block mt-0.5 text-[12px] sm:text-lg font-black tabular-nums leading-tight ${m.tone}`}>{m.value}</span>
+              <span className={`block mt-0.5 text-[13px] sm:text-lg font-black tabular-nums leading-tight ${m.tone}`}>{m.value}</span>
             </div>
           ))}
         </div>
@@ -462,7 +462,7 @@ const PeriodCard: React.FC<{
                 <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{m.label}</span>
                 <span className="hidden xl:block"><Spark values={m.spark} color={m.color} /></span>
               </span>
-              <span className="block mt-0.5 text-[12px] sm:text-lg font-black text-[#173F73] tabular-nums leading-tight whitespace-nowrap">{trMoney(m.value)}<span className="hidden sm:inline text-xs font-bold text-slate-400"> TL</span></span>
+              <span className="block mt-0.5 text-[13px] sm:text-lg font-black text-[#173F73] tabular-nums leading-tight whitespace-nowrap">{trNum(Math.round(m.value))}<span className="hidden sm:inline text-xs font-bold text-slate-400"> TL</span></span>
               <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500"><Change cur={m.value} prev={m.prev} lowerIsBetter={m.lower} />{m.sub && <span className="hidden sm:inline truncate">· {m.sub}</span>}</span>
             </button>
           ))}
@@ -889,7 +889,7 @@ const TargetCard: React.FC<{ cur: Month; canQuotes: boolean; canMoney: boolean; 
         <div className="text-xs">
           <div className="flex justify-between font-semibold text-slate-600">
             <span>Satış hedefi · <b className={salesPct >= pace ? 'text-[#008F79]' : 'text-[#006DBB]'}>%{salesPct}</b></span>
-            <span className="tabular-nums">{trMoney(cur.onay)} / {tl(targets.sales)}</span>
+            <span className="tabular-nums">{trNum(Math.round(cur.onay))} / {tl(targets.sales)}</span>
           </div>
           <div className="relative h-2 rounded-full bg-slate-100 overflow-hidden mt-1">
             <div className={`h-full rounded-full ${salesPct >= pace ? 'bg-[#00B49A]' : 'bg-[#009FE3]'}`} style={{ width: `${Math.min(100, salesPct)}%` }} />
