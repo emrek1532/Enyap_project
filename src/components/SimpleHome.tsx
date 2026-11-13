@@ -442,7 +442,6 @@ const PeriodCard: React.FC<{
           <span className="block mt-1 text-[28px] sm:text-[40px] leading-none font-black tracking-tight text-[#173F73] tabular-nums truncate">{lira(big.value)}</span>
           <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Change cur={big.value} prev={big.prev} />{big.sub && <span>{big.sub} ·</span>}<span>{vs}</span></span>
         </span>
-        <span className="hidden sm:block"><Spark values={big.spark} color="#10b981" w={120} h={44} /></span>
       </button>
       {stats.length > 0 && (
         <div className={`grid border-t border-slate-100 divide-x divide-slate-100 ${cols(stats.length)}`}>
