@@ -451,7 +451,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
       )}
 
       {mikroOpen && (
-        <MikroUpload customers={customers} initialFile={mikroFile} onClose={() => { setMikroOpen(false); setMikroFile(null); }} onSave={list => list.forEach(onSaveCustomer)} />
+        <MikroUpload customers={customers} collections={collections} initialFile={mikroFile} onClose={() => { setMikroOpen(false); setMikroFile(null); }} onSave={list => list.forEach(onSaveCustomer)} />
       )}
 
       {/* Add / Edit form */}

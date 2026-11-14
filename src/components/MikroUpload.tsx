@@ -1,7 +1,8 @@
 import { trNum } from '../lib/num';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FileUp, Loader2, X, AlertCircle } from 'lucide-react';
-import { Customer } from '../types';
+import { Collection, Customer } from '../types';
+import { isIade } from '../lib/constants';
 import { MikroRow, matchMikro, readMikroFile } from '../lib/mikroBalance';
 import { foldName } from '../lib/customerInsights';
 import { titleTr } from '../lib/pdfQuote';
@@ -10,6 +11,9 @@ import { DateInput } from './DateInput';
 const pad = (n: number) => String(n).padStart(2, '0');
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const money = (v: number) => trNum(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dayBefore = (d: string) => { const [y, m, g] = d.split('-').map(Number); const t = new Date(y, m - 1, g - 1); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`; };
+const daysAgo = (d: string, n: number) => { const [y, m, g] = d.split('-').map(Number); const t = new Date(y, m - 1, g - n); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`; };
+const dmy = (d: string) => d.split('-').reverse().join('.');
 // Mikro cari kodunun ilk iki hanesi plaka kodu (32 → Isparta)
 const PLATE: Record<string, string> = { '03': 'Afyonkarahisar', '06': 'Ankara', '07': 'Antalya', '15': 'Burdur', '20': 'Denizli', '32': 'Isparta', '34': 'İstanbul', '35': 'İzmir', '42': 'Konya', '43': 'Kütahya', '48': 'Muğla', '64': 'Uşak' };
 const STOP = /^(san|sanayi|tic|ticaret|ltd|şti|a\.?ş|inş|insaat|ve|müh|taah)\.?/i;
@@ -25,11 +29,13 @@ type Choice = string; // müşteri id | 'new' | 'skip'
 /** Mikro cari bakiye listesini yükleme: oku → eşleştir → kaydet */
 export const MikroUpload: React.FC<{
   customers: Customer[];
+  /** Uygulamaya girilen tahsilat/iadeler: Mikro'ya henüz işlenmemiş olanları bakiyeden düşmek için */
+  collections?: Collection[];
   onSave: (list: Customer[]) => void;
   onClose: () => void;
   /** Paylaş menüsünden (WhatsApp / Dosyalar) gelen dosya: açılınca okunur */
   initialFile?: File | null;
-}> = ({ customers, onSave, onClose, initialFile }) => {
+}> = ({ customers, collections = [], onSave, onClose, initialFile }) => {
   const [date, setDate] = useState(todayIso());
   const [rows, setRows] = useState<MikroRow[] | null>(null);
   const [choice, setChoice] = useState<Record<string, Choice>>({});
@@ -37,6 +43,8 @@ export const MikroUpload: React.FC<{
   const [err, setErr] = useState('');
   const [fileName, setFileName] = useState('');
   const [zeroMissing, setZeroMissing] = useState(true);
+  /** müşteri id → uygulamadaki son tahsilat/iadeleri Mikro'ya henüz işlenmedi mi */
+  const [unposted, setUnposted] = useState<Record<string, boolean>>({});
 
   const sorted = useMemo(() => [...customers].sort((a, b) => a.name.localeCompare(b.name, 'tr')), [customers]);
   const byId = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
@@ -64,6 +72,23 @@ export const MikroUpload: React.FC<{
     return customers.filter(c => c.mikroCode && !codes.has(c.mikroCode) && prefixes.has(c.mikroCode.slice(0, 2)) && !chosen.has(c.id) && (c.mikroBalance ?? 0) !== 0);
   }, [rows, choice, customers]);
 
+  // Listedeki firmaların, önceki Mikro bakiyesinden (yoksa son 15 gün) bakiye tarihine kadar uygulamaya girilen TL tahsilat/iadeleri.
+  // Mikro listesi bunları henüz içermiyorsa işaretlenir; o firmanın bakiye tarihi bu kayıtlardan bir gün öncesine alınır, böylece bakiyeden düşülür.
+  const recent = useMemo(() => {
+    if (!rows) return [];
+    const ids = new Set(rows.map(r => choice[r.code]).filter(ch => ch && ch !== 'new' && ch !== 'skip'));
+    return [...ids].map(id => byId.get(id)!).filter(Boolean).map(c => {
+      const k = foldName(c.name), since = c.mikroBalanceDate && c.mikroBalanceDate < date ? c.mikroBalanceDate : daysAgo(date, 15);
+      const items = collections.filter(x => foldName(x.customerName) === k && (x.currency || 'TRY') === 'TRY' && x.date > since && x.date <= date)
+        .sort((a, b) => a.date.localeCompare(b.date));
+      return { c, items };
+    }).filter(x => x.items.length);
+  }, [rows, choice, byId, collections, date]);
+  // Bakiye tarihiyle aynı gün girilenler büyük olasılıkla Mikro'ya henüz işlenmemiştir: varsayılan işaretli
+  useEffect(() => {
+    setUnposted(u => { const n = { ...u }; recent.forEach(x => { if (n[x.c.id] === undefined) n[x.c.id] = x.items.some(i => i.date === date); }); return n; });
+  }, [recent, date]);
+
   // Eşleşme şüpheli mi: firmanın ilk kelimesi ünvanın ilk kelimesiyle tutmuyorsa
   const doubtful = (r: MikroRow, c?: Customer) => {
     if (!c || c.mikroCode === r.code) return false;
@@ -90,6 +115,11 @@ export const MikroUpload: React.FC<{
         if (c) out.set(ch, { ...c, ...patch, mikroBalance: (out.has(ch) ? (out.get(ch)!.mikroBalance || 0) : 0) + r.balance });
       }
     }
+    // Mikro'ya işlenmemiş tahsilat/iadesi olan firma: bakiye tarihi o kayıtlardan bir gün önceye (uygulama bunları bakiyeden düşer)
+    recent.forEach(({ c, items }) => {
+      const cur = out.get(c.id);
+      if (cur && unposted[c.id]) out.set(c.id, { ...cur, mikroBalanceDate: dayBefore(items[0].date) });
+    });
     if (zeroMissing) missing.forEach(c => out.set(c.id, { ...c, mikroBalance: 0, mikroBalanceDate: date, updatedAt: now }));
     onSave([...out.values()]);
     onClose();
@@ -167,6 +197,24 @@ export const MikroUpload: React.FC<{
                   <input type="checkbox" checked={zeroMissing} onChange={e => setZeroMissing(e.target.checked)} className="mt-0.5" />
                   <span>Bu listede olmayan aynı bölgedeki <b>{missing.length} firmanın</b> bakiyesi 0 kabul edilsin ({missing.slice(0, 4).map(c => c.name).join(', ')}{missing.length > 4 ? '…' : ''})</span>
                 </label>
+              )}
+              {recent.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+                  <div className="text-xs font-bold text-amber-800">Uygulamaya girilen son tahsilat / iadeler — Mikro'ya işlendi mi?</div>
+                  <p className="text-[11px] text-amber-800/80 leading-snug">İşaretli firmalarda bu kayıtlar Mikro'ya henüz işlenmemiş sayılır ve yüklenen bakiyeden düşülür. Mikro'ya işlenmişse işareti kaldırın.</p>
+                  {recent.map(({ c, items }) => {
+                    const sum = items.reduce((s, i) => s + (i.amount || 0), 0);
+                    return (
+                      <label key={c.id} className="flex items-start gap-2 bg-white rounded-lg border border-amber-100 p-2 cursor-pointer">
+                        <input type="checkbox" checked={!!unposted[c.id]} onChange={e => setUnposted(u => ({ ...u, [c.id]: e.target.checked }))} className="mt-0.5" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-bold text-slate-800">{c.name} <span className="font-black tabular-nums">· {money(sum)} TL</span> <span className="font-semibold text-slate-500">{unposted[c.id] ? 'bakiyeden düşülecek' : 'Mikro\'da işlendi'}</span></span>
+                          <span className="block text-[11px] text-slate-500 leading-snug">{items.map(i => `${dmy(i.date)} ${isIade(i) ? 'İade' : i.method || 'Tahsilat'} ${money(i.amount)}`).join(' · ')}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               )}
               <p className="text-[11px] text-slate-500">+ bakiye: firma borçlu (alacağımız) · − bakiye: firma alacaklı (fazla ödeme/avans)</p>
             </>

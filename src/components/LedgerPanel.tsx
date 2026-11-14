@@ -10,9 +10,9 @@ import { CityInput, TextSuggest } from './TextSuggest';
 import { PrintDoc, useReportSender } from './ReportPrint';
 import { SuggestInput } from './SuggestInput';
 
-export const COLLECTION_METHODS = ['Çek', 'Nakit', 'Havale/EFT', 'Kredi Kartı', 'Senet'];
+export const COLLECTION_METHODS = ['Çek', 'Nakit', 'Havale/EFT', 'Kredi Kartı', 'Senet', IADE];
 export { EXPENSE_METHODS, EXPENSE_CATEGORIES, BANKS } from '../lib/constants';
-import { EXPENSE_METHODS, EXPENSE_CATEGORIES, BANKS } from '../lib/constants';
+import { EXPENSE_METHODS, EXPENSE_CATEGORIES, BANKS, IADE, notIade } from '../lib/constants';
 /** Vadesi olan tahsilat şekilleri */
 const HAS_DUE = ['Çek', 'Senet'];
 
@@ -164,7 +164,8 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
       });
   }, [records, searchIndex, deferredSearch, dateFrom, dateTo, methodFilter, categoryFilter, regionFilter, currencyFilter, dueFilter, todayStr, sortMode]);
 
-  const filteredTotals = useMemo(() => sumByCurrency(filtered), [filtered]);
+  // İade tahsilat toplamına girmez (yalnız İade süzülünce kendi toplamı görünür)
+  const filteredTotals = useMemo(() => sumByCurrency(methodFilter === IADE ? filtered : notIade(filtered)), [filtered, methodFilter]);
   const hasFilters = !!(search || dateFrom || dateTo || methodFilter !== 'all' || categoryFilter !== 'all' || regionFilter !== 'all' || currencyFilter !== 'all' || dueFilter !== 'all');
   // Hızlı tarih aralığı (ör. seyahat dönüşü muhasebeye gönderilecek harcamalar)
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

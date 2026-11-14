@@ -1,3 +1,4 @@
+import { isIade } from './constants';
 import { Collection, Customer, CustomerStatus, Quote } from '../types';
 import { isPendingQuote } from './quoteRules';
 import { Rates, quoteTry } from './rates';
@@ -61,7 +62,7 @@ export function evaluate(quotes: Quote[], collections: Collection[], rates: Rate
     pendingCount: pending.length, pendingTotal: pending.reduce((s, q) => s + v(q), 0),
     bigPending: big && big.value > 0 ? big : undefined,
     lastQuoteDays, firstQuoteDays, last12Count,
-    collected: collections.filter(c => (c.currency || 'TRY') === 'TRY').reduce((s, c) => s + (c.amount || 0), 0),
+    collected: collections.filter(c => (c.currency || 'TRY') === 'TRY' && !isIade(c)).reduce((s, c) => s + (c.amount || 0), 0),
   };
 }
 

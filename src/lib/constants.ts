@@ -2,6 +2,11 @@
 // açılınca yüklensin diye sabitler burada; başka dosyalar bunları buradan alır.
 import type { QuoteStatus } from '../types';
 
+/** Müşteriden iade alınan malzeme: tahsilat gibi girilir, cari bakiyeden düşer ama tahsilat toplamlarına girmez */
+export const IADE = 'İade';
+export const isIade = (c: { method?: string }) => c.method === IADE;
+export const notIade = <T extends { method?: string }>(list: T[]) => list.filter(c => !isIade(c));
+
 export const EXPENSE_METHODS = ['Kredi Kartı **9973', 'UTTS', 'Şahsi', 'Şirket', 'Nakit', 'Havale/EFT'];
 // Harcama türleri (Google Sheet "Harcamalar" ile aynı); ayrıntı (şehir, gece, otopark…) açıklamaya yazılır
 export const EXPENSE_CATEGORIES = ['Yemek', 'Yakıt', 'İkramlık', 'Konaklama', 'Adblue', 'Diğer'];

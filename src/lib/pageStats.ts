@@ -1,3 +1,4 @@
+import { notIade } from './constants';
 import { trNum, trMoney } from './num';
 import { AppData, Collection, Expense, Quote } from '../types';
 import { dayOf } from './dates';
@@ -82,7 +83,7 @@ export function pageStats(tab: string, d: AppData, rates: Rates, now = new Date(
     ];
   }
   if (tab === 'collections' && ledger) {
-    const r = ledger.records as Collection[];
+    const r = notIade(ledger.records as Collection[]);
     const paper = r.filter(x => /çek|senet/i.test(x.method || ''));
     const in30 = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30));
     const due = paper.filter(x => x.dueDate && x.dueDate >= t && x.dueDate <= in30);
