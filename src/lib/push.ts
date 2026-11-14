@@ -31,6 +31,40 @@ export async function enablePush(email?: string): Promise<void> {
     endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_email: email || null,
   });
   if (error) throw error;
+  rememberOwner(j.endpoint, email);
+}
+
+const OWNER_KEY = 'push-owner';
+const rememberOwner = (endpoint: string, email?: string) => {
+  try { if (email) localStorage.setItem(OWNER_KEY, endpoint + '|' + email.toLowerCase()); else localStorage.removeItem(OWNER_KEY); } catch { /* yok */ }
+};
+
+/** Bu cihazın bildirim kaydını giriş yapan kişiye bağlar (başka hesapla açılmış kalmışsa düzeltir).
+ *  Yalnız kayıt sahibi değiştiğinde tek istek atar. */
+export async function syncPushOwner(email: string): Promise<void> {
+  if (!email || !pushSupported() || Notification.permission !== 'granted') return;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) return;
+  const j = sub.toJSON() as any;
+  let saved = '';
+  try { saved = localStorage.getItem(OWNER_KEY) || ''; } catch { /* yok */ }
+  if (saved === j.endpoint + '|' + email.toLowerCase()) return;
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_email: email,
+  });
+  if (!error) rememberOwner(j.endpoint, email);
+}
+
+/** Çıkışta: bu cihaz artık kimseye bildirim almasın (sonraki girişte yeni kişiye bağlanır) */
+export async function releasePushOwner(): Promise<void> {
+  try {
+    if (!pushSupported()) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+  } catch { /* çevrimdışı vb. */ }
+  rememberOwner('', '');
 }
 
 /** Bu cihazda bildirimi kapat */
@@ -40,5 +74,6 @@ export async function disablePush(): Promise<void> {
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
   await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+  rememberOwner('', '');
   await sub.unsubscribe();
 }
