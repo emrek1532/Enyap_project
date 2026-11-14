@@ -1,3 +1,4 @@
+import { isIade } from '../lib/constants';
 import { trNum, trMoney } from '../lib/num';
 import { WideOnly, useWide } from './ListUI';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -403,7 +404,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
   const inRange = (d: string) => d >= from && d <= to;
   const pQuotes = useMemo(() => quotes.filter(q => inRange(quoteDay(q))), [quotes, from, to]);
-  const pCollections = useMemo(() => collections.filter(c => inRange(c.date)), [collections, from, to]);
+  const pCollections = useMemo(() => collections.filter(c => inRange(c.date) && !isIade(c)), [collections, from, to]);
   const pExpenses = useMemo(() => expenses.filter(e => inRange(e.date)), [expenses, from, to]);
 
   const stats = useMemo(() => {

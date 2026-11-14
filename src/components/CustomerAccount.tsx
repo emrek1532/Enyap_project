@@ -14,7 +14,7 @@ import { textMatcher } from '../lib/materials';
 import { quoteNo, viewStatus } from '../lib/quoteRules';
 
 export { STATUS_LABEL } from '../lib/constants';
-import { STATUS_LABEL } from '../lib/constants';
+import { STATUS_LABEL, isIade } from '../lib/constants';
 
 const isApproved = (q: Quote) => q.status === 'onaylandi';
 const isPending = (q: Quote) => isPendingQuote(q);
@@ -91,7 +91,7 @@ export const CustomerAccount: React.FC<{
   const pending = quotes.filter(isPending);
   const cancelled = quotes.filter(x => x.status === 'iptal');
   const sumTry = (l: Quote[]) => l.reduce((s, x) => s + quoteTry(x, rates), 0);
-  const colTry = collections.filter(c => c.currency === 'TRY').reduce((s, c) => s + c.amount, 0);
+  const colTry = collections.filter(c => c.currency === 'TRY' && !isIade(c)).reduce((s, c) => s + c.amount, 0);
   const lastBuy = approved[0]?.createdAt;
 
   // Teklif kalemleri → malzeme geçmişi (en yeni önce)
@@ -174,7 +174,7 @@ export const CustomerAccount: React.FC<{
         out.push({ key: `f-${x.id}`, day: x.followUpAt, kind: 'call', title: x.followUpAt > today ? 'Arama planlandı' : 'Arama günü', sub: `${x.quoteNumber || ''}${x.lostReason ? ` · ${x.lostReason}` : ''}`, quote: x });
       }
     });
-    if (showCollections) collections.forEach(c => out.push({ key: `c-${c.id}`, day: c.date, kind: 'col', title: `Tahsilat · ${c.method || '—'}`, sub: [c.checkNo ? `No ${c.checkNo}` : '', c.dueDate ? `vade ${day(c.dueDate)}` : '', c.description].filter(Boolean).join(' · '), amount: money(c.amount, c.currency) }));
+    if (showCollections) collections.forEach(c => out.push({ key: `c-${c.id}`, day: c.date, kind: 'col', title: isIade(c) ? 'İade malzeme' : `Tahsilat · ${c.method || '—'}`, sub: [c.checkNo ? `No ${c.checkNo}` : '', c.dueDate ? `vade ${day(c.dueDate)}` : '', c.description].filter(Boolean).join(' · '), amount: money(c.amount, c.currency) }));
     const rank: Record<Ev['kind'], number> = { call: 0, col: 1, won: 2, lost: 2, visit: 3, quote: 4 };
     return out.sort((a, b) => b.day.localeCompare(a.day) || rank[a.kind] - rank[b.kind]);
   }, [quotes, collections, showCollections, rates]);
@@ -234,7 +234,7 @@ export const CustomerAccount: React.FC<{
             <div className="max-sm:col-span-2">{showCollections && balance
               ? stat(Database, 'Cari bakiye', tl(balance.estimate), balance.estimate < 0 ? 'firma alacaklı' : balance.estimate > 0 ? 'firmanın borcu' : 'bakiye yok', 'bg-rose-50 text-rose-600', balance.estimate < 0 ? 'text-rose-600' : 'text-slate-900', () => setTab('info'))
               : showCollections
-                ? stat(Wallet, 'Tahsilat', tl(allCollections.filter(c => c.currency === 'TRY').reduce((t, c) => t + c.amount, 0)), `${allCollections.length} kayıt`, 'bg-teal-50 text-teal-600', 'text-slate-900', () => setTab('collections'))
+                ? stat(Wallet, 'Tahsilat', tl(allCollections.filter(c => c.currency === 'TRY' && !isIade(c)).reduce((t, c) => t + c.amount, 0)), `${allCollections.length} kayıt`, 'bg-teal-50 text-teal-600', 'text-slate-900', () => setTab('collections'))
                 : stat(Wallet, 'Son alım', lastBuy ? day(lastBuy) : '—', 'son onaylanan teklif', 'bg-teal-50 text-teal-600', 'text-slate-900')}</div>
             <div className="col-span-2 lg:col-span-1">{stat(CalendarDays, 'Son teklif', lastQuote ? day(lastQuote) : '—', ev.lastQuoteDays != null ? (ev.lastQuoteDays === 0 ? 'bugün' : `${ev.lastQuoteDays} gün önce`) : 'teklif yok', 'bg-indigo-50 text-indigo-600', 'text-slate-900')}</div>
           </div>

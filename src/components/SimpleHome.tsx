@@ -1,3 +1,4 @@
+import { isIade } from '../lib/constants';
 import { VersionButton } from './UpdateBanner';
 import { trNum } from '../lib/num';
 import React, { useMemo, useState } from 'react';
@@ -45,7 +46,7 @@ function calcRange(quotes: Quote[], collections: Collection[], expenses: Expense
     key, adet: qs.length, onayAdet: won.length,
     teklif: qs.reduce((a, q) => a + qv(q), 0),
     onay: won.reduce((a, q) => a + qv(q), 0),
-    tahsilat: sumTry(collections.filter(c => inR(c.date))),
+    tahsilat: sumTry(collections.filter(c => inR(c.date) && !isIade(c))),
     harcama: sumTry(expenses.filter(e => inR(e.date))),
   };
 }
