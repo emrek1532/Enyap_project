@@ -262,7 +262,6 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
 
   const pageRows = filtered.slice(page * PAGE, (page + 1) * PAGE);
   const sel = (on: boolean) => `${cctrl} ${on ? 'border-[#006DBB] bg-[#EAF5FC] text-[#006DBB]' : ''}`;
-  const money = (n: number) => tl(Math.round(n));
 
   return (
     <div className="space-y-4">
@@ -404,7 +403,7 @@ export const CustomersPanel: React.FC<CustomersPanelProps> = ({
                     <td className="py-2.5 px-3 text-right tabular-nums font-extrabold text-[#0B2343] whitespace-nowrap">{st.approvedTotal > 0 ? tl(st.approvedTotal) : '-'}</td>
                     {showCollections && (
                       <td className="hidden xl:table-cell py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
-                        {b ? <span className={`font-bold ${b.estimate < 0 ? 'inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-700' : 'text-[#0B2343]'}`}>{money(b.estimate)}</span> : <span className="text-[#5E7491]">-</span>}
+                        {b ? <span className={`font-bold ${b.estimate < 0 ? 'inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-700' : 'text-[#0B2343]'}`}>{tl(b.estimate)}</span> : <span className="text-[#5E7491]">-</span>}
                       </td>
                     )}
                     <td className="hidden xl:table-cell py-2.5 px-3 text-[13px] text-[#5E7491] whitespace-nowrap">
@@ -609,13 +608,13 @@ const BalanceView: React.FC<{
                     <div className="min-w-0">
                       <div className="font-bold text-[#0B2343] text-sm leading-snug break-words">{c.name}</div>
                       <div className="text-[11px] text-[#5E7491] mt-0.5 tabular-nums">
-                        {c.city || '—'} · Mikro {tl(Math.round(b.balance))}{b.collectedAfter > 0 ? ` − sonradan ${tl(Math.round(b.collectedAfter))}` : ''}
+                        {c.city || '—'} · Mikro {tl(b.balance)}{b.collectedAfter > 0 ? ` − sonradan ${tl(b.collectedAfter)}` : ''}
                       </div>
                       <div className="text-[11px] text-[#173F73] mt-0.5 tabular-nums">
                         <Wallet className="w-3.5 h-3.5 inline -mt-0.5 mr-1 text-[#00B49A]" />{lc ? `Son tahsilat ${amt(lc.amount, lc.currency)} · ${day(lc.date)}` : 'Tahsilat kaydı yok'}
                       </div>
                     </div>
-                    <div className={`font-black text-sm tabular-nums shrink-0 ${b.estimate < 0 ? 'text-rose-600' : 'text-[#0B2343]'}`}>{tl(Math.round(b.estimate))}</div>
+                    <div className={`font-black text-sm tabular-nums shrink-0 ${b.estimate < 0 ? 'text-rose-600' : 'text-[#0B2343]'}`}>{tl(b.estimate)}</div>
                   </div>
                 </button>
               );
@@ -638,11 +637,11 @@ const BalanceView: React.FC<{
                   <tr key={c.id} onClick={() => onOpen(c)} className="cursor-pointer hover:bg-[#EAF5FC]/60 transition-colors">
                     <td className="py-2.5 px-3 pl-5">
                       <div className="font-extrabold text-[#0B2343] leading-snug">{c.name}</div>
-                      <div className="text-[11px] text-[#5E7491] tabular-nums">Mikro {tl(Math.round(b.balance))} · {day(b.date)}{b.collectedAfter > 0 ? ` − sonradan ${tl(Math.round(b.collectedAfter))}` : ''}</div>
+                      <div className="text-[11px] text-[#5E7491] tabular-nums">Mikro {tl(b.balance)} · {day(b.date)}{b.collectedAfter > 0 ? ` − sonradan ${tl(b.collectedAfter)}` : ''}</div>
                     </td>
                     <td className="py-2.5 px-3 text-[13px] text-[#5E7491] whitespace-nowrap">{c.city || '—'}</td>
                     <td className="py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
-                      <span className={`font-black ${b.estimate < 0 ? 'inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-700' : 'text-[#0B2343]'}`}>{tl(Math.round(b.estimate))}</span>
+                      <span className={`font-black ${b.estimate < 0 ? 'inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-700' : 'text-[#0B2343]'}`}>{tl(b.estimate)}</span>
                     </td>
                     <td className="py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
                       {lc ? <><div className="font-bold text-[#008F79]">{amt(lc.amount, lc.currency)}</div><div className="text-[11px] text-[#5E7491]">{day(lc.date)}</div></> : <span className="text-[#5E7491]">-</span>}
