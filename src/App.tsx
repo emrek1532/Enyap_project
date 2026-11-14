@@ -53,6 +53,7 @@ import { AdminPanel, PendingScreen } from './components/AdminPanel';
 import { useRates } from './lib/rates';
 import { pageStats, QuoteView, LedgerView } from './lib/pageStats';
 import { UpdateBanner } from './components/UpdateBanner';
+import { releasePushOwner, syncPushOwner } from './lib/push';
 
 // Ekranlar ihtiyaç anında yüklenir (ilk açılış hızlı); açıldıktan sonra boşta hepsi önceden indirilir
 const loaders = {
@@ -837,6 +838,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       return;
     }
     clearLocalCache();
+    await releasePushOwner();
     await supabase.auth.signOut();
   };
 
@@ -856,6 +858,8 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     (total > 0 ? nav.setAppBadge(total) : nav.clearAppBadge?.())?.catch(() => undefined);
   }, [myOpenRequests, reviewCount, myOpenTasks, orderWaiting]);
   const userEmail = session.user.email || '';
+  // Bu cihazın bildirim kaydı başka hesapta kalmışsa giriş yapan kişiye geçir
+  useEffect(() => { syncPushOwner(userEmail).catch(() => {}); }, [userEmail]);
   const userName = profile.fullName || userEmail.split('@')[0] || 'Kullanıcı';
   const roleLabel = profile.isAdmin ? 'Yönetici' : currentRole === 'istanbul' ? 'İstanbul ekibi' : 'Isparta ekibi';
   const toolAllow = { quote: can(profile, 'quotes', 'edit'), collection: can(profile, 'collections', 'edit'), expense: can(profile, 'expenses', 'edit') };
