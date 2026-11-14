@@ -1,18 +1,17 @@
 import { isIade } from '../lib/constants';
 import { trNum, trMoney } from '../lib/num';
-import { WideOnly, useWide } from './ListUI';
+import { WideOnly, useWide, Pager, theadCls } from './ListUI';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, X, ChevronRight, Loader2, Eye } from 'lucide-react';
+import { BarChart3, FileText, Clock, CheckCircle2, Wallet, Receipt, X, ChevronRight, Loader2, Eye, CalendarDays, Calendar, Download, PieChart, CircleHelp, ShoppingCart, Package, MapPin, Building2, Users, Search, ChevronDown } from 'lucide-react';
 import { Collection, Customer, Expense, Quote } from '../types';
 import { foldName } from '../lib/customerInsights';
 import { isPassive, isPendingQuote, splitReason } from '../lib/quoteRules';
 import { quoteTry, useRates } from '../lib/rates';
 import { CURRENCY_LABEL, Currency, formatQuoteAmount } from '../lib/money';
-import { PrintDoc, PrintSection, useReportSender } from './ReportPrint';
+import { PrintDoc, PrintSection, useReportSender, buildReportPdf, sendReportFile } from './ReportPrint';
 import { DateInput } from './DateInput';
 import { ForecastCard } from './ForecastCard';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
-import { StatBox } from './Sections';
 
 interface ReportsPanelProps {
   quotes: Quote[];
@@ -21,13 +20,32 @@ interface ReportsPanelProps {
   customers?: Customer[];
   /** Listedeki teklife dokununca Teklifler'de detayını aç */
   onOpenQuote?: (q: Quote) => void;
+  /** Müşteri performansında firmaya dokununca Müşteriler'de cari kartı */
+  onOpenCustomer?: (name: string) => void;
 }
 
 type Period = 'month' | '3m' | 'year' | '12m' | 'all' | 'custom';
 
 // Grafik renkleri (kurumsal mavi / yeşil, harcama turuncu) — renk körlüğü testinden geçirildi
 const C_QUOTE = '#006DBB';
-const C_APPROVED = '#019a82';
+const C_APPROVED = '#00B49A';
+
+/** Rapor kartı: beyaz, ince kenar, hafif gölge, 16px köşe */
+const CARD = 'bg-white rounded-2xl border border-[#E2EAF3] shadow-[0_10px_28px_-22px_rgba(15,60,120,0.55)] min-w-0';
+
+/** Kart başlığı: solda açık mavi simge kutusu, başlık + açıklama */
+const CardHead: React.FC<{ icon: React.ElementType; title: string; subtitle?: React.ReactNode; right?: React.ReactNode; teal?: boolean }> = ({ icon: I, title, subtitle, right, teal }) => (
+  <div className="flex items-start justify-between gap-2 mb-3">
+    <div className="flex items-start gap-2.5 min-w-0">
+      <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${teal ? 'bg-[#E6F7F4] text-[#008F79]' : 'bg-[#EAF5FC] text-[#006DBB]'}`}><I className="w-[18px] h-[18px]" /></span>
+      <div className="min-w-0">
+        <h3 className="font-extrabold text-[#0B2343] text-[15px] leading-tight">{title}</h3>
+        {subtitle && <p className="text-xs text-[#5E7491] mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+    {right}
+  </div>
+);
 
 const MONTHS_TR = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 const CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR'];
@@ -76,7 +94,7 @@ const niceTicks = (max: number, count = 4) => {
 // ---------- Gruplu sütun grafiği (aylık) ----------
 interface Series { key: string; label: string; color: string; values: number[] }
 
-const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[]; series: Series[] }> = ({ title, subtitle, months, series }) => {
+const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[]; series: Series[]; className?: string }> = ({ title, subtitle, months, series, className = '' }) => {
   const [hover, setHover] = useState<number | null>(null);
   // Grafik kutunun genişliğine sığar (telefonda yana kaydırma olmasın)
   const boxRef = useRef<HTMLDivElement>(null);
@@ -88,7 +106,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
     ro.observe(el);
     return () => ro.disconnect();
   }, [months.length]);
-  const H = 220, top = 12, bottom = 28, left = 44, right = 4;
+  const H = 210, top = 12, bottom = 28, left = 44, right = 4;
   const groupW = Math.max(14, Math.min(90, (boxW - left - right) / Math.max(1, months.length)));
   const W = left + right + groupW * months.length;
   // Dar ekranda ay etiketleri seyreltilir
@@ -101,17 +119,17 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
   const r = 4;
 
   return (
-    <div className="bg-white p-4 rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0">
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-        <div>
-          <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
-          <p className="text-xs text-slate-500">{subtitle}</p>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-slate-600">
+    <div className={`${CARD} p-4 ${className}`}>
+      <CardHead icon={BarChart3} title={title} subtitle={subtitle} right={
+        <div className="hidden sm:flex items-center gap-3 text-xs text-[#5E7491] shrink-0">
           {series.map(s => (
-            <span key={s.key} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />{s.label}</span>
+            <span key={s.key} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />{s.label}</span>
           ))}
-        </div>
+        </div>} />
+      <div className="sm:hidden flex items-center gap-3 text-xs text-[#5E7491] -mt-1 mb-2">
+        {series.map(s => (
+          <span key={s.key} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />{s.label}</span>
+        ))}
       </div>
       {months.length === 0 ? (
         <p className="text-xs text-slate-500 py-10 text-center">Bu dönemde veri yok.</p>
@@ -130,7 +148,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
               const x0 = gx + (groupW - inner) / 2;
               return (
                 <g key={m} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(h => (h === i ? null : i))}>
-                  <rect x={gx} y={top} width={groupW} height={H - top - bottom} fill={hover === i ? '#f1f5f9' : 'transparent'} />
+                  <rect x={gx} y={top} width={groupW} height={H - top - bottom} fill={hover === i ? '#EAF5FC' : 'transparent'} />
                   {series.map((s, si) => {
                     const v = s.values[i] || 0;
                     const yy = y(v), h = (H - bottom) - yy;
@@ -151,7 +169,7 @@ const ColumnChart: React.FC<{ title: string; subtitle: string; months: string[];
             <line x1={left} x2={W - right} y1={H - bottom} y2={H - bottom} stroke="#cbd5e1" strokeWidth={1} />
           </svg>
           {hover !== null && (
-            <div className="absolute top-1 pointer-events-none bg-slate-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg"
+            <div className="absolute top-1 pointer-events-none bg-[#0B2343] text-white text-xs rounded-lg px-3 py-2 shadow-lg"
               style={{ left: Math.max(0, Math.min(left + hover * groupW + groupW, W - 180)) }}>
               <div className="font-bold mb-1">{monthLabel(months[hover])}</div>
               {series.map(s => (
@@ -194,7 +212,7 @@ const MobileList: React.FC<{ rows: MobileRow[]; empty?: string }> = ({ rows, emp
 
 // ---------- Halka grafik ----------
 const PALETTE = ['#006DBB', '#00B49A', '#173F73', '#5DA9D6', '#008F79', '#90BBD8', '#5E7491'];
-const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string; value: number; color?: string; note?: string }[]; center?: React.ReactNode; centerSub?: string }> = ({ title, subtitle, parts, center, centerSub = 'toplam' }) => {
+const Donut: React.FC<{ title: string; subtitle: string; icon?: React.ElementType; parts: { label: string; value: number; color?: string; note?: string }[]; center?: React.ReactNode; centerSub?: string; className?: string }> = ({ title, subtitle, icon = PieChart, parts, center, centerSub = 'toplam', className = '' }) => {
   const [hover, setHover] = useState<number | null>(null);
   const items = parts.filter(p => p.value > 0);
   const total = items.reduce((t, p) => t + p.value, 0);
@@ -212,25 +230,24 @@ const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string;
   });
   const h = hover !== null ? items[hover] : null;
   return (
-    <div className="bg-white p-4 rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0">
-      <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
-      <p className="text-xs text-slate-500 mb-2">{subtitle}</p>
+    <div className={`${CARD} p-4 @container ${className}`}>
+      <CardHead icon={icon} title={title} subtitle={subtitle} teal />
       {total <= 0 ? <p className="text-xs text-slate-500 py-8 text-center">Bu dönemde veri yok.</p> : (
-        <div className="flex items-center gap-4">
-          <svg viewBox="0 0 128 128" className="w-32 h-32 shrink-0" role="img" aria-label={title}>
+        <div className="flex flex-col @[21rem]:flex-row items-center gap-3 @[21rem]:gap-4">
+          <svg viewBox="0 0 128 128" className="w-36 h-36 shrink-0" role="img" aria-label={title}>
             {arcs.map(a => (
               <path key={a.i} d={a.d} fill={a.color} fillRule="evenodd" opacity={hover === null || hover === a.i ? 1 : 0.35}
                 onMouseEnter={() => setHover(a.i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(x => (x === a.i ? null : a.i))} className="cursor-pointer transition-opacity" />
             ))}
-            <text x={C} y={C - 2} textAnchor="middle" fontSize={h ? 13 : 12} fontWeight={800} fill="#0f172a">{h ? `%${Math.round((h.value / total) * 100)}` : center ?? compact(total)}</text>
-            <text x={C} y={C + 12} textAnchor="middle" fontSize={8} fill="#64748b">{h ? compact(h.value) : centerSub}</text>
+            <text x={C} y={C - 2} textAnchor="middle" fontSize={h ? 14 : 13} fontWeight={800} fill="#0B2343">{h ? `%${Math.round((h.value / total) * 100)}` : center ?? compact(total)}</text>
+            <text x={C} y={C + 12} textAnchor="middle" fontSize={8.5} fill="#5E7491">{h ? compact(h.value) : centerSub}</text>
           </svg>
-          <ul className="min-w-0 flex-1 space-y-1.5 text-xs">
+          <ul className="min-w-0 w-full @[21rem]:flex-1 space-y-1.5 text-xs">
             {items.map((p, i) => (
-              <li key={p.label} className={`flex items-center gap-2 rounded-md px-1 ${hover === i ? 'bg-slate-50' : ''}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color || PALETTE[i % PALETTE.length] }} />
-                <span className="truncate text-slate-700 flex-1">{p.label}</span>
-                <span className="tabular-nums font-bold text-slate-900 whitespace-nowrap">{tl(p.value)}</span>
+              <li key={p.label} className={`flex items-center gap-2 rounded-md px-1.5 py-0.5 ${hover === i ? 'bg-[#EAF5FC]' : ''}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color || PALETTE[i % PALETTE.length] }} />
+                <span className="truncate text-[#17365D] flex-1">{p.label}</span>
+                <span className="tabular-nums font-bold text-[#0B2343] whitespace-nowrap">{tl(p.value)}</span>
               </li>
             ))}
           </ul>
@@ -241,27 +258,35 @@ const Donut: React.FC<{ title: string; subtitle: string; parts: { label: string;
 };
 
 // ---------- Yatay çubuklar (en iyi firmalar) ----------
-const HBars: React.FC<{ title: string; subtitle: string; rows: { label: string; value: number; sub?: string }[]; color: string; fmt?: (v: number) => string }> = ({ title, subtitle, rows, color, fmt = tl }) => {
+/** İlk 5 satır görünür; "Tümünü gör" ile hepsi (ilk 10 ürün / 8 şehir / 8 firma) */
+const HBars: React.FC<{ title: string; subtitle: string; icon: React.ElementType; rows: { label: string; value: number; sub?: string }[]; color: string; fmt?: (v: number) => string; teal?: boolean }> = ({ title, subtitle, icon, rows, color, fmt = tl, teal }) => {
+  const [all, setAll] = useState(false);
   const max = Math.max(1, ...rows.map(r => r.value));
+  const shown = all ? rows : rows.slice(0, 5);
   return (
-    <div className="bg-white p-4 rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] min-w-0">
-      <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
-      <p className="text-xs text-slate-500 mb-3">{subtitle}</p>
+    <div className={`${CARD} p-4 flex flex-col`}>
+      <CardHead icon={icon} title={title} subtitle={subtitle} teal={teal} />
       {rows.length === 0 ? <p className="text-xs text-slate-500 py-8 text-center">Bu dönemde veri yok.</p> : (
-        <div className="space-y-2">
-          {rows.map((r, i) => (
-            <div key={r.label} className="text-xs">
-              <div className="flex justify-between gap-2 mb-0.5">
-                <span className="font-semibold text-slate-700 truncate"><span className="text-slate-500 mr-1">{i + 1}.</span>{r.label}</span>
-                <span className="tabular-nums font-bold text-slate-900 whitespace-nowrap">{fmt(r.value)}</span>
+        <div className="space-y-2.5 flex-1">
+          {shown.map((r, i) => (
+            <div key={r.label} className="text-xs" title={r.sub ? `${r.label} · ${r.sub}` : r.label}>
+              <div className="flex justify-between gap-2 mb-1">
+                <span className="font-semibold text-[#17365D] truncate"><span className="text-[#5E7491] mr-1 tabular-nums">{i + 1}.</span>{r.label}</span>
+                <span className="tabular-nums font-extrabold text-[#0B2343] whitespace-nowrap">{fmt(r.value)}</span>
               </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-[#EEF3F9] overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: color }} />
               </div>
-              {r.sub && <div className="text-[11px] text-slate-500 mt-0.5">{r.sub}</div>}
+              {r.sub && <div className="text-[11px] text-[#5E7491] mt-0.5 truncate">{r.sub}</div>}
             </div>
           ))}
         </div>
+      )}
+      {rows.length > 5 && (
+        <button type="button" onClick={() => setAll(a => !a)} aria-expanded={all}
+          className="mt-3 self-start flex items-center gap-1 text-xs font-bold text-[#006DBB] hover:text-[#173F73]">
+          {all ? 'İlk 5\'i göster' : `Tümünü gör (${rows.length})`}<ChevronDown className={`w-3.5 h-3.5 transition-transform ${all ? 'rotate-180' : ''}`} />
+        </button>
       )}
     </div>
   );
@@ -284,7 +309,7 @@ const WaitingReasons: React.FC<{ rows: [string, { n: number; amt: number; list: 
   return (
     <div className="space-y-1">
       {top && (
-        <p className="mb-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-900">
+        <p className="mb-2 rounded-xl bg-[#EAF5FC] border border-[#D3E6F5] px-3 py-2 text-xs text-[#17365D]">
           En çok tutar <b>{top[0]}</b> nedeniyle bekliyor: {top[1].n} teklif, {pct(top[1].amt, totalAmt)} pay.
           {topItem && topItem.n > 1 && <> Bu tekliflerin {topItem.n} tanesinde <b>{topItem.name}</b> var.</>}
         </p>
@@ -293,12 +318,12 @@ const WaitingReasons: React.FC<{ rows: [string, { n: number; amt: number; list: 
         const isOpen = open === k;
         return (
           <div key={k} className="text-xs">
-            <button type="button" onClick={() => setOpen(isOpen ? null : k)} aria-expanded={isOpen} className="w-full text-left rounded-lg px-1.5 py-1 hover:bg-slate-50">
+            <button type="button" onClick={() => setOpen(isOpen ? null : k)} aria-expanded={isOpen} className="w-full text-left rounded-lg px-1.5 py-1 hover:bg-[#F1F6FC]">
               <div className="flex justify-between gap-2 mb-0.5">
-                <span className="font-semibold text-slate-700 flex items-center gap-1"><ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />{k}</span>
-                <span className="tabular-nums text-slate-500 whitespace-nowrap"><b className="text-slate-800">{pct(v.n, total)}</b> · {v.n} teklif · {tl(v.amt)}</span>
+                <span className="font-semibold text-[#17365D] flex items-center gap-1 min-w-0"><ChevronRight className={`w-3.5 h-3.5 shrink-0 text-[#5E7491] transition-transform ${isOpen ? 'rotate-90' : ''}`} />{k}</span>
+                <span className="tabular-nums text-[#5E7491] whitespace-nowrap"><b className="text-[#0B2343]">{pct(v.n, total)}</b> · {v.n} teklif · <b className="text-[#17365D]">{tl(v.amt)}</b></span>
               </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${k === 'Neden girilmemiş' ? 'bg-slate-300' : 'bg-amber-400'}`} style={{ width: `${Math.max(2, (v.amt / Math.max(1, totalAmt)) * 100)}%` }} /></div>
+              <div className="h-1.5 rounded-full bg-[#EEF3F9] overflow-hidden"><div className={`h-full rounded-full ${k === 'Neden girilmemiş' ? 'bg-slate-300' : 'bg-[#006DBB]'}`} style={{ width: `${Math.max(2, (v.amt / Math.max(1, totalAmt)) * 100)}%` }} /></div>
             </button>
             {isOpen && (
               <ul className="mt-1 mb-2 ml-5 divide-y divide-slate-100 rounded-lg border border-slate-100">
@@ -380,9 +405,51 @@ const DetailModal: React.FC<{ section: PrintSection; period: string; busy?: bool
   </div>
 );
 
+// ---------- Özet kartı (simge, başlık, büyük tutar, alt satır, sağ altta aylık küçük çizgi) ----------
+const KPI_TONE = {
+  blue: { icon: 'bg-[#EAF5FC] text-[#006DBB]', line: '#006DBB' },
+  teal: { icon: 'bg-[#E6F7F4] text-[#008F79]', line: '#00B49A' },
+  sky: { icon: 'bg-[#E6F5FC] text-[#0089C4]', line: '#009FE3' },
+  navy: { icon: 'bg-[#EDF1F7] text-[#173F73]', line: '#204D84' },
+} as const;
+type KpiTone = keyof typeof KPI_TONE;
+
+/** Aylık değerlerden küçük çizgi (son 12 ay); 2'den az ay varsa çizilmez */
+const Spark: React.FC<{ values: number[]; color: string }> = ({ values, color }) => {
+  const v = values.slice(-12);
+  if (v.length < 2) return null;
+  const W = 96, H = 34, max = Math.max(...v), min = Math.min(0, ...v);
+  const x = (i: number) => (i / (v.length - 1)) * W;
+  const y = (n: number) => H - 2 - ((n - min) / Math.max(1e-9, max - min)) * (H - 6);
+  const line = v.map((n, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(n).toFixed(1)}`).join(' ');
+  return (
+    <svg aria-hidden viewBox={`0 0 ${W} ${H}`} className="pointer-events-none absolute right-2 bottom-2 w-20 sm:w-24 h-8 opacity-90">
+      <path d={`${line} L${W} ${H} L0 ${H} Z`} fill={color} opacity={0.1} />
+      <path d={line} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+};
+
+const KpiCard: React.FC<{ icon: React.ElementType; tone: KpiTone; label: string; value: React.ReactNode; sub?: string; spark?: number[]; onClick?: () => void }> = ({ icon: I, tone, label, value, sub, spark, onClick }) => {
+  const t = KPI_TONE[tone];
+  return (
+    <button type="button" onClick={onClick} title={sub}
+      className={`${CARD} relative overflow-hidden text-left p-3 sm:p-3.5 2xl:p-3 flex items-start transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgba(15,60,120,0.55)] active:scale-[0.99]`}>
+      <span className="relative min-w-0 flex-1 pb-6 sm:pb-7">
+        <span className="flex items-center gap-2 text-[12px] sm:text-[13px] font-bold text-[#17365D] truncate">
+          <span className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 ${t.icon}`}><I className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></span>{label}
+        </span>
+        <span className="block mt-1.5 text-[15px] sm:text-lg 2xl:text-[17px] font-black tabular-nums tracking-tight leading-tight text-[#0B2343] whitespace-nowrap truncate">{value}</span>
+        {sub && <span className="block mt-0.5 text-[11px] sm:text-xs text-[#5E7491] truncate">{sub}</span>}
+      </span>
+      {spark && <Spark values={spark} color={t.line} />}
+    </button>
+  );
+};
+
 type CustKey = 'name' | 'city' | 'total' | 'totalAmt' | 'approved' | 'approvedAmt' | 'rate' | 'collected';
 
-export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections, expenses, customers, onOpenQuote }) => {
+export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections, expenses, customers, onOpenQuote, onOpenCustomer }) => {
   const rates = useRates(quotes);
   const qTry = (q: Quote) => quoteTry(q, rates);
   const [period, setPeriod] = useState<Period>('year');
@@ -454,6 +521,12 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [pQuotes, pCollections, pExpenses, rates]);
   const months = monthly.map(([m]) => m);
+  // Özet kartlarındaki küçük çizgi için bekleyen tutarın aylık dağılımı (yalnız görsel)
+  const pendingByMonth = useMemo(() => {
+    const m = new Map<string, number>();
+    pQuotes.filter(isPending).forEach(q => { const k = quoteDay(q).slice(0, 7); m.set(k, (m.get(k) || 0) + qTry(q)); });
+    return months.map(k => m.get(k) || 0);
+  }, [pQuotes, rates, monthly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // En çok onay alan müşteriler / şehirler / teklifi verenler
   const groupQuotes = (keyOf: (q: Quote) => string) => {
@@ -499,7 +572,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
   // Müşteri performans tablosu (başlığa tıklayarak sıralanır)
   const [custSort, setCustSort] = useState<SortState<CustKey>>({ key: 'approvedAmt', dir: 'desc' });
-  const [custLimit, setCustLimit] = useState(20);
+  const [custQ, setCustQ] = useState('');
+  const [custPage, setCustPage] = useState(0);
+  const CUST_PAGE = 25;
   const colByCustomerMap = useMemo(() => {
     const map = new Map<string, number>();
     pCollections.filter(c => c.currency === 'TRY').forEach(c => {
@@ -531,6 +606,13 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
     });
   }, [byCustomer, colByCustomerMap, custSort, customers]);
   const sortCust = (key: CustKey, first: SortDir) => setCustSort(s => nextSort(s, key, first));
+  // Firma / şehir araması (yalnız tabloyu süzer; hesaplar aynı)
+  const custShown = useMemo(() => {
+    const q = foldName(custQ);
+    return q ? customerRows.filter(r => foldName(r.name).includes(q) || foldName(r.city || '').includes(q)) : customerRows;
+  }, [customerRows, custQ]);
+  useEffect(() => { setCustPage(0); }, [custQ, custSort, from, to]);
+  const custPageRows = custShown.slice(custPage * CUST_PAGE, (custPage + 1) * CUST_PAGE);
 
   const monthlyTotals = useMemo(() => monthly.reduce((t, [, v]) => ({
     quoteCount: t.quoteCount + v.quoteCount, quoteAmt: t.quoteAmt + v.quoteAmt,
@@ -664,62 +746,84 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
 
   const PERIODS: [Period, string][] = [['month', 'Bu Ay'], ['3m', 'Son 3 Ay'], ['year', 'Bu Yıl'], ['12m', 'Son 12 Ay'], ['all', 'Tümü'], ['custom', 'Tarih Seç']];
 
+  // Önizlemesiz doğrudan PDF indirme (aynı rapor)
+  const [dlBusy, setDlBusy] = useState(false);
+  const [dlMsg, setDlMsg] = useState('');
+  const downloadSummary = async () => {
+    if (dlBusy) return;
+    setDlBusy(true); setDlMsg('');
+    try { setDlMsg(await sendReportFile(await buildReportPdf(summaryDoc()), true)); }
+    catch { setDlMsg('PDF hazırlanamadı, tekrar deneyin.'); }
+    finally { setDlBusy(false); }
+  };
+
+  const topFirms = [...customerRows].sort((a, b) => b.approvedAmt - a.approvedAmt).filter(r => r.approvedAmt > 0).slice(0, 8)
+    .map(r => ({ label: r.name, value: r.approvedAmt, sub: `${r.approved} onay · satış oranı ${pct(r.approvedAmt, r.totalAmt)}` }));
+  const hasWaiting = stats.pending + stats.passive > 0;
+  const firmBtn = (name: string, cls: string) => onOpenCustomer
+    ? <button type="button" onClick={() => onOpenCustomer(name)} className={`${cls} text-left hover:text-[#006DBB] hover:underline underline-offset-2`}>{name}</button>
+    : <span className={cls}>{name}</span>;
+
   return (
-    <div className="space-y-4">
-      {/* Dönem seçimi */}
-      <div className="bg-white p-3.5 rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] flex flex-wrap items-center gap-2">
-        <BarChart3 className="hidden sm:block w-5 h-5 text-brand-500" />
-        <span className="hidden sm:inline font-bold text-slate-900 text-sm mr-2">Rapor Dönemi</span>
-        <div className="w-full sm:w-auto flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+    <div className="space-y-3 lg:space-y-4">
+      {/* Dönem seçimi + işlemler (tek satır; telefonda dönemler yana kayar) */}
+      <div className={`${CARD} p-2.5 sm:p-3 flex flex-wrap items-center gap-2`}>
+        <span className="hidden xl:flex items-center gap-2 font-bold text-[#0B2343] text-sm pr-1">
+          <span className="w-8 h-8 rounded-lg bg-[#EAF5FC] text-[#006DBB] flex items-center justify-center"><CalendarDays className="w-4 h-4" /></span>Rapor Dönemi
+        </span>
+        <div className="w-full lg:w-auto lg:flex-1 min-w-0 flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
           {PERIODS.map(([p, label]) => (
-            <button key={p} onClick={() => setPeriod(p)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap ${period === p ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-              {label}
+            <button key={p} onClick={() => setPeriod(p)} aria-pressed={period === p}
+              className={`shrink-0 flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[13px] font-bold border whitespace-nowrap transition-colors ${period === p ? 'bg-[#006DBB] text-white border-[#006DBB] shadow-[0_8px_18px_-10px_rgba(0,109,187,0.9)]' : 'bg-white text-[#17365D] border-[#E2EAF3] hover:bg-[#F1F6FC]'}`}>
+              {p === 'custom' && <Calendar className="w-4 h-4" />}{label}
             </button>
           ))}
         </div>
-        <button onClick={() => doPrint('summary')} disabled={sending}
-          className="w-full sm:w-auto justify-center sm:ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-xs font-bold">
-          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />} {sending ? 'Rapor hazırlanıyor…' : 'Raporu Gör ve Gönder'}
-        </button>
+        <div className="w-full lg:w-auto flex items-center gap-2">
+          <button onClick={() => doPrint('summary')} disabled={sending}
+            className="flex-1 lg:flex-none justify-center flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#006DBB] hover:bg-[#173F73] disabled:opacity-60 text-white text-[13px] font-bold shadow-[0_8px_18px_-10px_rgba(0,109,187,0.9)]">
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />} {sending ? 'Rapor hazırlanıyor…' : 'Raporu Gör ve Gönder'}
+          </button>
+          <button onClick={downloadSummary} disabled={dlBusy} title="Raporu PDF olarak indir" aria-label="Raporu PDF olarak indir"
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E2EAF3] bg-white text-[#006DBB] hover:bg-[#F1F6FC] disabled:opacity-60 shrink-0">
+            {dlBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          </button>
+        </div>
         {period === 'custom' && (
           <div className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs text-slate-500 sm:w-auto sm:flex">
-            <DateInput value={customFrom} onChange={setCustomFrom} className="w-full sm:w-36 p-2 border border-slate-200 rounded-lg text-sm" />
+            <DateInput value={customFrom} onChange={setCustomFrom} className="w-full sm:w-36 p-2 border border-[#E2EAF3] rounded-lg text-sm" />
             <span>-</span>
-            <DateInput value={customTo} onChange={setCustomTo} className="w-full sm:w-36 p-2 border border-slate-200 rounded-lg text-sm" />
+            <DateInput value={customTo} onChange={setCustomTo} className="w-full sm:w-36 p-2 border border-[#E2EAF3] rounded-lg text-sm" />
           </div>
         )}
-        {sendMsg && <p className="w-full text-xs text-slate-600">{sendMsg}</p>}
+        {(sendMsg || dlMsg) && <p className="w-full text-xs text-slate-600">{sendMsg || dlMsg}</p>}
       </div>
 
-      {/* Özet kutuları — dokununca ilgili liste açılır */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
-        <StatBox icon={FileText} tone="blue" label="Verilen Teklif" value={tl(stats.totalAmt)}
-          sub={`${stats.total.toLocaleString('tr-TR')} teklif · ${stats.firms} firma`} onClick={() => setDetail('quotes')} />
-        <StatBox icon={CheckCircle2} tone="green" label="Onaylanan" value={tl(stats.approvedAmt)}
-          sub={`${stats.approved.toLocaleString('tr-TR')} teklif · satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`} onClick={() => setDetail('approved')} />
-        <StatBox icon={Clock} tone="eBlue" label="Bekleyen" value={tl(stats.pendingAmt)}
-          sub={`${stats.pending.toLocaleString('tr-TR')} teklif karar bekliyor`} onClick={() => setDetail('pending')} />
-        <StatBox icon={Wallet} tone="green" label="Yapılan Tahsilat"
-          value={multiCurrency(colTotals).map(x => <span key={x} className="block">{x}</span>)} sub={`${pCollections.length} kayıt`} onClick={() => setDetail('collections')} />
-        <StatBox icon={Receipt} tone="eTeal" label="Yapılan Harcama"
-          value={multiCurrency(expTotals).map(x => <span key={x} className="block">{x}</span>)} sub={`${pExpenses.length} kayıt`} onClick={() => setDetail('expenses')} />
-        <StatBox icon={BarChart3} tone="blue" label="Ortalama Teklif"
-          value={tl(stats.total ? stats.totalAmt / stats.total : 0)} sub={`onaylananlarda ort. ${tl(stats.approved ? stats.approvedAmt / stats.approved : 0)}`} onClick={() => setDetail('quotes')} />
+      {/* Özet kartları — dokununca ilgili liste açılır */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-2.5 lg:gap-3">
+        <KpiCard icon={FileText} tone="blue" label="Verilen Teklif" value={tl(stats.totalAmt)}
+          sub={`${stats.total.toLocaleString('tr-TR')} teklif · ${stats.firms} firma`} spark={monthly.map(([, v]) => v.quoteAmt)} onClick={() => setDetail('quotes')} />
+        <KpiCard icon={CheckCircle2} tone="teal" label="Onaylanan" value={tl(stats.approvedAmt)}
+          sub={`${stats.approved.toLocaleString('tr-TR')} teklif · satış oranı ${pct(stats.approvedAmt, stats.totalAmt)}`} spark={monthly.map(([, v]) => v.apprAmt)} onClick={() => setDetail('approved')} />
+        <KpiCard icon={Clock} tone="sky" label="Bekleyen" value={tl(stats.pendingAmt)}
+          sub={`${stats.pending.toLocaleString('tr-TR')} teklif karar bekliyor`} spark={pendingByMonth} onClick={() => setDetail('pending')} />
+        <KpiCard icon={Wallet} tone="teal" label="Yapılan Tahsilat"
+          value={multiCurrency(colTotals).map(x => <span key={x} className="block truncate">{x}</span>)} sub={`${pCollections.length} kayıt`} spark={monthly.map(([, v]) => v.col)} onClick={() => setDetail('collections')} />
+        <KpiCard icon={Receipt} tone="navy" label="Yapılan Harcama"
+          value={multiCurrency(expTotals).map(x => <span key={x} className="block truncate">{x}</span>)} sub={`${pExpenses.length} kayıt`} spark={monthly.map(([, v]) => v.exp)} onClick={() => setDetail('expenses')} />
+        <KpiCard icon={BarChart3} tone="blue" label="Ortalama Teklif"
+          value={tl(stats.total ? stats.totalAmt / stats.total : 0)} sub={`onaylananlarda ort. ${tl(stats.approved ? stats.approvedAmt / stats.approved : 0)}`}
+          spark={monthly.map(([, v]) => (v.quoteCount ? v.quoteAmt / v.quoteCount : 0))} onClick={() => setDetail('quotes')} />
       </div>
 
-      {/* Bu ay tahmini ciro (dönem seçiminden bağımsız) */}
-      <ForecastCard quotes={quotes} amountOf={qTry} />
-
-      {/* Aylık grafik */}
-      <ColumnChart title="Aylık Teklif ve Onay" subtitle="Verilen teklif tutarı ile onaylanan tutar (TL)" months={months}
-        series={[
-          { key: 'q', label: 'Verilen Teklif', color: C_QUOTE, values: monthly.map(([, v]) => v.quoteAmt) },
-          { key: 'a', label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
-        ]} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Donut title="Teklif Durumu" subtitle="Dönemde verilen tekliflerin tutara göre dağılımı"
+      {/* Analiz: aylık grafik + teklif durumu + ödeme şekli */}
+      <div className="grid gap-3 lg:gap-4 md:grid-cols-2 xl:grid-cols-12">
+        <ColumnChart className="md:col-span-2 xl:col-span-6" title="Aylık Teklif ve Onay" subtitle="Verilen teklif tutarı ile onaylanan tutar (TL)" months={months}
+          series={[
+            { key: 'q', label: 'Verilen Teklif', color: C_QUOTE, values: monthly.map(([, v]) => v.quoteAmt) },
+            { key: 'a', label: 'Onaylanan', color: C_APPROVED, values: monthly.map(([, v]) => v.apprAmt) },
+          ]} />
+        <Donut className="xl:col-span-3" icon={CheckCircle2} title="Teklif Durumu" subtitle="Dönemde verilen tekliflerin tutara göre dağılımı"
           center={pct(stats.approvedAmt, stats.totalAmt)} centerSub="satış oranı"
           parts={[
             { label: 'Onaylanan', value: stats.approvedAmt, color: C_APPROVED },
@@ -727,48 +831,64 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             { label: 'Pasif', value: stats.passiveAmt, color: '#5E7491' },
             { label: 'İptal', value: stats.cancelledAmt, color: '#e11d48' },
           ]} />
-        <Donut title="Tahsilat · Ödeme Şekli" subtitle="Seçilen dönemdeki TL tahsilatlar"
+        <Donut className="xl:col-span-3" icon={Wallet} title="Tahsilat · Ödeme Şekli" subtitle="Seçilen dönemdeki TL tahsilatlar"
           parts={colByMethod.map(r => ({ label: `${r.label} (${r.count})`, value: r.value }))} />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <HBars title="En Çok Satan Ürünler · Tutar" subtitle="Onaylanan tekliflerin kalemlerinden, KDV dahil TL · ilk 10" color={C_APPROVED} rows={productStats.products} />
-        <HBars title="En Çok Satan Ürünler · Adet" subtitle="Onaylanan tekliflerin kalemlerinden, satılan miktar · ilk 10" color={C_QUOTE}
+      {/* Tahmini ciro + bekleyen/pasif nedenleri */}
+      <div className={`grid gap-3 lg:gap-4 ${hasWaiting ? 'xl:grid-cols-2' : ''}`}>
+        {/* Bu ay tahmini ciro (dönem seçiminden bağımsız) */}
+        <ForecastCard quotes={quotes} amountOf={qTry} />
+
+        {hasWaiting && (
+          <div className={`${CARD} p-4`}>
+            <CardHead icon={CircleHelp} title="Bekleyen ve Pasif Teklifler · Neden?"
+              subtitle={<>{stats.pending} bekleyen · {stats.passive} pasif · <b className="text-[#17365D]">{tl(stats.pendingAmt + stats.passiveAmt)}</b><span className="hidden sm:inline"> · "Müşteri düşünüyor" dışındakiler pasif sayılır</span></>} />
+            <WaitingReasons rows={stats.waiting} total={stats.pending + stats.passive} totalAmt={stats.pendingAmt + stats.passiveAmt} amountOf={qTry} onOpen={onOpenQuote} />
+            {stats.rivals.length > 0 && (
+              <details className="group mt-3 pt-3 border-t border-[#E2EAF3]">
+                <summary className="flex items-center gap-1.5 cursor-pointer list-none text-xs font-extrabold text-[#173F73] select-none">
+                  <ChevronRight className="w-3.5 h-3.5 text-[#5E7491] transition-transform group-open:rotate-90" />Rakip notları ({stats.rivals.length})
+                </summary>
+                <ul className="mt-2 space-y-0.5 text-xs max-h-60 overflow-y-auto">
+                  {stats.rivals.map(({ q, note }) => (
+                    <li key={q.id}>
+                      <button type="button" disabled={!onOpenQuote} onClick={() => onOpenQuote?.(q)}
+                        className="w-full text-left flex justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-[#F1F6FC] disabled:hover:bg-transparent">
+                        <span className="min-w-0 truncate"><b className="text-[#0B2343]">{q.customerName}</b> <span className="text-[#5E7491]">{q.quoteNumber}</span></span>
+                        <span className="text-[#17365D] text-right">{note || '—'}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Satış performansı: 4 kart, ilk 5 + tümünü gör */}
+      <div className="grid gap-3 lg:gap-4 md:grid-cols-2 2xl:grid-cols-4">
+        <HBars icon={ShoppingCart} title="En Çok Satan Ürünler · Tutar" subtitle="Onaylanan tekliflerin kalemleri, KDV dahil TL" color={C_APPROVED} rows={productStats.products} teal />
+        <HBars icon={Package} title="En Çok Satan Ürünler · Adet" subtitle="Onaylanan tekliflerin kalemleri, satılan miktar" color={C_QUOTE}
           rows={productStats.byQty} fmt={v => v.toLocaleString('tr-TR')} />
+        <HBars icon={MapPin} title="Şehirlere Göre Satış" subtitle="Onaylanan tutara göre (verilen teklif, satış oranı)" color={C_APPROVED} rows={cityRows} teal />
+        <HBars icon={Building2} title="En Çok Onay Alan Firmalar" subtitle="Onaylanan teklif tutarına göre" color={C_QUOTE} rows={topFirms} />
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-      <HBars title="Şehirlere Göre Satış" subtitle="Onaylanan teklif tutarına göre ilk 8 şehir (yanında verilen teklif ve satış oranı)" color={C_APPROVED} rows={cityRows} />
-
-      <HBars title="En Çok Onay Alan Firmalar" subtitle="Onaylanan teklif tutarına göre ilk 8" color={C_QUOTE}
-        rows={[...customerRows].sort((a, b) => b.approvedAmt - a.approvedAmt).filter(r => r.approvedAmt > 0).slice(0, 8)
-          .map(r => ({ label: r.name, value: r.approvedAmt, sub: `${r.approved} onay · satış oranı ${pct(r.approvedAmt, r.totalAmt)}` }))} />
-      </div>
-
-      {/* Bekleyen teklifler: neden bekliyor */}
-      {stats.pending + stats.passive > 0 && (
-        <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] p-4">
-          <h3 className="font-bold text-slate-900 text-sm">Bekleyen ve Pasif Teklifler · Neden?</h3>
-          <p className="text-xs text-slate-500 mb-3">{stats.pending} bekleyen · {stats.passive} pasif · {tl(stats.pendingAmt + stats.passiveAmt)} · teklif detayında seçilen neden ("Müşteri düşünüyor" dışındakiler pasif sayılır)</p>
-          <WaitingReasons rows={stats.waiting} total={stats.pending + stats.passive} totalAmt={stats.pendingAmt + stats.passiveAmt} amountOf={qTry} onOpen={onOpenQuote} />
-          {stats.rivals.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-slate-100">
-              <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Rakip notları</div>
-              <ul className="space-y-1 text-xs">
-                {stats.rivals.map(({ q, note }) => (
-                  <li key={q.id} className="flex justify-between gap-2"><span className="min-w-0 truncate"><b className="text-slate-800">{q.customerName}</b> <span className="text-slate-500">{q.quoteNumber}</span></span><span className="text-slate-600 text-right">{note || '—'}</span></li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Müşteri performansı */}
-      <div className="bg-white rounded-3xl border border-white shadow-[0_14px_34px_-24px_rgba(15,60,120,0.55)] overflow-hidden">
-        <div className="p-4 pb-2">
-          <h3 className="font-bold text-slate-900 text-sm">Müşteri Performansı</h3>
-          <p className="text-xs text-slate-500"><span className="hidden md:inline">Sütun başlığına tıklayarak sıralayın · </span>{customerRows.length} firma</p>
-          <MobileSortSelect always className="mt-2 w-full md:hidden" sort={custSort} onChange={setCustSort} options={[
+      <div className={`${CARD} overflow-hidden`}>
+        <div className="p-4 pb-3 flex flex-wrap items-start gap-3">
+          <div className="flex-1 min-w-[12rem]">
+            <CardHead icon={Users} title="Müşteri Performansı"
+              subtitle={<><span className="hidden md:inline">Sütun başlığına tıklayarak sıralayın · </span>{custQ ? `${custShown.length} / ` : ''}{customerRows.length} firma{onOpenCustomer ? ' · firmaya dokununca cari kartı' : ''}</>} />
+          </div>
+          <label className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 text-[#5E7491] absolute left-3 top-1/2 -translate-y-1/2" />
+            <input value={custQ} onChange={e => setCustQ(e.target.value)} placeholder="Firma veya şehir ara…" aria-label="Firma ara"
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2EAF3] bg-[#F8FBFE] text-sm text-[#17365D] placeholder:text-[#5E7491] focus:outline-none focus:border-[#006DBB] focus:bg-white" />
+          </label>
+          <MobileSortSelect always className="w-full md:hidden" sort={custSort} onChange={setCustSort} options={[
             { key: 'approvedAmt', dir: 'desc', label: 'Onay tutarı: yüksek' },
             { key: 'totalAmt', dir: 'desc', label: 'Teklif tutarı: yüksek' },
             { key: 'rate', dir: 'desc', label: 'Satış oranı: yüksek' },
@@ -778,8 +898,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
             { key: 'name', dir: 'asc', label: 'Firma: A → Z' },
           ]} />
         </div>
-        <MobileList empty="Bu dönemde teklif yok." rows={customerRows.slice(0, custLimit).map(r => ({
-          key: r.name, title: <>{r.name}<span className="block text-[11px] font-normal text-slate-500">{r.city || '-'}</span></>, aside: pct(r.approvedAmt, r.totalAmt),
+        <MobileList empty={custQ ? 'Aramaya uyan firma yok.' : 'Bu dönemde teklif yok.'} rows={custPageRows.map(r => ({
+          key: r.name, title: <>{firmBtn(r.name, 'font-bold text-[#0B2343] break-words')}<span className="block text-[11px] font-normal text-slate-500">{r.city || '-'}</span></>, aside: pct(r.approvedAmt, r.totalAmt),
           fields: [
             ['Teklif', `${r.total} · ${tl(r.totalAmt)}`], ['Onay', `${r.approved} · ${tl(r.approvedAmt)}`],
             ['Tahsilat', r.collected ? tl(r.collected) : '-'],
@@ -787,7 +907,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
         }))} />
         <WideOnly from="md"><div className="overflow-x-auto hidden md:block">
           <table className="w-full text-right text-[13px] xl:text-sm tabular-nums">
-            <thead className="text-slate-500 text-[12px] font-bold border-y border-slate-100">
+            <thead className={`${theadCls} text-[12px] font-bold`}>
               <tr>
                 <SortHeader label="Firma" className="text-left" active={custSort.key === 'name'} dir={custSort.dir} onClick={() => sortCust('name', 'asc')} />
                 <SortHeader label="Şehir" className="text-left hidden xl:table-cell" active={custSort.key === 'city'} dir={custSort.dir} onClick={() => sortCust('city', 'asc')} />
@@ -800,29 +920,27 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({ quotes, collections,
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {customerRows.slice(0, custLimit).map(r => (
-                <tr key={r.name} className="hover:bg-slate-50">
-                  <td className="py-2 px-3 text-left font-semibold text-slate-800">{r.name}<div className="xl:hidden text-xs font-normal text-slate-500">{r.city || '-'}</div></td>
-                  <td className="hidden xl:table-cell py-2 px-3 text-left text-slate-600">{r.city || '-'}</td>
+              {custPageRows.map(r => (
+                <tr key={r.name} className="hover:bg-[#F5F9FE]">
+                  <td className="py-2 px-3 text-left max-w-[22rem]">{firmBtn(r.name, 'font-semibold text-[#0B2343] break-words')}<div className="xl:hidden text-xs font-normal text-slate-500">{r.city || '-'}</div></td>
+                  <td className="hidden xl:table-cell py-2 px-3 text-left text-[#17365D]">{r.city || '-'}</td>
                   <td className="py-2 px-3">{r.total}</td>
                   <td className="py-2 px-3 whitespace-nowrap">{tl(r.totalAmt)}</td>
                   <td className="py-2 px-3">{r.approved}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{tl(r.approvedAmt)}</td>
-                  <td className="py-2 px-3 font-bold">{pct(r.approvedAmt, r.totalAmt)}</td>
+                  <td className="py-2 px-3 whitespace-nowrap font-semibold text-[#008F79]">{tl(r.approvedAmt)}</td>
+                  <td className="py-2 px-3 font-bold text-[#0B2343]">{pct(r.approvedAmt, r.totalAmt)}</td>
                   <td className="py-2 px-3 whitespace-nowrap">{r.collected ? tl(r.collected) : '-'}</td>
                 </tr>
               ))}
-              {customerRows.length === 0 && (
-                <tr><td colSpan={8} className="py-8 text-center text-slate-500">Bu dönemde teklif yok.</td></tr>
+              {custShown.length === 0 && (
+                <tr><td colSpan={8} className="py-8 text-center text-slate-500">{custQ ? 'Aramaya uyan firma yok.' : 'Bu dönemde teklif yok.'}</td></tr>
               )}
             </tbody>
           </table>
         </div></WideOnly>
-        {customerRows.length > custLimit && (
-          <div className="p-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>{custLimit} / {customerRows.length} firma</span>
-            <button onClick={() => setCustLimit(n => n + 20)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-slate-700">Daha fazla göster</button>
-          </div>
+        {custShown.length > 0 && (
+          <Pager page={custPage} total={custShown.length} size={CUST_PAGE} onPage={setCustPage}
+            label={`${custPage * CUST_PAGE + 1}–${Math.min(custShown.length, (custPage + 1) * CUST_PAGE)} / ${custShown.length} firma`} />
         )}
       </div>
       {detail && (

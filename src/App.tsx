@@ -1003,6 +1003,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             statsLine
             statsRow={activeTab === 'collections' || activeTab === 'expenses' || activeTab === 'quotes'}
             hero={HERO_IMG[activeTab]}
+            compact={activeTab === 'reports'}
           />
         )}
         
@@ -1140,6 +1141,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             expenses={data.expenses || []}
             customers={data.customers || []}
             onOpenQuote={q => { setQuoteFilter('all'); setQuoteRange(null); setActiveTab('quotes'); setFocusQuote({ id: q.id, n: Date.now() }); }}
+            onOpenCustomer={tabAllowed('customers') ? name => { setFocusCustomer(name); setActiveTab('customers'); } : undefined}
           />
         )}
 
