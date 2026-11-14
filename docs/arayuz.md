@@ -97,3 +97,12 @@ Yalnız `PeriodCard` (`SimpleHome.tsx`) görünümü; hesaplar, veriler, tıklam
 - v1.26.4: Kartın üst bölümünün arkasında kullanıcının verdiği görsel (`public/home-sales-art.webp` lg+, `-sm` altı; 14/6 KB): bilgisayarda görselin sağ ucu Bugün/Bu hafta kutularının soluna gelir (sola maskeyle karışır), telefon/tablette sağa yaslı, soluk. SVG süs kaldırıldı.
 
 - Müşteri kartı (`CustomerAccount.tsx`): lacivert bant (firma simgesi, ad, durum, şehir; işlem düğmesi yok), altında simgeli özet kutuları (Toplam teklif, Onaylanan, Beklemede (telefonda gizli), Cari bakiye/Tahsilat, Son teklif), tek kartta altı çizili sekmeler: Genel bilgiler (müşteri bilgileri — kalemle kart içinde düzenlenir: ad, şehir, yetkili, telefon, e-posta, Mikro kodu, not; "Müşteriyi sil" burada —, açıklama/not, cari bakiye, konum) · Firma özeti (onay oranı, ödeme alışkanlığı, aktif/pasif/kara liste) · Teklifler · Malzemeler · Tahsilatlar · Akış. Tarih süzgeci ve arama liste sekmelerinde. Deneme: `/preview3/app.html?p=customers&modal=account`.
+
+## Raporlar sayfası yönetim panosu (v1.29.0)
+Yalnız görünüm; hesaplar, PDF raporu, filtreler aynı (`ReportsPanel.tsx`, `ForecastCard.tsx`). Geri dönüş noktası: v1.28.1 (commit `ffe182f`).
+- Bant kısa (`PageHeader` `compact`, bilgisayarda ~112px). Altında tek satır: Rapor Dönemi düğmeleri (seçili `#006DBB` dolgu; telefonda yana kayar) + "Raporu Gör ve Gönder" + İndir simgesi (önizlemesiz doğrudan PDF, `buildReportPdf` + `sendReportFile(…, true)`).
+- 6 özet kartı (`KpiCard`: Verilen, Onaylanan, Bekleyen, Tahsilat, Harcama, Ortalama): telefonda 2, lg 3, 2xl 6 sütun; sağ altta aylık küçük çizgi (`Spark`, dönemin son 12 ayı); büyüme % yok (veride karşılaştırma yok). Dokununca liste penceresi aynı.
+- Analiz: xl+ 12 sütun (aylık grafik 6, Teklif Durumu 3, Ödeme Şekli 3); halkalar dar kartta alt alta (`@container`). Sonra Tahmini Ciro + Bekleyen/Pasif nedenleri yan yana (xl+); rakip notları açılır (`details`), dokununca teklif.
+- Satış performansı 4 kart (2xl 4, md 2 sütun), ilk 5 + "Tümünü gör" (10 ürün / 8 şehir / 8 firma).
+- Müşteri performansı: firma/şehir araması, 25'erli sayfa (`Pager`), firma adına dokununca Müşteriler'de cari kartı (`onOpenCustomer`).
+- Renkler: mavi `#006DBB`, turkuaz `#00B49A`, lacivert; nedenler ve hedef çizgisi artık sarı değil (mavi / lacivert kesikli).

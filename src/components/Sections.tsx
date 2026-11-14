@@ -176,7 +176,9 @@ export const PageHeader: React.FC<{
   statsLine?: boolean;
   /** Rakamlar tek sırada 3 küçük kutu (Tahsilat, Harcama) */
   statsRow?: boolean;
-}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero, statsLine, statsRow }) => (
+  /** Kısa bant (Raporlar: bilgisayarda ~112px) */
+  compact?: boolean;
+}> = ({ title, subtitle, icon: Icon, onBack, action, secondary, below, stats, tools, hero, statsLine, statsRow, compact }) => (
   <div className="mb-3 lg:mb-5 space-y-2.5 lg:space-y-4">
     {hero ? (
       <>
@@ -190,7 +192,7 @@ export const PageHeader: React.FC<{
             <img src={hero.sm} alt="" draggable={false} className={`${HERO_PHOTO} object-cover ${hero.materials ? 'object-[70%_center] sm:object-center' : hero.quotes ? 'object-[62%_center] md:object-[58%_center]' : 'object-center'}`} />
           </picture>}
         <div aria-hidden className={`pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#006DBB] via-[#009FE3] to-[#00B49A]`} />
-        <div className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-5 lg:px-7 py-2.5 lg:py-4 min-h-[60px] md:min-h-[76px] lg:min-h-[148px]`}>
+        <div className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-5 lg:px-7 py-2.5 lg:py-4 min-h-[60px] md:min-h-[76px] ${compact ? 'lg:min-h-[112px] lg:py-3' : 'lg:min-h-[148px]'}`}>
           <button onClick={onBack} aria-label="Geri"
             className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E2EAF3] text-[#173F73] shrink-0">
             <ChevronRight className="w-4 h-4 rotate-180" />
