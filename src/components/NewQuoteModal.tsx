@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { dayOf, localDay } from '../lib/dates';
-import { ArrowDown, ArrowUp, FileText, FileUp, ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, FileText, FileUp, MessageSquareText, ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { Quote, QuoteItem, UserRole, Customer } from '../types';
 import { findCustomer } from '../lib/customers';
 import { CityInput } from './TextSuggest';
@@ -14,7 +14,7 @@ import { nextQuoteNumber, quoteNo, revBase, revOf } from '../lib/quoteRules';
 import { allowed, useAccess } from '../lib/access';
 import { supabase } from '../lib/supabase';
 import { shareQuoteWithMe } from '../lib/db';
-import { catalogCode, logPdfItemLoss, matchCustomer, readQuotePdf, titleTr } from '../lib/pdfQuote';
+import { PdfQuote, catalogCode, logPdfItemLoss, matchCustomer, readQuotePdf, readQuoteText, titleTr } from '../lib/pdfQuote';
 import { BrandNote, CheckRow, Suggestion, runQuoteCheck, termClass, totalsMismatch } from '../lib/quoteCheck';
 import { SuggestMatchBox } from './SuggestMatchBox';
 import { learnFromLinked, setSupplierOurCode } from '../lib/suppliers';
@@ -34,6 +34,8 @@ interface NewQuoteModalProps {
   draft?: Partial<Quote> | null;
   /** Paylaş menüsünden gelen PDF: açılınca form bununla doldurulur */
   initialPdf?: File | null;
+  /** WhatsApp'tan yazılı gelen teklif (Paylaş): açılınca form bununla doldurulur */
+  initialText?: string | null;
   /** PDF'in elle seçilmesi gerektiğinde gösterilecek yol tarifi */
   pdfNotice?: string;
   /** PDF'teki teklif no sistemde varsa: o teklifi bu PDF ile revize etmek için */
@@ -65,6 +67,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   quotes = [],
   draft = null,
   initialPdf = null,
+  initialText = null,
   pdfNotice = '',
   requireCheck = false,
   onPrint,
@@ -435,18 +438,29 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentTerm]);
 
-  const fillFromPdf = async (file: File) => {
+  // ---- Yazıdan doldur: WhatsApp'tan yazılı gelen teklif ----
+  const [textOpen, setTextOpen] = useState(false);
+  const [quoteText, setQuoteText] = useState('');
+  const fillFromText = (text: string) => {
+    if (!text.trim()) return;
+    setTextOpen(false);
+    fillFromPdf(null, text);
+  };
+
+  /** Teklif PDF'i (file) ya da WhatsApp yazısı (text) formu doldurur */
+  const fillFromPdf = async (file: File | null, text?: string) => {
+    const src = file ? 'PDF' : 'yazı';
     setPdfBusy(true); setPdfMsg(null); setPdfCheck(null); setPdfNotes([]); setShowOkRows(false);
     try {
-      const pdf = await readQuotePdf(file);
+      const pdf: PdfQuote = file ? await readQuotePdf(file) : await readQuoteText(text || '');
       if (!pdf.items.length && !pdf.quoteNumber) {
-        setPdfMsg({ ok: false, text: 'PDF okunamadı (taranmış / resim PDF olabilir).' });
+        setPdfMsg({ ok: false, text: file ? 'PDF okunamadı (taranmış / resim PDF olabilir).' : 'Yazıda ürün bulunamadı. Her satıra bir ürün (miktar, ad, fiyat) yazıp yeniden deneyin.' });
         return;
       }
       if (pdf.quoteNumber && !isEdit) {
         setQuoteNoInput(pdf.quoteNumber);
         const found = quotes.find(q => normNo(q.quoteNumber) === normNo(pdf.quoteNumber));
-        setExisting(found ? { q: found, file } : null);
+        setExisting(found && file ? { q: found, file } : null);
       }
       // Kontrolde kullanılacak firma: düzenlemede formdaki, yenide PDF'ten eşleşen
       let checkCustomer: string | null = isEdit ? customerName : pdf.customerName;
@@ -478,15 +492,16 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         setPdfCheck(res ? res.rows : null);
         setPdfNotes(res ? res.notes : []);
       }
-      setPdfMeta({ preparedBy: pdf.preparedBy || undefined, date: pdf.date || undefined });
+      // PDF'ten doldurulan teklif kayıttan sonra PDF'iyle gösterilir; yazıdan doldurulan normal kaydedilir
+      if (file) setPdfMeta({ preparedBy: pdf.preparedBy || undefined, date: pdf.date || undefined });
       // Kalem okunamadıysa (sıra boşluğu ya da genel toplam tutmuyor) uyarı sarı gösterilir
       const missing = [...pdf.warnings.filter(w => /okunamad/.test(w)), ...totalsMismatch(pdf)];
       const other = pdf.warnings.filter(w => !/okunamad/.test(w));
       setPdfMsg(missing.length
         ? { ok: false, text: `${pdf.items.length} kalem aktarıldı ama ⚠ ${missing.join(' · ')}${other.length ? ' · ' + other.join(', ') : ''}` }
-        : { ok: true, text: `${pdf.items.length} kalem PDF'ten aktarıldı${other.length ? ' · ' + other.join(', ') : ''}. Kontrol edip kaydedin.` });
+        : { ok: true, text: `${pdf.items.length} kalem ${src === 'PDF' ? "PDF'ten" : 'yazıdan'} aktarıldı${other.length ? ' · ' + other.join(', ') : ''}. Kontrol edip kaydedin.` });
     } catch {
-      setPdfMsg({ ok: false, text: 'PDF açılamadı.' });
+      setPdfMsg({ ok: false, text: file ? 'PDF açılamadı.' : 'Yazı okunamadı.' });
     } finally {
       setPdfBusy(false);
     }
@@ -500,6 +515,14 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
     fillFromPdf(initialPdf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialPdf]);
+  // Paylaş menüsünden (WhatsApp) gelen teklif yazısı
+  useEffect(() => {
+    if (!initialText?.trim() || sharedDone.current) return;
+    sharedDone.current = true;
+    setQuoteText(initialText);
+    fillFromText(initialText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialText]);
 
   // Genel toplamlar (Mikro'daki gibi: ara toplam, iskonto, KDV, genel toplam — para birimi başına)
   const summary = (['TRY', 'USD', 'EUR'] as Currency[]).map(c => {
@@ -675,6 +698,18 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
             <span className="hidden sm:inline">PDF'ten Doldur</span><span className="sm:hidden">PDF</span>
           </button>
           )}
+          {!isEdit && (
+          <button
+            type="button"
+            onClick={() => setTextOpen(o => !o)}
+            disabled={pdfBusy}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold disabled:opacity-60"
+            title="WhatsApp'tan yazılı gelen teklifi yapıştır: kalemler forma dolar"
+          >
+            <MessageSquareText className="w-4 h-4" />
+            <span className="hidden sm:inline">Yazıdan Doldur</span><span className="sm:hidden">Yazı</span>
+          </button>
+          )}
           <input ref={pdfInputRef} type="file" accept="application/pdf,.pdf" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) fillFromPdf(f); e.target.value = ''; }} />
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Kapat"><X className="w-5 h-5" /></button>
@@ -683,6 +718,20 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
         <div className="overflow-y-auto flex-1 bg-[#F4F8FC]">
           <form id="newQuoteForm" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="p-3 sm:p-5 space-y-4">
 
+            {textOpen && (
+              <div className="rounded-xl border border-sky-200 bg-white p-3 space-y-2">
+                <div className="text-xs font-bold text-slate-700">WhatsApp'tan gelen teklif yazısını yapıştırın</div>
+                <textarea value={quoteText} onChange={e => setQuoteText(e.target.value)} rows={6} autoFocus
+                  placeholder={'Her satıra bir ürün: miktar, ürün, fiyat\nÖr. 10 ad 1/2" küresel vana 85 TL\n2 adet 500 lt genleşme tankı 4.250 TL'}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-brand-200" />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => fillFromText(quoteText)} disabled={!quoteText.trim() || pdfBusy}
+                    className="px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold disabled:opacity-40">Kalemleri doldur</button>
+                  <button type="button" onClick={() => setTextOpen(false)} className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Vazgeç</button>
+                </div>
+                <p className="text-[11px] text-slate-500">Kalemler forma dolar; firma, vade ve fiyatları kontrol edip kaydedin.</p>
+              </div>
+            )}
             {pdfNotice && !pdfMsg && (
               <div className="text-xs rounded-md px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200">{pdfNotice}</div>
             )}
