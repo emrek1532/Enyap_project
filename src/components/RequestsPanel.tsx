@@ -1,15 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, Paperclip, Send, Sparkles, Trash2, Wand2, X } from 'lucide-react';
+import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, Paperclip, Send, Trash2, X } from 'lucide-react';
 import type { Customer, Quote } from '../types';
 import { listCard, SearchBox, UnderlineTabs, NewButton } from './ListUI';
-import { RequestLines, openCount } from './RequestLines';
-import { useSetting } from '../lib/settings';
-import { PREF_KEY, PrefRule } from '../lib/requestRead';
 import { foldTr } from '../lib/materials';
 import { findCustomer } from '../lib/customers';
 import { SuggestInput } from './SuggestInput';
 import {
-  Assignee, QuoteRequest, REQUEST_STATUS, ReqRow, RequestStatus, createRequest, fetchAssignees, fileUrl, patchRequest, removeRequest, readRequestLines, rowsToDraft,
+  Assignee, QuoteRequest, REQUEST_STATUS, RequestStatus, createRequest, fetchAssignees, fileUrl, patchRequest, removeRequest,
 } from '../lib/requests';
 
 const ago = (iso: string) => {
@@ -27,7 +24,7 @@ export const RequestPill: React.FC<{ status: RequestStatus }> = ({ status }) => 
 );
 
 /** Paylaş menüsünden (WhatsApp) gelen yazı / dosya: Talep gir formu dolu açılır */
-export interface SharedRequestInput { text?: string; file?: File; mode?: 'quote' }
+export interface SharedRequestInput { text?: string; file?: File }
 
 type Tab = 'open' | 'mine' | 'done' | 'cancel';
 
@@ -40,12 +37,7 @@ export const RequestsPanel: React.FC<{
   canEdit: boolean;
   /** Talep silme yalnız yönetici */
   canDelete?: boolean;
-  /** Talep okuma / otomatik teklif (yapay zekâ) yetkisi; kapalıysa yalnız talep + not görünür, teklif elle yüklenir */
-  canAi: boolean;
-  /** Okunmakta olan talepler (id) */
-  reading: Set<string>;
-  onSaved: (r: QuoteRequest, opts?: { created?: boolean; auto?: boolean }) => void;
-  onRead: (r: QuoteRequest) => void;
+  onSaved: (r: QuoteRequest, opts?: { created?: boolean }) => void;
   onDraft: (draft: Partial<Quote>, req: QuoteRequest) => void;
   onOpenQuote: (quoteId: string) => void;
   /** Bildirimden açılacak talep */
@@ -55,7 +47,7 @@ export const RequestsPanel: React.FC<{
   newRequest?: number;
   shared?: SharedRequestInput | null;
   onSharedUsed?: () => void;
-}> = ({ requests, customers, quotes, meId, assignees: given, canEdit, canDelete, canAi, reading, onSaved, onRead, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
+}> = ({ requests, customers, quotes, meId, assignees: given, canEdit, canDelete, onSaved, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
   const [tab, setTab] = useState<Tab>('open');
   const [q, setQ] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -106,7 +98,6 @@ export const RequestsPanel: React.FC<{
       )}
       <div className="divide-y divide-slate-100">
         {list.map(r => {
-          const ready = r.lines?.length ? r.lines.filter(x => !x.skip && x.pick).length : 0;
           return (
             <button key={r.id} onClick={() => setDetailId(r.id)} className="w-full text-left py-3 px-1 sm:px-2 flex items-start gap-3 hover:bg-brand-50/40 rounded-xl">
               <span className="w-10 h-10 rounded-2xl bg-[#EAF5FC] text-[#006DBB] flex items-center justify-center shrink-0">
@@ -121,7 +112,6 @@ export const RequestsPanel: React.FC<{
                 <span className="block text-[11px] text-slate-500 mt-0.5">
                   {ago(r.createdAt)} · {names.get(r.createdBy || '') || 'Ekip'}{r.assignedTo ? ` → ${names.get(r.assignedTo) || '—'}` : ''}
                   {r.files.length ? ` · ${r.files.length} dosya` : ''}
-                  {reading.has(r.id) ? ' · okunuyor…' : r.lines?.length ? ` · ${r.lines.length} satır (${ready} hazır)` : ''}
                 </span>
               </span>
             </button>
@@ -130,13 +120,12 @@ export const RequestsPanel: React.FC<{
       </div>
 
       {formOpen && (
-        <RequestForm customers={customers} assignees={assignees} meId={meId} canAi={canAi} shared={shared || null}
+        <RequestForm customers={customers} assignees={assignees} meId={meId} shared={shared || null}
           onClose={() => { setFormOpen(false); onSharedUsed?.(); }}
-          onSaved={(r, auto) => { setFormOpen(false); onSharedUsed?.(); onSaved(r, { created: true, auto }); setDetailId(r.id); }} />
+          onSaved={r => { setFormOpen(false); onSharedUsed?.(); onSaved(r, { created: true }); setDetailId(r.id); }} />
       )}
       {detail && (
-        <RequestDetail req={detail} customers={customers} quotes={quotes} assignees={assignees} names={names} canEdit={canEdit} canDelete={!!canDelete} canAi={canAi}
-          reading={reading.has(detail.id)} onRead={() => onRead(detail)}
+        <RequestDetail req={detail} customers={customers} assignees={assignees} names={names} canEdit={canEdit} canDelete={!!canDelete}
           onSaved={r => onSaved(r)} onDraft={d => { setDetailId(null); onDraft(d, detail); }} onOpenQuote={onOpenQuote}
           onClose={() => setDetailId(null)} />
       )}
@@ -166,8 +155,8 @@ const input = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus
 /** Talep gir: müşteri, WhatsApp yazısı / fotoğraf / Excel, kime */
 const RequestForm: React.FC<{
   customers: Customer[]; assignees: Assignee[]; meId: string; shared: SharedRequestInput | null;
-  onClose: () => void; onSaved: (r: QuoteRequest, auto: boolean) => void; canAi: boolean;
-}> = ({ customers, assignees, meId, canAi, shared, onClose, onSaved }) => {
+  onClose: () => void; onSaved: (r: QuoteRequest) => void;
+}> = ({ customers, assignees, meId, shared, onClose, onSaved }) => {
   const others = assignees.filter(a => a.id !== meId);
   const [customer, setCustomer] = useState('');
   const [text, setText] = useState(shared?.text || '');
@@ -195,22 +184,20 @@ const RequestForm: React.FC<{
   // Seçilen dosyalar hemen diziye alınır (input sıfırlanınca liste boşalmasın)
   const add = (l: FileList | null) => { const picked = l ? Array.from(l) : []; if (picked.length) setFiles(f => [...f, ...picked].slice(0, 6)); };
 
-  // Paylaşımda "Teklif hazırla" seçildiyse: kişi seçimi gizlenir, ana düğme otomatik hazırla
-  const quick = shared?.mode === 'quote' && canAi;
-  const save = async (auto: boolean) => {
+  const save = async () => {
     if (!customer.trim()) { setErr('Müşteriyi seçin.'); return; }
     if (!text.trim() && !files.length) { setErr('Talep yazısı ya da dosya ekleyin.'); return; }
     setErr(''); setBusy(files.length ? 'Dosyalar yükleniyor…' : 'Kaydediliyor…');
     try {
-      const r = await createRequest({ customerName: match?.name || customer, note, rawText: text, files, assignedTo: auto ? meId : to, status: auto ? 'hazirlaniyor' : 'yeni' });
-      onSaved(r, auto);
+      const r = await createRequest({ customerName: match?.name || customer, note, rawText: text, files, assignedTo: to, status: 'yeni' });
+      onSaved(r);
     } catch (e) {
       setErr((e as Error)?.message || 'Kaydedilemedi'); setBusy('');
     }
   };
 
   return (
-    <Modal title={quick ? 'Teklif hazırla' : 'Talep gir'} sub={quick ? 'Müşteriyi seçin; talep okunur ve teklif formu dolu açılır.' : 'Müşterinin talebini yükleyin; atanan kişiye bildirim gider.'} onClose={onClose}>
+    <Modal title="Talep gir" sub="Müşterinin talebini yükleyin; atanan kişiye bildirim gider." onClose={onClose}>
       <div>
         <label className={label}>Müşteri</label>
         <SuggestInput<Customer>
@@ -270,7 +257,7 @@ const RequestForm: React.FC<{
         <label className={label}>Not (isteğe bağlı)</label>
         <input value={note} onChange={e => setNote(e.target.value)} placeholder="Ör. acil, proje fiyatı, peşin" className={input} />
       </div>
-      {!quick && <div>
+      <div>
         <label className={label}>Kim hazırlasın?</label>
         <div className="flex flex-wrap gap-2">
           {others.map(a => (
@@ -280,38 +267,24 @@ const RequestForm: React.FC<{
           <button type="button" onClick={() => { picked.current = true; setTo(meId); }}
             className={`px-3 py-2 rounded-xl border text-sm font-bold ${to === meId ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200'}`}>Ben hazırlayacağım</button>
         </div>
-      </div>}
+      </div>
       {err && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{err}</div>}
-      {quick ? (
-        <button onClick={() => save(true)} disabled={!!busy} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} {busy || 'Kaydet ve teklifi hazırla'}
-        </button>
-      ) : <div className={`grid gap-2 ${canAi ? 'sm:grid-cols-2' : ''}`}>
-        <button onClick={() => save(false)} disabled={!!busy} className="py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {busy || (to === meId ? 'Kaydet' : 'Kaydet ve gönder')}
-        </button>
-        {canAi && <button onClick={() => save(true)} disabled={!!busy} className="py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-          <Wand2 className="w-4 h-4" /> Kaydet ve otomatik hazırla
-        </button>}
-      </div>}
-      {canAi && !quick && <p className="text-[11px] text-slate-500">Otomatik hazırla: talep okunur, ürünler kataloğa eşleştirilir ve teklif formu dolu açılır. Müşteriye siz göndermeden gitmez.</p>}
+      <button onClick={save} disabled={!!busy} className="w-full py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {busy || (to === meId ? 'Kaydet' : 'Kaydet ve gönder')}
+      </button>
     </Modal>
   );
 };
 
-/** Talep detayı: dosyalar, okunan satırlar, teklife dönüştür / otomatik hazırla */
+/** Talep detayı: dosyalar, not; "Teklif gir" ile müşteri dolu teklif formu açılır (PDF'ten / yazıdan doldurulabilir) */
 const RequestDetail: React.FC<{
-  req: QuoteRequest; customers: Customer[]; quotes: Quote[]; assignees: Assignee[]; names: Map<string, string>; canEdit: boolean; canDelete: boolean;
-  reading: boolean; onRead: () => void; onSaved: (r: QuoteRequest) => void; onDraft: (d: Partial<Quote>) => void;
-  onOpenQuote: (id: string) => void; onClose: () => void; canAi: boolean;
-}> = ({ req, customers, quotes, assignees, names, canEdit, canDelete, canAi, reading, onRead, onSaved, onDraft, onOpenQuote, onClose }) => {
-  const [rows, setRows] = useState<ReqRow[] | null>(req.lines || null);
+  req: QuoteRequest; customers: Customer[]; assignees: Assignee[]; names: Map<string, string>; canEdit: boolean; canDelete: boolean;
+  onSaved: (r: QuoteRequest) => void; onDraft: (d: Partial<Quote>) => void;
+  onOpenQuote: (id: string) => void; onClose: () => void;
+}> = ({ req, customers, assignees, names, canEdit, canDelete, onSaved, onDraft, onOpenQuote, onClose }) => {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
-  const dirty = useRef(false);
-  // Okuma bitince (başka cihazda ya da arka planda) satırlar gelir
-  useEffect(() => { if (!dirty.current) setRows(req.lines || null); }, [req.lines]);
   // Dosya bağlantıları yalnız detay açılınca alınır
   useEffect(() => {
     let off = false;
@@ -326,22 +299,11 @@ const RequestDetail: React.FC<{
   };
   const patch = (p: Parameters<typeof patchRequest>[1], msg = 'Kaydediliyor…') => run(async () => onSaved(await patchRequest(req.id, p)), msg);
   const city = customers.find(c => c.name === req.customerName)?.city;
-  const toDraft = (auto: boolean) => run(async () => {
-    const use = rows || [];
-    const { draft } = await rowsToDraft(use, req.customerName, quotes, { auto, city, note: req.note ? `Talep notu: ${req.note}` : undefined });
-    onDraft(draft);
-    // Seçimler ve "Hazırlanıyor" durumu arka planda kaydedilir (bağlantı yoksa teklif formu yine açılır)
-    const p: Parameters<typeof patchRequest>[1] = {};
-    if (dirty.current) p.lines = use;
-    if (req.status === 'yeni') p.status = 'hazirlaniyor';
-    if (Object.keys(p).length) patchRequest(req.id, p).then(r => onSaved(r), () => undefined);
-  }, auto ? 'Otomatik hazırlanıyor…' : 'Teklif hazırlanıyor…');
-  // Yapay zekâsız: müşteri + not dolu boş teklif formu (kaydedince talebe bağlanır)
+  // Müşteri + not dolu teklif formu (kaydedince talebe bağlanır)
   const manualQuote = () => {
     onDraft({ customerName: req.customerName, ...(city ? { city } : {}), ...(req.note ? { notes: `Talep notu: ${req.note}` } : {}) });
     if (req.status === 'yeni') patchRequest(req.id, { status: 'hazirlaniyor' }).then(r => onSaved(r), () => undefined);
   };
-  const left = openCount(rows);
   const closed = req.status === 'yuklendi' || req.status === 'iptal';
 
   return (
@@ -380,49 +342,19 @@ const RequestDetail: React.FC<{
         </div>
       )}
 
-      {canAi && <div className="rounded-2xl border border-slate-200 p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#008F79]" />
-          <span className="font-bold text-slate-900 flex-1">Okunan ürünler</span>
-          {rows && <span className="text-[11px] text-slate-500">{rows.filter(r => !r.skip && r.pick).length}/{rows.filter(r => !r.skip).length} hazır</span>}
-        </div>
-        {reading && <div className="text-xs text-slate-500 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Talep okunuyor…</div>}
-        {!reading && !rows && (
-          <div className="text-xs text-slate-600 flex items-center gap-2 flex-wrap">
-            Talep henüz okunmadı.
-            {canEdit && <button onClick={onRead} className="px-3 py-1.5 rounded-lg bg-[#008F79] text-white font-bold">Talebi oku</button>}
-          </div>
-        )}
-        {rows && <RequestLines rows={rows} readOnly={!canEdit || closed} onChange={r => { dirty.current = true; setRows(r); }} />}
-        {rows && canEdit && !closed && <button onClick={onRead} disabled={reading} className="text-[11px] text-slate-500 underline">Yeniden oku</button>}
-      </div>}
-
       {err && <div className="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">{err}</div>}
       {canEdit && !closed && (
         <div className="space-y-2">
-          {canAi ? <div className="grid sm:grid-cols-2 gap-2">
-            <button onClick={() => toDraft(false)} disabled={!!busy || !rows || left > 0}
-              className="py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              {busy || (left > 0 ? `${left} satırda ürün seçin` : 'Teklife dönüştür')}
-            </button>
-            <button onClick={() => toDraft(true)} disabled={!!busy || !rows}
-              className="py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center gap-2 disabled:opacity-40">
-              <Wand2 className="w-4 h-4" /> Otomatik hazırla
-            </button>
-          </div> : (
-            <button onClick={manualQuote} disabled={!!busy}
-              className="w-full py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              {busy || 'Teklif yükle'}
-            </button>
-          )}
+          <button onClick={manualQuote} disabled={!!busy}
+            className="w-full py-2.5 rounded-xl bg-brand-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            {busy || 'Teklif gir'}
+          </button>
           <div className="flex gap-2 text-xs">
             {req.status === 'yeni' && <button onClick={() => patch({ status: 'hazirlaniyor' })} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-slate-200 font-bold">Hazırlıyorum</button>}
             <button onClick={() => { if (confirm('Talep iptal edilsin mi?')) patch({ status: 'iptal' }); }} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 font-bold">Talebi iptal et</button>
           </div>
-          {canAi ? <p className="text-[11px] text-slate-500">Otomatik hazırla: seçilmemiş satırlarda en uygun aday alınır, bulunamayanlar teklif notuna yazılır. Teklif formunu kontrol edip kaydedin.</p>
-            : <p className="text-[11px] text-slate-500">Teklif yükle: müşteri ve talep notu dolu, boş teklif formu açılır. Kaydedince talep "Teklif yüklendi" olur.</p>}
+          <p className="text-[11px] text-slate-500">Teklif gir: müşteri ve talep notu dolu teklif formu açılır. Formda "PDF'ten doldur" ya da WhatsApp'tan yazılı gelen teklif için "Yazıdan doldur" kullanılabilir. Kaydedince talep "Teklif yüklendi" olur.</p>
         </div>
       )}
       {(canEdit || canDelete) && (
@@ -435,11 +367,3 @@ const RequestDetail: React.FC<{
     </Modal>
   );
 };
-
-/** Bu talepteki satırları okur ve kaydeder (arka planda; sayfa kapansa da talep okunmamış kalır, sonra "Talebi oku") */
-export async function readAndStore(r: QuoteRequest, prefs: PrefRule[]): Promise<QuoteRequest> {
-  const { rows } = await readRequestLines(r, prefs);
-  return patchRequest(r.id, { lines: rows });
-}
-
-export const usePrefs = () => useSetting<PrefRule[]>(PREF_KEY, [])[0];

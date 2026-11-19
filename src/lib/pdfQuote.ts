@@ -298,6 +298,28 @@ export async function readQuotePdf(file: File, opts: { ai?: boolean } = {}): Pro
   return q;
 }
 
+/**
+ * WhatsApp'tan yazılı gelen teklif (kopyala-yapıştır ya da Paylaş): önce Mikro düzeninde kurallı okunur,
+ * kalem çıkmazsa metin yapay zekaya gönderilir (ürün, miktar, fiyat, iskonto, döviz).
+ */
+export async function readQuoteText(text: string): Promise<PdfQuote> {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const q = parseQuoteLines(lines, 'whatsapp');
+  if (q.items.length || !lines.length) return q;
+  try {
+    const ai = await aiPdfItems(lines, 'whatsapp');
+    if (ai.length) {
+      q.items = ai;
+      q.viaAi = true;
+      q.warnings = q.warnings.filter(w => w !== 'Kalem bulunamadı');
+      q.warnings.push('kalemler yapay zekayla okundu, lütfen kontrol edin');
+    }
+  } catch (e) {
+    q.warnings.push(`yapay zeka okuyamadı: ${String((e as Error)?.message || e).slice(0, 120)}`);
+  }
+  return q;
+}
+
 /** Her PDF okumasının kısa özeti (tanı için) */
 function logPdfRead(file: File, q: PdfQuote, lineCount: number) {
   supabase.from('activities').insert({
@@ -331,13 +353,13 @@ function logUnreadPdf(name: string, lines: string[]) {
   }).then(() => undefined, () => undefined);
 }
 
-async function aiPdfItems(lines: string[]): Promise<QuoteItem[]> {
+async function aiPdfItems(lines: string[], kind?: 'whatsapp'): Promise<QuoteItem[]> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   const res = await fetch('/api/ai/pdf', {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ text: lines.join('\n').slice(0, 30000) }),
+    body: JSON.stringify({ text: lines.join('\n').slice(0, 30000), kind }),
   });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(body?.message || body?.error || `HTTP ${res.status}`);

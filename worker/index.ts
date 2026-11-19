@@ -152,6 +152,8 @@ Kurallar:
 type Body = {
   text?: string; audio?: string; today?: string; customers?: string[]; expenseCategories?: string[];
   expenseMethods?: string[]; regions?: string[]; banks?: string[]; textOnly?: boolean;
+  /** /api/ai/pdf: "whatsapp" = elle yazılmış teklif mesajı */
+  kind?: string;
 };
 
 class ParseError extends Error {
@@ -356,6 +358,10 @@ Görevin TÜM malzeme kalemlerini sırasıyla çıkarmak. Her kalem için:
 Başlık, toplam, KDV, açıklama satırlarını kalem sayma. Sayfa başlıkları tekrar ediyorsa yok say. Kalemleri tekrarlama.
 Sadece JSON döndür.`;
 
+// WhatsApp'tan yazılı gelen teklif: serbest yazım
+const WA_NOTE = `\nNOT: Bu metin PDF değil, WhatsApp'ta elle yazılmış bir teklif mesajı. Her ürün genelde bir satırdır ("10 ad 1/2 küresel vana 85 TL", "Kombi 24 kw x2 = 32.000").
+Miktar yoksa 1, birim yoksa ADET, para birimi yazmıyorsa TL ($ → USD, € → EUR). Fiyat toplam olarak verilmişse (x2 = 32.000) birim fiyatı miktara bölerek bul. Fiyatı olmayan ürünlerde unitPrice 0. Selamlaşma, teslim, vade, KDV satırlarını kalem sayma.`;
+
 async function handlePdf(req: Request, env: Env): Promise<Response> {
   if (!env.AI) return json({ error: 'no_ai', items: [] }, 503);
   if (!(await isLoggedIn(req, env))) return json({ error: 'unauthorized' }, 401);
@@ -364,7 +370,7 @@ async function handlePdf(req: Request, env: Env): Promise<Response> {
   if (!text.trim()) return json({ items: [] });
   try {
     const r = await env.AI.run(LLAMA, {
-      messages: [{ role: 'system', content: PDF_PROMPT }, { role: 'user', content: text }],
+      messages: [{ role: 'system', content: body?.kind === 'whatsapp' ? PDF_PROMPT + WA_NOTE : PDF_PROMPT }, { role: 'user', content: text }],
       response_format: { type: 'json_schema', json_schema: PDF_SCHEMA },
       max_tokens: 6000,
       temperature: 0,
