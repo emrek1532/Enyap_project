@@ -105,6 +105,13 @@ export async function createRequest(input: { customerName: string; note?: string
   return fromRow(data);
 }
 
+/** Talebe dosya ekler (ör. müşteriye gönderilen Excel teklif); mevcut dosyalar korunur */
+export async function addRequestFile(req: QuoteRequest, f: File): Promise<QuoteRequest> {
+  const file = await uploadFile(req.id, f);
+  const data = must(await supabase.from('quote_requests').update({ files: [...req.files, file] }).eq('id', req.id).select('*').single());
+  return fromRow(data);
+}
+
 /** Talebi siler (yumuşak): tarih yazılır ve iptal edilir; kayıt ve dosyalar veritabanında kalır */
 export async function removeRequest(id: string): Promise<QuoteRequest> {
   const data = must(await supabase.from('quote_requests').update({ deleted_at: new Date().toISOString(), status: 'iptal' }).eq('id', id).select('*').single());

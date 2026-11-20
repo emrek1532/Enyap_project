@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, MessageCircle, Paperclip, Send, Trash2, X } from 'lucide-react';
+import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, Paperclip, Send, Trash2, X } from 'lucide-react';
 import type { Customer, Quote } from '../types';
 import { listCard, SearchBox, UnderlineTabs, NewButton } from './ListUI';
 import { foldTr } from '../lib/materials';
@@ -44,6 +44,8 @@ export const RequestsPanel: React.FC<{
   onSaved: (r: QuoteRequest, opts?: { created?: boolean }) => void;
   onDraft: (draft: Partial<Quote>, req: QuoteRequest) => void;
   onOpenQuote: (quoteId: string) => void;
+  /** Excel teklif yükle: dosya talebe eklenir, teklif no'suz teklif açılır (tutar isteğe bağlı) */
+  onExcelQuote: (req: QuoteRequest, file: File, amount: number, currency: 'TRY' | 'USD' | 'EUR') => Promise<void>;
   /** Bildirimden açılacak talep */
   openId?: string | null;
   onOpenedId?: () => void;
@@ -51,7 +53,7 @@ export const RequestsPanel: React.FC<{
   newRequest?: number;
   shared?: SharedRequestInput | null;
   onSharedUsed?: () => void;
-}> = ({ requests, customers, quotes, meId, assignees: given, canEdit, canDelete, onSaved, onDraft, onOpenQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
+}> = ({ requests, customers, quotes, meId, assignees: given, canEdit, canDelete, onSaved, onDraft, onOpenQuote, onExcelQuote, openId, onOpenedId, newRequest, shared, onSharedUsed }) => {
   const [tab, setTab] = useState<Tab>('open');
   const [q, setQ] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -131,6 +133,7 @@ export const RequestsPanel: React.FC<{
       {detail && (
         <RequestDetail req={detail} customers={customers} assignees={assignees} names={names} canEdit={canEdit} canDelete={!!canDelete}
           onSaved={r => onSaved(r)} onDraft={d => { setDetailId(null); onDraft(d, detail); }} onOpenQuote={onOpenQuote}
+          onExcelQuote={(f, a, c) => onExcelQuote(detail, f, a, c)}
           onClose={() => setDetailId(null)} />
       )}
     </div>
@@ -152,6 +155,14 @@ const Modal: React.FC<{ title: string; sub?: string; onClose: () => void; childr
     </div>
   </div>
 );
+
+/** "12.500,50" / "12500.5" → sayı; boşsa 0 */
+const parseNum = (s: string) => {
+  const t = s.trim().replace(/\s|tl|₺/gi, '');
+  if (!t) return 0;
+  const n = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, '') : t);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
 
 const label = 'block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5';
 const input = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200';
@@ -285,7 +296,13 @@ const RequestDetail: React.FC<{
   req: QuoteRequest; customers: Customer[]; assignees: Assignee[]; names: Map<string, string>; canEdit: boolean; canDelete: boolean;
   onSaved: (r: QuoteRequest) => void; onDraft: (d: Partial<Quote>) => void;
   onOpenQuote: (id: string) => void; onClose: () => void;
-}> = ({ req, customers, assignees, names, canEdit, canDelete, onSaved, onDraft, onOpenQuote, onClose }) => {
+  onExcelQuote: (file: File, amount: number, currency: 'TRY' | 'USD' | 'EUR') => Promise<void>;
+}> = ({ req, customers, assignees, names, canEdit, canDelete, onSaved, onDraft, onOpenQuote, onExcelQuote, onClose }) => {
+  // Excel teklif yükle: dosya + isteğe bağlı tutar
+  const [xlsOpen, setXlsOpen] = useState(false);
+  const [xls, setXls] = useState<File | null>(null);
+  const [amount, setAmount] = useState('');
+  const [cur, setCur] = useState<'TRY' | 'USD' | 'EUR'>('TRY');
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
@@ -354,15 +371,38 @@ const RequestDetail: React.FC<{
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
             {busy || 'Teklif gir'}
           </button>
-          <button onClick={() => { if (confirm('Teklif müşteriye WhatsApp\'tan yazılı gönderildi; talep kapatılsın mı?')) patch({ status: 'yuklendi', note: req.note ? `${req.note} · ${WA_SENT}` : WA_SENT }); }} disabled={!!busy}
+          <button onClick={() => setXlsOpen(o => !o)} disabled={!!busy}
             className="w-full py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center gap-2 disabled:opacity-40">
-            <MessageCircle className="w-4 h-4" /> WhatsApp'tan gönderildi · talebi kapat
+            <FileSpreadsheet className="w-4 h-4" /> Excel teklif yükle
           </button>
+          {xlsOpen && (
+            <div className="rounded-2xl border border-emerald-200 bg-white p-3 space-y-2.5">
+              <label className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-slate-50 w-fit">
+                <Paperclip className="w-4 h-4" /> {xls ? 'Dosyayı değiştir' : 'Excel dosyasını seç'}
+                <input type="file" accept=".xlsx,.xls,.csv,.pdf,application/pdf" className="hidden" onChange={e => { setXls(e.target.files?.[0] || null); e.target.value = ''; }} />
+              </label>
+              {xls && <div className="flex items-center gap-2 text-xs bg-slate-50 rounded-lg px-2.5 py-1.5"><FileSpreadsheet className="w-3.5 h-3.5 text-[#008F79]" /><span className="flex-1 min-w-0 truncate">{xls.name}</span></div>}
+              <div>
+                <div className="text-[11px] font-bold text-slate-600 mb-1">Teklif tutarı (isteğe bağlı, KDV dahil)</div>
+                <div className="flex gap-2">
+                  <input value={amount} onChange={e => setAmount(e.target.value)} inputMode="decimal" placeholder="Boş bırakılabilir" className={`${input} flex-1`} />
+                  <select value={cur} onChange={e => setCur(e.target.value as 'TRY')} className="px-2 rounded-xl border border-slate-200 text-sm bg-white">
+                    <option value="TRY">TL</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                  </select>
+                </div>
+              </div>
+              <button disabled={!xls || !!busy} onClick={() => xls && run(async () => { await onExcelQuote(xls, parseNum(amount), cur); onClose(); }, 'Yükleniyor…')}
+                className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40">
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} {busy || 'Yükle ve talebi kapat'}
+              </button>
+              <p className="text-[11px] text-slate-500">Teklif no verilmez; teklif Teklifler'de görünür, Excel dosyası bu talepte saklanır.</p>
+            </div>
+          )}
           <div className="flex gap-2 text-xs">
             {req.status === 'yeni' && <button onClick={() => patch({ status: 'hazirlaniyor' })} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-slate-200 font-bold">Hazırlıyorum</button>}
             <button onClick={() => { if (confirm('Talep iptal edilsin mi?')) patch({ status: 'iptal' }); }} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 font-bold">Talebi iptal et</button>
           </div>
-          <p className="text-[11px] text-slate-500">Teklif gir: müşteri ve talep notu dolu teklif formu açılır. Formda "PDF'ten doldur" kullanılabilir. Kaydedince talep "Teklif yüklendi" olur. Teklifi müşteriye WhatsApp'tan yazıyla gönderdiyseniz "WhatsApp'tan gönderildi" ile talebi kapatın.</p>
+          <p className="text-[11px] text-slate-500">Teklif gir: müşteri ve talep notu dolu teklif formu açılır. Formda "PDF'ten doldur" kullanılabilir. Kaydedince talep "Teklif yüklendi" olur. Teklifi müşteriye Excel olarak gönderdiyseniz "Excel teklif yükle" ile dosyayı yükleyin; teklif no'suz teklif açılır.</p>
         </div>
       )}
       {(canEdit || canDelete) && (
