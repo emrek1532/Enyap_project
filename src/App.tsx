@@ -43,7 +43,7 @@ import { QuickToolsModal, ToolMode, toolList } from './components/QuickTools';
 import type { VoiceResult } from './components/VoiceCommand';
 import { SimpleHome } from './components/SimpleHome';
 import { RequestsPanel, SharedRequestInput } from './components/RequestsPanel';
-import { Assignee, QuoteRequest, fetchAssignees, fetchRequest, fetchRequests, patchRequest, subscribeRequests } from './lib/requests';
+import { Assignee, QuoteRequest, fetchAssignees, fetchRequest, fetchRequests, patchRequest, subscribeRequests, addRequestFile } from './lib/requests';
 import { useSetting } from './lib/settings';
 import { BottomNav } from './components/BottomNav';
 import { readQuotePdf } from './lib/pdfQuote';
@@ -678,6 +678,36 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
     if (newQuote.items?.length) setPrintableQuote({ ...newQuote, quoteNumber: quoteNo(newQuote) });
   };
 
+  // Excel teklif (müşteriye WhatsApp'tan Excel gönderildi): dosya talebe eklenir, teklif no'suz teklif açılır
+  const handleExcelQuote = async (req: QuoteRequest, file: File, amount: number, currency: 'TRY' | 'USD' | 'EUR') => {
+    upsertReq(await addRequestFile(req, file));
+    const now = new Date();
+    const q: Quote = {
+      id: 'qt-' + Date.now(),
+      // Teklif no verilmez ("-": numarasız teklifler gibi; Sheets eşitlemesine girmez)
+      quoteNumber: '-',
+      customerName: req.customerName,
+      customerPhone: '',
+      city: (data.customers || []).find(c => c.name === req.customerName)?.city || '',
+      requestChannel: 'whatsapp',
+      status: 'gonderildi',
+      items: [],
+      totalAmount: amount,
+      currency,
+      amountTry: currency === 'TRY' ? amount : 0,
+      amountUsd: currency === 'USD' ? amount : 0,
+      amountEur: currency === 'EUR' ? amount : 0,
+      validUntil: new Date(now.getTime() + 5 * 86400000).toISOString().slice(0, 10),
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      createdBy: currentRole,
+      assignedTo: 'istanbul',
+      notes: [`Excel teklif: ${file.name} (dosya talepte)`, req.note ? `Talep notu: ${req.note}` : ''].filter(Boolean).join('\n'),
+    };
+    linkReqRef.current = req.id;
+    handleSaveQuote(q);
+  };
+
   // Mevcut teklifi düzenle / revize et
   const handleUpdateQuote = (edited: Quote, opts?: { fromPdf: boolean }) => {
     // Düzenleme açıkken başka cihazdan durum değiştiyse (onay/iptal) eski durum geri yazılmaz
@@ -1001,6 +1031,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
             canEdit={can(profile, 'quotes', 'edit')}
             onSaved={r => upsertReq(r)}
             onDraft={openDraftFromRequest}
+            onExcelQuote={handleExcelQuote}
             onOpenQuote={id => { const q = data.quotes.find(x => x.id === id); if (q) { setQuoteFilter('all'); setQuoteRange(null); setActiveTab('quotes'); setFocusQuote({ id: q.id, n: Date.now() }); } }}
             openId={openRequestId}
             onOpenedId={() => setOpenRequestId(null)}
