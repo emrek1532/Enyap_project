@@ -362,7 +362,7 @@ const RequestDetail: React.FC<{
             {req.status === 'yeni' && <button onClick={() => patch({ status: 'hazirlaniyor' })} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-slate-200 font-bold">Hazırlıyorum</button>}
             <button onClick={() => { if (confirm('Talep iptal edilsin mi?')) patch({ status: 'iptal' }); }} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 font-bold">Talebi iptal et</button>
           </div>
-          <p className="text-[11px] text-slate-500">Teklif gir: müşteri ve talep notu dolu teklif formu açılır. Formda "PDF'ten doldur" ya da WhatsApp'tan yazılı gelen teklif için "Yazıdan doldur" kullanılabilir. Kaydedince talep "Teklif yüklendi" olur. Teklifi müşteriye WhatsApp'tan yazıyla gönderdiyseniz "WhatsApp'tan gönderildi" ile talebi kapatın.</p>
+          <p className="text-[11px] text-slate-500">Teklif gir: müşteri ve talep notu dolu teklif formu açılır. Formda "PDF'ten doldur" kullanılabilir. Kaydedince talep "Teklif yüklendi" olur. Teklifi müşteriye WhatsApp'tan yazıyla gönderdiyseniz "WhatsApp'tan gönderildi" ile talebi kapatın.</p>
         </div>
       )}
       {(canEdit || canDelete) && (

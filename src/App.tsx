@@ -258,8 +258,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   // WhatsApp vb. uygulamadan "Paylaş" ile gelen teklif PDF'i: forma otomatik doldurulur
   const [sharedPdf, setSharedPdf] = useState<File | null>(null);
-  // WhatsApp'tan yazılı gelen teklif: "Yazıdan doldur" ile forma doldurulur
-  const [sharedQuoteText, setSharedQuoteText] = useState<string | null>(null);
   const [shareError, setShareError] = useState('');
   const [pdfNotice, setPdfNotice] = useState('');
   // Paylaşılan PDF için "Talep mi, teklif mi?" sorusu
@@ -638,11 +636,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         const kind = res.headers.get('x-kind');
         const name = decodeURIComponent(res.headers.get('x-file-name') || 'talep');
         // Yazı / fotoğraf / Excel: "Talep mi, teklif mi?" diye sorulur
-        if (kind === 'text') {
-          // Fiyat yazan mesaj (ör. "85 TL", "₺4.250") büyük olasılıkla teklif
-          const text = await res.text();
-          setShareAsk({ text, pdf: false, guess: /\d[\d.,]*\s*(tl|₺|usd|\$|€|eur)\b|[₺$€]\s*\d/i.test(text) ? 'quote' : 'request' });
-        }
+        if (kind === 'text') setShareAsk({ text: await res.text(), pdf: false, guess: 'request' });
         else setShareAsk({ file: new File([await res.blob()], name, { type: res.headers.get('content-type') || '' }), text: decodeURIComponent(res.headers.get('x-text') || '') || undefined, pdf: false, guess: MIKRO_NAME.test(name) && /\.xlsx?$/i.test(name) ? 'mikro' : 'request' });
       } catch {
         setShareError('Paylaşılan talep açılamadı.');
@@ -1169,7 +1163,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           initialCustomer={quoteCustomer}
           draft={quoteDraft}
           initialPdf={sharedPdf}
-          initialText={sharedQuoteText}
           pdfNotice={pdfNotice}
           onSaveQuote={handleSaveQuote}
           requireCheck={!!linkReqRef.current && !allowed(profile, 'reqAi')}
@@ -1184,7 +1177,6 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
           onClose={() => {
             setIsNewQuoteOpen(false);
             setSharedPdf(null);
-            setSharedQuoteText(null);
             setPdfNotice('');
             setQuoteCustomer(null);
             setQuoteDraft(null);
@@ -1196,11 +1188,9 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
       {shareAsk && (() => {
         const sa = shareAsk;
         const asRequest = () => { setSharedReq({ file: sa.file, text: sa.text }); setActiveTab('requests'); setShareAsk(null); };
-        // Teklif: PDF → "PDF'ten doldur"; WhatsApp yazısı → "Yazıdan doldur" (fotoğraf/Excel yalnız talep)
-        const asQuote = sa.pdf
-          ? () => { setSharedPdf(sa.file || null); setIsNewQuoteOpen(true); setShareAsk(null); }
-          : () => { setSharedQuoteText(sa.text || ''); setIsNewQuoteOpen(true); setShareAsk(null); };
-        const quoteOk = sa.pdf || (!sa.file && !!sa.text?.trim() && can(profile, 'quotes', 'edit'));
+        // Teklif yalnız PDF'te ("PDF'ten doldur"); yazı/fotoğraf/Excel talep olarak girilir
+        const asQuote = () => { setSharedPdf(sa.file || null); setIsNewQuoteOpen(true); setShareAsk(null); };
+        const quoteOk = sa.pdf;
         // Mikro cari bakiye listesi (Excel / PDF): Müşteriler'de "Mikro bakiyesi" penceresi bu dosyayla açılır
         const mikroOk = !!sa.file && /\.(pdf|xlsx?)$/i.test(sa.file.name) && canCustomers
           && can(profile, 'collections', 'edit') && allowed(profile, 'balances');
@@ -1208,7 +1198,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         const kindName = sa.pdf ? 'PDF' : !sa.file ? 'yazı' : /^image\//.test(sa.file.type) ? 'fotoğraf' : 'dosya';
         const opts = [
           ...(canReq ? [{ k: 'request' as const, icon: '📥', title: 'Müşteri talebi', desc: 'Talepler\'e kaydet, birine ata; o hazırlasın', go: asRequest }] : []),
-          ...(quoteOk ? [{ k: 'quote' as const, icon: '📄', title: 'Teklif hazırla', desc: sa.pdf ? 'PDF\'ten doldurup yeni teklif aç' : 'Yazıdaki kalemlerle yeni teklif aç (WhatsApp\'tan yazılı gelen teklif)', go: asQuote }] : []),
+          ...(quoteOk ? [{ k: 'quote' as const, icon: '📄', title: 'Teklif hazırla', desc: 'PDF\'ten doldurup yeni teklif aç', go: asQuote }] : []),
           ...(mikroOk ? [{ k: 'mikro' as const, icon: '💰', title: 'Mikro cari bakiyeleri', desc: 'Mikro\'dan alınan bakiye listesini carilere işle', go: asMikro }] : []),
         ].sort((a, b) => (a.k === sa.guess ? -1 : b.k === sa.guess ? 1 : 0));
         if (!opts.length) return null;
