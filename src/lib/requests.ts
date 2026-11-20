@@ -112,6 +112,12 @@ export async function addRequestFile(req: QuoteRequest, f: File): Promise<QuoteR
   return fromRow(data);
 }
 
+/** Teklife bağlı talebin dosyaları (ör. Excel teklif); teklif penceresi açılınca bir kez sorulur */
+export async function fetchQuoteFiles(quoteId: string): Promise<ReqFile[]> {
+  const data = must(await supabase.from('quote_requests').select('files').eq('quote_id', quoteId).is('deleted_at', null).limit(3));
+  return ((data || []) as Row[]).flatMap(r => (r.files || []) as ReqFile[]);
+}
+
 /** Talebi siler (yumuşak): tarih yazılır ve iptal edilir; kayıt ve dosyalar veritabanında kalır */
 export async function removeRequest(id: string): Promise<QuoteRequest> {
   const data = must(await supabase.from('quote_requests').update({ deleted_at: new Date().toISOString(), status: 'iptal' }).eq('id', id).select('*').single());

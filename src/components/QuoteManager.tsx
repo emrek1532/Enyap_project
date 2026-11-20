@@ -12,6 +12,8 @@ import { FollowUpBox, ValidityBox, RevisionsBox } from './QuoteExtras';
 import { SwipeRow } from './SwipeRow';
 import { quoteNo, isPassive, viewStatus, ACTIVE_REASONS } from '../lib/quoteRules';
 import { SortHeader, SortState, nextSort, compareText, SortDir, MobileSortSelect } from './SortHeader';
+import { QuoteFiles } from './QuoteFiles';
+import type { QuoteRequest } from '../lib/requests';
 import { formatQuoteAmount, itemCurrency, CURRENCY_LABEL } from '../lib/money';
 import { formatTl, quoteTry, useRates } from '../lib/rates';
 import { usePriceChanges } from '../lib/priceWatch';
@@ -47,6 +49,8 @@ const STATUS_RANK: Record<string, number> = { gonderildi: 0, onaylandi: 1, iptal
 
 interface QuoteManagerProps {
   quotes: Quote[];
+  /** Bellekteki talepler: teklife bağlı talebin dosyaları "Ekler"de görünür */
+  requests?: QuoteRequest[];
   currentRole: UserRole;
   onOpenNewQuote: () => void;
   /** Yeni teklif düğmesi gösterilsin mi (yetki) */
@@ -77,6 +81,7 @@ interface QuoteManagerProps {
 
 export const QuoteManager: React.FC<QuoteManagerProps> = ({
   quotes,
+  requests,
   currentRole,
   onOpenNewQuote,
   canNew,
@@ -767,6 +772,8 @@ export const QuoteManager: React.FC<QuoteManagerProps> = ({
               )}
 
               <RevisionsBox quote={selectedQuote} rates={rates} older={olderVersions?.get(selectedQuote.id)} onPrint={q => { onPrintQuote(q); setSelectedQuote(null); }} />
+
+              <QuoteFiles quote={selectedQuote} requests={requests} />
 
               {/* Notes */}
               {selectedQuote.notes && (
