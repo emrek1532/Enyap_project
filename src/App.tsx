@@ -1045,6 +1045,7 @@ function Portal({ session, profile }: { session: Session; profile: Profile }) {
         {activeTab === 'quotes' && (
           <QuoteManager
             quotes={liveQuotes}
+            requests={requests}
             currentRole={currentRole}
             onOpenNewQuote={() => setIsNewQuoteOpen(true)}
             canNew={toolAllow.quote}
