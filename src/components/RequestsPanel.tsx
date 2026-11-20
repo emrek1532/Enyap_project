@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, Paperclip, Send, Trash2, X } from 'lucide-react';
+import { Camera, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Inbox, Loader2, MessageCircle, Paperclip, Send, Trash2, X } from 'lucide-react';
 import type { Customer, Quote } from '../types';
 import { listCard, SearchBox, UnderlineTabs, NewButton } from './ListUI';
 import { foldTr } from '../lib/materials';
@@ -19,8 +19,12 @@ const ago = (iso: string) => {
   return d === 1 ? 'dün' : `${d} gün önce`;
 };
 
-export const RequestPill: React.FC<{ status: RequestStatus }> = ({ status }) => (
-  <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${REQUEST_STATUS[status].cls}`}>{REQUEST_STATUS[status].label}</span>
+/** Teklif sisteme girilmeden müşteriye WhatsApp'tan yazıyla gönderilip kapatılan talep (notun sonuna eklenir) */
+export const WA_SENT = "WhatsApp'tan gönderildi";
+export const isWaSent = (r: Pick<QuoteRequest, 'status' | 'note' | 'quoteId'>) => r.status === 'yuklendi' && !r.quoteId && (r.note || '').includes(WA_SENT);
+
+export const RequestPill: React.FC<{ status: RequestStatus; wa?: boolean }> = ({ status, wa }) => (
+  <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border whitespace-nowrap ${REQUEST_STATUS[status].cls}`}>{wa ? WA_SENT : REQUEST_STATUS[status].label}</span>
 );
 
 /** Paylaş menüsünden (WhatsApp) gelen yazı / dosya: Talep gir formu dolu açılır */
@@ -106,7 +110,7 @@ export const RequestsPanel: React.FC<{
               <span className="flex-1 min-w-0">
                 <span className="flex items-center gap-2 flex-wrap">
                   <span className="font-black text-slate-900 truncate">{r.customerName}</span>
-                  <RequestPill status={r.status} />
+                  <RequestPill status={r.status} wa={isWaSent(r)} />
                 </span>
                 {(r.note || r.rawText) && <span className="block text-xs text-slate-600 line-clamp-1">{r.note || r.rawText}</span>}
                 <span className="block text-[11px] text-slate-500 mt-0.5">
@@ -309,7 +313,7 @@ const RequestDetail: React.FC<{
   return (
     <Modal title={req.customerName} sub={`${names.get(req.createdBy || '') || 'Ekip'} · ${new Date(req.createdAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}`} onClose={onClose}>
       <div className="flex items-center gap-2 flex-wrap">
-        <RequestPill status={req.status} />
+        <RequestPill status={req.status} wa={isWaSent(req)} />
         {req.quoteId && <button onClick={() => onOpenQuote(req.quoteId!)} className="text-xs font-bold text-brand-700 inline-flex items-center gap-1 hover:underline">Teklifi aç <ExternalLink className="w-3 h-3" /></button>}
         <span className="flex-1" />
         {canEdit && !closed && (
@@ -350,16 +354,21 @@ const RequestDetail: React.FC<{
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
             {busy || 'Teklif gir'}
           </button>
+          <button onClick={() => { if (confirm('Teklif müşteriye WhatsApp\'tan yazılı gönderildi; talep kapatılsın mı?')) patch({ status: 'yuklendi', note: req.note ? `${req.note} · ${WA_SENT}` : WA_SENT }); }} disabled={!!busy}
+            className="w-full py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center gap-2 disabled:opacity-40">
+            <MessageCircle className="w-4 h-4" /> WhatsApp'tan gönderildi · talebi kapat
+          </button>
           <div className="flex gap-2 text-xs">
             {req.status === 'yeni' && <button onClick={() => patch({ status: 'hazirlaniyor' })} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-slate-200 font-bold">Hazırlıyorum</button>}
             <button onClick={() => { if (confirm('Talep iptal edilsin mi?')) patch({ status: 'iptal' }); }} disabled={!!busy} className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 font-bold">Talebi iptal et</button>
           </div>
-          <p className="text-[11px] text-slate-500">Teklif gir: müşteri ve talep notu dolu teklif formu açılır. Formda "PDF'ten doldur" ya da WhatsApp'tan yazılı gelen teklif için "Yazıdan doldur" kullanılabilir. Kaydedince talep "Teklif yüklendi" olur.</p>
+          <p className="text-[11px] text-slate-500">Teklif gir: müşteri ve talep notu dolu teklif formu açılır. Formda "PDF'ten doldur" ya da WhatsApp'tan yazılı gelen teklif için "Yazıdan doldur" kullanılabilir. Kaydedince talep "Teklif yüklendi" olur. Teklifi müşteriye WhatsApp'tan yazıyla gönderdiyseniz "WhatsApp'tan gönderildi" ile talebi kapatın.</p>
         </div>
       )}
       {(canEdit || canDelete) && (
         <div className="flex items-center justify-between gap-2">
-          {canEdit && req.status === 'iptal' ? <button onClick={() => patch({ status: 'yeni' })} className="text-xs font-bold text-brand-700">Talebi yeniden aç</button> : <span />}
+          {canEdit && req.status === 'iptal' ? <button onClick={() => patch({ status: 'yeni' })} className="text-xs font-bold text-brand-700">Talebi yeniden aç</button>
+            : canEdit && isWaSent(req) ? <button onClick={() => patch({ status: 'hazirlaniyor', note: (req.note || '').replace(` · ${WA_SENT}`, '').replace(WA_SENT, '') })} className="text-xs font-bold text-brand-700">Talebi yeniden aç</button> : <span />}
           {canDelete && <button onClick={() => { if (confirm(`"${req.customerName}" talebi silinsin mi?`)) run(async () => { onSaved(await removeRequest(req.id)); onClose(); }, 'Siliniyor…'); }}
             disabled={!!busy} className="text-xs font-bold text-rose-700 inline-flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Talebi sil</button>}
         </div>
