@@ -10,6 +10,7 @@ import { CityInput, TextSuggest } from './TextSuggest';
 import { PrintDoc, useReportSender } from './ReportPrint';
 import { SuggestInput } from './SuggestInput';
 
+const CEK_SENET = '__cek_senet';
 export const COLLECTION_METHODS = ['Çek', 'Nakit', 'Havale/EFT', 'Kredi Kartı', 'Senet', IADE];
 export { EXPENSE_METHODS, EXPENSE_CATEGORIES, BANKS } from '../lib/constants';
 import { EXPENSE_METHODS, EXPENSE_CATEGORIES, BANKS, IADE, notIade } from '../lib/constants';
@@ -144,7 +145,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
         if (q && !(searchIndex.get(r.id) ?? '').includes(q)) return false;
         if (dateFrom && r.date < dateFrom) return false;
         if (dateTo && r.date > dateTo) return false;
-        if (methodFilter !== 'all' && r.method !== methodFilter) return false;
+        if (methodFilter === CEK_SENET ? !(r.method === 'Çek' || r.method === 'Senet') : (methodFilter !== 'all' && r.method !== methodFilter)) return false;
         if (categoryFilter !== 'all' && partyOf(r) !== categoryFilter) return false;
         if (regionFilter !== 'all' && (r as Expense).region !== regionFilter) return false;
         if (currencyFilter !== 'all' && r.currency !== currencyFilter) return false;
@@ -424,6 +425,7 @@ export const LedgerPanel: React.FC<LedgerPanelProps> = ({ kind, records, custome
           {isCollection && (
             <select value={methodFilter} onChange={e => changed(setMethodFilter)(e.target.value)} className={ctrl}>
               <option value="all">Tüm Ödeme Şekilleri</option>
+              <option value={CEK_SENET}>Çek + Senet</option>
               {methods.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           )}
